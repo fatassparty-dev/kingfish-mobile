@@ -1,0 +1,29 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Stack } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import { useState } from 'react'
+import { colors } from '@/lib/theme'
+import { AuthProvider } from '@/lib/auth'
+
+export default function RootLayout() {
+  const [queryClient] = useState(() => new QueryClient())
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bgPrimary },
+          }}
+        >
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="help" />
+          <Stack.Screen name="modals/paywall" options={{ presentation: 'modal' }} />
+        </Stack>
+      </AuthProvider>
+    </QueryClientProvider>
+  )
+}
