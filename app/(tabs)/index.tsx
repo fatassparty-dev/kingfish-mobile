@@ -31,6 +31,16 @@ type SoccerTeamInfo = {
   form?: string
 }
 
+const SOCCER_LEAGUES = [
+  { key: 'soccer_epl', label: 'Premier League' },
+  { key: 'soccer_spain_la_liga', label: 'La Liga' },
+  { key: 'soccer_italy_serie_a', label: 'Serie A' },
+  { key: 'soccer_germany_bundesliga', label: 'Bundesliga' },
+  { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
+  { key: 'soccer_usa_mls', label: 'MLS' },
+  { key: 'soccer_uefa_champs_league', label: 'Champions League' },
+]
+
 const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
@@ -140,7 +150,9 @@ export default function DashboardScreen() {
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<'lines' | 'props'>('lines')
+  const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const selectedSport = SPORTS.find((item) => item.key === sport) || SPORTS[0]
+  const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const flagsQuery = useQuery({
     queryKey: ['feature-flags'],
     queryFn: fetchFeatureFlags,
@@ -153,8 +165,12 @@ export default function DashboardScreen() {
   const canFetchLines = isSelectedSportActive && view === 'lines'
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
   const lineQuery = useQuery({
-    queryKey: ['game-lines', sport],
-    queryFn: () => kingfishFetch<Game[]>(`/api/${sportApiKey(sport)}-odds`),
+    queryKey: ['game-lines', sport, sport === 'SOCCER' ? soccerLeague : 'default'],
+    queryFn: () => kingfishFetch<Game[]>(
+      sport === 'SOCCER'
+        ? `/api/soccer-odds?league=${soccerLeague}`
+        : `/api/${sportApiKey(sport)}-odds`
+    ),
     enabled: canFetchLines,
     staleTime: 5 * 60 * 1000,
   })
@@ -176,8 +192,8 @@ export default function DashboardScreen() {
     staleTime: 5 * 60 * 1000,
   })
   const soccerTeamQuery = useQuery({
-    queryKey: ['soccer-team-info', 'soccer_epl'],
-    queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>('/api/soccer-team-info?league=soccer_epl'),
+    queryKey: ['soccer-team-info', soccerLeague],
+    queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>(`/api/soccer-team-info?league=${soccerLeague}`),
     enabled: isSelectedSportActive && sport === 'SOCCER' && view === 'props',
     staleTime: 24 * 60 * 60 * 1000,
   })
@@ -236,6 +252,22 @@ export default function DashboardScreen() {
         ))}
       </View>
 
+      {sport === 'SOCCER' && (
+        <View style={styles.soccerLeagueRow}>
+          {SOCCER_LEAGUES.map((item) => (
+            <Pressable
+              key={item.key}
+              onPress={() => setSoccerLeague(item.key)}
+              style={[styles.soccerLeaguePill, soccerLeague === item.key && styles.soccerLeaguePillActive]}
+            >
+              <AppText style={[styles.soccerLeagueText, soccerLeague === item.key && styles.soccerLeagueTextActive]}>
+                {item.label}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       <Card>
         <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
         <AppText variant="title" style={styles.cardTitle}>
@@ -244,7 +276,9 @@ export default function DashboardScreen() {
             : selectedSport.inactiveTitle}
         </AppText>
         <AppText variant="muted">
-          {isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
+          {isSelectedSportActive && sport === 'SOCCER'
+            ? `${selectedSoccerLeague.label} game lines and team context when supported markets are available.`
+            : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
         </AppText>
         {!isSelectedSportActive && (
           <View style={styles.roadmapBox}>
@@ -393,7 +427,7 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'props' && sport === 'SOCCER' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Premier League team table, goal form, and matchup context</AppText>
+            <AppText variant="mono">{selectedSoccerLeague.label} team table, goal form, and matchup context</AppText>
           </View>
 
           {soccerTeamQuery.isLoading && (
@@ -415,7 +449,7 @@ export default function DashboardScreen() {
               <AppText variant="eyebrow">// Team Info</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Team Table Yet</AppText>
               <AppText variant="muted">
-                Team records and goal context will appear here when standings are available.
+                Team records and goal context will appear here when standings are available for {selectedSoccerLeague.label}.
               </AppText>
             </Card>
           )}
@@ -537,6 +571,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   segmentTextActive: {
+    color: colors.bgPrimary,
+  },
+  soccerLeagueRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.lg,
+  },
+  soccerLeaguePill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: colors.bgCardAlt,
+  },
+  soccerLeaguePillActive: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  soccerLeagueText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  soccerLeagueTextActive: {
     color: colors.bgPrimary,
   },
   cardTitle: {
