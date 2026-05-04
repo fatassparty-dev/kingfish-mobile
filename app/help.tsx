@@ -4,6 +4,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 
 const quickStart = [
@@ -86,6 +87,8 @@ const navItems = [
 ]
 
 export default function HelpScreen() {
+  const mobileConfig = useMobileConfig()
+
   return (
     <Screen scroll={false}>
       <View style={styles.page}>
@@ -171,11 +174,11 @@ export default function HelpScreen() {
               <AppText variant="muted" style={styles.cardBody}>
                 KingFish is an analytics platform. We do not accept wagers, and no tool guarantees profit. Use the data to make your own decisions and bet responsibly.
               </AppText>
-              <AppText style={styles.supportText} onPress={() => Linking.openURL('tel:18005224700')}>
+              <AppText style={styles.supportText} onPress={() => Linking.openURL(mobileConfig.links.responsible_gaming)}>
                 Problem gambling helpline: 1-800-MY-RESET
               </AppText>
               <View style={styles.buttonGap}>
-                <Button variant="secondary" onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>
+                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
                   Contact Support
                 </Button>
               </View>

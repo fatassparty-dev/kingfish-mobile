@@ -5,10 +5,12 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
 export default function SignInScreen() {
+  const mobileConfig = useMobileConfig()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -74,13 +76,13 @@ export default function SignInScreen() {
       </View>
 
       <View style={styles.legalLinks}>
-        <Pressable onPress={() => Linking.openURL('https://kingfishbets.com/terms')}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
           <AppText style={styles.legalLink}>Terms</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL('https://kingfishbets.com/privacy')}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
           <AppText style={styles.legalLink}>Privacy</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
           <AppText style={styles.legalLink}>Support</AppText>
         </Pressable>
       </View>

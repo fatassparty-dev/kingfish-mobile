@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { kingfishFetch } from './api'
 
 export type MobileConfig = {
@@ -64,4 +65,14 @@ export async function fetchMobileConfig() {
   } catch {
     return DEFAULT_MOBILE_CONFIG
   }
+}
+
+export function useMobileConfig() {
+  const query = useQuery({
+    queryKey: ['mobile-config'],
+    queryFn: fetchMobileConfig,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return query.data || DEFAULT_MOBILE_CONFIG
 }

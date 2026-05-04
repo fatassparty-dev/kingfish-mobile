@@ -5,10 +5,12 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
 export default function SignUpScreen() {
+  const mobileConfig = useMobileConfig()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [state, setState] = useState('')
@@ -102,10 +104,10 @@ export default function SignUpScreen() {
       </Card>
 
       <View style={styles.footerLinks}>
-        <Pressable onPress={() => Linking.openURL('https://kingfishbets.com/terms')}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
           <AppText style={styles.link}>Terms</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL('https://kingfishbets.com/privacy')}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
           <AppText style={styles.link}>Privacy</AppText>
         </Pressable>
         <Link href="/sign-in" asChild>

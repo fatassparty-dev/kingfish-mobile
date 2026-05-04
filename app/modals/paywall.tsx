@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { PurchasePlan, purchasePremium, restorePurchases } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 
@@ -48,6 +49,7 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const { user, profile, refreshProfile } = useAuth()
+  const mobileConfig = useMobileConfig()
   const [message, setMessage] = useState('')
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
@@ -134,6 +136,17 @@ export default function PaywallScreen() {
         Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless
         canceled in your store account settings.
       </AppText>
+      <View style={styles.legalLinks}>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
+          <AppText style={styles.legalLink}>Terms</AppText>
+        </Pressable>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
+          <AppText style={styles.legalLink}>Privacy</AppText>
+        </Pressable>
+        <Pressable onPress={() => Linking.openURL(mobileConfig.links.refund)}>
+          <AppText style={styles.legalLink}>Refunds</AppText>
+        </Pressable>
+      </View>
     </Screen>
   )
 }
@@ -215,5 +228,16 @@ const styles = StyleSheet.create({
   terms: {
     marginTop: spacing.lg,
     textAlign: 'center',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  legalLink: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '900',
   },
 })

@@ -11,7 +11,7 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import { fetchFeatureFlags, type FeatureFlagKey } from '@/lib/featureFlags'
-import { DEFAULT_MOBILE_CONFIG, fetchMobileConfig } from '@/lib/mobileConfig'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
@@ -112,6 +112,7 @@ function sportApiKey(sport: Sport) {
 
 export default function DashboardScreen() {
   const { profile } = useAuth()
+  const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<'lines' | 'props'>('lines')
   const selectedSport = SPORTS.find((item) => item.key === sport) || SPORTS[0]
@@ -120,12 +121,6 @@ export default function DashboardScreen() {
     queryFn: fetchFeatureFlags,
     staleTime: 60 * 1000,
   })
-  const configQuery = useQuery({
-    queryKey: ['mobile-config'],
-    queryFn: fetchMobileConfig,
-    staleTime: 5 * 60 * 1000,
-  })
-  const mobileConfig = configQuery.data || DEFAULT_MOBILE_CONFIG
   const isSelectedSportActive = flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live'
   const getSportActive = (item: (typeof SPORTS)[number]) => flagsQuery.data?.[item.flag] ?? item.status === 'Live'
   const secondaryViewLabel = isCollegeSport(sport) ? 'Team Stats' : 'Player Props'

@@ -1,18 +1,18 @@
 import { Image, Linking, StyleSheet, View } from 'react-native'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
-import { DEFAULT_MOBILE_CONFIG, fetchMobileConfig } from '@/lib/mobileConfig'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 
 export default function AccountScreen() {
   const { user, profile, loading, profileError, refreshProfile, signOut } = useAuth()
+  const mobileConfig = useMobileConfig()
   const [restoreMessage, setRestoreMessage] = useState('')
   const [restoring, setRestoring] = useState(false)
   const isPremium = profile?.is_premium === true
@@ -21,13 +21,6 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
-  const configQuery = useQuery({
-    queryKey: ['mobile-config'],
-    queryFn: fetchMobileConfig,
-    staleTime: 5 * 60 * 1000,
-  })
-  const mobileConfig = configQuery.data || DEFAULT_MOBILE_CONFIG
-
   async function handleRestorePurchases() {
     setRestoring(true)
     const result = await restorePurchases(user?.id)
