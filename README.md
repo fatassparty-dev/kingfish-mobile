@@ -28,6 +28,18 @@ cp .env.example .env
 
 Never put server-only keys in the mobile app.
 
+## App Store Readiness Notes
+
+The mobile app reads live odds, player props, premium status, and launch switches from the KingFish web backend. That means football, college football, soccer, and other seasonal boards can be prepared in the app now, then turned on from the admin portal or by weekly backend data updates without submitting a new App Store build.
+
+Keep these rules in place:
+
+- `.env`, `node_modules`, and Expo generated files stay out of git.
+- Public mobile env values are okay; service-role keys are never okay.
+- Feature switches control whether a sport shows live data or a clean season-watch state.
+- Weekly NFL data belongs on the web/backend side first. The app should consume the backend result.
+- Run `npm run typecheck` before packaging an App Store or Google Play build.
+
 ## npm Cache Permission Fix
 
 If npm says your cache has root-owned files, run the command npm suggests:
