@@ -20,7 +20,7 @@ export default function ForgotPasswordScreen() {
     setError('')
     setMessage('')
     setLoading(true)
-    const redirectTo = new URL('/account', mobileConfig.links.home).toString()
+    const redirectTo = `${mobileConfig.links.home.replace(/\/$/, '')}/account`
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     })
