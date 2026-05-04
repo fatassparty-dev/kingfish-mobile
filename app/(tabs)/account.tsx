@@ -96,6 +96,23 @@ export default function AccountScreen() {
 
       <View style={styles.sectionGap} />
 
+      <View style={styles.linkGrid}>
+        <LinkCard
+          eyebrow="// Fantasy"
+          title="Fantasy Hub"
+          body="Open the draft room, rankings, player profiles, and NFL stack tools."
+          href="https://kingfishbets.com/fantasy"
+        />
+        <LinkCard
+          eyebrow="// NFL"
+          title="Command Center"
+          body="NFL research, injuries, draft tools, fantasy, and season-long coverage."
+          href="https://kingfishbets.com/nfl"
+        />
+      </View>
+
+      <View style={styles.sectionGap} />
+
       <Card>
         <AppText variant="eyebrow">// Full Website</AppText>
         <AppText style={styles.webTitle}>KingFishBets.com</AppText>
@@ -116,6 +133,21 @@ export default function AccountScreen() {
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
       </View>
     </Screen>
+  )
+}
+
+function LinkCard({ eyebrow, title, body, href }: { eyebrow: string; title: string; body: string; href: string }) {
+  return (
+    <Card style={styles.linkCard}>
+      <AppText variant="eyebrow">{eyebrow}</AppText>
+      <AppText style={styles.linkTitle}>{title}</AppText>
+      <AppText variant="muted" style={styles.linkBody}>{body}</AppText>
+      <View style={styles.cardAction}>
+        <Button variant="outline" onPress={() => Linking.openURL(href)}>
+          Open
+        </Button>
+      </View>
+    </Card>
   )
 }
 
@@ -243,6 +275,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionGap: { height: spacing.md },
+  linkGrid: {
+    gap: spacing.md,
+  },
+  linkCard: {
+    minHeight: 188,
+  },
+  linkTitle: {
+    marginTop: 8,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  linkBody: {
+    marginTop: 8,
+  },
   cardAction: { marginTop: spacing.lg },
   actions: { gap: spacing.md, marginTop: spacing.lg },
 })
