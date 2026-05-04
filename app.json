@@ -5,7 +5,7 @@
     "scheme": "kingfish",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/crown-logo.png",
+    "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/crown-logo.png",
@@ -22,7 +22,7 @@
     "android": {
       "package": "com.kingfishbets.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/crown-logo.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#08090E"
       }
     },
