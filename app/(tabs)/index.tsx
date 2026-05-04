@@ -223,9 +223,11 @@ export default function DashboardScreen() {
             <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
               Open Command Center
             </Button>
-            <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.fantasy_hub)}>
-              Open Fantasy Hub
-            </Button>
+            {mobileConfig.flags.fantasy_hub ? (
+              <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.fantasy_hub)}>
+                Open Fantasy Hub
+              </Button>
+            ) : null}
           </View>
         )}
       </Card>
@@ -283,7 +285,9 @@ export default function DashboardScreen() {
               of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              {mobileConfig.flags.mobile_paywall ? (
+                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              ) : null}
             </View>
           </Card>
         </View>

@@ -18,6 +18,7 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fmtOdds, fmtTime } from '@/lib/format'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import type { ChatMessage, Game } from '@/types'
 
@@ -98,6 +99,7 @@ async function buildChatContext() {
 
 export default function AskKingFishScreen() {
   const { profile } = useAuth()
+  const mobileConfig = useMobileConfig()
   const queryClient = useQueryClient()
   const scrollRef = useRef<ScrollView>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -246,7 +248,9 @@ export default function AskKingFishScreen() {
           <AppText variant="muted" style={styles.upgradeCopy}>
             Premium includes unlimited chat, player props, cheat sheets, and edge tools.
           </AppText>
-          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+          {mobileConfig.flags.mobile_paywall ? (
+            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+          ) : null}
         </View>
       )}
 

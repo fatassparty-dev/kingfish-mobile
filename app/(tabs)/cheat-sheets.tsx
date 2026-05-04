@@ -10,6 +10,7 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fmtOdds, normalizeName } from '@/lib/format'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
@@ -215,6 +216,7 @@ function buildRows(games: Game[], marketKey: string, statField: string, lineupMa
 
 export default function CheatSheetsScreen() {
   const { profile } = useAuth()
+  const mobileConfig = useMobileConfig()
   const isPremium = profile?.is_premium === true
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
   const [generatedKey, setGeneratedKey] = useState<SheetKey | null>(null)
@@ -298,7 +300,9 @@ export default function CheatSheetsScreen() {
             Cheat Sheets, player props, Edge Scores, and unlimited Ask KingFish access are part of KingFish Bets Pro.
           </AppText>
           <View style={styles.action}>
-            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            {mobileConfig.flags.mobile_paywall ? (
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            ) : null}
           </View>
         </Card>
       ) : !hasGenerated ? (

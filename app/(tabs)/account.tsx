@@ -21,6 +21,7 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
+  const mobilePaywallEnabled = mobileConfig.flags.mobile_paywall
   async function handleRestorePurchases() {
     setRestoring(true)
     const result = await restorePurchases(user?.id)
@@ -109,12 +110,14 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <View style={styles.linkGrid}>
-        <LinkCard
-          eyebrow="// Fantasy"
-          title="Fantasy Hub"
-          body="Open the draft room, rankings, player profiles, and NFL stack tools."
-          href={mobileConfig.links.fantasy_hub}
-        />
+        {mobileConfig.flags.fantasy_hub ? (
+          <LinkCard
+            eyebrow="// Fantasy"
+            title="Fantasy Hub"
+            body="Open the draft room, rankings, player profiles, and NFL stack tools."
+            href={mobileConfig.links.fantasy_hub}
+          />
+        ) : null}
         <LinkCard
           eyebrow="// NFL"
           title="Command Center"
@@ -140,8 +143,12 @@ export default function AccountScreen() {
       </Card>
 
       <View style={styles.actions}>
-        {!isPremium && <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>}
-        <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
+        {!isPremium && mobilePaywallEnabled ? (
+          <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
+        ) : null}
+        {mobilePaywallEnabled ? (
+          <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
+        ) : null}
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
       </View>
     </Screen>
