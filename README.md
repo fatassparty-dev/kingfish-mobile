@@ -41,6 +41,16 @@ Keep these rules in place:
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
 
+## Build Profiles
+
+`eas.json` is ready for the usual Expo build flow:
+
+- `development` for a dev-client build when we need native-device debugging
+- `preview` for internal simulator/device testing
+- `production` for App Store and Google Play builds
+
+Do not run production submission until Apple Developer, Google Play, RevenueCat, and store metadata are ready.
+
 ## npm Cache Permission Fix
 
 If npm says your cache has root-owned files, run the command npm suggests:
