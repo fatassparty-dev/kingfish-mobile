@@ -26,7 +26,7 @@ interface PlayerProfileResponse {
 
 interface PlayerProfileModalProps {
   playerName: string | null
-  sport: 'mlb' | 'nba' | 'nhl' | 'wnba'
+  sport: 'mlb' | 'nba' | 'nfl' | 'nhl' | 'wnba'
   onClose: () => void
 }
 
@@ -41,6 +41,8 @@ function buildFormNote(sport: PlayerProfileModalProps['sport'], data?: PlayerPro
         ? { season: stats.season_hits_per_game, l5: stats.l5_hits_per_game, label: 'hits' }
         : sport === 'nba' || sport === 'wnba'
           ? { season: stats.season_pts, l5: stats.l5_pts, label: 'points' }
+          : sport === 'nfl'
+            ? { season: stats.fantasy_points_ppr_per_game, l5: stats.fantasy_points_ppr_per_game, label: 'fantasy points' }
           : sport === 'nhl'
             ? { season: stats.season_pts, l5: stats.l5_pts, label: 'points' }
             : null

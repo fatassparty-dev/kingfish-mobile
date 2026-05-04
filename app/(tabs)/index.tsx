@@ -103,7 +103,7 @@ function isCollegeSport(sport: Sport) {
 }
 
 function hasLiveProps(sport: Sport) {
-  return sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+  return sport === 'MLB' || sport === 'NBA' || sport === 'NFL' || sport === 'NHL' || sport === 'WNBA'
 }
 
 function sportApiKey(sport: Sport) {

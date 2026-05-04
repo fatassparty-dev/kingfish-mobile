@@ -40,6 +40,15 @@ const MARKET_LABELS: Record<string, string> = {
   player_shots_on_goal: 'Shots on Goal',
   player_blocked_shots: 'Blocked Shots',
   player_power_play_points: 'Power Play Points',
+  player_pass_yds: 'Pass Yards',
+  player_pass_tds: 'Pass TDs',
+  player_pass_attempts: 'Pass Attempts',
+  player_pass_interceptions: 'Interceptions',
+  player_rush_yds: 'Rush Yards',
+  player_rush_attempts: 'Rush Attempts',
+  player_receptions: 'Receptions',
+  player_reception_yds: 'Rec Yards',
+  player_anytime_td: 'Anytime TD',
 }
 
 const BASKETBALL_MARKETS = [
@@ -62,6 +71,18 @@ const NHL_MARKETS = [
   'player_shots_on_goal',
   'player_blocked_shots',
   'player_power_play_points',
+]
+
+const NFL_MARKETS = [
+  'player_pass_yds',
+  'player_pass_tds',
+  'player_pass_attempts',
+  'player_pass_interceptions',
+  'player_rush_yds',
+  'player_rush_attempts',
+  'player_receptions',
+  'player_reception_yds',
+  'player_anytime_td',
 ]
 
 interface FlattenedProp {
@@ -89,6 +110,15 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
   player_shots_on_goal: 'shots',
   player_blocked_shots: 'blk',
   player_power_play_points: 'ppp',
+  player_pass_yds: 'passing_yards_per_game',
+  player_pass_tds: 'passing_tds_per_game',
+  player_pass_attempts: 'passing_attempts_per_game',
+  player_pass_interceptions: 'interceptions_per_game',
+  player_rush_yds: 'rushing_yards_per_game',
+  player_rush_attempts: 'carries_per_game',
+  player_receptions: 'receptions_per_game',
+  player_reception_yds: 'receiving_yards_per_game',
+  player_anytime_td: 'total_tds_per_game',
 }
 
 function getStat(stats: Record<string, any> | undefined, marketKey: string, prefix: 'season' | 'l10' | 'l5') {
@@ -98,6 +128,7 @@ function getStat(stats: Record<string, any> | undefined, marketKey: string, pref
   if (Array.isArray(statKey)) {
     return statKey.reduce((total, key) => total + (stats[`${prefix}_${key}`] || 0), 0)
   }
+  if (prefix === 'season' && typeof stats[statKey] === 'number') return stats[statKey]
   return stats[`${prefix}_${statKey}`] || 0
 }
 
@@ -184,11 +215,12 @@ function fmtStat(value: number) {
   return value ? value.toFixed(1) : '-'
 }
 
-function sportParam(sport: Sport): 'nba' | 'nhl' | 'wnba' {
-  return sport.toLowerCase() as 'nba' | 'nhl' | 'wnba'
+function sportParam(sport: Sport): 'nba' | 'nfl' | 'nhl' | 'wnba' {
+  return sport.toLowerCase() as 'nba' | 'nfl' | 'nhl' | 'wnba'
 }
 
 function marketKeysForSport(sport: Sport) {
+  if (sport === 'NFL') return NFL_MARKETS
   if (sport === 'NHL') return NHL_MARKETS
   if (sport === 'NBA' || sport === 'WNBA') return BASKETBALL_MARKETS
   return []
@@ -200,10 +232,13 @@ function availableMarkets(games: Game[], sport: Sport) {
     game.bookmakers?.forEach((bookmaker) => {
       if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
       bookmaker.markets?.forEach((market) => {
-        if (market.outcomes?.some((outcome) => outcome.description && (outcome.name === 'Over' || outcome.name === 'Yes'))) {
-          available.add(market.key)
-        }
-      })
+          if (market.outcomes?.some((outcome) => {
+            const isAnytime = market.key === 'player_anytime_td'
+            return isAnytime ? Boolean(outcome.description || outcome.name) : Boolean(outcome.description && (outcome.name === 'Over' || outcome.name === 'Yes'))
+          })) {
+            available.add(market.key)
+          }
+        })
     })
   })
 
@@ -219,16 +254,18 @@ export function flattenProps(games: Game[], limit = 30, marketKey?: string): Fla
       for (const market of bookmaker.markets || []) {
         if (marketKey && market.key !== marketKey) continue
         for (const outcome of market.outcomes || []) {
-          if (!outcome.description) continue
-          if (outcome.name !== 'Over' && outcome.name !== 'Yes') continue
+          const isAnytime = market.key === 'player_anytime_td'
+          const playerName = isAnytime ? (outcome.description || outcome.name) : outcome.description
+          if (!playerName) continue
+          if (!isAnytime && outcome.name !== 'Over' && outcome.name !== 'Yes') continue
           if (typeof outcome.price !== 'number') continue
           if (outcome.price > 700 || outcome.price < -10000) continue
 
-          const key = `${game.game_id || game.id}-${market.key}-${outcome.description}-${outcome.name}-${outcome.point}`
+          const key = `${game.game_id || game.id}-${market.key}-${playerName}-${outcome.name}-${outcome.point}`
           const nextProp = {
             game,
             market,
-            outcome,
+            outcome: { ...outcome, description: playerName },
             book: displayBookName(bookmaker.key, bookmaker.title),
           }
           const current = propMap.get(key)
@@ -265,12 +302,21 @@ export function PropsList({ games, sport, limit = 36 }: { games: Game[]; sport: 
 
   const statsQuery = useQuery({
     queryKey: ['prop-stats', sport, selectedMarket, playerNames.join('|')],
-    queryFn: () =>
-      kingfishFetch<{ stats: Record<string, any> }>(`/api/${sport.toLowerCase()}-stats`, {
+    queryFn: async () => {
+      if (sport === 'NFL') {
+        const data = await kingfishFetch<{ players?: Record<string, any>[] }>('/data/nfl/player-fantasy-summary.json')
+        const stats: Record<string, any> = {}
+        ;(data.players || []).forEach((player) => {
+          stats[normalizeName(player.player_name)] = player
+        })
+        return { stats }
+      }
+      return kingfishFetch<{ stats: Record<string, any> }>(`/api/${sport.toLowerCase()}-stats`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerNames }),
-      }),
+      })
+    },
     enabled: sport !== 'MLB' && playerNames.length > 0,
     staleTime: 12 * 60 * 60 * 1000,
   })
@@ -379,7 +425,7 @@ const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
 ]
 
 function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey) {
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
@@ -406,7 +452,7 @@ function PropTableRow({
   stats?: Record<string, any>
   onSelectPlayer: (playerName: string) => void
 }) {
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
@@ -440,7 +486,7 @@ function StatTableCell({ value, color }: { value: string; color: string }) {
 
 export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<string, any> }) {
   const marketLabel = MARKET_LABELS[prop.market.key] || prop.market.key.replaceAll('_', ' ')
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
