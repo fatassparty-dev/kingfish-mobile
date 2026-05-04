@@ -70,6 +70,20 @@ The goal is to keep seasonal sports content, weekly NFL updates, and admin launc
 
 Do not run production submission until Apple Developer, Google Play, RevenueCat, and store metadata are ready.
 
+## App Store Prep Checklist
+
+Before the first real store build, confirm:
+
+- Apple Developer organization enrollment is approved.
+- Google Play Console account is ready.
+- RevenueCat has Apple and Google products attached to the KingFish Bets Pro entitlement.
+- The mobile env values are set for Supabase, the KingFish API base URL, and RevenueCat public SDK keys.
+- The App Store app record uses bundle ID `com.kingfishbets.app`.
+- The Google Play app uses package name `com.kingfishbets.app`.
+- Terms, Privacy, Refund, Help, and support links are live on `kingfishbets.com`.
+- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and the NFL/Fantasy web doors.
+- Export compliance can answer that the app does not use non-exempt encryption beyond standard platform HTTPS/security.
+
 ## npm Cache Permission Fix
 
 If npm says your cache has root-owned files, run the command npm suggests:
