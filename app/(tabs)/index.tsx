@@ -16,6 +16,21 @@ import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
 
+type SoccerTeamInfo = {
+  team: string
+  shortName?: string
+  position?: number
+  played?: number
+  won?: number
+  drawn?: number
+  lost?: number
+  points?: number
+  goalsFor?: number
+  goalsAgainst?: number
+  goalDifference?: number
+  form?: string
+}
+
 const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
@@ -110,6 +125,16 @@ function sportApiKey(sport: Sport) {
   return sport.toLowerCase()
 }
 
+function soccerTeamGrade(team: SoccerTeamInfo) {
+  if (!team.position) return 'Pending'
+  if (team.position <= 3) return 'A'
+  if (team.position <= 6) return 'B+'
+  if (team.position <= 10) return 'B'
+  if (team.position <= 14) return 'C'
+  if (team.position <= 17) return 'C-'
+  return 'D'
+}
+
 export default function DashboardScreen() {
   const { profile } = useAuth()
   const mobileConfig = useMobileConfig()
@@ -123,7 +148,7 @@ export default function DashboardScreen() {
   })
   const isSelectedSportActive = flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live'
   const getSportActive = (item: (typeof SPORTS)[number]) => flagsQuery.data?.[item.flag] ?? item.status === 'Live'
-  const secondaryViewLabel = isCollegeSport(sport) ? 'Team Stats' : 'Player Props'
+  const secondaryViewLabel = isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const canFetchLines = isSelectedSportActive && view === 'lines'
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
@@ -149,6 +174,17 @@ export default function DashboardScreen() {
     queryFn: () => kingfishFetch<Game[]>(`/api/${sportApiKey(sport)}-props`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
+  })
+  const soccerTeamQuery = useQuery({
+    queryKey: ['soccer-team-info', 'soccer_epl'],
+    queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>('/api/soccer-team-info?league=soccer_epl'),
+    enabled: isSelectedSportActive && sport === 'SOCCER' && view === 'props',
+    staleTime: 24 * 60 * 60 * 1000,
+  })
+  const soccerTeams = [...(soccerTeamQuery.data?.teams || [])].sort((a, b) => {
+    const aPos = Number(a.position || 999)
+    const bPos = Number(b.position || 999)
+    return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
 
   return (
@@ -275,7 +311,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && !isPremium && (
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && !isPremium && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Premium</AppText>
@@ -331,7 +367,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && !hasLiveProps(sport) && (
+      {isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && sport !== 'SOCCER' && !hasLiveProps(sport) && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Player Props</AppText>
@@ -351,6 +387,73 @@ export default function DashboardScreen() {
               points against, pace, form, and team trends.
             </AppText>
           </Card>
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'props' && sport === 'SOCCER' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">Premier League team table, goal form, and matchup context</AppText>
+          </View>
+
+          {soccerTeamQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading team info...</AppText>
+            </View>
+          )}
+
+          {soccerTeamQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Team Info</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load soccer team info.</AppText>
+            </Card>
+          )}
+
+          {!soccerTeamQuery.isLoading && !soccerTeamQuery.isError && soccerTeams.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Team Info</AppText>
+              <AppText variant="title" style={styles.cardTitle}>No Team Table Yet</AppText>
+              <AppText variant="muted">
+                Team records and goal context will appear here when standings are available.
+              </AppText>
+            </Card>
+          )}
+
+          {soccerTeams.map((team) => (
+            <Card key={`${team.team}-${team.position}`}>
+              <View style={styles.teamInfoHeader}>
+                <View style={styles.teamInfoRank}>
+                  <AppText style={styles.teamInfoRankText}>{team.position || '-'}</AppText>
+                </View>
+                <View style={styles.teamInfoBody}>
+                  <AppText style={styles.teamInfoName}>{team.shortName || team.team}</AppText>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>
+                    {team.played ? `${team.won || 0}-${team.drawn || 0}-${team.lost || 0} · ${team.points || 0} pts` : 'Record pending'}
+                  </AppText>
+                </View>
+                <View style={styles.teamInfoGrade}>
+                  <AppText style={styles.teamInfoGradeText}>{soccerTeamGrade(team)}</AppText>
+                </View>
+              </View>
+              <View style={styles.teamInfoStats}>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Goals</AppText>
+                  <AppText style={styles.teamInfoValue}>
+                    {team.played ? `${team.goalsFor || 0}-${team.goalsAgainst || 0}` : '-'}
+                  </AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">GD</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.goalDifference ?? '-'}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Form</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.form || '-'}</AppText>
+                </View>
+              </View>
+            </Card>
+          ))}
         </View>
       )}
     </Screen>
@@ -479,5 +582,66 @@ const styles = StyleSheet.create({
   },
   upgradeAction: {
     marginTop: spacing.lg,
+  },
+  teamInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  teamInfoRank: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(198,145,50,.10)',
+  },
+  teamInfoRankText: {
+    color: colors.gold,
+    fontWeight: '900',
+  },
+  teamInfoBody: {
+    flex: 1,
+  },
+  teamInfoName: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  teamInfoMeta: {
+    marginTop: 4,
+  },
+  teamInfoGrade: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    backgroundColor: colors.bgCardAlt,
+  },
+  teamInfoGradeText: {
+    color: colors.gold,
+    fontWeight: '900',
+  },
+  teamInfoStats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  teamInfoStat: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: spacing.md,
+    backgroundColor: colors.bgCardAlt,
+  },
+  teamInfoValue: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+    marginTop: 6,
   },
 })
