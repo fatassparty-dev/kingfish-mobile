@@ -20,54 +20,80 @@ const SPORTS: Array<{
   flag: FeatureFlagKey
   status: 'Live' | 'Offseason' | 'Coming'
   description: string
+  inactiveTitle: string
+  inactiveDescription: string
 }> = [
   {
     key: 'MLB',
     flag: 'dashboard_mlb',
     status: 'Live',
     description: 'Track live MLB lines, player props, weather, stat trends, and cheat-sheet support in one place.',
+    inactiveTitle: 'MLB Lines Unavailable',
+    inactiveDescription: 'MLB lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
   },
   {
     key: 'NBA',
     flag: 'dashboard_nba',
     status: 'Live',
     description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
+    inactiveTitle: 'NBA Lines Unavailable',
+    inactiveDescription: 'NBA lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
   },
   {
     key: 'NFL',
     flag: 'nfl_props',
     status: 'Offseason',
     description: 'NFL is year-round in KingFish. Game lines appear when books post regular-season markets, with player props and deeper research built around the NFL Command Center.',
+    inactiveTitle: 'NFL Lines Coming Soon',
+    inactiveDescription: 'NFL lives year-round in KingFish. Check the Command Center for fantasy tools, draft research, injuries, and offseason notes.',
   },
   {
     key: 'NHL',
     flag: 'dashboard_nhl',
     status: 'Live',
     description: 'Track NHL lines, player props, shot volume, scoring trends, and Edge Scores in one board.',
+    inactiveTitle: 'NHL Lines Unavailable',
+    inactiveDescription: 'NHL lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
   },
   {
     key: 'WNBA',
     flag: 'dashboard_wnba',
     status: 'Live',
     description: 'Follow WNBA lines and player props with recent stat trends, hit rates, and best available odds.',
+    inactiveTitle: 'WNBA Lines Unavailable',
+    inactiveDescription: 'WNBA lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
   },
   {
     key: 'KBO',
     flag: 'dashboard_kbo',
     status: 'Live',
     description: 'Follow KBO game lines and market movement from supported books.',
+    inactiveTitle: 'KBO Lines Unavailable',
+    inactiveDescription: 'KBO game lines are temporarily unavailable. Check back soon for the next posted slate.',
   },
   {
     key: 'NCAAB',
     flag: 'dashboard_ncaab',
     status: 'Offseason',
     description: 'College basketball will focus on team stats, team trends, points for, points against, and matchup context.',
+    inactiveTitle: 'College Basketball Lines Coming Soon',
+    inactiveDescription: 'College basketball will focus on team lines, totals, and matchup context when markets are available.',
   },
   {
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
     status: 'Offseason',
     description: 'College football will focus on game lines, team stats, matchup grades, and team leans instead of player props.',
+    inactiveTitle: 'College Football Lines Coming Soon',
+    inactiveDescription: 'College football will focus on team lines, market leans, and matchup context when markets are available.',
+  },
+  {
+    key: 'SOCCER',
+    flag: 'dashboard_soccer',
+    status: 'Offseason',
+    description: 'Follow soccer game lines for supported leagues when US sportsbooks post them.',
+    inactiveTitle: 'Soccer Lines Coming Soon',
+    inactiveDescription: 'Soccer will feature game lines for supported leagues when those markets are available.',
   },
 ]
 
@@ -77,6 +103,10 @@ function isCollegeSport(sport: Sport) {
 
 function hasLiveProps(sport: Sport) {
   return sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+}
+
+function sportApiKey(sport: Sport) {
+  return sport.toLowerCase()
 }
 
 export default function DashboardScreen() {
@@ -97,7 +127,7 @@ export default function DashboardScreen() {
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
   const lineQuery = useQuery({
     queryKey: ['game-lines', sport],
-    queryFn: () => kingfishFetch<Game[]>(`/api/${sport.toLowerCase()}-odds`),
+    queryFn: () => kingfishFetch<Game[]>(`/api/${sportApiKey(sport)}-odds`),
     enabled: canFetchLines,
     staleTime: 5 * 60 * 1000,
   })
@@ -114,7 +144,7 @@ export default function DashboardScreen() {
   })
   const propsQuery = useQuery({
     queryKey: ['player-props', sport],
-    queryFn: () => kingfishFetch<Game[]>(`/api/${sport.toLowerCase()}-props`),
+    queryFn: () => kingfishFetch<Game[]>(`/api/${sportApiKey(sport)}-props`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
@@ -171,16 +201,18 @@ export default function DashboardScreen() {
       <Card>
         <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
         <AppText variant="title" style={styles.cardTitle}>
-          {view === 'lines' ? 'Game Lines' : secondaryViewLabel}
+          {isSelectedSportActive
+            ? (view === 'lines' ? 'Game Lines' : secondaryViewLabel)
+            : selectedSport.inactiveTitle}
         </AppText>
         <AppText variant="muted">
-          {selectedSport.description}
+          {isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
         </AppText>
         {!isSelectedSportActive && (
           <View style={styles.roadmapBox}>
             <AppText variant="eyebrow">// Season Watch</AppText>
             <AppText variant="muted" style={styles.roadmapText}>
-              KingFish keeps this sport on the board so you know what is coming when the markets open.
+              Check back here when supported markets are available.
             </AppText>
           </View>
         )}

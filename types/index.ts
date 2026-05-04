@@ -1,4 +1,4 @@
-export type Sport = 'MLB' | 'NBA' | 'NFL' | 'NHL' | 'WNBA' | 'KBO' | 'NCAAB' | 'NCAAF'
+export type Sport = 'MLB' | 'NBA' | 'NFL' | 'NHL' | 'WNBA' | 'KBO' | 'NCAAB' | 'NCAAF' | 'SOCCER'
 
 export interface UserProfile {
   user_id: string
