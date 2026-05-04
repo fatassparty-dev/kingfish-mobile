@@ -39,6 +39,7 @@ const SOCCER_LEAGUES = [
   { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
   { key: 'soccer_usa_mls', label: 'MLS' },
   { key: 'soccer_uefa_champs_league', label: 'Champions League' },
+  { key: 'soccer_fifa_world_cup', label: 'World Cup' },
 ]
 
 const SPORTS: Array<{
@@ -463,7 +464,7 @@ export default function DashboardScreen() {
                 <View style={styles.teamInfoBody}>
                   <AppText style={styles.teamInfoName}>{team.shortName || team.team}</AppText>
                   <AppText variant="muted" style={styles.teamInfoMeta}>
-                    {team.played ? `${team.won || 0}-${team.drawn || 0}-${team.lost || 0} · ${team.points || 0} pts` : 'Record pending'}
+                    {team.played ? `${team.won || 0}W-${team.drawn || 0}D-${team.lost || 0}L · ${team.points || 0} pts` : 'Record pending'}
                   </AppText>
                 </View>
                 <View style={styles.teamInfoGrade}>
@@ -472,14 +473,14 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.teamInfoStats}>
                 <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Goals</AppText>
+                  <AppText variant="mono">GF-GA</AppText>
                   <AppText style={styles.teamInfoValue}>
                     {team.played ? `${team.goalsFor || 0}-${team.goalsAgainst || 0}` : '-'}
                   </AppText>
                 </View>
                 <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">GD</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.goalDifference ?? '-'}</AppText>
+                  <AppText variant="mono">Goal Diff</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.goalDifference != null ? `${Number(team.goalDifference) >= 0 ? '+' : ''}${team.goalDifference}` : '-'}</AppText>
                 </View>
                 <View style={styles.teamInfoStat}>
                   <AppText variant="mono">Form</AppText>
