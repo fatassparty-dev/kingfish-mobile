@@ -34,6 +34,27 @@ function bestMoneyline(bookmakers: Bookmaker[], team: string) {
   return best
 }
 
+function bestSpread(bookmakers: Bookmaker[], team: string) {
+  let best: { price: number; point?: number; book: string } | null = null
+
+  for (const bookmaker of bookmakers) {
+    const market = bookmaker.markets?.find((item) => item.key === 'spreads')
+    const outcome = market?.outcomes?.find((item) => item.name === team)
+    if (!outcome || typeof outcome.price !== 'number') continue
+
+    if (!best || outcome.price > best.price) {
+      best = { price: outcome.price, point: outcome.point, book: displayBookName(bookmaker.key, bookmaker.title) }
+    }
+  }
+
+  return best
+}
+
+function fmtSpreadPoint(point?: number) {
+  if (typeof point !== 'number') return ''
+  return `${point > 0 ? '+' : ''}${point} `
+}
+
 export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherInfo }) {
   const bookmakers = supportedBookmakers(game.bookmakers)
   const totalMarket = getMarket(bookmakers, 'totals')
@@ -41,6 +62,8 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
   const under = findOutcome(totalMarket, 'Under')
   const awayBest = bestMoneyline(bookmakers, game.away_team)
   const homeBest = bestMoneyline(bookmakers, game.home_team)
+  const awaySpread = bestSpread(bookmakers, game.away_team)
+  const homeSpread = bestSpread(bookmakers, game.home_team)
 
   return (
     <Card>
@@ -69,8 +92,16 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
       <TeamRow team={game.away_team} line={awayBest} />
       <TeamRow team={game.home_team} line={homeBest} />
 
+      {(awaySpread || homeSpread) && (
+        <View style={styles.marketBox}>
+          <AppText variant="eyebrow">// Spread / Run Line</AppText>
+          <MarketRow team={game.away_team} line={awaySpread} />
+          <MarketRow team={game.home_team} line={homeSpread} />
+        </View>
+      )}
+
       {(over || under) && (
-        <View style={styles.totalBox}>
+        <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Total</AppText>
           <View style={styles.totalRow}>
             {over && (
@@ -100,6 +131,18 @@ function TeamRow({ team, line }: { team: string; line: { price: number; book: st
       <View style={styles.oddsBadge}>
         <AppText style={styles.oddsText}>{line ? fmtOdds(line.price) : '-'}</AppText>
       </View>
+    </View>
+  )
+}
+
+function MarketRow({ team, line }: { team: string; line: { price: number; point?: number; book: string } | null }) {
+  return (
+    <View style={styles.marketRow}>
+      <View style={styles.teamNameWrap}>
+        <AppText style={styles.marketTeam}>{team}</AppText>
+        {line?.book && <AppText variant="mono">{line.book}</AppText>}
+      </View>
+      <AppText style={styles.marketPrice}>{line ? `${fmtSpreadPoint(line.point)}${fmtOdds(line.price)}` : '-'}</AppText>
     </View>
   )
 }
@@ -207,11 +250,28 @@ const styles = StyleSheet.create({
   warnText: {
     color: colors.yellow,
   },
-  totalBox: {
+  marketBox: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.md,
     marginTop: spacing.sm,
+  },
+  marketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: 8,
+  },
+  marketTeam: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  marketPrice: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: '900',
   },
   totalRow: {
     flexDirection: 'row',
