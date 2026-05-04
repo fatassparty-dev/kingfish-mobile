@@ -41,6 +41,25 @@ Keep these rules in place:
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
 
+## Server-Driven Update Map
+
+These can change from the backend/admin side without an App Store update:
+
+- Sport launch states and dashboard season-watch states
+- Weekly NFL fantasy/stat CSV data after the web backend rebuilds its JSON/API output
+- Live odds, props, weather, cheat sheets, and player profiles served by KingFish APIs
+- Account premium status after Stripe, RevenueCat, or manual admin changes sync to Supabase
+- Mobile destination links, support links, legal links, and app notices from `/api/mobile-config`
+
+These still need a new mobile build:
+
+- New native screens or tabs
+- New native purchase SDK behavior
+- Changed app icons, splash screens, permissions, or store metadata
+- Bug fixes inside the installed app bundle
+
+The goal is to keep seasonal sports content, weekly NFL updates, and admin launch control on the web/backend side so the first App Store version can stay useful without constant review cycles.
+
 ## Build Profiles
 
 `eas.json` is ready for the usual Expo build flow:
