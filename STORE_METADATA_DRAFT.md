@@ -1,0 +1,77 @@
+# KingFish Bets Store Metadata Draft
+
+Use this as the starting copy for App Store Connect and Google Play Console. Final copy can be tightened once the first screenshots are captured.
+
+## App Name
+
+KingFish Bets
+
+## Subtitle / Short Description
+
+Sports betting intelligence, live odds, props, and fantasy tools.
+
+## Promotional Text
+
+Live odds, player props, matchup context, cheat sheets, and Ask KingFish analysis in one sports betting research app.
+
+## Full Description
+
+KingFish Bets is a sports betting intelligence platform built for faster research across the sports calendar.
+
+Compare live game lines, scan player props, check recent form, review player profiles, generate MLB cheat sheets, and ask KingFish for plain-English analysis backed by real data. KingFish is built for bettors who want the numbers, the context, and the best available price before making their own decision.
+
+Inside KingFish:
+
+- Live game lines across supported sports
+- Player props with season, recent-form, and hit-rate context
+- Best available odds highlighted across supported sportsbooks
+- MLB cheat sheets for quick prop research
+- Ask KingFish AI analyst with live KingFish context
+- NFL Command Center and Fantasy Hub links
+- Account access shared across web and mobile
+
+KingFish does not accept wagers. KingFish is an analytics and information platform. All picks, tools, stats, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
+
+## Keywords
+
+sports betting, odds, player props, fantasy football, MLB props, NFL odds, betting tools, sports analytics, cheat sheets, sportsbook odds
+
+## App Review Notes
+
+KingFish Bets is an analytics and sports information app. The app does not accept wagers, process bets, or operate as a sportsbook.
+
+Premium access unlocks advanced research tools, player prop views, cheat sheets, and AI usage. Payments are handled through App Store / Google Play in the mobile app and through Stripe on the website. User premium status is shared through the KingFish account system.
+
+The app uses public mobile-safe API keys only. Server-only keys and paid data provider keys remain on the KingFish backend.
+
+## Screenshot Plan
+
+Capture screenshots after the production build is stable:
+
+- Sign In / Create Account
+- Dashboard sport selector and game lines
+- Player Props board
+- Player profile modal
+- Cheat Sheets screen
+- Ask KingFish
+- Account / KingFish HQ with web doors
+- Paywall / subscription screen
+
+## Data Safety Notes
+
+The app may use:
+
+- Email address for account login
+- Name and optional state for account context
+- App activity related to product usage and subscription status
+- Chat messages when the user uses Ask KingFish
+
+The app does not sell personal data. Payment details are handled by Apple, Google, Stripe, or the relevant payment platform and are not stored directly in the mobile app.
+
+## Age / Responsible Use Notes
+
+Use 21+ positioning wherever the store asks for gambling-adjacent content context.
+
+Suggested wording:
+
+KingFish Bets is for users 21 and older. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-MY-RESET.
