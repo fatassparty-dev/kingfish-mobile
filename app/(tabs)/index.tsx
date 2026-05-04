@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -11,6 +11,7 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import { fetchFeatureFlags, type FeatureFlagKey } from '@/lib/featureFlags'
+import { DEFAULT_MOBILE_CONFIG, fetchMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
@@ -119,6 +120,12 @@ export default function DashboardScreen() {
     queryFn: fetchFeatureFlags,
     staleTime: 60 * 1000,
   })
+  const configQuery = useQuery({
+    queryKey: ['mobile-config'],
+    queryFn: fetchMobileConfig,
+    staleTime: 5 * 60 * 1000,
+  })
+  const mobileConfig = configQuery.data || DEFAULT_MOBILE_CONFIG
   const isSelectedSportActive = flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live'
   const getSportActive = (item: (typeof SPORTS)[number]) => flagsQuery.data?.[item.flag] ?? item.status === 'Live'
   const secondaryViewLabel = isCollegeSport(sport) ? 'Team Stats' : 'Player Props'
@@ -214,6 +221,16 @@ export default function DashboardScreen() {
             <AppText variant="muted" style={styles.roadmapText}>
               Check back here when supported markets are available.
             </AppText>
+          </View>
+        )}
+        {sport === 'NFL' && (
+          <View style={styles.nflActions}>
+            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
+              Open Command Center
+            </Button>
+            <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.fantasy_hub)}>
+              Open Fantasy Hub
+            </Button>
           </View>
         )}
       </Card>
@@ -433,6 +450,10 @@ const styles = StyleSheet.create({
   },
   roadmapText: {
     marginTop: 6,
+  },
+  nflActions: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   liveSection: {
     gap: spacing.md,
