@@ -1,11 +1,13 @@
 import { Image, Linking, StyleSheet, View } from 'react-native'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
+import { DEFAULT_MOBILE_CONFIG, fetchMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 
@@ -19,6 +21,12 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
+  const configQuery = useQuery({
+    queryKey: ['mobile-config'],
+    queryFn: fetchMobileConfig,
+    staleTime: 5 * 60 * 1000,
+  })
+  const mobileConfig = configQuery.data || DEFAULT_MOBILE_CONFIG
 
   async function handleRestorePurchases() {
     setRestoring(true)
@@ -79,6 +87,17 @@ export default function AccountScreen() {
         </View>
       </Card>
 
+      {mobileConfig.app_notice ? (
+        <>
+          <View style={styles.sectionGap} />
+          <Card style={styles.noticeCard}>
+            <AppText variant="eyebrow">// Notice</AppText>
+            <AppText style={styles.webTitle}>{mobileConfig.app_notice.title}</AppText>
+            <AppText variant="muted" style={styles.copy}>{mobileConfig.app_notice.body}</AppText>
+          </Card>
+        </>
+      ) : null}
+
       <View style={styles.sectionGap} />
 
       <Card>
@@ -101,13 +120,13 @@ export default function AccountScreen() {
           eyebrow="// Fantasy"
           title="Fantasy Hub"
           body="Open the draft room, rankings, player profiles, and NFL stack tools."
-          href="https://kingfishbets.com/fantasy"
+          href={mobileConfig.links.fantasy_hub}
         />
         <LinkCard
           eyebrow="// NFL"
           title="Command Center"
           body="NFL research, injuries, draft tools, fantasy, and season-long coverage."
-          href="https://kingfishbets.com/nfl"
+          href={mobileConfig.links.nfl_command_center}
         />
       </View>
 
@@ -121,7 +140,7 @@ export default function AccountScreen() {
           and betting tools that are not part of the mobile app.
         </AppText>
         <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={() => Linking.openURL('https://kingfishbets.com')}>
+          <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.home)}>
             Open Full Website
           </Button>
         </View>
@@ -288,6 +307,9 @@ const styles = StyleSheet.create({
   },
   linkBody: {
     marginTop: 8,
+  },
+  noticeCard: {
+    borderColor: 'rgba(198,145,50,.45)',
   },
   cardAction: { marginTop: spacing.lg },
   actions: { gap: spacing.md, marginTop: spacing.lg },

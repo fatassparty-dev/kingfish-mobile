@@ -38,6 +38,7 @@ Keep these rules in place:
 - Public mobile env values are okay; service-role keys are never okay.
 - Feature switches control whether a sport shows live data or a clean season-watch state.
 - Weekly NFL data belongs on the web/backend side first. The app should consume the backend result.
+- Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
 
 ## npm Cache Permission Fix
