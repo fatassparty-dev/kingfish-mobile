@@ -163,7 +163,7 @@ export default function DashboardScreen() {
   const getSportActive = (item: (typeof SPORTS)[number]) => flagsQuery.data?.[item.flag] ?? item.status === 'Live'
   const secondaryViewLabel = isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
-  const canFetchLines = isSelectedSportActive && view === 'lines'
+  const canFetchLines = isSelectedSportActive && view === 'lines' && isPremium
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
   const lineQuery = useQuery({
     queryKey: ['game-lines', sport, sport === 'SOCCER' ? soccerLeague : 'default'],
@@ -302,6 +302,24 @@ export default function DashboardScreen() {
           </View>
         )}
       </Card>
+
+      {isSelectedSportActive && view === 'lines' && !isPremium && (
+        <View style={styles.liveSection}>
+          <Card>
+            <AppText variant="eyebrow">// Premium</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Unlock Game Lines</AppText>
+            <AppText variant="muted">
+              Live moneylines, spreads, totals, best available prices, and KingFish matchup context
+              are part of KingFish Bets Pro.
+            </AppText>
+            <View style={styles.upgradeAction}>
+              {mobileConfig.flags.mobile_paywall ? (
+                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              ) : null}
+            </View>
+          </Card>
+        </View>
+      )}
 
       {canFetchLines && (
         <View style={styles.liveSection}>
