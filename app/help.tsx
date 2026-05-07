@@ -12,7 +12,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Cheat Sheets when you want KingFish to generate a short list of ideas.',
+  'Open Stat Sheets or Game Factors when you want KingFish to narrow the board.',
 ]
 
 const tools = [
@@ -55,9 +55,9 @@ const edgePieces = [
 ]
 
 const cheatSheets = [
-  { title: 'Hits Bet/Fade', body: 'Hit props ranked by form, hit rate, price, and matchup context.' },
-  { title: 'HR Targets', body: 'Home run candidates based on power profile, recent form, matchup, and price.' },
-  { title: 'Hot Total Bases', body: 'Players with recent total-base momentum, especially over the last 5 and last 10 games.' },
+  { title: 'Hits Bet/Fade', body: '0.5 hit props ranked by recent hit form, price, and history against today\'s starter.' },
+  { title: 'HR Targets', body: 'Home run candidates based on starter history, recent power form, and available odds.' },
+  { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },
   { title: 'Safe Alt K', body: 'Pitcher strikeout targets where the alternate line is the main focus.' },
   { title: 'Hot Hitters', body: 'Recent form first: last 5, last 10, and streak-style momentum.' },
   { title: 'Batter vs Pitcher', body: 'Head-to-head history against today\'s expected pitcher when the data sample is useful.' },
@@ -75,7 +75,7 @@ const sportNotes = [
   },
   {
     title: 'NFL and College',
-    body: 'NFL support is planned for the season. College sports will focus on team stats where player prop betting is restricted.',
+    body: 'NFL includes the Command Center, Fantasy Draft Room, futures context, injuries, news, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
   },
 ]
 
@@ -165,6 +165,21 @@ export default function HelpScreen() {
               <AppText variant="muted" style={styles.cardBody}>
                 Start with Cheat Sheets for ideas. Open the Dashboard to confirm the market and best price. Tap the player profile to check recent form. Use Ask KingFish if you want a plain-English second read before making your own decision.
               </AppText>
+            </Card>
+          </View>
+
+          <View style={styles.section}>
+            <AppText variant="eyebrow">Tutorials</AppText>
+            <Card>
+              <AppText style={styles.cardTitle}>Need A Deeper Walkthrough?</AppText>
+              <AppText variant="muted" style={styles.cardBody}>
+                The web Help Center has longer guides, support articles, and tutorials we can keep expanding without an app update.
+              </AppText>
+              <View style={styles.buttonGap}>
+                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.help)}>
+                  Open Web Help Center
+                </Button>
+              </View>
             </Card>
           </View>
 
