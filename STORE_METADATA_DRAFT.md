@@ -30,7 +30,7 @@ Inside KingFish:
 - NFL Command Center and Fantasy Hub links
 - Account access shared across web and mobile
 
-KingFish does not accept wagers. KingFish is an analytics and information platform. All picks, tools, stats, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
+KingFish does not accept wagers. KingFish is a 17+ analytics and information platform where permitted by law. All picks, tools, stats, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
 
 ## Keywords
 
@@ -70,8 +70,8 @@ The app does not sell personal data. Payment details are handled by Apple, Googl
 
 ## Age / Responsible Use Notes
 
-Use 21+ positioning wherever the store asks for gambling-adjacent content context.
+Use 17+ positioning wherever the store asks for age context, unless Apple or a specific jurisdiction requires a higher age.
 
 Suggested wording:
 
-KingFish Bets is for users 21 and older. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-MY-RESET.
+KingFish Bets is for users 17 and older where permitted by law. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-MY-RESET.

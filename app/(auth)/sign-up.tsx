@@ -17,7 +17,7 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [is21, setIs21] = useState(false)
+  const [is17, setIs17] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -30,8 +30,8 @@ export default function SignUpScreen() {
       setError('First and last name are required.')
       return
     }
-    if (!is21) {
-      setError('You must confirm you are 21 or older.')
+    if (!is17) {
+      setError('You must confirm you are 17 or older where permitted by law.')
       return
     }
     if (!accepted) {
@@ -79,7 +79,7 @@ export default function SignUpScreen() {
       <AppText variant="eyebrow">// Join KingFish</AppText>
       <AppText variant="title" style={styles.title}>Create Account</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Create one account for the web app and mobile app. KingFish is an analytics platform. We do not accept wagers.
+        Create one account for the web app and mobile app. KingFish is a 17+ analytics platform where permitted by law. We do not accept wagers.
       </AppText>
 
       <Card>
@@ -92,7 +92,7 @@ export default function SignUpScreen() {
         <TextInput autoCapitalize="none" placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Confirm password" placeholderTextColor={colors.textMuted} secureTextEntry value={confirm} onChangeText={setConfirm} style={styles.input} />
 
-        <CheckRow checked={is21} onPress={() => setIs21((v) => !v)} text="I confirm I am 21 or older." />
+        <CheckRow checked={is17} onPress={() => setIs17((v) => !v)} text="I confirm I am 17 or older where permitted by law." />
         <CheckRow checked={accepted} onPress={() => setAccepted((v) => !v)} text="I accept the Terms of Service and Privacy Policy." />
         <AppText variant="muted" style={styles.note}>
           Your state helps KingFish show responsible context where betting rules differ. It is optional.

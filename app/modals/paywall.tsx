@@ -148,7 +148,7 @@ export default function PaywallScreen() {
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
         {mobilePaywallEnabled
-          ? 'Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings.'
+          ? 'Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings. KingFish is intended for users 17+ where permitted by law.'
           : 'Existing Premium access still works while mobile subscription checkout is paused.'}
       </AppText>
       <View style={styles.legalLinks}>

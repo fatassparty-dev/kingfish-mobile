@@ -187,7 +187,7 @@ export default function HelpScreen() {
             <AppText variant="eyebrow">Responsible Use</AppText>
             <Card>
               <AppText variant="muted" style={styles.cardBody}>
-                KingFish is an analytics platform. We do not accept wagers, and no tool guarantees profit. Use the data to make your own decisions and bet responsibly.
+                KingFish is a 17+ analytics platform where permitted by law. We do not accept wagers, and no tool guarantees profit. If a higher age requirement applies in your jurisdiction, you must meet that requirement.
               </AppText>
               <AppText style={styles.supportText} onPress={() => Linking.openURL(mobileConfig.links.responsible_gaming)}>
                 Problem gambling helpline: 1-800-MY-RESET
