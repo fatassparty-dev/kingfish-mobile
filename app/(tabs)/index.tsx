@@ -45,7 +45,7 @@ const SOCCER_LEAGUES = [
 const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
-  status: 'Live' | 'Offseason' | 'Coming'
+  status: 'Live' | 'Offseason'
   description: string
   inactiveTitle: string
   inactiveDescription: string
@@ -71,8 +71,8 @@ const SPORTS: Array<{
     flag: 'nfl_props',
     status: 'Offseason',
     description: 'NFL is year-round in KingFish. Game lines appear when books post regular-season markets, with player props and deeper research built around the NFL Command Center.',
-    inactiveTitle: 'NFL Lines Coming Soon',
-    inactiveDescription: 'NFL lives year-round in KingFish. Check the Command Center for fantasy tools, draft research, injuries, and offseason notes.',
+    inactiveTitle: 'NFL Not In Season',
+    inactiveDescription: 'NFL lives year-round in KingFish. Use the Command Center for fantasy tools, draft research, injuries, futures, and offseason notes while regular-season markets are off the board.',
   },
   {
     key: 'NHL',
@@ -103,24 +103,24 @@ const SPORTS: Array<{
     flag: 'dashboard_ncaab',
     status: 'Offseason',
     description: 'College basketball will focus on team stats, team trends, points for, points against, and matchup context.',
-    inactiveTitle: 'College Basketball Lines Coming Soon',
-    inactiveDescription: 'College basketball will focus on team lines, totals, and matchup context when markets are available.',
+    inactiveTitle: 'College Basketball Not In Season',
+    inactiveDescription: 'College basketball game lines and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
     status: 'Offseason',
     description: 'College football will focus on game lines, team stats, matchup grades, and team leans instead of player props.',
-    inactiveTitle: 'College Football Lines Coming Soon',
-    inactiveDescription: 'College football will focus on team lines, market leans, and matchup context when markets are available.',
+    inactiveTitle: 'College Football Not In Season',
+    inactiveDescription: 'College football game lines, market leans, and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'SOCCER',
     flag: 'dashboard_soccer',
     status: 'Offseason',
     description: 'Follow soccer game lines for supported leagues when US sportsbooks post them.',
-    inactiveTitle: 'Soccer Lines Coming Soon',
-    inactiveDescription: 'Soccer will feature game lines for supported leagues when those markets are available.',
+    inactiveTitle: 'Soccer Markets Unavailable',
+    inactiveDescription: 'Supported soccer game lines appear when US sportsbooks have active markets for the selected leagues.',
   },
 ]
 
@@ -231,7 +231,6 @@ export default function DashboardScreen() {
                   styles.statusDot,
                   getSportActive(item) && styles.liveDot,
                   !getSportActive(item) && item.status === 'Offseason' && styles.offseasonDot,
-                  !getSportActive(item) && item.status === 'Coming' && styles.comingDot,
                 ]}
               />
             </View>
@@ -562,9 +561,6 @@ const styles = StyleSheet.create({
   },
   offseasonDot: {
     backgroundColor: colors.yellow,
-  },
-  comingDot: {
-    backgroundColor: colors.textMuted,
   },
   segment: {
     flexDirection: 'row',

@@ -50,8 +50,8 @@ export async function configurePurchases(appUserID?: string | null): Promise<Pur
     return {
       ok: false,
       message: Platform.OS === 'android'
-        ? 'Google Play subscriptions will be enabled after Android purchases are configured.'
-        : 'In-app subscriptions are not configured for this platform yet.',
+        ? 'Google Play subscriptions are not configured for this build.'
+        : 'In-app subscriptions are not configured for this build.',
     }
   }
 

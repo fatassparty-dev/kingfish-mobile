@@ -37,7 +37,7 @@ Keep these rules in place:
 - `.env`, `node_modules`, and Expo generated files stay out of git.
 - Public mobile env values are okay; service-role keys are never okay.
 - Feature switches control whether a sport shows live data or a clean season-watch state.
-- The `mobile_paywall` switch keeps native purchase buttons hidden until App Store and Google Play subscriptions are ready.
+- The `mobile_paywall` switch is an emergency hold for native purchase buttons. Keep it on for App Store launch unless mobile checkout must be paused.
 - Weekly NFL data belongs on the web/backend side first. The app should consume the backend result.
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
@@ -51,7 +51,7 @@ These can change from the backend/admin side without an App Store update:
 - Live odds, props, weather, cheat sheets, and player profiles served by KingFish APIs
 - Account premium status after Stripe, RevenueCat, or manual admin changes sync to Supabase
 - Mobile destination links, support links, legal links, and app notices from `/api/mobile-config`
-- Native purchase entry points after `mobile_paywall` is turned on in the admin portal
+- Native purchase entry points while `mobile_paywall` stays on in the admin portal
 
 These still need a new mobile build:
 

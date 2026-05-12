@@ -29,7 +29,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   dashboard_soccer: false,
   fantasy_hub: true,
   nfl_props: false,
-  mobile_paywall: false,
+  mobile_paywall: true,
 }
 
 export function mergeFeatureFlags(rows: Partial<FeatureFlag>[] | null | undefined) {

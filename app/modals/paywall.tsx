@@ -137,10 +137,10 @@ export default function PaywallScreen() {
       ) : (
         <Card style={styles.notice}>
           <AppText variant="eyebrow">// Plans</AppText>
-          <AppText style={styles.noticeTitle}>Mobile Upgrades Coming Soon</AppText>
+          <AppText style={styles.noticeTitle}>Mobile Subscriptions Temporarily Unavailable</AppText>
           <AppText variant="muted" style={styles.noticeCopy}>
-            Native subscriptions are not open yet. If you already have Premium, sign in with the
-            same account and your access will work here.
+            Mobile subscription checkout is currently paused. If you already have Premium, sign in
+            with the same account and your access will work here.
           </AppText>
         </Card>
       )}
@@ -149,7 +149,7 @@ export default function PaywallScreen() {
       <AppText variant="muted" style={styles.terms}>
         {mobilePaywallEnabled
           ? 'Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings.'
-          : 'App Store and Google Play subscriptions will be available once native mobile purchases launch.'}
+          : 'Existing Premium access still works while mobile subscription checkout is paused.'}
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>

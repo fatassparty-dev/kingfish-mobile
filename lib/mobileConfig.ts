@@ -43,7 +43,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
   flags: {
     fantasy_hub: true,
     nfl_props: false,
-    mobile_paywall: false,
+    mobile_paywall: true,
   },
 }
 
