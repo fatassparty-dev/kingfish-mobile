@@ -13,6 +13,7 @@ import { kingfishFetch } from '@/lib/api'
 import { fetchFeatureFlags, type FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
+import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
@@ -319,6 +320,96 @@ function formLabel(team: any, sport: Sport) {
 
 function mlbAbbr(teamName: string) {
   return MLB_TEAM_NAME_TO_ABBR[teamName] || teamName.split(' ').pop()?.slice(0, 3).toUpperCase() || teamName
+}
+
+function recordGrade(pct: number) {
+  if (pct >= 0.620) return 'A'
+  if (pct >= 0.560) return 'B'
+  if (pct >= 0.500) return 'C'
+  if (pct >= 0.440) return 'D'
+  return 'F'
+}
+
+function soccerRecordLine(team: SoccerTeamInfo | undefined) {
+  if (!team?.played) return 'No table data yet'
+  return `${team.won || 0}W-${team.drawn || 0}D-${team.lost || 0}L · ${team.points || 0} pts`
+}
+
+function soccerStatLine(team: SoccerTeamInfo | undefined) {
+  if (!team?.played) return 'Standings pending'
+  const diff = Number(team.goalDifference || 0)
+  return `${team.goalsFor || 0} GF / ${team.goalsAgainst || 0} GA · ${diff >= 0 ? '+' : ''}${diff}`
+}
+
+function pointsPerGame(team: SoccerTeamInfo | undefined) {
+  const played = Number(team?.played || 0)
+  if (!played) return 0
+  return Number(team?.points || 0) / played
+}
+
+function drawRate(team: SoccerTeamInfo | undefined) {
+  const played = Number(team?.played || 0)
+  if (!played) return 0
+  return Number(team?.drawn || 0) / played
+}
+
+function recentDrawCount(team: SoccerTeamInfo | undefined) {
+  return String(team?.form || '').toUpperCase().split('').filter((result) => result === 'D').length
+}
+
+function goalsForPerGame(team: SoccerTeamInfo | undefined) {
+  const played = Number(team?.played || 0)
+  if (!played) return 0
+  return Number(team?.goalsFor || 0) / played
+}
+
+function soccerPower(team: SoccerTeamInfo | undefined) {
+  if (!team?.played) return 50
+  const played = Number(team.played || 1)
+  const ppg = pointsPerGame(team)
+  const gdPerGame = Number(team.goalDifference || 0) / played
+  const scoringRate = goalsForPerGame(team)
+  const againstRate = Number(team.goalsAgainst || 0) / played
+  const tableBonus = Math.max(0, 22 - Number(team.position || 20)) * 1.1
+  return 35 + (ppg * 12) + (gdPerGame * 8) + (scoringRate * 3) - (againstRate * 2) + tableBonus
+}
+
+function bestMoneylineFor(game: Game, side: 'away' | 'home' | 'draw') {
+  const target = side === 'away' ? game.away_team : side === 'home' ? game.home_team : 'Draw'
+  const options: Array<{ book: string; price: number }> = []
+  game.bookmakers?.forEach((bookmaker) => {
+    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    const market = bookmaker.markets?.find((item) => item.key === 'h2h')
+    const outcome = market?.outcomes?.find((item) => item.name === target)
+    if (typeof outcome?.price === 'number') options.push({ book: bookmaker.key, price: outcome.price })
+  })
+  return options.reduce<typeof options[number] | null>((best, item) => (!best || item.price > best.price ? item : best), null)
+}
+
+function soccerMatchupLean(awayInfo: SoccerTeamInfo | undefined, homeInfo: SoccerTeamInfo | undefined, game: Game) {
+  if (!awayInfo || !homeInfo) return null
+  const awayPower = soccerPower(awayInfo)
+  const homePower = soccerPower(homeInfo) + 3
+  const diff = homePower - awayPower
+  const ppgGap = Math.abs(pointsPerGame(homeInfo) - pointsPerGame(awayInfo))
+  const drawProfile =
+    (recentDrawCount(awayInfo) > 0 && recentDrawCount(homeInfo) > 0) ||
+    (drawRate(awayInfo) >= 0.24 && drawRate(homeInfo) >= 0.24) ||
+    ((drawRate(awayInfo) + drawRate(homeInfo)) / 2 >= 0.28)
+  const isDrawWatch = (Math.abs(diff) < 5 || ppgGap <= 0.15) && drawProfile
+  const stronger = diff > 0 ? homeInfo : awayInfo
+  const weaker = diff > 0 ? awayInfo : homeInfo
+  const best = bestMoneylineFor(game, isDrawWatch ? 'draw' : diff > 0 ? 'home' : 'away')
+  const ppgEdge = (pointsPerGame(stronger) - pointsPerGame(weaker)).toFixed(2)
+  const gdEdge = Number(stronger.goalDifference || 0) - Number(weaker.goalDifference || 0)
+  return {
+    type: isDrawWatch ? 'Draw Lean' : Math.abs(diff) >= 10 ? 'Strong Lean' : 'Lean',
+    side: isDrawWatch ? 'Draw' : (stronger.shortName || stronger.team),
+    detail: isDrawWatch
+      ? `${ppgGap.toFixed(2)} points/game gap with draw form on both sides.`
+      : `${ppgEdge} points/game edge and ${gdEdge >= 0 ? '+' : ''}${gdEdge} goal-difference edge.`,
+    best,
+  }
 }
 
 function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
@@ -736,36 +827,84 @@ export default function DashboardScreen() {
             </Card>
           )}
           {(lineQuery.data || []).map((game) => {
+            const awayAbbr = mlbAbbr(game.away_team)
+            const homeAbbr = mlbAbbr(game.home_team)
             const awayForm = sport === 'MLB'
-              ? mlbL10Query.data?.teamL10Map?.[mlbAbbr(game.away_team)]
+              ? mlbL10Query.data?.teamL10Map?.[awayAbbr]
               : findTeamForm(teamFormQuery.data?.teams, game.away_team)
             const homeForm = sport === 'MLB'
-              ? mlbL10Query.data?.teamL10Map?.[mlbAbbr(game.home_team)]
+              ? mlbL10Query.data?.teamL10Map?.[homeAbbr]
               : findTeamForm(teamFormQuery.data?.teams, game.home_team)
-            const awayRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[mlbAbbr(game.away_team)] : awayForm
-            const homeRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[mlbAbbr(game.home_team)] : homeForm
+            const awayRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[awayAbbr] : awayForm
+            const homeRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[homeAbbr] : homeForm
+            const soccerAway = sport === 'SOCCER' ? soccerTeams.find((team) => {
+              const full = normalizeTeamKey(team.team)
+              const short = normalizeTeamKey(team.shortName || '')
+              const posted = normalizeTeamKey(game.away_team)
+              return full === posted || short === posted || full.includes(posted) || posted.includes(full)
+            }) : undefined
+            const soccerHome = sport === 'SOCCER' ? soccerTeams.find((team) => {
+              const full = normalizeTeamKey(team.team)
+              const short = normalizeTeamKey(team.shortName || '')
+              const posted = normalizeTeamKey(game.home_team)
+              return full === posted || short === posted || full.includes(posted) || posted.includes(full)
+            }) : undefined
+            const soccerLean = sport === 'SOCCER' ? soccerMatchupLean(soccerAway, soccerHome, game) : null
+            const awayPct = sport === 'MLB' ? Number(awayRecord?.pct || 0) : 0
+            const homePct = sport === 'MLB' ? Number(homeRecord?.pct || 0) : 0
+            const stronger = sport === 'MLB' && awayPct !== homePct ? (awayPct > homePct ? shortTeamName(game.away_team) : shortTeamName(game.home_team)) : null
             return (
               <Card key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}>
                 <View style={styles.gameHeader}>
                   <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
                   <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                 </View>
+                {sport === 'MLB' && (
+                  <AppText variant="muted" style={styles.teamInfoMeta}>
+                    {stronger
+                      ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points.`
+                      : 'Season records are close. Use probable pitchers, recent form, and the best posted line before making the call.'}
+                  </AppText>
+                )}
+                {sport === 'SOCCER' && soccerLean && (
+                  <View style={styles.leanBox}>
+                    <View style={styles.leanCopy}>
+                      <AppText variant="mono">KingFish {soccerLean.type}</AppText>
+                      <AppText style={styles.leanMain}>{soccerLean.side}</AppText>
+                      <AppText variant="muted" style={styles.leanDetail}>{soccerLean.detail}</AppText>
+                    </View>
+                    {soccerLean.best && (
+                      <View style={styles.leanPrice}>
+                        <AppText style={styles.leanPriceText}>{soccerLean.best.price > 0 ? `+${soccerLean.best.price}` : soccerLean.best.price}</AppText>
+                        <AppText variant="mono">{BOOK_DISPLAY_NAMES[soccerLean.best.book] || soccerLean.best.book}</AppText>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <View style={styles.teamInfoStats}>
                   <View style={styles.teamInfoStat}>
                     <AppText variant="mono">{shortTeamName(game.away_team)}</AppText>
                     <AppText style={styles.teamInfoValue}>
-                      {sport === 'MLB'
+                      {sport === 'SOCCER'
+                        ? soccerRecordLine(soccerAway)
+                        : sport === 'MLB'
                         ? awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : '-'
                         : teamRecordLabel(awayRecord, sport)}
                     </AppText>
+                    {sport === 'MLB' && <AppText variant="muted" style={styles.miniMeta}>{recordGrade(awayPct)} · SP {mlbScheduleQuery.data?.pitcherNameMap?.[awayAbbr] || 'TBD'}</AppText>}
+                    {sport === 'SOCCER' && <AppText variant="muted" style={styles.miniMeta}>{soccerStatLine(soccerAway)}</AppText>}
                   </View>
                   <View style={styles.teamInfoStat}>
                     <AppText variant="mono">{shortTeamName(game.home_team)}</AppText>
                     <AppText style={styles.teamInfoValue}>
-                      {sport === 'MLB'
+                      {sport === 'SOCCER'
+                        ? soccerRecordLine(soccerHome)
+                        : sport === 'MLB'
                         ? homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : '-'
                         : teamRecordLabel(homeRecord, sport)}
                     </AppText>
+                    {sport === 'MLB' && <AppText variant="muted" style={styles.miniMeta}>{recordGrade(homePct)} · SP {mlbScheduleQuery.data?.pitcherNameMap?.[homeAbbr] || 'TBD'}</AppText>}
+                    {sport === 'SOCCER' && <AppText variant="muted" style={styles.miniMeta}>{soccerStatLine(soccerHome)}</AppText>}
                   </View>
                   <View style={styles.teamInfoStat}>
                     <AppText variant="mono">Form</AppText>
@@ -1604,5 +1743,51 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '900',
     marginTop: 6,
+  },
+  miniMeta: {
+    marginTop: 6,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  leanBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.28)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(198,145,50,.08)',
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  leanCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  leanMain: {
+    color: colors.gold,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  leanDetail: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  leanPrice: {
+    minWidth: 74,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.35)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  leanPriceText: {
+    color: colors.gold,
+    fontSize: 15,
+    fontWeight: '900',
   },
 })
