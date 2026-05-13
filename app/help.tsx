@@ -12,7 +12,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Tools when you want cheat sheets or calculators.',
+  'Open Tools when you want cheat sheets, calculators, or game factors.',
 ]
 
 const tools = [
@@ -31,6 +31,10 @@ const tools = [
   {
     title: 'Player Profiles',
     body: 'Tap a player name to see today\'s markets, season form, recent game logs, and the props KingFish found for that player.',
+  },
+  {
+    title: 'Game Factors',
+    body: 'Use mobile Game Factors to scan MLB and NFL game environments, including venue baseline, weather, and Boost/Watch/Suppress reads.',
   },
   {
     title: 'Ask KingFish',

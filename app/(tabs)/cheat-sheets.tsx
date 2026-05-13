@@ -16,8 +16,9 @@ import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
 type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines'
-type ToolMode = 'sheets' | 'calculators'
-type CalculatorKey = 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
+type ToolMode = 'sheets' | 'calculators' | 'factors'
+type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
+type FactorSport = 'MLB' | 'NFL'
 
 const SHEETS: Array<{
   key: SheetKey
@@ -50,6 +51,37 @@ const TEAM_NAME_TO_ABBR: Record<string, string> = {
   'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
 }
 
+const MLB_FACTOR_BASELINES: Record<string, { venue: string; score: number; environment: string; market: string }> = {
+  'Colorado Rockies': { venue: 'Coors Field', score: 92, environment: 'Elite hitter park', market: 'Totals / HR props' },
+  'Cincinnati Reds': { venue: 'Great American Ball Park', score: 84, environment: 'Power-friendly', market: 'HR props' },
+  'New York Yankees': { venue: 'Yankee Stadium', score: 80, environment: 'Short porch', market: 'Lefty power' },
+  'Philadelphia Phillies': { venue: 'Citizens Bank Park', score: 76, environment: 'Hitter lean', market: 'Totals / HR props' },
+  'Chicago Cubs': { venue: 'Wrigley Field', score: 62, environment: 'Weather sensitive', market: 'Totals' },
+  'Boston Red Sox': { venue: 'Fenway Park', score: 64, environment: 'Contact-friendly', market: 'Doubles / total bases' },
+  'Atlanta Braves': { venue: 'Truist Park', score: 64, environment: 'Balanced hitter lean', market: 'Totals / HR props' },
+  'Houston Astros': { venue: 'Daikin Park', score: 58, environment: 'Controlled roof', market: 'Contact / power' },
+  'San Francisco Giants': { venue: 'Oracle Park', score: 34, environment: 'Run suppression', market: 'Unders / pitching props' },
+  'San Diego Padres': { venue: 'Petco Park', score: 38, environment: 'Pitcher-friendly', market: 'Unders / pitching props' },
+  'Seattle Mariners': { venue: 'T-Mobile Park', score: 40, environment: 'Pitcher-friendly', market: 'Unders / pitching props' },
+  'Detroit Tigers': { venue: 'Comerica Park', score: 42, environment: 'Deep power alleys', market: 'Unders / extra bases fade' },
+}
+
+const NFL_FACTOR_BASELINES: Record<string, { venue: string; score: number; environment: string; market: string }> = {
+  'Buffalo Bills': { venue: 'Highmark Stadium', score: 38, environment: 'Outdoor wind risk', market: 'Totals / passing / kicking' },
+  'Cleveland Browns': { venue: 'Cleveland Browns Stadium', score: 40, environment: 'Lake weather', market: 'Totals / kicking' },
+  'Chicago Bears': { venue: 'Soldier Field', score: 42, environment: 'Outdoor wind risk', market: 'Totals / passing' },
+  'Green Bay Packers': { venue: 'Lambeau Field', score: 46, environment: 'Cold weather', market: 'Totals / rushing' },
+  'Pittsburgh Steelers': { venue: 'Acrisure Stadium', score: 48, environment: 'Outdoor weather', market: 'Totals / kicking' },
+  'Miami Dolphins': { venue: 'Hard Rock Stadium', score: 62, environment: 'Heat edge', market: 'Conditioning / totals' },
+  'Dallas Cowboys': { venue: 'AT&T Stadium', score: 74, environment: 'Controlled dome', market: 'Passing / kicking' },
+  'Detroit Lions': { venue: 'Ford Field', score: 78, environment: 'Dome track', market: 'Passing / overs' },
+  'Minnesota Vikings': { venue: 'U.S. Bank Stadium', score: 74, environment: 'Controlled dome', market: 'Passing / kicking' },
+  'New Orleans Saints': { venue: 'Caesars Superdome', score: 77, environment: 'Dome track', market: 'Passing / overs' },
+  'Las Vegas Raiders': { venue: 'Allegiant Stadium', score: 73, environment: 'Controlled dome', market: 'Passing / kicking' },
+  'Los Angeles Rams': { venue: 'SoFi Stadium', score: 75, environment: 'Indoor-style', market: 'Passing / overs' },
+  'Los Angeles Chargers': { venue: 'SoFi Stadium', score: 75, environment: 'Indoor-style', market: 'Passing / overs' },
+}
+
 const STAT_TO_RAW: Record<string, string> = {
   hits_per_game: 'hits',
   hr_per_game: 'hr',
@@ -73,9 +105,11 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
+  { key: 'factors', label: 'Game Factors' },
 ]
 
 const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
+  { key: 'unit', label: 'Unit Plan', desc: 'Turn bankroll and risk percent into unit sizes and daily guardrails.' },
   { key: 'ev', label: 'EV', desc: 'Compare your true probability against the book price.' },
   { key: 'novig', label: 'No-Vig', desc: 'Strip the book margin from a two-way market.' },
   { key: 'kelly', label: 'Kelly', desc: 'Turn bankroll, price, and edge into a stake guide.' },
@@ -122,6 +156,19 @@ interface BvpRow {
   hr: number
   rbi: number
   ops: string
+}
+
+interface FactorRow {
+  id: string
+  matchup: string
+  time: string
+  venue: string
+  environment: string
+  weather: string
+  score: number
+  lean: string
+  tone: string
+  tags: string[]
 }
 
 function getStat(stats: Record<string, any> | undefined, field: string, prefix: 'season' | 'l10' | 'l5') {
@@ -246,6 +293,86 @@ function buildBvpRows(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = []
     })
     .filter((row): row is BvpRow => row !== null && row.ab > 0)
     .sort((a, b) => b.ab - a.ab)
+}
+
+function factorBaseline(homeTeam: string, sport: FactorSport) {
+  const baseline = sport === 'MLB' ? MLB_FACTOR_BASELINES[homeTeam] : NFL_FACTOR_BASELINES[homeTeam]
+  return baseline || {
+    venue: sport === 'MLB' ? 'Home ballpark' : 'Home stadium',
+    score: 55,
+    environment: 'Neutral baseline',
+    market: 'Neutral setup',
+  }
+}
+
+function cleanSkyLabel(sky?: string) {
+  const value = String(sky || '').toLowerCase()
+  if (value.includes('storm')) return 'Storms'
+  if (value.includes('rain')) return 'Rain'
+  if (value.includes('drizzle')) return 'Drizzle'
+  if (value.includes('cloud')) return 'Cloudy'
+  if (value.includes('partly')) return 'Partly cloudy'
+  if (value.includes('clear')) return 'Clear'
+  return sky || ''
+}
+
+function weatherFactor(weather: any, sport: FactorSport) {
+  if (!weather) return { delta: 0, label: 'Weather pending', tags: ['Weather pending'] }
+  if (weather.indoor) return { delta: 6, label: weather.windStr || 'Controlled', tags: ['Controlled conditions'] }
+
+  let delta = 0
+  const tags: string[] = []
+  const temp = typeof weather.tempF === 'number' ? weather.tempF : null
+  const precip = Number(weather.precipPct || 0)
+
+  if (sport === 'MLB') {
+    if (temp !== null && temp >= 80) { delta += 8; tags.push('Warm carry') }
+    if (temp !== null && temp <= 55) { delta -= 8; tags.push('Cold suppress') }
+    if (weather.windImpact === 'boost') { delta += 9; tags.push('Wind boost') }
+    if (weather.windImpact === 'suppress') { delta -= 9; tags.push('Wind suppress') }
+    if (precip >= 35) { delta -= 4; tags.push('Rain risk') }
+  } else {
+    if (weather.windImpact === 'suppress') { delta -= 14; tags.push('Wind risk') }
+    if (temp !== null && temp <= 32) { delta -= 6; tags.push('Cold risk') }
+    if (temp !== null && temp >= 82) { delta += 4; tags.push('Heat edge') }
+    if (precip >= 35) { delta -= 7; tags.push('Rain risk') }
+  }
+
+  const tempText = temp === null ? '' : `${temp}F`
+  const rainText = precip >= 25 ? `, ${precip}% rain` : ''
+  const label = [cleanSkyLabel(weather.sky), tempText, weather.windStr].filter(Boolean).join(' · ') + rainText
+  return { delta, label: label || 'Weather neutral', tags: tags.length ? tags : ['Weather neutral'] }
+}
+
+function factorTone(score: number) {
+  if (score >= 72) return { tone: colors.green, lean: 'Boost' }
+  if (score <= 43) return { tone: colors.red, lean: 'Suppress' }
+  return { tone: colors.gold, lean: 'Watch' }
+}
+
+function buildFactorRows(games: Game[] = [], weatherData: Record<string, any> = {}, sport: FactorSport) {
+  return games
+    .filter((game) => new Date(game.commence_time).getTime() > Date.now() - 3 * 60 * 60 * 1000)
+    .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
+    .map((game) => {
+      const id = game.id || game.game_id || `${game.away_team}-${game.home_team}`
+      const baseline = factorBaseline(game.home_team, sport)
+      const weather = weatherFactor(weatherData[id], sport)
+      const score = Math.max(1, Math.min(100, Math.round(baseline.score + weather.delta)))
+      const tone = factorTone(score)
+      return {
+        id,
+        matchup: `${game.away_team} @ ${game.home_team}`,
+        time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
+        venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
+        environment: baseline.environment,
+        weather: weather.label,
+        score,
+        lean: tone.lean,
+        tone: tone.tone,
+        tags: [baseline.market, ...weather.tags],
+      }
+    })
 }
 
 function fmtMoney(value: number) {
@@ -391,8 +518,11 @@ export default function CheatSheetsScreen() {
   const isPremium = profile?.is_premium === true
   const [toolMode, setToolMode] = useState<ToolMode>('sheets')
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
-  const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('ev')
+  const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
+  const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
+    unitBankroll: '1000',
+    unitPct: '1.5',
     evOdds: '-110',
     evProb: '55',
     evStake: '100',
@@ -411,6 +541,7 @@ export default function CheatSheetsScreen() {
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
   const hasOpenSheet = selectedKey !== null
   const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet
+  const canLoadFactors = isPremium && toolMode === 'factors'
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
@@ -502,15 +633,72 @@ export default function CheatSheetsScreen() {
     staleTime: 12 * 60 * 60 * 1000,
   })
 
+  const factorGamesQuery = useQuery({
+    queryKey: ['mobile-game-factors-games', factorSport],
+    queryFn: async () => {
+      if (factorSport === 'MLB') {
+        const schedule = await kingfishFetch<{ games?: any[] }>('/api/mlb-schedule')
+        return (schedule.games || []).map((game: any) => ({
+          id: String(game.gamePk),
+          commence_time: game.gameDate,
+          away_team: game?.teams?.away?.team?.name || '',
+          home_team: game?.teams?.home?.team?.name || '',
+          dayNight: game.dayNight,
+          doubleHeader: game.doubleHeader,
+          status: game?.status?.detailedState || game?.status?.abstractGameState,
+          statusReason: game?.status?.reason || '',
+          neutralSite: game.neutralSite === true,
+          venueName: game?.venue?.name || '',
+          gameNumber: Number(game.gameNumber) || undefined,
+          bookmakers: [],
+        })).filter((game: Game) => game.away_team && game.home_team)
+      }
+
+      const nflGames = await kingfishFetch<Game[]>('/api/nfl-odds')
+      return nflGames.filter((game) => game.away_team && game.home_team)
+    },
+    enabled: canLoadFactors,
+    staleTime: 60 * 60 * 1000,
+  })
+
+  const factorGames = useMemo(() => factorGamesQuery.data || [], [factorGamesQuery.data])
+
+  const factorWeatherQuery = useQuery({
+    queryKey: ['mobile-game-factors-weather', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
+    queryFn: () =>
+      kingfishFetch<Record<string, any>>(factorSport === 'MLB' ? '/api/mlb-weather' : '/api/nfl-weather', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ games: factorGames }),
+      }),
+    enabled: canLoadFactors && factorGames.length > 0,
+    staleTime: 60 * 60 * 1000,
+  })
+
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
     ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend)
     : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
+  const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
 
   const updateCalc = (key: string, value: string) => setCalcInputs((current) => ({ ...current, [key]: value }))
 
   const calculatorResult = useMemo(() => {
+    if (calculatorKey === 'unit') {
+      const bankroll = parseNumber(calcInputs.unitBankroll)
+      const pct = parseNumber(calcInputs.unitPct)
+      if (!Number.isFinite(bankroll) || !Number.isFinite(pct) || bankroll <= 0 || pct <= 0) return null
+      const oneUnit = bankroll * (pct / 100)
+      return [
+        { label: '0.5 Unit', value: fmtMoney(oneUnit * 0.5) },
+        { label: '1 Unit', value: fmtMoney(oneUnit), tone: colors.gold },
+        { label: '2 Units', value: fmtMoney(oneUnit * 2) },
+        { label: 'Daily Stop-Loss', value: fmtMoney(oneUnit * 3), tone: colors.red },
+        { label: 'Max Daily Exposure', value: fmtMoney(oneUnit * 5) },
+      ]
+    }
+
     if (calculatorKey === 'ev') {
       const odds = parseNumber(calcInputs.evOdds)
       const probability = parseNumber(calcInputs.evProb) / 100
@@ -591,7 +779,7 @@ export default function CheatSheetsScreen() {
       <AppText variant="eyebrow">// KingFish Workspace</AppText>
       <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Cheat sheets and calculators in one clean workspace.
+        Cheat sheets, calculators, and game factors in one clean workspace.
       </AppText>
 
       <View style={styles.segmentRow}>
@@ -622,6 +810,65 @@ export default function CheatSheetsScreen() {
             </View>
           ) : null}
         </Card>
+      ) : toolMode === 'factors' ? (
+        <>
+          <View style={styles.factorToggle}>
+            {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => setFactorSport(item)}
+                style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
+              >
+                <AppText style={[styles.segmentText, factorSport === item && styles.segmentTextActive]}>{item}</AppText>
+              </Pressable>
+            ))}
+          </View>
+
+          {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted">Loading game factors...</AppText>
+            </View>
+          )}
+
+          {!factorGamesQuery.isLoading && factorRows.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Game Factors</AppText>
+              <AppText style={styles.cardTitle}>No Games Posted</AppText>
+              <AppText variant="muted" style={styles.cardCopy}>
+                {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : 'NFL factors will populate when game markets post.'}
+              </AppText>
+            </Card>
+          )}
+
+          <View style={styles.factorRows}>
+            {factorRows.map((row) => (
+              <Card key={row.id} style={styles.factorCard}>
+                <View style={styles.factorHeader}>
+                  <View style={styles.factorTitleWrap}>
+                    <AppText style={styles.compactPlayer} numberOfLines={1}>{row.matchup}</AppText>
+                    <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
+                  </View>
+                  <View style={styles.factorScore}>
+                    <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
+                    <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
+                  </View>
+                </View>
+                <View style={styles.factorMetaGrid}>
+                  <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
+                  <FactorMeta label="Weather" value={row.weather} />
+                </View>
+                <View style={styles.factorTags}>
+                  {row.tags.map((tag) => (
+                    <View key={tag} style={styles.factorTag}>
+                      <AppText style={styles.factorTagText}>{tag}</AppText>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ))}
+          </View>
+        </>
       ) : toolMode === 'calculators' ? (
         <>
           <View style={styles.sheetGrid}>
@@ -640,6 +887,12 @@ export default function CheatSheetsScreen() {
           <Card>
             <AppText variant="eyebrow">// Calculator</AppText>
             <AppText style={styles.cardTitle}>{CALCULATORS.find((item) => item.key === calculatorKey)?.label}</AppText>
+            {calculatorKey === 'unit' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Bankroll" value={calcInputs.unitBankroll} onChangeText={(value) => updateCalc('unitBankroll', value)} />
+                <ToolInput label="Unit %" value={calcInputs.unitPct} onChangeText={(value) => updateCalc('unitPct', value)} />
+              </View>
+            )}
             {calculatorKey === 'ev' && (
               <View style={styles.inputGrid}>
                 <ToolInput label="Book Odds" value={calcInputs.evOdds} onChangeText={(value) => updateCalc('evOdds', value)} />
@@ -844,6 +1097,16 @@ function BvpMetric({ label, value, tone }: { label: string; value: string; tone?
   )
 }
 
+function FactorMeta({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <View style={styles.factorMeta}>
+      <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
+      <AppText style={styles.factorMetaValue}>{value}</AppText>
+      {sub ? <AppText variant="muted" style={styles.factorMetaSub}>{sub}</AppText> : null}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   title: { marginTop: 8 },
   copy: { marginTop: 10, marginBottom: spacing.xl },
@@ -942,6 +1205,99 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '900',
+  },
+  factorToggle: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  factorToggleButton: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCardAlt,
+  },
+  factorToggleButtonActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  factorRows: {
+    gap: spacing.md,
+  },
+  factorCard: {
+    gap: spacing.md,
+  },
+  factorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  factorTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  factorScore: {
+    alignItems: 'flex-end',
+    minWidth: 72,
+  },
+  factorScoreValue: {
+    fontSize: 34,
+    lineHeight: 36,
+    fontWeight: '900',
+  },
+  factorLean: {
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  factorMetaGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  factorMeta: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+  },
+  factorMetaLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  factorMetaValue: {
+    marginTop: 5,
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  factorMetaSub: {
+    marginTop: 4,
+    fontSize: 12,
+  },
+  factorTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  factorTag: {
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.3)',
+    borderRadius: 6,
+    backgroundColor: 'rgba(198,145,50,.1)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  factorTagText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   reportHeader: {
     flexDirection: 'row',

@@ -26,6 +26,7 @@ Inside KingFish:
 - Player props with season, recent-form, and hit-rate context
 - Best available odds highlighted across supported sportsbooks
 - MLB cheat sheets including Batter vs Pitcher for quick prop research
+- MLB and NFL Game Factors for venue, weather, and scoring environment context
 - Ask KingFish AI analyst with live KingFish context
 - NFL Command Center and Fantasy Hub links
 - Account access shared across web and mobile
