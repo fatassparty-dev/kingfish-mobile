@@ -45,6 +45,32 @@ type NFLFuturesData = {
   }>
 }
 
+type NCAAFOutlookData = {
+  season: string
+  teams: Array<{
+    rank: number
+    team: string
+    conference: string
+    lastRecord: string
+    power: string
+    schedule: string
+    profile: string
+    lean: string
+  }>
+}
+
+type NCAAFMatchup = {
+  id: string
+  commence_time: string
+  home_team: string
+  away_team: string
+  favorite: string
+  favoriteDetail: string
+  spread: number | null
+  total: number | null
+  status: string
+}
+
 type WeekOption<T extends { commence_time: string }> = {
   key: string
   label: string
@@ -204,6 +230,10 @@ function weekOptions<T extends { commence_time: string }>(games: T[]): WeekOptio
   return weeks.filter(Boolean)
 }
 
+function shortTeamName(team: string) {
+  return team.replace(/ University$/i, '').replace(/ College$/i, '')
+}
+
 function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
   const lines = data?.wins?.find((item) => item.team === team)?.lines || []
   if (!lines.length) return '-'
@@ -217,6 +247,8 @@ export default function DashboardScreen() {
   const [view, setView] = useState<DashboardView>('lines')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
+  const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
+  const [collegeConference, setCollegeConference] = useState('All')
   const selectedSport = SPORTS.find((item) => item.key === sport) || SPORTS[0]
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const flagsQuery = useQuery({
@@ -226,8 +258,8 @@ export default function DashboardScreen() {
   })
   const isSelectedSportActive = selectedSport.key === 'NFL' || (flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => item.key === 'NFL' || (flagsQuery.data?.[item.flag] ?? item.status === 'Live')
-  const dashboardViews: DashboardView[] = sport === 'NFL' ? ['league', 'lines', 'props'] : ['lines', 'props']
-  const secondaryViewLabel = isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
+  const dashboardViews: DashboardView[] = sport === 'NFL' || sport === 'NCAAF' ? ['league', 'props', 'lines'] : ['lines', 'props']
+  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const canFetchLines = isSelectedSportActive && view === 'lines' && isPremium
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
@@ -264,6 +296,18 @@ export default function DashboardScreen() {
     enabled: isSelectedSportActive && sport === 'NFL' && view === 'league',
     staleTime: 24 * 60 * 60 * 1000,
   })
+  const ncaafOutlookQuery = useQuery({
+    queryKey: ['ncaaf-mobile-league-view'],
+    queryFn: () => kingfishFetch<NCAAFOutlookData>('/data/ncaaf/team-outlook-2026.json'),
+    enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'props'),
+    staleTime: 24 * 60 * 60 * 1000,
+  })
+  const ncaafMatchupsQuery = useQuery({
+    queryKey: ['ncaaf-mobile-matchups'],
+    queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaf-matchups'),
+    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'props',
+    staleTime: 10 * 60 * 1000,
+  })
   const soccerTeamQuery = useQuery({
     queryKey: ['soccer-team-info', soccerLeague],
     queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>(`/api/soccer-team-info?league=${soccerLeague}`),
@@ -275,9 +319,35 @@ export default function DashboardScreen() {
     const bPos = Number(b.position || 999)
     return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
-  const lineWeeks = sport === 'NFL' ? weekOptions(upcomingGames(lineQuery.data || [])) : []
+  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingGames(lineQuery.data || [])) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
-  const visibleLineGames = sport === 'NFL' && activeLineWeek ? activeLineWeek.games : (lineQuery.data || [])
+  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : (lineQuery.data || [])
+  const ncaafTeams = ncaafOutlookQuery.data?.teams || []
+  const ncaafConferences = ['All', ...Array.from(new Set(ncaafTeams.map((team) => team.conference))).sort()]
+  const filteredNcaafTeams = ncaafTeams.filter((team) => {
+    const scopeMatch = collegeScope === 'all' || team.rank <= 25
+    const conferenceMatch = collegeConference === 'All' || team.conference === collegeConference
+    return scopeMatch && conferenceMatch
+  })
+  const ncaafTeamForName = (teamName: string) => ncaafTeams.find((team) => {
+    const posted = teamName.toLowerCase()
+    const known = team.team.toLowerCase()
+    return posted === known || posted.includes(known) || known.includes(posted)
+  })
+  const filteredNcaafMatchups = (ncaafMatchupsQuery.data || []).filter((game) => {
+    if (collegeScope === 'top25') {
+      const awayRank = ncaafTeamForName(game.away_team)?.rank
+      const homeRank = ncaafTeamForName(game.home_team)?.rank
+      if (!awayRank && !homeRank) return false
+      if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
+    }
+    if (collegeConference !== 'All') {
+      const awayConf = ncaafTeamForName(game.away_team)?.conference
+      const homeConf = ncaafTeamForName(game.home_team)?.conference
+      if (awayConf !== collegeConference && homeConf !== collegeConference) return false
+    }
+    return true
+  })
 
   return (
     <Screen>
@@ -294,6 +364,7 @@ export default function DashboardScreen() {
             onPress={() => {
               setSport(item.key)
               if (item.key === 'NFL') setView('league')
+              else if (item.key === 'NCAAF') setView('league')
               else if (view === 'league') setView('lines')
               if (isCollegeSport(item.key) && view === 'props') setView('props')
             }}
@@ -339,6 +410,33 @@ export default function DashboardScreen() {
             >
               <AppText style={[styles.soccerLeagueText, soccerLeague === item.key && styles.soccerLeagueTextActive]}>
                 {item.label}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {sport === 'NCAAF' && (
+        <View style={styles.soccerLeagueRow}>
+          {(['top25', 'all'] as const).map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => setCollegeScope(item)}
+              style={[styles.soccerLeaguePill, collegeScope === item && styles.soccerLeaguePillActive]}
+            >
+              <AppText style={[styles.soccerLeagueText, collegeScope === item && styles.soccerLeagueTextActive]}>
+                {item === 'top25' ? 'Top 25' : 'All Teams'}
+              </AppText>
+            </Pressable>
+          ))}
+          {ncaafConferences.map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => setCollegeConference(item)}
+              style={[styles.soccerLeaguePill, collegeConference === item && styles.soccerLeaguePillActive]}
+            >
+              <AppText style={[styles.soccerLeagueText, collegeConference === item && styles.soccerLeagueTextActive]}>
+                {item}
               </AppText>
             </Pressable>
           ))}
@@ -426,6 +524,58 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {isSelectedSportActive && sport === 'NCAAF' && view === 'league' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">College football team outlook for league context</AppText>
+          </View>
+
+          {ncaafOutlookQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NCAAF league view...</AppText>
+            </View>
+          )}
+
+          {ncaafOutlookQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// NCAAF League View</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load college football context.</AppText>
+            </Card>
+          )}
+
+          {filteredNcaafTeams.map((team) => (
+            <Card key={`${team.rank}-${team.team}`}>
+              <View style={styles.teamInfoHeader}>
+                <View style={styles.teamInfoRank}>
+                  <AppText style={styles.teamInfoRankText}>{team.rank}</AppText>
+                </View>
+                <View style={styles.teamInfoBody}>
+                  <AppText style={styles.teamInfoName}>{team.team}</AppText>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>
+                    {team.conference} · {team.lastRecord} · {team.schedule} schedule
+                  </AppText>
+                </View>
+                <View style={styles.teamInfoGrade}>
+                  <AppText style={styles.teamInfoGradeText}>{team.power}</AppText>
+                </View>
+              </View>
+              <AppText variant="muted" style={styles.roadmapText}>{team.profile}</AppText>
+              <View style={styles.teamInfoStats}>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Lean</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.lean}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Conference</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.conference}</AppText>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+
       {isSelectedSportActive && view === 'lines' && !isPremium && (
         <View style={styles.liveSection}>
           <Card>
@@ -475,7 +625,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {sport === 'NFL' && lineWeeks.length > 1 && (
+          {(sport === 'NFL' || sport === 'NCAAF') && lineWeeks.length > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRow}>
               {lineWeeks.map((week) => (
                 <Pressable
@@ -573,7 +723,71 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && isCollegeSport(sport) && (
+      {isSelectedSportActive && view === 'props' && sport === 'NCAAF' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">Cached matchup context from the latest NCAAF odds board</AppText>
+          </View>
+
+          {ncaafMatchupsQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NCAAF matchups...</AppText>
+            </View>
+          )}
+
+          {ncaafMatchupsQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load NCAAF matchups.</AppText>
+            </Card>
+          )}
+
+          {!ncaafMatchupsQuery.isLoading && !ncaafMatchupsQuery.isError && filteredNcaafMatchups.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
+              <AppText variant="muted">NCAAF matchup context appears after sportsbooks post the next slate.</AppText>
+            </Card>
+          )}
+
+          {filteredNcaafMatchups.map((game) => {
+            const awayRank = ncaafTeamForName(game.away_team)?.rank
+            const homeRank = ncaafTeamForName(game.home_team)?.rank
+            return (
+              <Card key={game.id}>
+                <View style={styles.gameHeader}>
+                  <AppText style={styles.gameTitle}>
+                    {shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}
+                  </AppText>
+                  <AppText variant="mono">{shortDate(new Date(game.commence_time))}</AppText>
+                </View>
+                <AppText variant="muted" style={styles.teamInfoMeta}>
+                  {awayRank && awayRank <= 25 ? `#${awayRank} ${shortTeamName(game.away_team)} · ` : ''}
+                  {homeRank && homeRank <= 25 ? `#${homeRank} ${shortTeamName(game.home_team)} · ` : ''}
+                  {game.status}
+                </AppText>
+                <View style={styles.teamInfoStats}>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">Favorite</AppText>
+                    <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">Spread</AppText>
+                    <AppText style={styles.teamInfoValue}>{game.spread == null ? '-' : `${game.spread > 0 ? '+' : ''}${game.spread}`}</AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">Total</AppText>
+                    <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                  </View>
+                </View>
+              </Card>
+            )
+          })}
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'props' && isCollegeSport(sport) && sport !== 'NCAAF' && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Team Stats</AppText>
@@ -802,6 +1016,20 @@ const styles = StyleSheet.create({
   liveSection: {
     gap: spacing.md,
     marginTop: spacing.lg,
+  },
+  gameHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  gameTitle: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   dataNote: {
     borderWidth: 1,
