@@ -35,7 +35,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       const profileRequest = supabase
         .from('user_profiles')
-        .select('user_id, is_premium, is_admin, is_vip, is_gifted, first_name, last_name, state, subscription_status, stripe_plan, premium_expires_at')
+        .select('user_id, is_premium, is_admin, is_vip, is_gifted, first_name, last_name, state, subscription_status, subscription_platform, stripe_plan, premium_expires_at')
         .eq('user_id', user.id)
         .single()
 
