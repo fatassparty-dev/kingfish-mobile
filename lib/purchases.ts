@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import Purchases, { LOG_LEVEL } from 'react-native-purchases'
+import { kingfishFetch } from './api'
 
 export type PurchaseResult = {
   ok: boolean
@@ -42,6 +43,20 @@ function isActivePremium(customerInfo: any) {
 function displayPurchaseError(error: any) {
   if (error?.userCancelled) return 'Purchase cancelled.'
   return error?.message || 'Purchase could not be completed. Please try again.'
+}
+
+async function syncPremiumStatus() {
+  try {
+    return await kingfishFetch<{ ok: boolean; is_premium: boolean }>('/api/revenuecat/sync', {
+      method: 'POST',
+    })
+  } catch (error: any) {
+    return {
+      ok: false,
+      is_premium: false,
+      error: error?.message || 'Premium status could not sync yet.',
+    }
+  }
 }
 
 export async function configurePurchases(appUserID?: string | null): Promise<PurchaseResult> {
@@ -126,10 +141,14 @@ export async function purchasePremium(appUserID?: string | null, plan?: Purchase
     }
 
     const { customerInfo } = await Purchases.purchasePackage(selectedPackage)
+    const active = isActivePremium(customerInfo)
+    const synced = active ? await syncPremiumStatus() : null
     return {
-      ok: isActivePremium(customerInfo),
-      message: isActivePremium(customerInfo)
+      ok: active && (synced?.is_premium ?? true),
+      message: active && synced?.is_premium
         ? 'KingFish Bets Pro is active.'
+        : active
+          ? 'Purchase completed. Tap Refresh Status if Premium does not show within a moment.'
         : 'Purchase completed, but KingFish Bets Pro is not active yet.',
     }
   } catch (error: any) {
@@ -146,10 +165,14 @@ export async function restorePurchases(appUserID?: string | null): Promise<Purch
 
   try {
     const customerInfo = await Purchases.restorePurchases()
+    const active = isActivePremium(customerInfo)
+    const synced = active ? await syncPremiumStatus() : null
     return {
-      ok: isActivePremium(customerInfo),
-      message: isActivePremium(customerInfo)
+      ok: active && (synced?.is_premium ?? true),
+      message: active && synced?.is_premium
         ? 'KingFish Bets Pro was restored.'
+        : active
+          ? 'Purchase restored. Tap Refresh Status if Premium does not show within a moment.'
         : 'No active KingFish Bets Pro purchase was found for this Apple or Google account.',
     }
   } catch (error: any) {

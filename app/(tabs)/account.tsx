@@ -27,9 +27,7 @@ export default function AccountScreen() {
   async function handleRestorePurchases() {
     setRestoring(true)
     const result = await restorePurchases(user?.id)
-    setRestoreMessage(result.ok
-      ? `${result.message} Premium status may take a moment to sync. Tap Refresh Status if it does not update right away.`
-      : result.message)
+    setRestoreMessage(result.message)
     await refreshProfile()
     setRestoring(false)
   }
