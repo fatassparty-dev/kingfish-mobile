@@ -632,7 +632,7 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
 const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'player', label: 'Player' },
   { key: 'line', label: 'Line' },
-  { key: 'season', label: 'Season' },
+  { key: 'season', label: 'Avg' },
   { key: 'l10', label: 'L10' },
   { key: 'l5', label: 'L5' },
   { key: 'l10hit', label: 'L10 Hit' },
@@ -735,7 +735,7 @@ export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<
 
       {stats && (
         <View style={styles.statsRow}>
-          <StatPill label="Season" value={fmtStat(season)} color={statColor(season, line)} />
+          <StatPill label="Avg" value={fmtStat(season)} color={statColor(season, line)} />
           <StatPill label="L10" value={fmtStat(l10)} color={statColor(l10, line)} />
           <StatPill label="L5" value={fmtStat(l5)} color={statColor(l5, line)} />
           <StatPill
