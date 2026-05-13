@@ -43,12 +43,30 @@ const MARKET_LABELS: Record<string, string> = {
   player_pass_yds: 'Pass Yards',
   player_pass_tds: 'Pass TDs',
   player_pass_attempts: 'Pass Attempts',
+  player_pass_completions: 'Completions',
   player_pass_interceptions: 'Interceptions',
+  player_pass_rush_yds: 'Pass+Rush Yds',
+  player_pass_rush_reception_tds: 'Pass+Rush+Rec TD',
+  player_pass_rush_reception_yds: 'Pass+Rush+Rec Yds',
   player_rush_yds: 'Rush Yards',
   player_rush_attempts: 'Rush Attempts',
+  player_rush_tds: 'Rush TDs',
+  player_rush_reception_tds: 'Rush+Rec TD',
+  player_rush_reception_yds: 'Rush+Rec Yds',
   player_receptions: 'Receptions',
   player_reception_yds: 'Rec Yards',
+  player_reception_tds: 'Rec TDs',
   player_anytime_td: 'Anytime TD',
+  player_tds_over: 'TDs Over',
+  player_1st_td: '1st TD',
+  player_last_td: 'Last TD',
+  player_field_goals: 'Field Goals',
+  player_kicking_points: 'Kicking Points',
+  player_pats: 'PATs',
+  player_defensive_interceptions: 'Def INTs',
+  player_sacks: 'Sacks',
+  player_solo_tackles: 'Solo Tackles',
+  player_tackles_assists: 'Tackles+Ast',
 }
 
 const BASKETBALL_MARKETS = [
@@ -74,15 +92,57 @@ const NHL_MARKETS = [
 ]
 
 const NFL_MARKETS = [
+  'player_anytime_td',
+  'player_tds_over',
+  'player_1st_td',
+  'player_last_td',
   'player_pass_yds',
   'player_pass_tds',
   'player_pass_attempts',
+  'player_pass_completions',
   'player_pass_interceptions',
+  'player_pass_rush_yds',
+  'player_pass_rush_reception_yds',
+  'player_pass_rush_reception_tds',
   'player_rush_yds',
   'player_rush_attempts',
+  'player_rush_tds',
+  'player_rush_reception_yds',
+  'player_rush_reception_tds',
   'player_receptions',
   'player_reception_yds',
-  'player_anytime_td',
+  'player_reception_tds',
+  'player_field_goals',
+  'player_kicking_points',
+  'player_pats',
+  'player_assists',
+  'player_defensive_interceptions',
+  'player_sacks',
+  'player_solo_tackles',
+  'player_tackles_assists',
+  'player_pass_yds_alternate',
+  'player_pass_tds_alternate',
+  'player_pass_attempts_alternate',
+  'player_pass_completions_alternate',
+  'player_pass_interceptions_alternate',
+  'player_pass_rush_yds_alternate',
+  'player_pass_rush_reception_yds_alternate',
+  'player_pass_rush_reception_tds_alternate',
+  'player_rush_yds_alternate',
+  'player_rush_attempts_alternate',
+  'player_rush_tds_alternate',
+  'player_rush_reception_yds_alternate',
+  'player_rush_reception_tds_alternate',
+  'player_receptions_alternate',
+  'player_reception_yds_alternate',
+  'player_reception_tds_alternate',
+  'player_field_goals_alternate',
+  'player_kicking_points_alternate',
+  'player_pats_alternate',
+  'player_assists_alternate',
+  'player_sacks_alternate',
+  'player_solo_tackles_alternate',
+  'player_tackles_assists_alternate',
 ]
 
 interface FlattenedProp {
@@ -113,17 +173,54 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
   player_pass_yds: 'passing_yards_per_game',
   player_pass_tds: 'passing_tds_per_game',
   player_pass_attempts: 'passing_attempts_per_game',
+  player_pass_completions: 'completions_per_game',
   player_pass_interceptions: 'interceptions_per_game',
+  player_pass_rush_yds: 'pass_rush_yards_per_game',
+  player_pass_rush_reception_tds: 'pass_rush_reception_tds_per_game',
+  player_pass_rush_reception_yds: 'pass_rush_reception_yards_per_game',
   player_rush_yds: 'rushing_yards_per_game',
   player_rush_attempts: 'carries_per_game',
+  player_rush_tds: 'rushing_tds_per_game',
+  player_rush_reception_tds: 'rush_reception_tds_per_game',
+  player_rush_reception_yds: 'rush_reception_yards_per_game',
   player_receptions: 'receptions_per_game',
   player_reception_yds: 'receiving_yards_per_game',
+  player_reception_tds: 'receiving_tds_per_game',
   player_anytime_td: 'total_tds_per_game',
+  player_tds_over: 'total_tds_per_game',
+  player_1st_td: 'total_tds_per_game',
+  player_last_td: 'total_tds_per_game',
+  player_field_goals: 'field_goals_made_per_game',
+  player_kicking_points: 'kicking_points_per_game',
+  player_pats: 'extra_points_made_per_game',
+  player_defensive_interceptions: 'def_interceptions_per_game',
+  player_sacks: 'def_sacks_per_game',
+  player_solo_tackles: 'def_tackles_solo_per_game',
+  player_tackles_assists: 'def_tackles_assists_per_game',
+}
+
+function baseMarketKey(marketKey: string) {
+  return marketKey.replace(/_alternate$/, '')
+}
+
+const NFL_MARKET_LABELS: Record<string, string> = {
+  player_assists: 'Tackle Assists',
+  player_assists_alternate: 'Alt Tackle Assists',
+}
+
+function marketLabel(marketKey: string) {
+  if (NFL_MARKET_LABELS[marketKey]) return NFL_MARKET_LABELS[marketKey]
+  if (MARKET_LABELS[marketKey]) return MARKET_LABELS[marketKey]
+  const baseLabel = MARKET_LABELS[baseMarketKey(marketKey)]
+  if (baseLabel && marketKey.endsWith('_alternate')) return `Alt ${baseLabel}`
+  return marketKey.replaceAll('_', ' ')
 }
 
 function getStat(stats: Record<string, any> | undefined, marketKey: string, prefix: 'season' | 'l10' | 'l5') {
   if (!stats) return 0
-  const statKey = STAT_KEY_BY_MARKET[marketKey]
+  const statKey = (baseMarketKey(marketKey) === 'player_assists' && stats.def_tackle_assists_per_game !== undefined)
+    ? 'def_tackle_assists_per_game'
+    : STAT_KEY_BY_MARKET[marketKey] || STAT_KEY_BY_MARKET[baseMarketKey(marketKey)]
   if (!statKey) return 0
   if (Array.isArray(statKey)) {
     return statKey.reduce((total, key) => total + (stats[`${prefix}_${key}`] || 0), 0)
@@ -138,7 +235,9 @@ function clamp(value: number, min = 0, max = 1) {
 
 function recentValues(stats: Record<string, any> | undefined, marketKey: string, count: 5 | 10) {
   if (!stats) return []
-  const statKey = STAT_KEY_BY_MARKET[marketKey]
+  const statKey = (baseMarketKey(marketKey) === 'player_assists' && stats.def_tackle_assists_per_game !== undefined)
+    ? 'def_tackle_assists_per_game'
+    : STAT_KEY_BY_MARKET[marketKey] || STAT_KEY_BY_MARKET[baseMarketKey(marketKey)]
   if (!statKey) return []
 
   if (Array.isArray(stats.raw_games)) {
@@ -372,7 +471,7 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
             style={[styles.marketButton, selectedMarket === marketKey && styles.marketButtonActive]}
           >
             <AppText style={[styles.marketText, selectedMarket === marketKey && styles.marketTextActive]}>
-              {MARKET_LABELS[marketKey] || marketKey.replaceAll('_', ' ')}
+              {marketLabel(marketKey)}
             </AppText>
           </Pressable>
         ))}
@@ -491,7 +590,7 @@ function StatTableCell({ value, color }: { value: string; color: string }) {
 }
 
 export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<string, any> }) {
-  const marketLabel = MARKET_LABELS[prop.market.key] || prop.market.key.replaceAll('_', ' ')
+  const label = marketLabel(prop.market.key)
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
@@ -502,7 +601,7 @@ export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<
   return (
     <Card>
       <View style={styles.header}>
-        <AppText variant="eyebrow">// {marketLabel}</AppText>
+        <AppText variant="eyebrow">// {label}</AppText>
         <AppText variant="mono">{fmtTime(prop.game.commence_time)}</AppText>
       </View>
 
