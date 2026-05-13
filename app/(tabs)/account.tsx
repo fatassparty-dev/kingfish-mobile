@@ -1,10 +1,11 @@
-import { Image, Linking, StyleSheet, View } from 'react-native'
+import { Alert, Image, Linking, StyleSheet, View } from 'react-native'
 import { useState } from 'react'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
@@ -15,6 +16,8 @@ export default function AccountScreen() {
   const mobileConfig = useMobileConfig()
   const [restoreMessage, setRestoreMessage] = useState('')
   const [restoring, setRestoring] = useState(false)
+  const [clearingChat, setClearingChat] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
   const isPremium = profile?.is_premium === true
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   const sourceLabel = getAccessSource(profile)
@@ -29,6 +32,51 @@ export default function AccountScreen() {
       : result.message)
     await refreshProfile()
     setRestoring(false)
+  }
+
+  function confirmClearChatHistory() {
+    Alert.alert(
+      'Clear Chat History',
+      'This removes your saved Ask KingFish conversation history from KingFish. It does not delete your account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear History', style: 'destructive', onPress: handleClearChatHistory },
+      ],
+    )
+  }
+
+  async function handleClearChatHistory() {
+    setClearingChat(true)
+    try {
+      await kingfishFetch('/api/chat-history', { method: 'DELETE' })
+      setRestoreMessage('Ask KingFish chat history was cleared.')
+    } catch (error: any) {
+      setRestoreMessage(error?.message || 'Chat history could not be cleared.')
+    } finally {
+      setClearingChat(false)
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. If you have an active App Store subscription, cancel it separately in your Apple account settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Account', style: 'destructive', onPress: handleDeleteAccount },
+      ],
+    )
+  }
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true)
+    try {
+      await kingfishFetch('/api/account', { method: 'DELETE' })
+      await signOut()
+    } catch (error: any) {
+      setRestoreMessage(error?.message || 'Account could not be deleted. Please contact support.')
+      setDeletingAccount(false)
+    }
   }
 
   return (
@@ -124,6 +172,26 @@ export default function AccountScreen() {
           href={mobileConfig.links.nfl_command_center}
         />
       </View>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
+        <AppText variant="eyebrow">// Data & Privacy</AppText>
+        <AppText style={styles.webTitle}>Account Controls</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Clear your saved Ask KingFish history or delete your KingFish account from the app.
+          App Store subscriptions must be canceled separately in your Apple account settings.
+        </AppText>
+        <View style={styles.cardAction}>
+          <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
+            Clear Chat History
+          </Button>
+        </View>
+        <View style={styles.buttonGap} />
+        <Button variant="outline" loading={deletingAccount} onPress={confirmDeleteAccount}>
+          Delete Account
+        </Button>
+      </Card>
 
       <View style={styles.sectionGap} />
 
@@ -309,5 +377,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(198,145,50,.45)',
   },
   cardAction: { marginTop: spacing.lg },
+  buttonGap: { height: spacing.md },
   actions: { gap: spacing.md, marginTop: spacing.lg },
 })

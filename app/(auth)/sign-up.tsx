@@ -95,7 +95,7 @@ export default function SignUpScreen() {
         <CheckRow checked={is17} onPress={() => setIs17((v) => !v)} text="I confirm I am 17 or older where permitted by law." />
         <CheckRow checked={accepted} onPress={() => setAccepted((v) => !v)} text="I accept the Terms of Service and Privacy Policy." />
         <AppText variant="muted" style={styles.note}>
-          Your state helps KingFish show responsible context where betting rules differ. It is optional.
+          Your state helps KingFish show responsible context where betting rules differ. It is optional. You can delete your account anytime from Account.
         </AppText>
 
         {error ? <AppText style={styles.error}>{error}</AppText> : null}
