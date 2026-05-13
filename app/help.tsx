@@ -60,7 +60,6 @@ const cheatSheets = [
   { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },
   { title: 'Safe Alt K', body: 'Pitcher strikeout targets where the alternate line is the main focus.' },
   { title: 'Hot Hitters', body: 'Recent form first: last 5, last 10, and streak-style momentum.' },
-  { title: 'Batter vs Pitcher', body: 'Head-to-head history against today\'s expected pitcher when the data sample is useful.' },
   { title: 'Game Lines & Edge', body: 'A game-level view of odds, totals, and context such as MLB weather.' },
 ]
 
@@ -71,7 +70,7 @@ const sportNotes = [
   },
   {
     title: 'NBA, NHL, WNBA, KBO',
-    body: 'These sports use the same live-board style when markets are available. Props and stats will expand as reliable data is added.',
+    body: 'These sports use the same live-board style when markets are available, with supported props and stats shown directly in the dashboard.',
   },
   {
     title: 'NFL and College',
@@ -147,7 +146,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>How They Work</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Cheat Sheets are saved daily boards for quick MLB research. Open a sheet and KingFish returns a short list of names with the exact line, best book, save time, and why each player made the board.
+                Cheat Sheets are saved daily boards for quick MLB research. Open a sheet and KingFish returns a short list of names with the exact line, best book, saved time, and why each player made the board.
               </AppText>
             </Card>
             {cheatSheets.map((item) => <HelpCard key={item.title} title={item.title} body={item.body} />)}

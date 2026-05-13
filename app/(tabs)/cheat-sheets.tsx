@@ -15,7 +15,7 @@ import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines'
+type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'lines'
 type ToolMode = 'sheets' | 'calculators' | 'factors'
 type CalculatorKey = 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 
@@ -33,7 +33,6 @@ const SHEETS: Array<{
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
   { key: 'k', label: 'Safe Alt K', desc: 'Pitcher strikeout looks ranked by recent K form.', type: 'k', market: 'pitcher_strikeouts', statField: 'strikeouts_per_game' },
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
-  { key: 'bvp', label: 'Batter vs Pitcher', desc: "Head-to-head batter history against today's starting pitcher.", type: 'props' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
 ]
 
@@ -284,7 +283,7 @@ export default function CheatSheetsScreen() {
   const activeKey = selectedKey || 'hits'
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
   const hasOpenSheet = selectedKey !== null
-  const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet && activeKey !== 'bvp'
+  const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
@@ -594,12 +593,6 @@ export default function CheatSheetsScreen() {
             </Card>
           )}
 
-          {activeKey === 'bvp' && (
-              <AppText variant="muted" style={styles.cardCopy}>
-                This report needs today's confirmed starters and head-to-head history. It is next in the cheat-sheet build.
-              </AppText>
-          )}
-
           {activeKey === 'lines' && (
             <View style={styles.linePreview}>
               {sheetGames.slice(0, 3).map((game) => (
@@ -612,7 +605,7 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'lines' && activeKey !== 'bvp' && rows.length > 0 && (
+          {activeKey !== 'lines' && rows.length > 0 && (
             <View style={styles.reportRows}>
               {rows.slice(0, 6).map((row, index) => (
                 <View key={`${row.player}-${row.line}-${index}`} style={styles.reportRow}>
@@ -639,7 +632,7 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'bvp' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {!sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
