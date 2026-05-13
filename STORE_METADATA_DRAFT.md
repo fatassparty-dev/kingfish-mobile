@@ -8,15 +8,15 @@ KingFish Bets
 
 ## Subtitle / Short Description
 
-Sports betting intelligence, live odds, props, and fantasy tools.
+Sports analytics, live odds research, props, and fantasy tools.
 
 ## Promotional Text
 
-Live odds, player props, matchup context, cheat sheets, and Ask KingFish analysis in one sports betting research app.
+Live odds research, player props, matchup context, cheat sheets, and Ask KingFish analysis in one sports analytics app.
 
 ## Full Description
 
-KingFish Bets is a sports betting intelligence platform built for faster research across the sports calendar.
+KingFish Bets is a sports analytics and odds research platform built for faster research across the sports calendar.
 
 Compare live game lines, scan player props, check recent form, review player profiles, generate MLB cheat sheets, and ask KingFish for plain-English analysis backed by real data. KingFish is built for bettors who want the numbers, the context, and the best available price before making their own decision.
 
@@ -34,7 +34,7 @@ KingFish does not accept wagers. KingFish is a 17+ analytics and information pla
 
 ## Keywords
 
-sports betting, odds, player props, fantasy football, MLB props, NFL odds, betting tools, sports analytics, cheat sheets, sportsbook odds
+sports analytics, odds research, player props, fantasy football, MLB props, NFL odds, betting research, cheat sheets, live odds
 
 ## App Review Notes
 
@@ -54,7 +54,7 @@ Capture screenshots after the production build is stable:
 - Player profile modal
 - Cheat Sheets screen
 - Ask KingFish
-- Account / KingFish HQ with web doors
+- Account / KingFish HQ
 - Paywall / subscription screen
 
 ## Data Safety Notes
@@ -74,4 +74,8 @@ Use 17+ positioning wherever the store asks for age context, unless Apple or a s
 
 Suggested wording:
 
-KingFish Bets is for users 17 and older where permitted by law. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-MY-RESET.
+KingFish Bets is for users 17 and older where permitted by law. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-522-4700.
+
+## Family Sharing
+
+Recommended first-submission posture: do not enable Family Sharing for KingFish Bets Pro unless Apple product setup requires a different decision.

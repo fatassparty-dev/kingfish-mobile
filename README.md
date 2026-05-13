@@ -83,7 +83,7 @@ Before the first real store build, confirm:
 - The App Store app record uses bundle ID `com.kingfishbets.app`.
 - The Google Play app uses package name `com.kingfishbets.app`.
 - Terms, Privacy, Refund, Help, and support links are live on `kingfishbets.com`.
-- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and the NFL/Fantasy web doors.
+- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and approved full-website research links.
 - Export compliance can answer that the app does not use non-exempt encryption beyond standard platform HTTPS/security.
 
 ## npm Cache Permission Fix

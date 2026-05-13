@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -16,7 +16,7 @@ import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
 type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'lines'
-type ToolMode = 'sheets' | 'calculators' | 'factors'
+type ToolMode = 'sheets' | 'calculators'
 type CalculatorKey = 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 
 const SHEETS: Array<{
@@ -59,7 +59,6 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
-  { key: 'factors', label: 'Game Factors' },
 ]
 
 const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
@@ -454,9 +453,11 @@ export default function CheatSheetsScreen() {
           <AppText variant="muted" style={styles.cardCopy}>
             Cheat Sheets, player props, Edge Scores, calculators, and unlimited Ask KingFish access are part of KingFish Bets Pro.
           </AppText>
-          <View style={styles.action}>
-            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-          </View>
+          {mobileConfig.flags.mobile_paywall ? (
+            <View style={styles.action}>
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            </View>
+          ) : null}
         </Card>
       ) : toolMode === 'calculators' ? (
         <>
@@ -521,22 +522,6 @@ export default function CheatSheetsScreen() {
             </View>
           </Card>
         </>
-      ) : toolMode === 'factors' ? (
-        <Card>
-          <AppText variant="eyebrow">// Game Factors</AppText>
-          <AppText style={styles.cardTitle}>Open The Full Factor Board</AppText>
-          <AppText variant="muted" style={styles.cardCopy}>
-            Weather, park context, line movement, and matchup notes live on the full KingFish board.
-          </AppText>
-          <View style={styles.action}>
-            <Button
-              variant="outline"
-              onPress={() => Linking.openURL(`${mobileConfig.links.home}/game-factors`)}
-            >
-              Open Game Factors
-            </Button>
-          </View>
-        </Card>
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>

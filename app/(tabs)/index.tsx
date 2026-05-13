@@ -927,9 +927,11 @@ export default function DashboardScreen() {
             <AppText variant="eyebrow">// Premium</AppText>
             <AppText variant="title" style={styles.cardTitle}>Unlock Game Matchups</AppText>
             <AppText variant="muted">Team form, matchup context, and market notes are part of KingFish Bets Pro.</AppText>
-            <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-            </View>
+            {mobileConfig.flags.mobile_paywall ? (
+              <View style={styles.upgradeAction}>
+                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              </View>
+            ) : null}
           </Card>
         </View>
       )}
@@ -1096,9 +1098,11 @@ export default function DashboardScreen() {
               Live moneylines, spreads, totals, best available prices, and KingFish matchup context
               are part of KingFish Bets Pro.
             </AppText>
-            <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-            </View>
+            {mobileConfig.flags.mobile_paywall ? (
+              <View style={styles.upgradeAction}>
+                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              </View>
+            ) : null}
           </Card>
         </View>
       )}
@@ -1188,9 +1192,11 @@ export default function DashboardScreen() {
               Player props, cheat sheets, Edge Scores, and unlimited Ask KingFish access are part
               of KingFish Bets Pro.
             </AppText>
-            <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-            </View>
+            {mobileConfig.flags.mobile_paywall ? (
+              <View style={styles.upgradeAction}>
+                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              </View>
+            ) : null}
           </Card>
         </View>
       )}

@@ -12,7 +12,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Tools when you want cheat sheets, calculators, or game factors.',
+  'Open Tools when you want cheat sheets or calculators.',
 ]
 
 const tools = [
@@ -74,7 +74,7 @@ const sportNotes = [
   },
   {
     title: 'NFL and College',
-    body: 'NFL includes the Command Center, Fantasy Draft Room, futures context, injuries, news, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
+    body: 'NFL on mobile features League View, Game Lines, Game Matchups, and props as markets open. The NFL Command Center, Fantasy Draft Room, and deeper offseason research live on kingfishbets.com. College boards focus on team stats and matchup context where player prop betting is restricted.',
   },
 ]
 
@@ -189,7 +189,7 @@ export default function HelpScreen() {
                 KingFish is a 17+ analytics platform where permitted by law. We do not accept wagers, and no tool guarantees profit. If a higher age requirement applies in your jurisdiction, you must meet that requirement.
               </AppText>
               <AppText style={styles.supportText} onPress={() => Linking.openURL(mobileConfig.links.responsible_gaming)}>
-                Problem gambling helpline: 1-800-MY-RESET
+                Problem gambling helpline: 1-800-522-4700
               </AppText>
               <View style={styles.buttonGap}>
                 <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.support_email)}>

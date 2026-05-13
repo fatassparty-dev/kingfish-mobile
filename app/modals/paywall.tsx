@@ -21,14 +21,14 @@ const PLANS: {
     id: 'monthly',
     eyebrow: '// Monthly',
     price: '$9.99/mo',
-    sub: 'Flexible access. Cancel anytime.',
+    sub: 'Eligible new subscribers get 7 days free, then flexible monthly access.',
     badge: 'Start here',
   },
   {
     id: 'yearly',
     eyebrow: '// Yearly',
     price: '$99/yr',
-    sub: 'Best value for the full sports calendar.',
+    sub: 'Eligible new subscribers get 7 days free, then the best value for the full sports calendar.',
     badge: 'Best value',
   },
   {
@@ -54,8 +54,13 @@ export default function PaywallScreen() {
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
   const isPremium = profile?.is_premium === true
+  const purchasePaused = mobileConfig.flags.mobile_paywall === false
 
   async function handlePurchase() {
+    if (purchasePaused) {
+      setMessage('Subscriptions are temporarily paused. Please try again later.')
+      return
+    }
     setLoadingAction('purchase')
     const result = await purchasePremium(user?.id, selectedPlan)
     setMessage(result.message)
@@ -123,8 +128,8 @@ export default function PaywallScreen() {
         </Card>
       ) : null}
 
-      <Button loading={loadingAction === 'purchase'} disabled={isPremium} onPress={handlePurchase}>
-        {isPremium ? 'Pro Active' : 'Start Premium'}
+      <Button loading={loadingAction === 'purchase'} disabled={isPremium || purchasePaused} onPress={handlePurchase}>
+        {isPremium ? 'Pro Active' : purchasePaused ? 'Subscriptions Paused' : 'Start Premium'}
       </Button>
       <View style={styles.gap} />
       <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>
@@ -133,7 +138,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings. KingFish is intended for users 17+ where permitted by law.
+        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Monthly and yearly subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Lifetime is a one-time purchase where supported. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 17+ where permitted by law.
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>

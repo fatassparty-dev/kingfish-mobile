@@ -197,8 +197,8 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Full Website</AppText>
         <AppText style={styles.webTitle}>KingFishBets.com</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Visit the full website for news, fantasy info, NFL offseason coverage, draft results,
-          and betting tools that are not part of the mobile app.
+          Open the full desktop research workspace for news, fantasy depth, NFL offseason
+          coverage, draft results, and expanded research views.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.home)}>
@@ -208,7 +208,7 @@ export default function AccountScreen() {
       </Card>
 
       <View style={styles.actions}>
-        {!isPremium ? (
+        {!isPremium && mobileConfig.flags.mobile_paywall ? (
           <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
         ) : null}
         <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
