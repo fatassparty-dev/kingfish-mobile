@@ -17,10 +17,8 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { fmtOdds, fmtTime } from '@/lib/format'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
-import type { ChatMessage, Game } from '@/types'
+import type { ChatMessage } from '@/types'
 
 const FREE_DAILY_LIMIT = 3
 
@@ -34,72 +32,8 @@ function todayKey() {
   return new Date().toISOString().split('T')[0]
 }
 
-function pickBook(game: Game) {
-  return game.bookmakers?.find((book) => ['fanduel', 'draftkings', 'betmgm'].includes(book.key)) || game.bookmakers?.[0]
-}
-
-async function buildChatContext() {
-  const [oddsResult, propsResult, richContextResult] = await Promise.allSettled([
-    kingfishFetch<Game[]>('/api/mlb-odds'),
-    kingfishFetch<Game[]>('/api/mlb-props'),
-    kingfishFetch<{ context: string }>('/api/chat-context'),
-  ])
-
-  let context = "TODAY'S MLB GAMES & ODDS:\n"
-
-  if (oddsResult.status === 'fulfilled') {
-    oddsResult.value.slice(0, 15).forEach((game) => {
-      const book = pickBook(game)
-      const moneyline = book?.markets?.find((market) => market.key === 'h2h')
-      const totals = book?.markets?.find((market) => market.key === 'totals')
-      const homeOdds = moneyline?.outcomes?.find((outcome) => outcome.name === game.home_team)?.price
-      const awayOdds = moneyline?.outcomes?.find((outcome) => outcome.name === game.away_team)?.price
-      const total = totals?.outcomes?.find((outcome) => outcome.name === 'Over')?.point
-
-      context += `- ${game.away_team} @ ${game.home_team} (${fmtTime(game.commence_time)})`
-      if (homeOdds && awayOdds) context += ` ML: ${fmtOdds(awayOdds)} / ${fmtOdds(homeOdds)}`
-      if (total) context += ` O/U: ${total}`
-      context += '\n'
-    })
-  }
-
-  if (propsResult.status === 'fulfilled') {
-    const marketLabels: Record<string, string> = {
-      batter_hits: 'Hits',
-      batter_home_runs: 'HR',
-      batter_total_bases: 'TB',
-      batter_hits_runs_rbis: 'H+R+RBI',
-      batter_runs_scored: 'Runs',
-      batter_rbis: 'RBI',
-      pitcher_strikeouts: 'Ks',
-    }
-
-    let propCount = 0
-    context += "\nTODAY'S PLAYER PROPS:\n"
-    propsResult.value.slice(0, 8).forEach((game) => {
-      const book = pickBook(game)
-      book?.markets?.forEach((market) => {
-        const label = marketLabels[market.key]
-        if (!label) return
-        market.outcomes?.forEach((outcome) => {
-          if (propCount >= 60 || !outcome.description) return
-          context += `- ${outcome.description} ${label} ${outcome.name} ${outcome.point} at ${fmtOdds(outcome.price)}\n`
-          propCount += 1
-        })
-      })
-    })
-  }
-
-  if (richContextResult.status === 'fulfilled') {
-    context += richContextResult.value.context || ''
-  }
-
-  return context
-}
-
 export default function AskKingFishScreen() {
   const { profile } = useAuth()
-  const mobileConfig = useMobileConfig()
   const queryClient = useQueryClient()
   const scrollRef = useRef<ScrollView>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -112,11 +46,6 @@ export default function AskKingFishScreen() {
     queryKey: ['chat-usage', date],
     queryFn: () => kingfishFetch<{ count: number }>(`/api/chat-usage?date=${date}`),
     staleTime: 60 * 1000,
-  })
-  const contextQuery = useQuery({
-    queryKey: ['ask-kingfish-context'],
-    queryFn: buildChatContext,
-    staleTime: 5 * 60 * 1000,
   })
   const historyQuery = useQuery({
     queryKey: ['chat-history'],
@@ -147,11 +76,10 @@ export default function AskKingFishScreen() {
     setSending(true)
 
     try {
-      const context = contextQuery.data || (await buildChatContext())
       const data = await kingfishFetch<{ reply: string; isPremium?: boolean }>('/api/kingfish-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages, context }),
+        body: JSON.stringify({ messages: nextMessages }),
       })
 
       setMessages((current) => [...current, { role: 'assistant', content: data.reply }])
@@ -213,9 +141,9 @@ export default function AskKingFishScreen() {
         </View>
       )}
 
-      {(messages.length > 0 || sending || contextQuery.isLoading || historyQuery.isLoading) && (
+      {(messages.length > 0 || sending || historyQuery.isLoading) && (
         <Card>
-          {(contextQuery.isLoading || historyQuery.isLoading) && messages.length === 0 && (
+          {historyQuery.isLoading && messages.length === 0 && (
             <View style={styles.contextRow}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading KingFish...</AppText>
