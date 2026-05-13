@@ -6,6 +6,7 @@ import { PlayerProfileModal } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
+import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { displayBookName, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Market, Outcome, Sport } from '@/types'
@@ -196,6 +197,8 @@ interface FlattenedProp {
   book: string
 }
 
+type PlayerBookData = Record<string, { over?: number; point?: number }>
+
 type SortKey = 'player' | 'line' | 'season' | 'l10' | 'l5' | 'l10hit' | 'best' | 'book' | 'edge'
 type SortDir = 'asc' | 'desc'
 
@@ -364,6 +367,36 @@ function edgeLabel(
   return { label: `Fade ${score}`, color: colors.red, score }
 }
 
+function implied(price: number) {
+  return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100)
+}
+
+function nflEdgeLabel(line: number, stat: number, odds: number | undefined, marketKey: string) {
+  const base = baseMarketKey(marketKey)
+  const anytime = isNflTouchdownMarket(base)
+  const lowerIsBetter = base === 'player_pass_interceptions'
+  if (!stat && !anytime) return { label: 'N/A', color: colors.textMuted, score: 0 }
+
+  if (anytime) {
+    const priceBoost = odds && odds > 0 ? Math.min(22, odds / 35) : 0
+    const tdScore = Math.max(0, Math.min(70, (stat / 0.75) * 70))
+    const score = Math.round(tdScore + priceBoost)
+    if (score >= 78) return { label: 'Strong', color: colors.gold, score }
+    if (score >= 62) return { label: 'Lean', color: colors.green, score }
+    if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
+    return { label: 'Fade', color: colors.red, score }
+  }
+
+  const safeLine = Math.max(line, 0.5)
+  const ratio = lowerIsBetter ? safeLine / Math.max(stat, 0.1) : stat / safeLine
+  const pricePenalty = odds && implied(odds) > 0.68 ? 10 : odds && implied(odds) > 0.6 ? 5 : 0
+  const score = Math.round(Math.max(0, Math.min(100, ((ratio - 0.72) / 0.58) * 82 + 14 - pricePenalty)))
+  if (score >= 78) return { label: 'Strong', color: colors.gold, score }
+  if (score >= 62) return { label: 'Lean', color: colors.green, score }
+  if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
+  return { label: 'Fade', color: colors.red, score }
+}
+
 function statColor(value: number, line: number) {
   if (!value) return colors.textMuted
   if (value > line * 1.15) return colors.green
@@ -414,6 +447,8 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
   const propMap = new Map<string, FlattenedProp>()
 
   for (const game of upcomingGames(games)) {
+    const players = new Map<string, { market: Market; playerName: string; bookData: PlayerBookData; anytime: Record<string, number>; bookTitles: Record<string, string> }>()
+
     for (const bookmaker of game.bookmakers || []) {
       if (!PROP_BOOK_KEYS.includes(bookmaker.key)) continue
       for (const market of bookmaker.markets || []) {
@@ -426,27 +461,57 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
           if (typeof outcome.price !== 'number') continue
           if (outcome.price > 700 || outcome.price < -10000) continue
 
-          const key = `${game.game_id || game.id}-${market.key}-${playerName}-${outcome.name}-${outcome.point}`
-          const nextProp = {
-            game,
-            market,
-            outcome: { ...outcome, description: playerName },
-            book: displayBookName(bookmaker.key, bookmaker.title),
+          const playerKey = `${market.key}-${playerName}`
+          const entry = players.get(playerKey) || { market, playerName, bookData: {}, anytime: {}, bookTitles: {} }
+          entry.bookTitles[bookmaker.key] = bookmaker.title
+
+          if (isTouchdown) {
+            entry.anytime[bookmaker.key] = outcome.price
+          } else {
+            const bookLine = entry.bookData[bookmaker.key] || {}
+            bookLine.over = outcome.price
+            if (typeof outcome.point === 'number') bookLine.point = outcome.point
+            entry.bookData[bookmaker.key] = bookLine
           }
-          const current = propMap.get(key)
-          if (!current || outcome.price > current.outcome.price) {
-            propMap.set(key, nextProp)
-          }
+          players.set(playerKey, entry)
         }
       }
     }
+
+    players.forEach((entry) => {
+      const isTouchdown = isNflTouchdownMarket(entry.market.key) || entry.market.key === 'player_goal_scorer_anytime'
+      if (isTouchdown) {
+        const options = PROP_BOOK_KEYS
+          .map((book) => ({ book, odds: entry.anytime[book] }))
+          .filter((item): item is { book: string; odds: number } => typeof item.odds === 'number')
+        if (!options.length) return
+        const best = options.reduce((current, item) => (item.odds > current.odds ? item : current))
+        propMap.set(`${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`, {
+          game,
+          market: entry.market,
+          outcome: { name: 'Yes', description: entry.playerName, price: best.odds, point: 0.5 },
+          book: displayBookName(best.book, entry.bookTitles[best.book]),
+        })
+        return
+      }
+
+      const line = getDisplayLine(entry.bookData, PROP_BOOK_KEYS)
+      const best = getBestOverAtLine(entry.bookData, PROP_BOOK_KEYS, line)
+      if (!best) return
+      propMap.set(`${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`, {
+        game,
+        market: entry.market,
+        outcome: { name: 'Over', description: entry.playerName, price: best.odds, point: line },
+        book: displayBookName(best.book, entry.bookTitles[best.book]),
+      })
+    })
   }
 
   const props = Array.from(propMap.values())
   return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport; limit?: number }) {
+export function PropsList({ games, sport, limit, initialStats }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any> }) {
   const markets = useMemo(() => availableMarkets(games, sport), [games, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
   const [nflGroup, setNflGroup] = useState<NflMarketGroup>('passing')
@@ -499,9 +564,10 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
         body: JSON.stringify({ playerNames }),
       })
     },
-    enabled: sport !== 'MLB' && playerNames.length > 0,
+    enabled: sport !== 'MLB' && playerNames.length > 0 && !initialStats,
     staleTime: 12 * 60 * 60 * 1000,
   })
+  const statsByPlayer = initialStats || statsQuery.data?.stats || {}
 
   function toggleSort(nextKey: SortKey) {
     if (sortKey === nextKey) {
@@ -513,12 +579,11 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
   }
 
   function sortProps(gameProps: FlattenedProp[]) {
-    const stats = statsQuery.data?.stats || {}
     return [...gameProps].sort((a, b) => {
-      const aStats = stats[normalizeName(a.outcome.description || '')]
-      const bStats = stats[normalizeName(b.outcome.description || '')]
-      const aValue = sortValue(a, aStats, sortKey)
-      const bValue = sortValue(b, bStats, sortKey)
+      const aStats = statsByPlayer[normalizeName(a.outcome.description || '')]
+      const bStats = statsByPlayer[normalizeName(b.outcome.description || '')]
+      const aValue = sortValue(a, aStats, sortKey, sport)
+      const bValue = sortValue(b, bStats, sortKey, sport)
       const direction = sortDir === 'asc' ? 1 : -1
 
       if (typeof aValue === 'string' || typeof bValue === 'string') {
@@ -589,7 +654,7 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
         </View>
       )}
 
-      {statsQuery.isLoading && (
+      {statsQuery.isLoading && !initialStats && (
         <Card>
           <AppText variant="eyebrow">// Stats</AppText>
           <AppText variant="muted" style={styles.emptyText}>Loading player stat trends...</AppText>
@@ -604,8 +669,8 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View>
               <View style={styles.tableHeader}>
-                {TABLE_HEADERS.map((header) => (
-                  <Pressable key={header.label} onPress={() => toggleSort(header.key)}>
+                {(sport === 'NFL' ? NFL_TABLE_HEADERS : TABLE_HEADERS).map((header) => (
+                  <Pressable key={header.label} onPress={() => header.key !== 'risk' && toggleSort(header.key)}>
                     <AppText variant="eyebrow" style={[styles.cell, header.key === 'player' && styles.playerCell]}>
                       {header.label}{sortKey === header.key ? (sortDir === 'desc' ? ' v' : ' ^') : ''}
                     </AppText>
@@ -616,7 +681,8 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
                 <PropTableRow
                   key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
                   prop={prop}
-                  stats={statsQuery.data?.stats?.[normalizeName(prop.outcome.description || '')]}
+                  stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
+                  sport={sport}
                   onSelectPlayer={setSelectedPlayer}
                 />
               ))}
@@ -641,13 +707,25 @@ const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
-function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey) {
+const NFL_TABLE_HEADERS: Array<{ key: SortKey | 'risk'; label: string }> = [
+  { key: 'player', label: 'Player' },
+  { key: 'line', label: 'Line' },
+  { key: 'season', label: 'Avg' },
+  { key: 'risk', label: 'Risk' },
+  { key: 'best', label: 'Best' },
+  { key: 'book', label: 'Book' },
+  { key: 'edge', label: 'Edge' },
+]
+
+function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
-  const edge = edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
+  const edge = sport === 'NFL'
+    ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
 
   if (key === 'player') return prop.outcome.description || ''
   if (key === 'line') return line
@@ -663,10 +741,12 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
 function PropTableRow({
   prop,
   stats,
+  sport,
   onSelectPlayer,
 }: {
   prop: FlattenedProp
   stats?: Record<string, any>
+  sport: Sport
   onSelectPlayer: (playerName: string) => void
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
@@ -674,7 +754,9 @@ function PropTableRow({
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
-  const edge = edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
+  const edge = sport === 'NFL'
+    ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
 
   return (
     <View style={styles.tableRow}>
@@ -687,9 +769,15 @@ function PropTableRow({
       </AppText>
       <AppText style={styles.cell}>{line || '-'}</AppText>
       <StatTableCell value={fmtStat(season)} color={statColor(season, line)} />
-      <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} />
-      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} />
-      <AppText style={styles.cell}>{hitRateLabel(l10Hit)}</AppText>
+      {sport === 'NFL' ? (
+        <AppText style={styles.cell}>{stats?.risk?.label || '-'}</AppText>
+      ) : (
+        <>
+          <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} />
+          <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} />
+          <AppText style={styles.cell}>{hitRateLabel(l10Hit)}</AppText>
+        </>
+      )}
       <AppText style={[styles.cell, styles.best]}>{fmtOdds(prop.outcome.price)}</AppText>
       <AppText style={styles.cell}>{prop.book}</AppText>
       <AppText style={[styles.cell, { color: edge.color }]}>{edge.label}</AppText>

@@ -34,6 +34,22 @@ function bestMoneyline(bookmakers: Bookmaker[], team: string) {
   return best
 }
 
+function bestMarketOutcome(bookmakers: Bookmaker[], marketKey: string, outcomeName: string) {
+  let best: { price: number; book: string } | null = null
+
+  for (const bookmaker of bookmakers) {
+    const market = bookmaker.markets?.find((item) => item.key === marketKey)
+    const outcome = market?.outcomes?.find((item) => item.name === outcomeName)
+    if (!outcome || typeof outcome.price !== 'number') continue
+
+    if (!best || outcome.price > best.price) {
+      best = { price: outcome.price, book: displayBookName(bookmaker.key, bookmaker.title) }
+    }
+  }
+
+  return best
+}
+
 function bestSpread(bookmakers: Bookmaker[], team: string) {
   let best: { price: number; point?: number; book: string } | null = null
 
@@ -62,6 +78,9 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
   const under = findOutcome(totalMarket, 'Under')
   const awayBest = bestMoneyline(bookmakers, game.away_team)
   const homeBest = bestMoneyline(bookmakers, game.home_team)
+  const drawBest = bestMoneyline(bookmakers, 'Draw')
+  const bttsYes = bestMarketOutcome(bookmakers, 'btts', 'Yes')
+  const bttsNo = bestMarketOutcome(bookmakers, 'btts', 'No')
   const awaySpread = bestSpread(bookmakers, game.away_team)
   const homeSpread = bestSpread(bookmakers, game.home_team)
 
@@ -90,6 +109,7 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
       )}
 
       <TeamRow team={game.away_team} line={awayBest} />
+      {drawBest && <TeamRow team="Draw" line={drawBest} />}
       <TeamRow team={game.home_team} line={homeBest} />
 
       {(awaySpread || homeSpread) && (
@@ -114,6 +134,16 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
                 U {under.point} {fmtOdds(under.price)}
               </AppText>
             )}
+          </View>
+        </View>
+      )}
+
+      {(bttsYes || bttsNo) && (
+        <View style={styles.marketBox}>
+          <AppText variant="eyebrow">// Both Teams To Score</AppText>
+          <View style={styles.totalRow}>
+            {bttsYes && <AppText style={styles.totalText}>Yes {fmtOdds(bttsYes.price)}</AppText>}
+            {bttsNo && <AppText style={styles.totalText}>No {fmtOdds(bttsNo.price)}</AppText>}
           </View>
         </View>
       )}

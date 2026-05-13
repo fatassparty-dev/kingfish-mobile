@@ -6,6 +6,7 @@ import { PlayerProfileModal } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { kingfishFetch } from '@/lib/api'
+import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game } from '@/types'
@@ -154,17 +155,18 @@ function buildRows(game: Game, marketKey: string, lineupMap: Record<string, Line
     .filter((player) => !search || player.toLowerCase().includes(search.toLowerCase()))
     .map((player) => {
       const bookData = playerMap[player]
-      const entries = PROP_BOOK_KEYS.map((book) => ({ book, odds: bookData[book]?.over, point: bookData[book]?.point })).filter((entry) => entry.odds)
-      const best = entries.reduce<typeof entries[number] | undefined>((current, entry) => (!current || (entry.odds || 0) > (current.odds || 0) ? entry : current), undefined)
+      const line = getDisplayLine(bookData, PROP_BOOK_KEYS)
+      const best = getBestOverAtLine(bookData, PROP_BOOK_KEYS, line)
       const lineup = lineupMap[normalizeName(player)]
       return {
         player,
-        line: best?.point || entries[0]?.point || 0,
+        line,
         bestOdds: best?.odds,
         bestBook: best?.book,
         stats: lineup ? stats[lineup.id] : undefined,
       }
     })
+    .filter((row) => row.line || row.bestOdds)
 }
 
 export function MLBPropsTable({ games }: { games: Game[] }) {

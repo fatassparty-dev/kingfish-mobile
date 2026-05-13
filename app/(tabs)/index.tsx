@@ -11,6 +11,7 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import { fetchFeatureFlags, type FeatureFlagKey } from '@/lib/featureFlags'
+import { fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
@@ -31,7 +32,39 @@ type SoccerTeamInfo = {
   form?: string
 }
 
-type DashboardView = 'league' | 'lines' | 'props'
+type KBOTeamStats = {
+  teams: Array<{
+    rank?: number
+    team: string
+    wins?: number
+    losses?: number
+    draws?: number
+    pct?: number
+    runsPerGame?: number
+    runsAllowedPerGame?: number
+    last10?: { wins?: number; losses?: number; draws?: number }
+  }>
+  updated_at?: string | null
+}
+
+type PropsResponse = Game[] | { props: Game[]; playerStats?: Record<string, any>; cacheMode?: string }
+
+type DashboardView = 'league' | 'matchups' | 'lines' | 'props'
+
+type TeamFormPayload = {
+  teams: Record<string, any>
+  updatedAt?: string
+}
+
+type MLBSchedulePayload = {
+  teamRecords?: Record<string, { wins: number; losses: number; pct: number }>
+  pitcherNameMap?: Record<string, string>
+  pitcherEraMap?: Record<string, number>
+}
+
+type MLBL10Payload = {
+  teamL10Map?: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }>
+}
 
 type NFLFuturesData = {
   division: Array<{
@@ -87,6 +120,19 @@ const SOCCER_LEAGUES = [
   { key: 'soccer_uefa_champs_league', label: 'Champions League' },
   { key: 'soccer_fifa_world_cup', label: 'World Cup' },
 ]
+
+const MLB_TEAM_NAME_TO_ABBR: Record<string, string> = {
+  'New York Yankees': 'NYY', 'Boston Red Sox': 'BOS', 'Toronto Blue Jays': 'TOR',
+  'Baltimore Orioles': 'BAL', 'Tampa Bay Rays': 'TB', 'Chicago White Sox': 'CWS',
+  'Cleveland Guardians': 'CLE', 'Detroit Tigers': 'DET', 'Kansas City Royals': 'KC',
+  'Minnesota Twins': 'MIN', 'Houston Astros': 'HOU', 'Los Angeles Angels': 'LAA',
+  'Athletics': 'OAK', 'Oakland Athletics': 'OAK', 'Seattle Mariners': 'SEA', 'Texas Rangers': 'TEX',
+  'Atlanta Braves': 'ATL', 'Miami Marlins': 'MIA', 'New York Mets': 'NYM',
+  'Philadelphia Phillies': 'PHI', 'Washington Nationals': 'WAS', 'Chicago Cubs': 'CHC',
+  'Cincinnati Reds': 'CIN', 'Milwaukee Brewers': 'MIL', 'Pittsburgh Pirates': 'PIT',
+  'St. Louis Cardinals': 'STL', 'Los Angeles Dodgers': 'LAD', 'San Diego Padres': 'SD',
+  'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
+}
 
 const SPORTS: Array<{
   key: Sport
@@ -234,6 +280,47 @@ function shortTeamName(team: string) {
   return team.replace(/ University$/i, '').replace(/ College$/i, '')
 }
 
+function normalizeTeamKey(name: string) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function uniqueTeamForms(teams: Record<string, any> = {}) {
+  const seen = new Set<string>()
+  return Object.values(teams)
+    .filter((team: any) => {
+      const key = team.teamAbbr || team.teamName || team.commonName || team.placeName
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .sort((a: any, b: any) => String(a.teamName || a.commonName || '').localeCompare(String(b.teamName || b.commonName || '')))
+}
+
+function findTeamForm(teams: Record<string, any> = {}, teamName: string) {
+  const normalized = normalizeTeamKey(teamName)
+  const lastWord = normalizeTeamKey(teamName.split(' ').pop() || teamName)
+  return teams[normalized] || teams[lastWord] || Object.values(teams).find((team: any) => {
+    const candidates = [team.teamName, team.commonName, team.placeName, team.teamAbbr].map(normalizeTeamKey)
+    return candidates.some((candidate) => candidate && (candidate === normalized || normalized.includes(candidate) || candidate.includes(lastWord)))
+  })
+}
+
+function teamRecordLabel(team: any, sport: Sport) {
+  if (!team) return '-'
+  if (sport === 'NHL') return `${team.wins || 0}-${team.losses || 0}-${team.otLosses || 0}`
+  return `${team.wins || team.currentWins || 0}-${team.losses || team.currentLosses || 0}`
+}
+
+function formLabel(team: any, sport: Sport) {
+  if (!team) return '-'
+  if (sport === 'NHL') return `${team.l10Wins || 0}-${team.l10Losses || 0}-${team.l10OtLosses || 0}`
+  return `${Number(team.l10For || 0).toFixed(1)} PF / ${Number(team.l10Against || 0).toFixed(1)} PA`
+}
+
+function mlbAbbr(teamName: string) {
+  return MLB_TEAM_NAME_TO_ABBR[teamName] || teamName.split(' ').pop()?.slice(0, 3).toUpperCase() || teamName
+}
+
 function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
   const lines = data?.wins?.find((item) => item.team === team)?.lines || []
   if (!lines.length) return '-'
@@ -258,19 +345,27 @@ export default function DashboardScreen() {
   })
   const isSelectedSportActive = selectedSport.key === 'NFL' || (flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => item.key === 'NFL' || (flagsQuery.data?.[item.flag] ?? item.status === 'Live')
-  const dashboardViews: DashboardView[] = sport === 'NFL' || sport === 'NCAAF' ? ['league', 'props', 'lines'] : ['lines', 'props']
-  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
+  const dashboardViews: DashboardView[] =
+    sport === 'NFL' || sport === 'NCAAF'
+      ? ['league', 'props', 'lines']
+      : sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+        ? ['league', 'matchups', 'lines', 'props']
+        : sport === 'SOCCER'
+          ? ['league', 'matchups', 'lines']
+          : ['lines', 'props']
+  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'Team Stats' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const canFetchLines = isSelectedSportActive && view === 'lines' && isPremium
+  const canFetchMatchups = isSelectedSportActive && view === 'matchups' && isPremium
   const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
   const lineQuery = useQuery({
-    queryKey: ['game-lines', sport, sport === 'SOCCER' ? soccerLeague : 'default'],
+    queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default'],
     queryFn: () => kingfishFetch<Game[]>(
       sport === 'SOCCER'
-        ? `/api/soccer-odds?league=${soccerLeague}`
-        : `/api/${sportApiKey(sport)}-odds`
+        ? `/api/soccer-odds?league=${soccerLeague}${view === 'matchups' ? '&scope=matchups' : ''}`
+        : `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
     ),
-    enabled: canFetchLines,
+    enabled: canFetchLines || canFetchMatchups,
     staleTime: 5 * 60 * 1000,
   })
   const weatherQuery = useQuery({
@@ -286,7 +381,11 @@ export default function DashboardScreen() {
   })
   const propsQuery = useQuery({
     queryKey: ['player-props', sport],
-    queryFn: () => kingfishFetch<Game[]>(`/api/${sportApiKey(sport)}-props`),
+    queryFn: () => kingfishFetch<PropsResponse>(
+      sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+        ? `/api/${sportApiKey(sport)}-props?includeStats=1`
+        : `/api/${sportApiKey(sport)}-props`
+    ),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
@@ -311,9 +410,34 @@ export default function DashboardScreen() {
   const soccerTeamQuery = useQuery({
     queryKey: ['soccer-team-info', soccerLeague],
     queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>(`/api/soccer-team-info?league=${soccerLeague}`),
-    enabled: isSelectedSportActive && sport === 'SOCCER' && view === 'props',
+    enabled: isSelectedSportActive && sport === 'SOCCER' && view === 'league',
     staleTime: 24 * 60 * 60 * 1000,
   })
+  const kboTeamQuery = useQuery({
+    queryKey: ['kbo-team-stats'],
+    queryFn: () => kingfishFetch<KBOTeamStats>('/api/kbo-team-stats'),
+    enabled: isSelectedSportActive && sport === 'KBO' && view === 'props',
+    staleTime: 18 * 60 * 60 * 1000,
+  })
+  const teamFormQuery = useQuery({
+    queryKey: ['team-form', sport],
+    queryFn: () => kingfishFetch<TeamFormPayload>(`/api/${sportApiKey(sport)}-team-form`),
+    enabled: isSelectedSportActive && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (view === 'league' || view === 'matchups'),
+    staleTime: 30 * 60 * 1000,
+  })
+  const mlbScheduleQuery = useQuery({
+    queryKey: ['mlb-schedule-context'],
+    queryFn: () => kingfishFetch<MLBSchedulePayload>('/api/mlb-schedule'),
+    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups'),
+    staleTime: 60 * 60 * 1000,
+  })
+  const mlbL10Query = useQuery({
+    queryKey: ['mlb-team-l10'],
+    queryFn: () => kingfishFetch<MLBL10Payload>('/api/mlb-team-l10'),
+    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups'),
+    staleTime: 60 * 60 * 1000,
+  })
+  const kboTeams = [...(kboTeamQuery.data?.teams || [])].sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999))
   const soccerTeams = [...(soccerTeamQuery.data?.teams || [])].sort((a, b) => {
     const aPos = Number(a.position || 999)
     const bPos = Number(b.position || 999)
@@ -348,6 +472,8 @@ export default function DashboardScreen() {
     }
     return true
   })
+  const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
+  const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
 
   return (
     <Screen>
@@ -394,7 +520,7 @@ export default function DashboardScreen() {
             style={[styles.segmentButton, view === item && styles.segmentActive]}
           >
             <AppText style={[styles.segmentText, view === item && styles.segmentTextActive]}>
-              {item === 'league' ? 'League View' : item === 'lines' ? 'Game Lines' : secondaryViewLabel}
+              {item === 'league' ? 'League View' : item === 'matchups' ? 'Game Matchups' : item === 'lines' ? 'Game Lines' : secondaryViewLabel}
             </AppText>
           </Pressable>
         ))}
@@ -447,7 +573,7 @@ export default function DashboardScreen() {
         <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
         <AppText variant="title" style={styles.cardTitle}>
           {isSelectedSportActive
-            ? (view === 'league' ? 'League View' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
+            ? (view === 'league' ? 'League View' : view === 'matchups' ? 'Game Matchups' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
             : selectedSport.inactiveTitle}
         </AppText>
         <AppText variant="muted">
@@ -463,8 +589,8 @@ export default function DashboardScreen() {
             </AppText>
           </View>
         )}
-        {sport === 'NFL' && (
-          <View style={styles.nflActions}>
+      {sport === 'NFL' && (
+        <View style={styles.nflActions}>
             <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
               Open Command Center
             </Button>
@@ -473,9 +599,169 @@ export default function DashboardScreen() {
                 Open Fantasy Hub
               </Button>
             ) : null}
+        </View>
+      )}
+    </Card>
+
+      {isSelectedSportActive && view === 'league' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">
+              {sport === 'MLB' ? 'Team records and recent form from today’s posted MLB slate' : `${sport} team record and recent-form context`}
+            </AppText>
           </View>
-        )}
-      </Card>
+
+          {sport === 'MLB' ? (
+            <>
+              {(mlbScheduleQuery.isLoading || mlbL10Query.isLoading) && (
+                <View style={styles.centerState}>
+                  <ActivityIndicator color={colors.gold} />
+                  <AppText variant="muted" style={styles.stateText}>Loading MLB league view...</AppText>
+                </View>
+              )}
+              {Object.entries(mlbScheduleQuery.data?.teamRecords || {}).map(([abbr, record]) => {
+                const l10 = mlbL10Query.data?.teamL10Map?.[abbr]
+                return (
+                  <Card key={abbr}>
+                    <View style={styles.teamInfoHeader}>
+                      <View style={styles.teamInfoRank}>
+                        <AppText style={styles.teamInfoRankText}>{abbr}</AppText>
+                      </View>
+                      <View style={styles.teamInfoBody}>
+                        <AppText style={styles.teamInfoName}>{abbr}</AppText>
+                        <AppText variant="muted" style={styles.teamInfoMeta}>
+                          {record.wins}-{record.losses} · {Number(record.pct || 0).toFixed(3)} pct
+                        </AppText>
+                      </View>
+                    </View>
+                    <View style={styles.teamInfoStats}>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">L10</AppText>
+                        <AppText style={styles.teamInfoValue}>{l10 ? `${l10.wins}-${l10.losses}` : '-'}</AppText>
+                      </View>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">L10 Total</AppText>
+                        <AppText style={styles.teamInfoValue}>{l10 ? Number(l10.avgTotal).toFixed(1) : '-'}</AppText>
+                      </View>
+                    </View>
+                  </Card>
+                )
+              })}
+            </>
+          ) : (
+            <>
+              {teamFormQuery.isLoading && (
+                <View style={styles.centerState}>
+                  <ActivityIndicator color={colors.gold} />
+                  <AppText variant="muted" style={styles.stateText}>Loading {sport} league view...</AppText>
+                </View>
+              )}
+              {uniqueTeamForms(teamFormQuery.data?.teams).map((team: any) => (
+                <Card key={`${team.teamAbbr}-${team.teamName}`}>
+                  <View style={styles.teamInfoHeader}>
+                    <View style={styles.teamInfoRank}>
+                      <AppText style={styles.teamInfoRankText}>{team.teamAbbr || '-'}</AppText>
+                    </View>
+                    <View style={styles.teamInfoBody}>
+                      <AppText style={styles.teamInfoName}>{team.teamName || team.commonName}</AppText>
+                      <AppText variant="muted" style={styles.teamInfoMeta}>
+                        {teamRecordLabel(team, sport)} · {sport === 'NHL' ? `${team.points || 0} pts` : `${team.games || 0} recent games`}
+                      </AppText>
+                    </View>
+                  </View>
+                  <View style={styles.teamInfoStats}>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Recent</AppText>
+                      <AppText style={styles.teamInfoValue}>{formLabel(team, sport)}</AppText>
+                    </View>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Total</AppText>
+                      <AppText style={styles.teamInfoValue}>{team.l10Total ? Number(team.l10Total).toFixed(1) : team.goalsForPerGame ? `${Number(team.goalsForPerGame).toFixed(1)} GF` : '-'}</AppText>
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </>
+          )}
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && isPremium && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">Game matchup context using posted lines and team form</AppText>
+          </View>
+          {lineQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading matchups...</AppText>
+            </View>
+          )}
+          {lineQuery.data?.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Empty</AppText>
+              <AppText variant="muted" style={styles.stateText}>No matchups found for {sport} right now.</AppText>
+            </Card>
+          )}
+          {(lineQuery.data || []).map((game) => {
+            const awayForm = sport === 'MLB'
+              ? mlbL10Query.data?.teamL10Map?.[mlbAbbr(game.away_team)]
+              : findTeamForm(teamFormQuery.data?.teams, game.away_team)
+            const homeForm = sport === 'MLB'
+              ? mlbL10Query.data?.teamL10Map?.[mlbAbbr(game.home_team)]
+              : findTeamForm(teamFormQuery.data?.teams, game.home_team)
+            const awayRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[mlbAbbr(game.away_team)] : awayForm
+            const homeRecord = sport === 'MLB' ? mlbScheduleQuery.data?.teamRecords?.[mlbAbbr(game.home_team)] : homeForm
+            return (
+              <Card key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}>
+                <View style={styles.gameHeader}>
+                  <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
+                  <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                </View>
+                <View style={styles.teamInfoStats}>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">{shortTeamName(game.away_team)}</AppText>
+                    <AppText style={styles.teamInfoValue}>
+                      {sport === 'MLB'
+                        ? awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : '-'
+                        : teamRecordLabel(awayRecord, sport)}
+                    </AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">{shortTeamName(game.home_team)}</AppText>
+                    <AppText style={styles.teamInfoValue}>
+                      {sport === 'MLB'
+                        ? homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : '-'
+                        : teamRecordLabel(homeRecord, sport)}
+                    </AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">Form</AppText>
+                    <AppText style={styles.teamInfoValue}>
+                      {sport === 'MLB'
+                        ? `${awayForm ? `${awayForm.wins}-${awayForm.losses}` : '-'} / ${homeForm ? `${homeForm.wins}-${homeForm.losses}` : '-'}`
+                        : `${formLabel(awayForm, sport)} / ${formLabel(homeForm, sport)}`}
+                    </AppText>
+                  </View>
+                </View>
+              </Card>
+            )
+          })}
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'matchups' && !isPremium && (
+        <View style={styles.liveSection}>
+          <Card>
+            <AppText variant="eyebrow">// Premium</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Unlock Game Matchups</AppText>
+            <AppText variant="muted">Team form, matchup context, and market notes are part of KingFish Bets Pro.</AppText>
+            <View style={styles.upgradeAction}>
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            </View>
+          </Card>
+        </View>
+      )}
 
       {isSelectedSportActive && sport === 'NFL' && view === 'league' && (
         <View style={styles.liveSection}>
@@ -658,7 +944,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && !isPremium && (
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !isPremium && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Premium</AppText>
@@ -700,19 +986,82 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {propsQuery.data?.length === 0 && (
+          {propsQuery.data && propsGames.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Empty</AppText>
               <AppText variant="muted" style={styles.stateText}>No player props found for {sport} right now.</AppText>
             </Card>
           )}
 
-          {sport === 'MLB' && propsQuery.data && <MLBPropsTable games={propsQuery.data} />}
-          {sport !== 'MLB' && propsQuery.data && <PropsList games={propsQuery.data} sport={sport} />}
+          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} />}
+          {sport !== 'MLB' && propsGames.length > 0 && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} />}
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && sport !== 'SOCCER' && !hasLiveProps(sport) && (
+      {isSelectedSportActive && view === 'props' && sport === 'KBO' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">KBO team records, scoring form, and run prevention context</AppText>
+          </View>
+
+          {kboTeamQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading KBO team stats...</AppText>
+            </View>
+          )}
+
+          {kboTeamQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Team Stats</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load KBO team stats.</AppText>
+            </Card>
+          )}
+
+          {!kboTeamQuery.isLoading && !kboTeamQuery.isError && kboTeams.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Team Stats</AppText>
+              <AppText variant="title" style={styles.cardTitle}>No Team Stats Yet</AppText>
+              <AppText variant="muted">KBO team context will appear when standings are available.</AppText>
+            </Card>
+          )}
+
+          {kboTeams.map((team) => (
+            <Card key={`${team.rank}-${team.team}`}>
+              <View style={styles.teamInfoHeader}>
+                <View style={styles.teamInfoRank}>
+                  <AppText style={styles.teamInfoRankText}>{team.rank || '-'}</AppText>
+                </View>
+                <View style={styles.teamInfoBody}>
+                  <AppText style={styles.teamInfoName}>{team.team}</AppText>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>
+                    {team.wins ?? 0}W-{team.losses ?? 0}L{team.draws ? `-${team.draws}D` : ''} · {team.pct ? `${Number(team.pct).toFixed(3)} pct` : 'pct pending'}
+                  </AppText>
+                </View>
+                <View style={styles.teamInfoGrade}>
+                  <AppText style={styles.teamInfoGradeText}>{team.rank && team.rank <= 2 ? 'A' : team.rank && team.rank <= 4 ? 'B+' : team.rank && team.rank <= 7 ? 'B' : team.rank ? 'C' : '-'}</AppText>
+                </View>
+              </View>
+              <View style={styles.teamInfoStats}>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Runs/G</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.runsPerGame ? Number(team.runsPerGame).toFixed(1) : '-'}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Allowed/G</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.runsAllowedPerGame ? Number(team.runsAllowedPerGame).toFixed(1) : '-'}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Last 10</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.last10 ? `${team.last10.wins || 0}-${team.last10.losses || 0}` : '-'}</AppText>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !hasLiveProps(sport) && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Player Props</AppText>
@@ -799,7 +1148,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && sport === 'SOCCER' && (
+      {isSelectedSportActive && view === 'league' && sport === 'SOCCER' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">{selectedSoccerLeague.label} team table, goal form, and matchup context</AppText>
