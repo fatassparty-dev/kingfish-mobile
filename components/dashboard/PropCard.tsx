@@ -145,6 +145,50 @@ const NFL_MARKETS = [
   'player_tackles_assists_alternate',
 ]
 
+type NflMarketGroup = 'passing' | 'rushing' | 'receiving' | 'touchdowns' | 'kicking' | 'defense'
+
+const NFL_MARKET_GROUPS: Array<{ key: NflMarketGroup; label: string }> = [
+  { key: 'passing', label: 'Passing' },
+  { key: 'rushing', label: 'Rushing' },
+  { key: 'receiving', label: 'Receiving' },
+  { key: 'touchdowns', label: 'TDs' },
+  { key: 'kicking', label: 'Kicking' },
+  { key: 'defense', label: 'Defense' },
+]
+
+const NFL_MARKET_GROUP_BY_BASE: Record<string, NflMarketGroup> = {
+  player_pass_yds: 'passing',
+  player_pass_tds: 'passing',
+  player_pass_attempts: 'passing',
+  player_pass_completions: 'passing',
+  player_pass_interceptions: 'passing',
+  player_pass_rush_yds: 'rushing',
+  player_pass_rush_reception_yds: 'rushing',
+  player_pass_rush_reception_tds: 'rushing',
+  player_rush_yds: 'rushing',
+  player_rush_attempts: 'rushing',
+  player_rush_tds: 'rushing',
+  player_rush_reception_yds: 'rushing',
+  player_rush_reception_tds: 'rushing',
+  player_receptions: 'receiving',
+  player_reception_yds: 'receiving',
+  player_reception_tds: 'receiving',
+  player_tds_over: 'touchdowns',
+  player_1st_td: 'touchdowns',
+  player_anytime_td: 'touchdowns',
+  player_last_td: 'touchdowns',
+  player_field_goals: 'kicking',
+  player_kicking_points: 'kicking',
+  player_pats: 'kicking',
+  player_assists: 'defense',
+  player_defensive_interceptions: 'defense',
+  player_sacks: 'defense',
+  player_solo_tackles: 'defense',
+  player_tackles_assists: 'defense',
+}
+
+const NFL_TD_MARKETS = new Set(['player_anytime_td', 'player_1st_td', 'player_last_td', 'player_tds_over'])
+
 interface FlattenedProp {
   game: Game
   market: Market
@@ -201,6 +245,23 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
 
 function baseMarketKey(marketKey: string) {
   return marketKey.replace(/_alternate$/, '')
+}
+
+function isAlternateMarket(marketKey: string) {
+  return marketKey.endsWith('_alternate')
+}
+
+function isNflTouchdownMarket(marketKey: string) {
+  return NFL_TD_MARKETS.has(baseMarketKey(marketKey))
+}
+
+function nflMarketGroup(marketKey: string) {
+  return NFL_MARKET_GROUP_BY_BASE[baseMarketKey(marketKey)] || 'passing'
+}
+
+function standardMarketLabel(marketKey: string) {
+  const label = marketLabel(marketKey)
+  return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
 }
 
 const NFL_MARKET_LABELS: Record<string, string> = {
@@ -332,8 +393,8 @@ function availableMarkets(games: Game[], sport: Sport) {
       if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
       bookmaker.markets?.forEach((market) => {
           if (market.outcomes?.some((outcome) => {
-            const isAnytime = market.key === 'player_anytime_td'
-            return isAnytime ? Boolean(outcome.description || outcome.name) : Boolean(outcome.description && (outcome.name === 'Over' || outcome.name === 'Yes'))
+            const isTouchdown = sport === 'NFL' && isNflTouchdownMarket(market.key)
+            return isTouchdown ? Boolean(outcome.description || outcome.name) : Boolean(outcome.description && (outcome.name === 'Over' || outcome.name === 'Yes'))
           })) {
             available.add(market.key)
           }
@@ -358,10 +419,10 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
       for (const market of bookmaker.markets || []) {
         if (marketKey && market.key !== marketKey) continue
         for (const outcome of market.outcomes || []) {
-          const isAnytime = market.key === 'player_anytime_td'
-          const playerName = isAnytime ? (outcome.description || outcome.name) : outcome.description
+          const isTouchdown = isNflTouchdownMarket(market.key) || market.key === 'player_goal_scorer_anytime'
+          const playerName = isTouchdown ? (outcome.description || outcome.name) : outcome.description
           if (!playerName) continue
-          if (!isAnytime && outcome.name !== 'Over' && outcome.name !== 'Yes') continue
+          if (!isTouchdown && outcome.name !== 'Over' && outcome.name !== 'Yes') continue
           if (typeof outcome.price !== 'number') continue
           if (outcome.price > 700 || outcome.price < -10000) continue
 
@@ -388,10 +449,25 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
 export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport; limit?: number }) {
   const markets = useMemo(() => availableMarkets(games, sport), [games, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
+  const [nflGroup, setNflGroup] = useState<NflMarketGroup>('passing')
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-  const selectedMarket = markets.includes(activeMarket) ? activeMarket : markets[0]
+  const availableNflGroups = useMemo(() => (
+    NFL_MARKET_GROUPS.filter((group) =>
+      markets.some((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === group.key)
+    )
+  ), [markets])
+  const activeNflGroup = availableNflGroups.some((group) => group.key === nflGroup)
+    ? nflGroup
+    : availableNflGroups[0]?.key || nflGroup
+  const visibleMarkets = useMemo(() => {
+    if (sport !== 'NFL') return markets
+    return markets.filter((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === activeNflGroup)
+  }, [markets, activeNflGroup, sport])
+  const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
+  const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
+  const selectedAltMarket = sport === 'NFL' ? markets.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`) : undefined
   const props = flattenProps(games, limit, selectedMarket)
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
   const propsByGame = upcomingGames(games)
@@ -402,8 +478,9 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
     .filter((group) => group.props.length > 0)
 
   useEffect(() => {
-    setActiveMarket(markets[0])
-  }, [markets[0], sport])
+    const nextMarket = sport === 'NFL' ? visibleMarkets[0] : markets[0]
+    if (nextMarket) setActiveMarket(nextMarket)
+  }, [markets[0], sport, visibleMarkets[0]])
 
   const statsQuery = useQuery({
     queryKey: ['prop-stats', sport, selectedMarket, playerNames.join('|')],
@@ -463,19 +540,54 @@ export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport
   return (
     <View style={styles.list}>
       <AppText variant="eyebrow">Prop Type</AppText>
+      {sport === 'NFL' && (
+        <View style={styles.marketGroupGrid}>
+          {availableNflGroups.map((group) => (
+            <Pressable
+              key={group.key}
+              onPress={() => setNflGroup(group.key)}
+              style={[styles.marketGroupButton, activeNflGroup === group.key && styles.marketGroupButtonActive]}
+            >
+              <AppText style={[styles.marketGroupText, activeNflGroup === group.key && styles.marketGroupTextActive]}>
+                {group.label}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
       <View style={styles.marketGrid}>
-        {markets.map((marketKey) => (
+        {visibleMarkets.map((marketKey) => (
           <Pressable
             key={marketKey}
             onPress={() => setActiveMarket(marketKey)}
-            style={[styles.marketButton, selectedMarket === marketKey && styles.marketButtonActive]}
+            style={[styles.marketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
           >
-            <AppText style={[styles.marketText, selectedMarket === marketKey && styles.marketTextActive]}>
-              {marketLabel(marketKey)}
+            <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
+              {standardMarketLabel(marketKey)}
             </AppText>
           </Pressable>
         ))}
       </View>
+      {sport === 'NFL' && selectedAltMarket && (
+        <View style={styles.variantRow}>
+          <Pressable
+            onPress={() => setActiveMarket(selectedBaseMarket)}
+            style={[styles.variantButton, !isAlternateMarket(selectedMarket) && styles.variantButtonActive]}
+          >
+            <AppText style={[styles.variantText, !isAlternateMarket(selectedMarket) && styles.variantTextActive]}>
+              Standard
+            </AppText>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveMarket(selectedAltMarket)}
+            style={[styles.variantButton, isAlternateMarket(selectedMarket) && styles.variantButtonActive]}
+          >
+            <AppText style={[styles.variantText, isAlternateMarket(selectedMarket) && styles.variantTextActive]}>
+              {marketLabel(selectedAltMarket)}
+            </AppText>
+          </Pressable>
+        </View>
+      )}
 
       {statsQuery.isLoading && (
         <Card>
@@ -758,6 +870,39 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.sm,
   },
+  marketGroupGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    backgroundColor: colors.bgCardAlt,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: spacing.sm,
+  },
+  marketGroupButton: {
+    minWidth: '30%',
+    flexGrow: 1,
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 9,
+  },
+  marketGroupButtonActive: {
+    backgroundColor: colors.bgCard,
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  marketGroupText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  marketGroupTextActive: {
+    color: colors.textPrimary,
+  },
   marketButton: {
     minWidth: '30%',
     flexGrow: 1,
@@ -776,6 +921,33 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   marketTextActive: {
+    color: colors.bgPrimary,
+  },
+  variantRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.bgCard,
+    padding: 4,
+  },
+  variantButton: {
+    borderRadius: 9,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+  },
+  variantButtonActive: {
+    backgroundColor: colors.gold,
+  },
+  variantText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  variantTextActive: {
     color: colors.bgPrimary,
   },
   statsRow: {
