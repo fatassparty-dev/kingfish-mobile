@@ -76,7 +76,7 @@ export default function PaywallScreen() {
         <AppText variant="eyebrow">// KingFish Bets Pro</AppText>
         <AppText variant="title" style={styles.title}>Unlock The Full Edge</AppText>
         <AppText variant="muted" style={styles.copy}>
-          A betting intelligence platform built for props, NFL research, live odds, cheat sheets,
+          A sports analytics platform built for props, NFL research, live odds, cheat sheets,
           and smarter decisions across the sports calendar.
         </AppText>
       </View>

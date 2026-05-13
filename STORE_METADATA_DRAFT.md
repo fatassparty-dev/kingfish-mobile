@@ -16,9 +16,9 @@ Live odds research, player props, matchup context, cheat sheets, and Ask KingFis
 
 ## Full Description
 
-KingFish Bets is a sports analytics and odds research platform built for faster research across the sports calendar.
+KingFish Bets is a sports analytics and odds research platform built for faster, clearer research across the sports calendar.
 
-Compare live game lines, scan player props, check recent form, review player profiles, generate MLB cheat sheets, and ask KingFish for plain-English analysis backed by real data. KingFish is built for bettors who want the numbers, the context, and the best available price before making their own decision.
+Compare live game lines, scan player props, check recent form, review player profiles, generate MLB cheat sheets, and ask KingFish for plain-English analysis backed by real data. KingFish is built for users who want the numbers, the context, and the best available price before making their own decision.
 
 Inside KingFish:
 
@@ -31,11 +31,11 @@ Inside KingFish:
 - NFL Command Center and Fantasy Hub links
 - Account access shared across web and mobile
 
-KingFish does not accept wagers. KingFish is a 17+ analytics and information platform where permitted by law. All picks, tools, stats, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
+KingFish does not accept wagers. KingFish is a 17+ analytics and information platform where permitted by law. All tools, stats, research signals, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
 
 ## Keywords
 
-sports analytics, odds research, player props, fantasy football, MLB props, NFL odds, betting research, cheat sheets, live odds
+sports analytics, odds research, player props, fantasy football, MLB props, NFL odds, stat research, cheat sheets, live odds
 
 ## App Review Notes
 
