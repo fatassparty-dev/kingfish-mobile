@@ -25,7 +25,7 @@ Inside KingFish:
 - Live game lines across supported sports
 - Player props with season, recent-form, and hit-rate context
 - Best available odds highlighted across supported sportsbooks
-- MLB cheat sheets for quick prop research
+- MLB cheat sheets including Batter vs Pitcher for quick prop research
 - Ask KingFish AI analyst with live KingFish context
 - NFL Command Center and Fantasy Hub links
 - Account access shared across web and mobile

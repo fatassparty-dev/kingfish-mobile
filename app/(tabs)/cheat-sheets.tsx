@@ -15,7 +15,7 @@ import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'lines'
+type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines'
 type ToolMode = 'sheets' | 'calculators'
 type CalculatorKey = 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 
@@ -23,7 +23,7 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'lines'
+  type: 'props' | 'k' | 'bvp' | 'lines'
   market?: string
   statField?: string
   trend?: boolean
@@ -33,8 +33,22 @@ const SHEETS: Array<{
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
   { key: 'k', label: 'Safe Alt K', desc: 'Pitcher strikeout looks ranked by recent K form.', type: 'k', market: 'pitcher_strikeouts', statField: 'strikeouts_per_game' },
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
+  { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
 ]
+
+const TEAM_NAME_TO_ABBR: Record<string, string> = {
+  'New York Yankees': 'NYY', 'Boston Red Sox': 'BOS', 'Toronto Blue Jays': 'TOR',
+  'Baltimore Orioles': 'BAL', 'Tampa Bay Rays': 'TB', 'Chicago White Sox': 'CWS',
+  'Cleveland Guardians': 'CLE', 'Detroit Tigers': 'DET', 'Kansas City Royals': 'KC',
+  'Minnesota Twins': 'MIN', 'Houston Astros': 'HOU', 'Los Angeles Angels': 'LAA',
+  'Oakland Athletics': 'OAK', 'Athletics': 'OAK', 'Seattle Mariners': 'SEA', 'Texas Rangers': 'TEX',
+  'Atlanta Braves': 'ATL', 'Miami Marlins': 'MIA', 'New York Mets': 'NYM',
+  'Philadelphia Phillies': 'PHI', 'Washington Nationals': 'WAS', 'Chicago Cubs': 'CHC',
+  'Cincinnati Reds': 'CIN', 'Milwaukee Brewers': 'MIL', 'Pittsburgh Pirates': 'PIT',
+  'St. Louis Cardinals': 'STL', 'Los Angeles Dodgers': 'LAD', 'San Diego Padres': 'SD',
+  'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
+}
 
 const STAT_TO_RAW: Record<string, string> = {
   hits_per_game: 'hits',
@@ -72,6 +86,8 @@ const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = 
 interface LineupPlayer {
   id: number
   name: string
+  team?: string
+  position?: string
 }
 
 interface SheetRow {
@@ -86,6 +102,26 @@ interface SheetRow {
   hitRate: string
   reason: string
   edge: { label: string; color: string; score: number }
+}
+
+interface BvpMatchup {
+  batterID: string
+  pitcherID: string
+  batterName: string
+  pitcherName: string
+  gameLabel: string
+}
+
+interface BvpRow {
+  key: string
+  player: string
+  pitcher: string
+  gameLabel: string
+  ab: number
+  avg: string
+  hr: number
+  rbi: number
+  ops: string
 }
 
 function getStat(stats: Record<string, any> | undefined, field: string, prefix: 'season' | 'l10' | 'l5') {
@@ -118,6 +154,98 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, hitVal
 
 function fmt(value: number) {
   return value ? value.toFixed(2) : '-'
+}
+
+function teamAbbr(name?: string) {
+  return TEAM_NAME_TO_ABBR[name || ''] || name || ''
+}
+
+function getBestBatterOutcomes(game: Game) {
+  const outcomes: Array<{ player: string }> = []
+  const seen = new Set<string>()
+
+  game.bookmakers?.forEach((book) => {
+    book.markets?.forEach((market) => {
+      if (!market.key || market.key.startsWith('pitcher_')) return
+      market.outcomes?.forEach((outcome) => {
+        if (!outcome.description) return
+        const key = normalizeName(outcome.description)
+        if (seen.has(key)) return
+        seen.add(key)
+        outcomes.push({ player: outcome.description })
+      })
+    })
+  })
+
+  return outcomes
+}
+
+function buildBvpMatchups(
+  games: Game[],
+  lineups: Record<string, LineupPlayer> | undefined,
+  pitcherMap: Record<string, string> = {},
+  pitcherNameMap: Record<string, string> = {},
+) {
+  if (!lineups) return []
+
+  const seen = new Set<string>()
+  const matchups: BvpMatchup[] = []
+
+  games.forEach((game) => {
+    const awayAbbr = teamAbbr(game.away_team)
+    const homeAbbr = teamAbbr(game.home_team)
+    const awayPitcherId = pitcherMap[awayAbbr]
+    const homePitcherId = pitcherMap[homeAbbr]
+    const awayPitcherName = pitcherNameMap[awayAbbr] || 'probable starter'
+    const homePitcherName = pitcherNameMap[homeAbbr] || 'probable starter'
+
+    getBestBatterOutcomes(game).forEach((outcome) => {
+      const lineup = lineups[normalizeName(outcome.player)]
+      if (!lineup?.id) return
+
+      const batterTeam = teamAbbr(lineup.team)
+      const pitcherID = batterTeam === awayAbbr ? homePitcherId : batterTeam === homeAbbr ? awayPitcherId : ''
+      const pitcherName = batterTeam === awayAbbr ? homePitcherName : batterTeam === homeAbbr ? awayPitcherName : ''
+      if (!pitcherID) return
+
+      const key = `${lineup.id}_${pitcherID}`
+      if (seen.has(key)) return
+      seen.add(key)
+
+      matchups.push({
+        batterID: String(lineup.id),
+        pitcherID,
+        batterName: lineup.name,
+        pitcherName,
+        gameLabel: `${awayAbbr || game.away_team} @ ${homeAbbr || game.home_team}`,
+      })
+    })
+  })
+
+  return matchups
+}
+
+function buildBvpRows(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = []) {
+  const matchupMeta = new Map(matchups.map((matchup) => [`${matchup.batterID}_${matchup.pitcherID}`, matchup]))
+
+  return Object.entries(bvp)
+    .map(([key, value]) => {
+      const meta = matchupMeta.get(key)
+      if (!meta) return null
+      return {
+        key,
+        player: meta.batterName,
+        pitcher: meta.pitcherName,
+        gameLabel: meta.gameLabel,
+        ab: Number(value?.ab || 0),
+        avg: value?.avg || '.000',
+        hr: Number(value?.hr || 0),
+        rbi: Number(value?.rbi || 0),
+        ops: value?.ops || '-',
+      }
+    })
+    .filter((row): row is BvpRow => row !== null && row.ab > 0)
+    .sort((a, b) => b.ab - a.ab)
 }
 
 function fmtMoney(value: number) {
@@ -297,6 +425,17 @@ export default function CheatSheetsScreen() {
     staleTime: 12 * 60 * 60 * 1000,
   })
 
+  const scheduleQuery = useQuery({
+    queryKey: ['mlb-schedule-cheat-sheets'],
+    queryFn: () => kingfishFetch<{
+      pitcherMap?: Record<string, string>
+      pitcherNameMap?: Record<string, string>
+      pitcherIdNameMap?: Record<string, string>
+    }>('/api/mlb-schedule'),
+    enabled: canLoadData && activeKey === 'bvp',
+    staleTime: 60 * 60 * 1000,
+  })
+
   const sheetGames = useMemo(() => sheetQuery.data?.data || [], [sheetQuery.data?.data])
 
   const playersToFetch = useMemo(() => {
@@ -341,9 +480,33 @@ export default function CheatSheetsScreen() {
     staleTime: 60 * 60 * 1000,
   })
 
+  const bvpMatchups = useMemo(
+    () => buildBvpMatchups(
+      sheetGames,
+      lineupsQuery.data?.players,
+      scheduleQuery.data?.pitcherMap,
+      scheduleQuery.data?.pitcherNameMap,
+    ),
+    [lineupsQuery.data?.players, scheduleQuery.data?.pitcherMap, scheduleQuery.data?.pitcherNameMap, sheetGames],
+  )
+
+  const bvpQuery = useQuery({
+    queryKey: ['cheat-sheet-bvp', bvpMatchups.map((matchup) => `${matchup.batterID}_${matchup.pitcherID}`).join(',')],
+    queryFn: () =>
+      kingfishFetch<{ bvp: Record<string, any> }>('/api/mlb-bvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchups: bvpMatchups.map(({ batterID, pitcherID }) => ({ batterID, pitcherID })) }),
+      }),
+    enabled: canLoadData && activeKey === 'bvp' && bvpMatchups.length > 0,
+    staleTime: 12 * 60 * 60 * 1000,
+  })
+
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
     ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend)
     : []
+
+  const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
 
   const updateCalc = (key: string, value: string) => setCalcInputs((current) => ({ ...current, [key]: value }))
 
@@ -428,7 +591,7 @@ export default function CheatSheetsScreen() {
       <AppText variant="eyebrow">// KingFish Workspace</AppText>
       <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Cheat sheets, calculators, and game factors in one clean workspace.
+        Cheat sheets and calculators in one clean workspace.
       </AppText>
 
       <View style={styles.segmentRow}>
@@ -562,7 +725,7 @@ export default function CheatSheetsScreen() {
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading) && (
+          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
@@ -590,7 +753,29 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'lines' && rows.length > 0 && (
+          {activeKey === 'bvp' && bvpRows.length > 0 && (
+            <View style={styles.reportRows}>
+              {bvpRows.slice(0, 30).map((row) => (
+                <View key={row.key} style={styles.reportRow}>
+                  <View style={styles.rowMain}>
+                    <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                    <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                      {row.gameLabel} · vs {row.pitcher}
+                    </AppText>
+                    <View style={styles.bvpMetricRow}>
+                      <BvpMetric label="AB" value={String(row.ab)} />
+                      <BvpMetric label="AVG" value={row.avg} tone={Number(row.avg) >= 0.300 ? colors.green : Number(row.avg) >= 0.200 ? colors.gold : colors.red} />
+                      <BvpMetric label="HR" value={String(row.hr)} />
+                      <BvpMetric label="RBI" value={String(row.rbi)} />
+                      <BvpMetric label="OPS" value={row.ops} />
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {activeKey !== 'lines' && activeKey !== 'bvp' && rows.length > 0 && (
             <View style={styles.reportRows}>
               {rows.slice(0, 6).map((row, index) => (
                 <View key={`${row.player}-${row.line}-${index}`} style={styles.reportRow}>
@@ -617,6 +802,12 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
+          {activeKey === 'bvp' && !sheetQuery.isLoading && !lineupsQuery.isLoading && !scheduleQuery.isLoading && !bvpQuery.isLoading && sheetGames.length > 0 && bvpRows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No Batter vs Pitcher matchups are available for today's probable starters yet.
+            </AppText>
+          )}
+
           {!sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
@@ -640,6 +831,15 @@ function ToolInput({ label, value, onChangeText, wide = false }: { label: string
         placeholderTextColor={colors.textMuted}
         style={styles.toolInput}
       />
+    </View>
+  )
+}
+
+function BvpMetric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <View style={styles.bvpMetric}>
+      <AppText variant="mono" style={styles.bvpMetricLabel}>{label}</AppText>
+      <AppText style={[styles.bvpMetricValue, tone ? { color: tone } : null]}>{value}</AppText>
     </View>
   )
 }
@@ -807,6 +1007,31 @@ const styles = StyleSheet.create({
   rowNumbers: { alignItems: 'flex-end', minWidth: 72 },
   compactEdge: { fontSize: 22, lineHeight: 26, fontWeight: '900' },
   compactOdds: { marginTop: 2, color: colors.gold, fontSize: 12, fontWeight: '900' },
+  bvpMetricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  bvpMetric: {
+    minWidth: 54,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  bvpMetricLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  bvpMetricValue: {
+    marginTop: 2,
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '900',
+  },
   rows: { gap: spacing.md, marginTop: spacing.lg },
   rowHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   edgeText: { fontSize: 15, fontWeight: '900' },

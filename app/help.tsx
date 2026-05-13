@@ -60,6 +60,7 @@ const cheatSheets = [
   { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },
   { title: 'Safe Alt K', body: 'Pitcher strikeout targets where the alternate line is the main focus.' },
   { title: 'Hot Hitters', body: 'Recent form first: last 5, last 10, and streak-style momentum.' },
+  { title: 'Batter vs Pitcher', body: "Career batter history against today's probable starter, with sample size shown up front." },
   { title: 'Game Lines & Edge', body: 'A game-level view of odds, totals, and context such as MLB weather.' },
 ]
 
