@@ -300,9 +300,7 @@ export default function CheatSheetsScreen() {
             Cheat Sheets, player props, Edge Scores, and unlimited Ask KingFish access are part of KingFish Bets Pro.
           </AppText>
           <View style={styles.action}>
-            {mobileConfig.flags.mobile_paywall ? (
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-            ) : null}
+            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
           </View>
         </Card>
       ) : !hasGenerated ? (

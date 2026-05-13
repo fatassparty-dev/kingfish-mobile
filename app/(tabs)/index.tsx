@@ -56,7 +56,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Track live MLB lines, player props, weather, stat trends, and cheat-sheet support in one place.',
     inactiveTitle: 'MLB Lines Unavailable',
-    inactiveDescription: 'MLB lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
+    inactiveDescription: 'No MLB markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'NBA',
@@ -64,7 +64,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
     inactiveTitle: 'NBA Lines Unavailable',
-    inactiveDescription: 'NBA lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
+    inactiveDescription: 'No NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'NFL',
@@ -80,7 +80,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Track NHL lines, player props, shot volume, scoring trends, and Edge Scores in one board.',
     inactiveTitle: 'NHL Lines Unavailable',
-    inactiveDescription: 'NHL lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
+    inactiveDescription: 'No NHL markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'WNBA',
@@ -88,7 +88,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Follow WNBA lines and player props with recent stat trends, hit rates, and best available odds.',
     inactiveTitle: 'WNBA Lines Unavailable',
-    inactiveDescription: 'WNBA lines are temporarily unavailable. Check back soon for game lines, props, and stat context.',
+    inactiveDescription: 'WNo NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'KBO',
@@ -96,7 +96,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Follow KBO game lines and market movement from supported books.',
     inactiveTitle: 'KBO Lines Unavailable',
-    inactiveDescription: 'KBO game lines are temporarily unavailable. Check back soon for the next posted slate.',
+    inactiveDescription: 'No KBO markets are posted right now. When books post the next slate, KingFish will show game lines.',
   },
   {
     key: 'NCAAB',
@@ -312,9 +312,7 @@ export default function DashboardScreen() {
               are part of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
-              {mobileConfig.flags.mobile_paywall ? (
-                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-              ) : null}
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
             </View>
           </Card>
         </View>
@@ -373,9 +371,7 @@ export default function DashboardScreen() {
               of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
-              {mobileConfig.flags.mobile_paywall ? (
-                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-              ) : null}
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
             </View>
           </Card>
         </View>

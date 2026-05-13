@@ -248,9 +248,7 @@ export default function AskKingFishScreen() {
           <AppText variant="muted" style={styles.upgradeCopy}>
             Premium includes unlimited chat, player props, cheat sheets, and edge tools.
           </AppText>
-          {mobileConfig.flags.mobile_paywall ? (
-            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-          ) : null}
+          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
         </View>
       )}
 

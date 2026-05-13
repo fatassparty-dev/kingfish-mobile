@@ -21,7 +21,6 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
-  const mobilePaywallEnabled = mobileConfig.flags.mobile_paywall
   async function handleRestorePurchases() {
     setRestoring(true)
     const result = await restorePurchases(user?.id)
@@ -143,12 +142,10 @@ export default function AccountScreen() {
       </Card>
 
       <View style={styles.actions}>
-        {!isPremium && mobilePaywallEnabled ? (
+        {!isPremium ? (
           <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
         ) : null}
-        {mobilePaywallEnabled ? (
-          <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
-        ) : null}
+        <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
       </View>
     </Screen>

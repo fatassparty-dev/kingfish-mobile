@@ -54,7 +54,6 @@ export default function PaywallScreen() {
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
   const isPremium = profile?.is_premium === true
-  const mobilePaywallEnabled = mobileConfig.flags.mobile_paywall
 
   async function handlePurchase() {
     setLoadingAction('purchase')
@@ -92,64 +91,49 @@ export default function PaywallScreen() {
         ))}
       </View>
 
-      {mobilePaywallEnabled ? (
-        <>
-          <View style={styles.plans}>
-            {PLANS.map((plan) => {
-              const selected = selectedPlan === plan.id
-              return (
-                <Pressable
-                  key={plan.id}
-                  onPress={() => setSelectedPlan(plan.id)}
-                  style={[styles.planCard, selected && styles.planCardActive]}
-                >
-                  <View style={styles.planTop}>
-                    <View style={styles.planHeaderLeft}>
-                      <AppText variant="eyebrow">{plan.eyebrow}</AppText>
-                    </View>
-                    {plan.badge ? (
-                      <View style={[styles.badge, selected && styles.badgeActive]}>
-                        <AppText style={[styles.badgeText, selected && styles.badgeTextActive]}>{plan.badge}</AppText>
-                      </View>
-                    ) : null}
+      <View style={styles.plans}>
+        {PLANS.map((plan) => {
+          const selected = selectedPlan === plan.id
+          return (
+            <Pressable
+              key={plan.id}
+              onPress={() => setSelectedPlan(plan.id)}
+              style={[styles.planCard, selected && styles.planCardActive]}
+            >
+              <View style={styles.planTop}>
+                <View style={styles.planHeaderLeft}>
+                  <AppText variant="eyebrow">{plan.eyebrow}</AppText>
+                </View>
+                {plan.badge ? (
+                  <View style={[styles.badge, selected && styles.badgeActive]}>
+                    <AppText style={[styles.badgeText, selected && styles.badgeTextActive]}>{plan.badge}</AppText>
                   </View>
-                  <AppText style={styles.price}>{plan.price}</AppText>
-                  <AppText variant="muted">{plan.sub}</AppText>
-                </Pressable>
-              )
-            })}
-          </View>
+                ) : null}
+              </View>
+              <AppText style={styles.price}>{plan.price}</AppText>
+              <AppText variant="muted">{plan.sub}</AppText>
+            </Pressable>
+          )
+        })}
+      </View>
 
-          {message ? (
-            <Card style={styles.notice}>
-              <AppText style={styles.noticeText}>{message}</AppText>
-            </Card>
-          ) : null}
-
-          <Button loading={loadingAction === 'purchase'} disabled={isPremium} onPress={handlePurchase}>
-            {isPremium ? 'Pro Active' : 'Start Premium'}
-          </Button>
-          <View style={styles.gap} />
-          <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>
-            Restore Purchases
-          </Button>
-        </>
-      ) : (
+      {message ? (
         <Card style={styles.notice}>
-          <AppText variant="eyebrow">// Plans</AppText>
-          <AppText style={styles.noticeTitle}>Mobile Subscriptions Temporarily Unavailable</AppText>
-          <AppText variant="muted" style={styles.noticeCopy}>
-            Mobile subscription checkout is currently paused. If you already have Premium, sign in
-            with the same account and your access will work here.
-          </AppText>
+          <AppText style={styles.noticeText}>{message}</AppText>
         </Card>
-      )}
+      ) : null}
+
+      <Button loading={loadingAction === 'purchase'} disabled={isPremium} onPress={handlePurchase}>
+        {isPremium ? 'Pro Active' : 'Start Premium'}
+      </Button>
+      <View style={styles.gap} />
+      <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>
+        Restore Purchases
+      </Button>
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        {mobilePaywallEnabled
-          ? 'Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings. KingFish is intended for users 17+ where permitted by law.'
-          : 'Existing Premium access still works while mobile subscription checkout is paused.'}
+        Payment is managed by the App Store or Google Play. Monthly and yearly plans renew unless canceled in your store account settings. KingFish is intended for users 17+ where permitted by law.
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
