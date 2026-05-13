@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -29,6 +29,26 @@ type SoccerTeamInfo = {
   goalsAgainst?: number
   goalDifference?: number
   form?: string
+}
+
+type DashboardView = 'league' | 'lines' | 'props'
+
+type NFLFuturesData = {
+  division: Array<{
+    division: string
+    entries: Array<{ team: string }>
+  }>
+  divisionContext: Record<string, { rank: number; wins: number; last5Wins: number }>
+  wins?: Array<{
+    team: string
+    lines: Array<{ line: number }>
+  }>
+}
+
+type WeekOption<T extends { commence_time: string }> = {
+  key: string
+  label: string
+  games: T[]
 }
 
 const SOCCER_LEAGUES = [
@@ -146,11 +166,56 @@ function soccerTeamGrade(team: SoccerTeamInfo) {
   return 'D'
 }
 
+function shortDate(date: Date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function upcomingGames<T extends { commence_time: string }>(games: T[] = []) {
+  const now = Date.now()
+  return games
+    .filter((game) => new Date(game.commence_time).getTime() > now)
+    .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
+}
+
+function weekOptions<T extends { commence_time: string }>(games: T[]): WeekOption<T>[] {
+  if (!games.length) return []
+  const firstStart = new Date(games[0].commence_time)
+  firstStart.setHours(0, 0, 0, 0)
+  const weeks: WeekOption<T>[] = []
+
+  games.forEach((game) => {
+    const gameDate = new Date(game.commence_time)
+    const diffDays = Math.max(0, Math.floor((gameDate.getTime() - firstStart.getTime()) / 86400000))
+    const index = Math.floor(diffDays / 7)
+    if (!weeks[index]) {
+      const start = new Date(firstStart)
+      start.setDate(firstStart.getDate() + index * 7)
+      const end = new Date(start)
+      end.setDate(start.getDate() + 6)
+      weeks[index] = {
+        key: `week-${index + 1}`,
+        label: `Week ${index + 1}: ${shortDate(start)}-${shortDate(end)}`,
+        games: [],
+      }
+    }
+    weeks[index].games.push(game)
+  })
+
+  return weeks.filter(Boolean)
+}
+
+function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
+  const lines = data?.wins?.find((item) => item.team === team)?.lines || []
+  if (!lines.length) return '-'
+  return String(lines[Math.floor(lines.length / 2)].line)
+}
+
 export default function DashboardScreen() {
   const { profile } = useAuth()
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
-  const [view, setView] = useState<'lines' | 'props'>('lines')
+  const [view, setView] = useState<DashboardView>('lines')
+  const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const selectedSport = SPORTS.find((item) => item.key === sport) || SPORTS[0]
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
@@ -159,8 +224,9 @@ export default function DashboardScreen() {
     queryFn: fetchFeatureFlags,
     staleTime: 60 * 1000,
   })
-  const isSelectedSportActive = flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live'
-  const getSportActive = (item: (typeof SPORTS)[number]) => flagsQuery.data?.[item.flag] ?? item.status === 'Live'
+  const isSelectedSportActive = selectedSport.key === 'NFL' || (flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live')
+  const getSportActive = (item: (typeof SPORTS)[number]) => item.key === 'NFL' || (flagsQuery.data?.[item.flag] ?? item.status === 'Live')
+  const dashboardViews: DashboardView[] = sport === 'NFL' ? ['league', 'lines', 'props'] : ['lines', 'props']
   const secondaryViewLabel = isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const canFetchLines = isSelectedSportActive && view === 'lines' && isPremium
@@ -192,6 +258,12 @@ export default function DashboardScreen() {
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
+  const nflFuturesQuery = useQuery({
+    queryKey: ['nfl-mobile-league-view'],
+    queryFn: () => kingfishFetch<NFLFuturesData>('/data/nfl/futures-2026.json'),
+    enabled: isSelectedSportActive && sport === 'NFL' && view === 'league',
+    staleTime: 24 * 60 * 60 * 1000,
+  })
   const soccerTeamQuery = useQuery({
     queryKey: ['soccer-team-info', soccerLeague],
     queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>(`/api/soccer-team-info?league=${soccerLeague}`),
@@ -203,6 +275,9 @@ export default function DashboardScreen() {
     const bPos = Number(b.position || 999)
     return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
+  const lineWeeks = sport === 'NFL' ? weekOptions(upcomingGames(lineQuery.data || [])) : []
+  const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
+  const visibleLineGames = sport === 'NFL' && activeLineWeek ? activeLineWeek.games : (lineQuery.data || [])
 
   return (
     <Screen>
@@ -218,6 +293,8 @@ export default function DashboardScreen() {
             key={item.key}
             onPress={() => {
               setSport(item.key)
+              if (item.key === 'NFL') setView('league')
+              else if (view === 'league') setView('lines')
               if (isCollegeSport(item.key) && view === 'props') setView('props')
             }}
             style={[styles.pill, sport === item.key && styles.activePill]}
@@ -239,14 +316,14 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.segment}>
-        {(['lines', 'props'] as const).map((item) => (
+        {dashboardViews.map((item) => (
           <Pressable
             key={item}
             onPress={() => setView(item)}
             style={[styles.segmentButton, view === item && styles.segmentActive]}
           >
             <AppText style={[styles.segmentText, view === item && styles.segmentTextActive]}>
-              {item === 'lines' ? 'Game Lines' : secondaryViewLabel}
+              {item === 'league' ? 'League View' : item === 'lines' ? 'Game Lines' : secondaryViewLabel}
             </AppText>
           </Pressable>
         ))}
@@ -272,7 +349,7 @@ export default function DashboardScreen() {
         <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
         <AppText variant="title" style={styles.cardTitle}>
           {isSelectedSportActive
-            ? (view === 'lines' ? 'Game Lines' : secondaryViewLabel)
+            ? (view === 'league' ? 'League View' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
             : selectedSport.inactiveTitle}
         </AppText>
         <AppText variant="muted">
@@ -301,6 +378,53 @@ export default function DashboardScreen() {
           </View>
         )}
       </Card>
+
+      {isSelectedSportActive && sport === 'NFL' && view === 'league' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">
+              Division baseline built from 2025 results and 2026 win-total context
+            </AppText>
+          </View>
+
+          {nflFuturesQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NFL league view...</AppText>
+            </View>
+          )}
+
+          {nflFuturesQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// NFL League View</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load NFL league context.</AppText>
+            </Card>
+          )}
+
+          {nflFuturesQuery.data?.division.map((division) => (
+            <Card key={division.division}>
+              <AppText variant="eyebrow">// {division.division}</AppText>
+              <View style={styles.leagueHeader}>
+                <AppText style={[styles.leagueHeaderText, styles.leagueTeamCell]}>Team</AppText>
+                <AppText style={styles.leagueHeaderText}>2025</AppText>
+                <AppText style={styles.leagueHeaderText}>L5</AppText>
+                <AppText style={styles.leagueHeaderText}>Win Total</AppText>
+              </View>
+              {division.entries.map((entry) => {
+                const context = nflFuturesQuery.data?.divisionContext[entry.team]
+                return (
+                  <View key={`${division.division}-${entry.team}`} style={styles.leagueRow}>
+                    <AppText style={[styles.leagueTeam, styles.leagueTeamCell]}>{entry.team}</AppText>
+                    <AppText style={styles.leagueValue}>{context ? `${context.wins}W / ${context.rank}` : '-'}</AppText>
+                    <AppText style={styles.leagueValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
+                    <AppText style={styles.leagueValue}>{nflWinTotal(nflFuturesQuery.data, entry.team)}</AppText>
+                  </View>
+                )
+              })}
+            </Card>
+          ))}
+        </View>
+      )}
 
       {isSelectedSportActive && view === 'lines' && !isPremium && (
         <View style={styles.liveSection}>
@@ -351,7 +475,30 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {lineQuery.data?.map((game) => (
+          {sport === 'NFL' && lineWeeks.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRow}>
+              {lineWeeks.map((week) => (
+                <Pressable
+                  key={week.key}
+                  onPress={() => setSelectedLineWeek(week.key)}
+                  style={[styles.weekPill, activeLineWeek?.key === week.key && styles.weekPillActive]}
+                >
+                  <AppText style={[styles.weekPillText, activeLineWeek?.key === week.key && styles.weekPillTextActive]}>
+                    {week.label}
+                  </AppText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
+          {lineQuery.data && lineQuery.data.length > 0 && visibleLineGames.length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Empty</AppText>
+              <AppText variant="muted" style={styles.stateText}>No upcoming games found for {sport} right now.</AppText>
+            </Card>
+          )}
+
+          {visibleLineGames.map((game) => (
             <GameLineCard
               key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
               game={game}
@@ -610,6 +757,30 @@ const styles = StyleSheet.create({
   soccerLeagueTextActive: {
     color: colors.bgPrimary,
   },
+  weekRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  weekPill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  weekPillActive: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  weekPillText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  weekPillTextActive: {
+    color: colors.bgPrimary,
+  },
   cardTitle: {
     fontSize: 26,
     lineHeight: 28,
@@ -653,6 +824,42 @@ const styles = StyleSheet.create({
   },
   upgradeAction: {
     marginTop: spacing.lg,
+  },
+  leagueHeader: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  leagueHeaderText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  leagueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: spacing.md,
+  },
+  leagueTeamCell: {
+    flex: 1.2,
+  },
+  leagueTeam: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  leagueValue: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '900',
   },
   teamInfoHeader: {
     flexDirection: 'row',

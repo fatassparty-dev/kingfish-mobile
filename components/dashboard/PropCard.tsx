@@ -245,10 +245,15 @@ function availableMarkets(games: Game[], sport: Sport) {
   return marketKeysForSport(sport).filter((marketKey) => available.has(marketKey))
 }
 
-export function flattenProps(games: Game[], limit = 30, marketKey?: string): FlattenedProp[] {
+function upcomingGames(games: Game[]) {
+  const now = Date.now()
+  return games.filter((game) => new Date(game.commence_time).getTime() > now)
+}
+
+export function flattenProps(games: Game[], limit?: number, marketKey?: string): FlattenedProp[] {
   const propMap = new Map<string, FlattenedProp>()
 
-  for (const game of games) {
+  for (const game of upcomingGames(games)) {
     for (const bookmaker of game.bookmakers || []) {
       if (!PROP_BOOK_KEYS.includes(bookmaker.key)) continue
       for (const market of bookmaker.markets || []) {
@@ -277,10 +282,11 @@ export function flattenProps(games: Game[], limit = 30, marketKey?: string): Fla
     }
   }
 
-  return Array.from(propMap.values()).slice(0, limit)
+  const props = Array.from(propMap.values())
+  return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit = 36 }: { games: Game[]; sport: Sport; limit?: number }) {
+export function PropsList({ games, sport, limit }: { games: Game[]; sport: Sport; limit?: number }) {
   const markets = useMemo(() => availableMarkets(games, sport), [games, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
   const [sortKey, setSortKey] = useState<SortKey>('edge')
@@ -289,7 +295,7 @@ export function PropsList({ games, sport, limit = 36 }: { games: Game[]; sport: 
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : markets[0]
   const props = flattenProps(games, limit, selectedMarket)
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
-  const propsByGame = games
+  const propsByGame = upcomingGames(games)
     .map((game) => ({
       game,
       props: props.filter((prop) => (prop.game.game_id || prop.game.id) === (game.game_id || game.id)),
