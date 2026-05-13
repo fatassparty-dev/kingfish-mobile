@@ -35,7 +35,7 @@ KingFish does not accept wagers. KingFish is a 17+ analytics and information pla
 
 ## Keywords
 
-sports analytics, odds research, player props, fantasy football, MLB props, NFL odds, stat research, cheat sheets, live odds
+sports analytics, sports betting research, odds research, player props, fantasy football, MLB props, NFL odds, sportsbook odds, cheat sheets, live odds
 
 ## App Review Notes
 
