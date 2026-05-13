@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
@@ -99,7 +99,7 @@ type NCAAFMatchup = {
   away_team: string
   favorite: string
   favoriteDetail: string
-  spread: number | null
+  spread?: number | null
   total: number | null
   status: string
 }
@@ -345,19 +345,45 @@ export default function DashboardScreen() {
   })
   const isSelectedSportActive = selectedSport.key === 'NFL' || (flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => item.key === 'NFL' || (flagsQuery.data?.[item.flag] ?? item.status === 'Live')
-  const dashboardViews: DashboardView[] =
-    sport === 'NFL' || sport === 'NCAAF'
-      ? ['league', 'props', 'lines']
+  const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
+  const tabVisible = (tab: DashboardView) => {
+    const prefix = sportApiKey(sport)
+    if (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
+    if (sport === 'NFL') {
+      if (tab === 'props') return mobileFlag('nfl_dashboard_tab_props', false) || mobileFlag('nfl_props', false)
+      return mobileFlag(`nfl_dashboard_tab_${tab}`, true)
+    }
+    return true
+  }
+  const rawDashboardViews: DashboardView[] =
+    sport === 'NFL'
+      ? ['league', 'matchups', 'lines', 'props']
+      : sport === 'NCAAF'
+        ? ['league', 'props', 'lines']
       : sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
         ? ['league', 'matchups', 'lines', 'props']
         : sport === 'SOCCER'
           ? ['league', 'matchups', 'lines']
           : ['lines', 'props']
+  const dashboardViews = rawDashboardViews.filter(tabVisible)
   const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'Team Stats' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
-  const canFetchLines = isSelectedSportActive && view === 'lines' && isPremium
-  const canFetchMatchups = isSelectedSportActive && view === 'matchups' && isPremium
-  const canFetchProps = isSelectedSportActive && view === 'props' && isPremium && !isCollegeSport(sport) && hasLiveProps(sport)
+  const sportFlagPrefix = sportApiKey(sport)
+  const viewVisible = dashboardViews.includes(view)
+  const linesFree = mobileFlag(`${sportFlagPrefix}_access_lines_free`, false)
+  const propsFree = mobileFlag(`${sportFlagPrefix}_access_props_free`, false)
+  const linesMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_lines`, false)
+  const propsMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_props`, false)
+  const canViewLines = isPremium || linesFree
+  const canViewProps = isPremium || propsFree
+  const canViewMatchups = isPremium || sport === 'NFL'
+  const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
+  const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups
+  const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && canViewProps && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
+
+  useEffect(() => {
+    if (dashboardViews.length && !dashboardViews.includes(view)) setView(dashboardViews[0])
+  }, [dashboardViews.join('|'), view])
   const lineQuery = useQuery({
     queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default'],
     queryFn: () => kingfishFetch<Game[]>(
@@ -365,7 +391,7 @@ export default function DashboardScreen() {
         ? `/api/soccer-odds?league=${soccerLeague}${view === 'matchups' ? '&scope=matchups' : ''}`
         : `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
     ),
-    enabled: canFetchLines || canFetchMatchups,
+    enabled: canFetchLines || (canFetchMatchups && sport !== 'NFL'),
     staleTime: 5 * 60 * 1000,
   })
   const weatherQuery = useQuery({
@@ -405,6 +431,12 @@ export default function DashboardScreen() {
     queryKey: ['ncaaf-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaf-matchups'),
     enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'props',
+    staleTime: 10 * 60 * 1000,
+  })
+  const nflMatchupsQuery = useQuery({
+    queryKey: ['nfl-mobile-matchups'],
+    queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/nfl-matchups'),
+    enabled: isSelectedSportActive && sport === 'NFL' && view === 'matchups' && isPremium,
     staleTime: 10 * 60 * 1000,
   })
   const soccerTeamQuery = useQuery({
@@ -810,6 +842,60 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {isSelectedSportActive && sport === 'NFL' && view === 'matchups' && isPremium && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">Cached weekly NFL matchup context from posted game lines</AppText>
+          </View>
+
+          {nflMatchupsQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NFL matchups...</AppText>
+            </View>
+          )}
+
+          {nflMatchupsQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load NFL matchups.</AppText>
+            </Card>
+          )}
+
+          {!nflMatchupsQuery.isLoading && !nflMatchupsQuery.isError && (nflMatchupsQuery.data || []).length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
+              <AppText variant="muted">NFL matchup context appears after sportsbooks post the next slate.</AppText>
+            </Card>
+          )}
+
+          {(nflMatchupsQuery.data || []).map((game) => (
+            <Card key={game.id}>
+              <View style={styles.gameHeader}>
+                <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
+                <AppText variant="mono">{shortDate(new Date(game.commence_time))}</AppText>
+              </View>
+              <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
+              <View style={styles.teamInfoStats}>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Favorite</AppText>
+                  <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Market</AppText>
+                  <AppText style={styles.teamInfoValue}>{game.favoriteDetail}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Total</AppText>
+                  <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+
       {isSelectedSportActive && sport === 'NCAAF' && view === 'league' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
@@ -862,7 +948,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'lines' && !isPremium && (
+      {isSelectedSportActive && view === 'lines' && !canViewLines && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Premium</AppText>
@@ -874,6 +960,16 @@ export default function DashboardScreen() {
             <View style={styles.upgradeAction}>
               <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
             </View>
+          </Card>
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'lines' && canViewLines && linesMaintenance && (
+        <View style={styles.liveSection}>
+          <Card>
+            <AppText variant="eyebrow">// Maintenance</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Game Lines Paused</AppText>
+            <AppText variant="muted">This board is temporarily paused while KingFish refreshes the market data.</AppText>
           </Card>
         </View>
       )}
@@ -944,7 +1040,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !isPremium && (
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !canViewProps && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Premium</AppText>
@@ -956,6 +1052,16 @@ export default function DashboardScreen() {
             <View style={styles.upgradeAction}>
               <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
             </View>
+          </Card>
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && canViewProps && propsMaintenance && (
+        <View style={styles.liveSection}>
+          <Card>
+            <AppText variant="eyebrow">// Maintenance</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Player Props Paused</AppText>
+            <AppText variant="muted">This board is temporarily paused while KingFish refreshes the prop data.</AppText>
           </Card>
         </View>
       )}
