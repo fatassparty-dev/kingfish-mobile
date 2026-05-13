@@ -70,6 +70,32 @@ export default function PaywallScreen() {
     setLoadingAction(null)
   }
 
+  if (isPremium) {
+    return (
+      <Screen>
+        <View style={styles.hero}>
+          <AppText variant="eyebrow">// KingFish Bets Pro</AppText>
+          <AppText variant="title" style={styles.title}>Pro Is Active</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            Your account already has premium access.
+          </AppText>
+        </View>
+        <Card style={styles.notice}>
+          <AppText variant="eyebrow">// Active</AppText>
+          <AppText style={styles.noticeTitle}>You are already on KingFish Bets Pro.</AppText>
+          <AppText variant="muted" style={styles.noticeCopy}>
+            Manage subscriptions in your App Store or Google Play account settings.
+          </AppText>
+        </Card>
+        <Button variant="secondary" onPress={() => Linking.openURL('itms-apps://apps.apple.com/account/subscriptions')}>
+          Manage Subscription
+        </Button>
+        <View style={styles.gap} />
+        <Button variant="secondary" onPress={() => router.back()}>Close</Button>
+      </Screen>
+    )
+  }
+
   return (
     <Screen>
       <View style={styles.hero}>
@@ -122,8 +148,8 @@ export default function PaywallScreen() {
         </Card>
       ) : null}
 
-      <Button loading={loadingAction === 'purchase'} disabled={isPremium || purchasePaused} onPress={handlePurchase}>
-        {isPremium ? 'Pro Active' : purchasePaused ? 'Subscriptions Paused' : 'Start Premium'}
+      <Button loading={loadingAction === 'purchase'} disabled={purchasePaused} onPress={handlePurchase}>
+        {purchasePaused ? 'Subscriptions Paused' : 'Start Premium'}
       </Button>
       <View style={styles.gap} />
       <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>

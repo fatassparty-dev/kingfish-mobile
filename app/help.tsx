@@ -100,7 +100,7 @@ export default function HelpScreen() {
           <AppText variant="eyebrow">// Help Guide</AppText>
           <AppText variant="title" style={styles.title}>How To Use KingFish</AppText>
           <AppText variant="muted" style={styles.copy}>
-            KingFish helps you turn live odds, player stats, recent form, weather, and price shopping into faster betting research.
+            KingFish helps you turn live odds, player stats, recent form, weather, and price shopping into faster sports analytics and betting research.
           </AppText>
 
           <View style={styles.section}>
