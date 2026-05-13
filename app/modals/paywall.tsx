@@ -31,12 +31,6 @@ const PLANS: {
     sub: 'Eligible new subscribers get 7 days free, then the best value for the full sports calendar.',
     badge: 'Best value',
   },
-  {
-    id: 'lifetime',
-    eyebrow: '// Lifetime',
-    price: 'Lifetime',
-    sub: 'One purchase for long-term KingFish access.',
-  },
 ]
 
 const FEATURES = [
@@ -138,7 +132,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Monthly and yearly subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Lifetime is a one-time purchase where supported. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 17+ where permitted by law.
+        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 17+ where permitted by law.
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>

@@ -15,14 +15,11 @@ const PRODUCT_PRIORITY = [
   'monthly',
   '$rc_annual',
   'yearly',
-  '$rc_lifetime',
-  'lifetime',
 ]
 
 const PLAN_PACKAGE_IDS = {
   monthly: ['$rc_monthly', 'monthly'],
   yearly: ['$rc_annual', 'yearly'],
-  lifetime: ['$rc_lifetime', 'lifetime'],
 } as const
 
 export type PurchasePlan = keyof typeof PLAN_PACKAGE_IDS

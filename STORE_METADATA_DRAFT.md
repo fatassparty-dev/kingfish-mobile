@@ -79,4 +79,4 @@ KingFish Bets is for users 17 and older where permitted by law. KingFish does no
 
 ## Family Sharing
 
-Recommended first-submission posture: do not enable Family Sharing for KingFish Bets Pro unless Apple product setup requires a different decision.
+First-submission posture: keep Family Sharing off for KingFish Bets Pro.
