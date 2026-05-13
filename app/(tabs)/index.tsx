@@ -88,7 +88,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'Follow WNBA lines and player props with recent stat trends, hit rates, and best available odds.',
     inactiveTitle: 'WNBA Lines Unavailable',
-    inactiveDescription: 'WNo NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
+    inactiveDescription: 'No WNBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'KBO',
