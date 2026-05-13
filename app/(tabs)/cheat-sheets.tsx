@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -16,6 +16,8 @@ import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
 type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines'
+type ToolMode = 'sheets' | 'calculators' | 'factors'
+type CalculatorKey = 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 
 const SHEETS: Array<{
   key: SheetKey
@@ -54,6 +56,20 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
   pointsbetus: 'PointsBet',
   williamhill_us: 'Caesars',
 }
+
+const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
+  { key: 'sheets', label: 'Cheat Sheets' },
+  { key: 'calculators', label: 'Calculators' },
+  { key: 'factors', label: 'Game Factors' },
+]
+
+const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
+  { key: 'ev', label: 'EV', desc: 'Compare your true probability against the book price.' },
+  { key: 'novig', label: 'No-Vig', desc: 'Strip the book margin from a two-way market.' },
+  { key: 'kelly', label: 'Kelly', desc: 'Turn bankroll, price, and edge into a stake guide.' },
+  { key: 'parlay', label: 'Parlay', desc: 'Combine American odds into payout and profit.' },
+  { key: 'hedge', label: 'Hedge', desc: 'Estimate the other-side stake for a guaranteed result.' },
+]
 
 interface LineupPlayer {
   id: number
@@ -106,11 +122,40 @@ function fmt(value: number) {
   return value ? value.toFixed(2) : '-'
 }
 
-function statColor(value: number, line: number) {
-  if (!value) return colors.textMuted
-  if (value > line * 1.15) return colors.green
-  if (value >= line) return colors.yellow
-  return colors.red
+function fmtMoney(value: number) {
+  if (!Number.isFinite(value)) return '-'
+  return `$${value.toFixed(2)}`
+}
+
+function americanToDecimal(odds: number) {
+  if (odds > 0) return odds / 100 + 1
+  return 100 / Math.abs(odds) + 1
+}
+
+function decimalToAmerican(decimal: number) {
+  if (!Number.isFinite(decimal) || decimal <= 1) return 0
+  if (decimal >= 2) return Math.round((decimal - 1) * 100)
+  return Math.round(-100 / (decimal - 1))
+}
+
+function impliedProbability(odds: number) {
+  if (!Number.isFinite(odds) || odds === 0) return 0
+  return odds > 0 ? 100 / (odds + 100) : Math.abs(odds) / (Math.abs(odds) + 100)
+}
+
+function parseNumber(value: string) {
+  const parsed = Number.parseFloat(value.replace(/[$,%]/g, '').trim())
+  return Number.isFinite(parsed) ? parsed : NaN
+}
+
+function formatSavedAt(value?: string) {
+  if (!value) return 'Saved daily board'
+  return `Saved ${new Date(value).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`
 }
 
 function sheetReason(sheetKey: SheetKey, row: { line: number; season: number; l10: number; l5: number; hitRate: string; odds?: number }) {
@@ -218,18 +263,34 @@ export default function CheatSheetsScreen() {
   const { profile } = useAuth()
   const mobileConfig = useMobileConfig()
   const isPremium = profile?.is_premium === true
+  const [toolMode, setToolMode] = useState<ToolMode>('sheets')
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
-  const [generatedKey, setGeneratedKey] = useState<SheetKey | null>(null)
-  const activeKey = generatedKey || selectedKey || 'hits'
+  const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('ev')
+  const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
+    evOdds: '-110',
+    evProb: '55',
+    evStake: '100',
+    novigA: '-110',
+    novigB: '-110',
+    kellyBankroll: '1000',
+    kellyOdds: '-110',
+    kellyProb: '55',
+    parlayLegs: '-110, +135, -105',
+    parlayStake: '25',
+    hedgeStake: '100',
+    hedgeOdds: '+220',
+    hedgeOppOdds: '-140',
+  })
+  const activeKey = selectedKey || 'hits'
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
-  const hasGenerated = generatedKey !== null
-  const canLoadData = isPremium && hasGenerated && activeKey !== 'bvp'
+  const hasOpenSheet = selectedKey !== null
+  const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet && activeKey !== 'bvp'
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
-    queryFn: () => kingfishFetch<{ data: Game[] }>(`/api/statsheet-data?type=${activeSheet.type}`),
+    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
     enabled: canLoadData,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 12 * 60 * 60 * 1000,
   })
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
@@ -238,13 +299,15 @@ export default function CheatSheetsScreen() {
     staleTime: 12 * 60 * 60 * 1000,
   })
 
+  const sheetGames = useMemo(() => sheetQuery.data?.data || [], [sheetQuery.data?.data])
+
   const playersToFetch = useMemo(() => {
     if (!activeSheet.market || !lineupsQuery.data?.players || !sheetQuery.data?.data) return { batters: [], pitchers: [] }
     const lineupMap = lineupsQuery.data.players
     const seen = new Set<number>()
     const batters: LineupPlayer[] = []
     const pitchers: LineupPlayer[] = []
-    sheetQuery.data.data.forEach((game) => {
+    sheetGames.forEach((game) => {
       bestOutcomes(game, activeSheet.market || '').forEach((outcome) => {
         const lineup = lineupMap[normalizeName(outcome.player)]
         if (!lineup || seen.has(lineup.id)) return
@@ -254,7 +317,7 @@ export default function CheatSheetsScreen() {
       })
     })
     return { batters, pitchers }
-  }, [activeSheet.market, lineupsQuery.data?.players, sheetQuery.data?.data])
+  }, [activeSheet.market, lineupsQuery.data?.players, sheetGames])
 
   const statsQuery = useQuery({
     queryKey: ['cheat-sheet-stats', activeKey, playersToFetch.batters.map((item) => item.id).join(','), playersToFetch.pitchers.map((item) => item.id).join(',')],
@@ -269,62 +332,223 @@ export default function CheatSheetsScreen() {
   })
 
   const weatherQuery = useQuery({
-    queryKey: ['cheat-sheet-weather', sheetQuery.data?.data?.map((game) => game.id || game.game_id).join(',')],
+    queryKey: ['cheat-sheet-weather', sheetGames.map((game) => game.id || game.game_id).join(',')],
     queryFn: () =>
       kingfishFetch<Record<string, WeatherInfo>>('/api/mlb-weather', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: sheetQuery.data?.data || [] }),
+        body: JSON.stringify({ games: sheetGames }),
       }),
-    enabled: canLoadData && activeKey === 'lines' && !!sheetQuery.data?.data?.length,
+    enabled: canLoadData && activeKey === 'lines' && sheetGames.length > 0,
     staleTime: 60 * 60 * 1000,
   })
 
-  const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetQuery.data?.data
-    ? buildRows(sheetQuery.data.data, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend)
+  const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
+    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend)
     : []
+
+  const updateCalc = (key: string, value: string) => setCalcInputs((current) => ({ ...current, [key]: value }))
+
+  const calculatorResult = useMemo(() => {
+    if (calculatorKey === 'ev') {
+      const odds = parseNumber(calcInputs.evOdds)
+      const probability = parseNumber(calcInputs.evProb) / 100
+      const stake = parseNumber(calcInputs.evStake) || 100
+      if (!Number.isFinite(odds) || !Number.isFinite(probability) || probability <= 0) return null
+      const decimal = americanToDecimal(odds)
+      const profit = (decimal - 1) * stake
+      const ev = probability * profit - (1 - probability) * stake
+      const bookProb = impliedProbability(odds) * 100
+      return [
+        { label: 'Expected Value', value: fmtMoney(ev), tone: ev >= 0 ? colors.green : colors.red },
+        { label: 'Your Edge', value: `${((probability * 100) - bookProb).toFixed(1)}%`, tone: (probability * 100) >= bookProb ? colors.green : colors.red },
+        { label: 'Book Implied', value: `${bookProb.toFixed(1)}%` },
+      ]
+    }
+
+    if (calculatorKey === 'novig') {
+      const sideA = parseNumber(calcInputs.novigA)
+      const sideB = parseNumber(calcInputs.novigB)
+      if (!Number.isFinite(sideA) || !Number.isFinite(sideB)) return null
+      const impA = impliedProbability(sideA)
+      const impB = impliedProbability(sideB)
+      const total = impA + impB
+      if (!total) return null
+      const fairA = impA / total
+      const fairB = impB / total
+      return [
+        { label: 'No-Vig Side A', value: `${(fairA * 100).toFixed(1)}% / ${fmtOdds(decimalToAmerican(1 / fairA))}` },
+        { label: 'No-Vig Side B', value: `${(fairB * 100).toFixed(1)}% / ${fmtOdds(decimalToAmerican(1 / fairB))}` },
+        { label: 'Book Hold', value: `${((total - 1) * 100).toFixed(1)}%`, tone: colors.gold },
+      ]
+    }
+
+    if (calculatorKey === 'kelly') {
+      const bankroll = parseNumber(calcInputs.kellyBankroll)
+      const odds = parseNumber(calcInputs.kellyOdds)
+      const probability = parseNumber(calcInputs.kellyProb) / 100
+      if (!Number.isFinite(bankroll) || !Number.isFinite(odds) || !Number.isFinite(probability)) return null
+      const decimal = americanToDecimal(odds)
+      const b = decimal - 1
+      const kelly = (b * probability - (1 - probability)) / b
+      const positiveKelly = Math.max(0, kelly)
+      return [
+        { label: 'Full Kelly', value: `${(kelly * 100).toFixed(1)}%`, tone: kelly > 0 ? colors.green : colors.red },
+        { label: 'Half Kelly Stake', value: fmtMoney(bankroll * positiveKelly * 0.5) },
+        { label: 'Quarter Kelly Stake', value: fmtMoney(bankroll * positiveKelly * 0.25) },
+      ]
+    }
+
+    if (calculatorKey === 'parlay') {
+      const odds = calcInputs.parlayLegs.split(',').map(parseNumber).filter((price) => Number.isFinite(price))
+      const stake = parseNumber(calcInputs.parlayStake) || 100
+      if (odds.length < 2) return null
+      const decimal = odds.map(americanToDecimal).reduce((total, next) => total * next, 1)
+      const payout = decimal * stake
+      return [
+        { label: 'Combined Odds', value: fmtOdds(decimalToAmerican(decimal)), tone: colors.gold },
+        { label: 'Total Payout', value: fmtMoney(payout) },
+        { label: 'Profit', value: fmtMoney(payout - stake), tone: colors.green },
+      ]
+    }
+
+    const stake = parseNumber(calcInputs.hedgeStake)
+    const originalOdds = parseNumber(calcInputs.hedgeOdds)
+    const hedgeOdds = parseNumber(calcInputs.hedgeOppOdds)
+    if (!Number.isFinite(stake) || !Number.isFinite(originalOdds) || !Number.isFinite(hedgeOdds)) return null
+    const originalReturn = stake * americanToDecimal(originalOdds)
+    const hedgeStake = originalReturn / americanToDecimal(hedgeOdds)
+    return [
+      { label: 'Hedge Stake', value: fmtMoney(hedgeStake), tone: colors.gold },
+      { label: 'Win Either Side', value: fmtMoney(originalReturn - stake - hedgeStake) },
+      { label: 'Total Outlay', value: fmtMoney(stake + hedgeStake) },
+    ]
+  }, [calcInputs, calculatorKey])
 
   return (
     <Screen>
-      <AppText variant="eyebrow">// MLB Reports</AppText>
-      <AppText variant="title" style={styles.title}>Cheat Sheets</AppText>
+      <AppText variant="eyebrow">// KingFish Workspace</AppText>
+      <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Premium reports built for quick reads: top props, hot trends, strikeout targets, and game-line context.
+        Cheat sheets, calculators, and game factors in one clean workspace.
       </AppText>
+
+      <View style={styles.segmentRow}>
+        {TOOL_MODES.map((mode) => (
+          <Pressable
+            key={mode.key}
+            onPress={() => {
+              setToolMode(mode.key)
+              setSelectedKey(null)
+            }}
+            style={[styles.segmentButton, toolMode === mode.key && styles.segmentButtonActive]}
+          >
+            <AppText style={[styles.segmentText, toolMode === mode.key && styles.segmentTextActive]}>{mode.label}</AppText>
+          </Pressable>
+        ))}
+      </View>
 
       {!isPremium ? (
         <Card>
           <AppText variant="eyebrow">// Premium</AppText>
-          <AppText style={styles.cardTitle}>Unlock Cheat Sheets</AppText>
+          <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
           <AppText variant="muted" style={styles.cardCopy}>
-            Cheat Sheets, player props, Edge Scores, and unlimited Ask KingFish access are part of KingFish Bets Pro.
+            Cheat Sheets, player props, Edge Scores, calculators, and unlimited Ask KingFish access are part of KingFish Bets Pro.
           </AppText>
           <View style={styles.action}>
             <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
           </View>
         </Card>
-      ) : !hasGenerated ? (
+      ) : toolMode === 'calculators' ? (
         <>
-          {selectedKey && (
-            <Card>
-              <AppText variant="eyebrow">// Selected Report</AppText>
-              <AppText style={styles.cardTitle}>{activeSheet.label}</AppText>
-              <AppText variant="muted" style={styles.cardCopy}>{activeSheet.desc}</AppText>
-              <View style={styles.action}>
-                <Button onPress={() => setGeneratedKey(selectedKey)}>Generate Sheet</Button>
+          <View style={styles.sheetGrid}>
+            {CALCULATORS.map((calculator) => (
+              <Pressable
+                key={calculator.key}
+                onPress={() => setCalculatorKey(calculator.key)}
+                style={[styles.sheetTile, styles.calcTile, calculatorKey === calculator.key && styles.sheetTileActive]}
+              >
+                <AppText variant="eyebrow">// Tool</AppText>
+                <AppText style={[styles.sheetTileTitle, calculatorKey === calculator.key && styles.sheetTileTitleActive]}>{calculator.label}</AppText>
+                <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{calculator.desc}</AppText>
+              </Pressable>
+            ))}
+          </View>
+          <Card>
+            <AppText variant="eyebrow">// Calculator</AppText>
+            <AppText style={styles.cardTitle}>{CALCULATORS.find((item) => item.key === calculatorKey)?.label}</AppText>
+            {calculatorKey === 'ev' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Book Odds" value={calcInputs.evOdds} onChangeText={(value) => updateCalc('evOdds', value)} />
+                <ToolInput label="True Prob %" value={calcInputs.evProb} onChangeText={(value) => updateCalc('evProb', value)} />
+                <ToolInput label="Stake" value={calcInputs.evStake} onChangeText={(value) => updateCalc('evStake', value)} />
               </View>
-            </Card>
-          )}
-
+            )}
+            {calculatorKey === 'novig' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Side A Odds" value={calcInputs.novigA} onChangeText={(value) => updateCalc('novigA', value)} />
+                <ToolInput label="Side B Odds" value={calcInputs.novigB} onChangeText={(value) => updateCalc('novigB', value)} />
+              </View>
+            )}
+            {calculatorKey === 'kelly' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Bankroll" value={calcInputs.kellyBankroll} onChangeText={(value) => updateCalc('kellyBankroll', value)} />
+                <ToolInput label="Odds" value={calcInputs.kellyOdds} onChangeText={(value) => updateCalc('kellyOdds', value)} />
+                <ToolInput label="True Prob %" value={calcInputs.kellyProb} onChangeText={(value) => updateCalc('kellyProb', value)} />
+              </View>
+            )}
+            {calculatorKey === 'parlay' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Leg Odds" value={calcInputs.parlayLegs} onChangeText={(value) => updateCalc('parlayLegs', value)} wide />
+                <ToolInput label="Stake" value={calcInputs.parlayStake} onChangeText={(value) => updateCalc('parlayStake', value)} />
+              </View>
+            )}
+            {calculatorKey === 'hedge' && (
+              <View style={styles.inputGrid}>
+                <ToolInput label="Original Stake" value={calcInputs.hedgeStake} onChangeText={(value) => updateCalc('hedgeStake', value)} />
+                <ToolInput label="Original Odds" value={calcInputs.hedgeOdds} onChangeText={(value) => updateCalc('hedgeOdds', value)} />
+                <ToolInput label="Hedge Odds" value={calcInputs.hedgeOppOdds} onChangeText={(value) => updateCalc('hedgeOppOdds', value)} />
+              </View>
+            )}
+            <View style={styles.resultBox}>
+              {calculatorResult ? calculatorResult.map((item) => (
+                <View key={item.label} style={styles.resultRow}>
+                  <AppText variant="muted">{item.label}</AppText>
+                  <AppText style={[styles.resultValue, item.tone ? { color: item.tone } : null]}>{item.value}</AppText>
+                </View>
+              )) : (
+                <AppText variant="muted">Enter values to see the result.</AppText>
+              )}
+            </View>
+          </Card>
+        </>
+      ) : toolMode === 'factors' ? (
+        <Card>
+          <AppText variant="eyebrow">// Game Factors</AppText>
+          <AppText style={styles.cardTitle}>Open The Full Factor Board</AppText>
+          <AppText variant="muted" style={styles.cardCopy}>
+            Weather, park context, line movement, and matchup notes live on the full KingFish board.
+          </AppText>
+          <View style={styles.action}>
+            <Button
+              variant="outline"
+              onPress={() => Linking.openURL(`${mobileConfig.links.home}/game-factors`)}
+            >
+              Open Game Factors
+            </Button>
+          </View>
+        </Card>
+      ) : !hasOpenSheet ? (
+        <>
           <View style={styles.sheetGrid}>
             {SHEETS.map((sheet) => (
               <Pressable
                 key={sheet.key}
                 onPress={() => setSelectedKey(sheet.key)}
-                style={[styles.sheetTile, selectedKey === sheet.key && styles.sheetTileActive]}
+                style={styles.sheetTile}
               >
                 <AppText variant="eyebrow">// MLB</AppText>
-                <AppText style={[styles.sheetTileTitle, selectedKey === sheet.key && styles.sheetTileTitleActive]}>{sheet.label}</AppText>
+                <AppText style={styles.sheetTileTitle}>{sheet.label}</AppText>
                 <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{sheet.desc}</AppText>
               </Pressable>
             ))}
@@ -335,14 +559,13 @@ export default function CheatSheetsScreen() {
           <View style={styles.reportHeader}>
             <Pressable
               onPress={() => {
-                setGeneratedKey(null)
                 setSelectedKey(null)
               }}
               style={styles.backButton}
             >
               <AppText style={styles.backButtonText}>All Sheets</AppText>
             </Pressable>
-            <AppText variant="eyebrow">// Generated</AppText>
+            <AppText variant="eyebrow">// Daily Board</AppText>
           </View>
 
           <Card>
@@ -351,16 +574,14 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              <AppText style={styles.reportDate}>
-                {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-              </AppText>
+              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.updated_at)}</AppText>
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
           {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
-              <AppText variant="muted">Building cheat sheet...</AppText>
+              <AppText variant="muted">Loading daily board...</AppText>
             </View>
           )}
 
@@ -381,7 +602,7 @@ export default function CheatSheetsScreen() {
 
           {activeKey === 'lines' && (
             <View style={styles.linePreview}>
-              {sheetQuery.data?.data?.slice(0, 3).map((game) => (
+              {sheetGames.slice(0, 3).map((game) => (
                 <GameLineCard
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
@@ -417,6 +638,12 @@ export default function CheatSheetsScreen() {
               ))}
             </View>
           )}
+
+          {activeKey !== 'bvp' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No MLB markets were available when this daily board was saved.
+            </AppText>
+          )}
           </Card>
         </>
       )}
@@ -424,11 +651,17 @@ export default function CheatSheetsScreen() {
   )
 }
 
-function Metric({ label, value, color = colors.textPrimary }: { label: string; value: string; color?: string }) {
+function ToolInput({ label, value, onChangeText, wide = false }: { label: string; value: string; onChangeText: (value: string) => void; wide?: boolean }) {
   return (
-    <View style={styles.metric}>
+    <View style={[styles.toolInputWrap, wide && styles.toolInputWide]}>
       <AppText variant="eyebrow">{label}</AppText>
-      <AppText style={[styles.metricValue, { color }]}>{value}</AppText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="numbers-and-punctuation"
+        placeholderTextColor={colors.textMuted}
+        style={styles.toolInput}
+      />
     </View>
   )
 }
@@ -439,6 +672,36 @@ const styles = StyleSheet.create({
   cardTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
   cardCopy: { marginTop: spacing.sm },
   action: { marginTop: spacing.lg },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    padding: 4,
+    marginBottom: spacing.xl,
+  },
+  segmentButton: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.gold,
+  },
+  segmentText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  segmentTextActive: {
+    color: colors.bgPrimary,
+  },
   sheetGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -462,6 +725,46 @@ const styles = StyleSheet.create({
   sheetTileTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 20, lineHeight: 24 },
   sheetTileTitleActive: { color: colors.gold },
   sheetTileCopy: { marginTop: spacing.sm, fontSize: 13, lineHeight: 18 },
+  calcTile: { minHeight: 134 },
+  inputGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  toolInputWrap: {
+    width: '47%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+  },
+  toolInputWide: { width: '100%' },
+  toolInput: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '900',
+    paddingVertical: 8,
+  },
+  resultBox: {
+    marginTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    gap: spacing.md,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  resultValue: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '900',
+  },
   reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

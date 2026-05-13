@@ -12,7 +12,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Stat Sheets or Game Factors when you want KingFish to narrow the board.',
+  'Open Tools when you want cheat sheets, calculators, or game factors.',
 ]
 
 const tools = [
@@ -81,7 +81,7 @@ const sportNotes = [
 
 const navItems = [
   { label: 'Dashboard', icon: 'DB', href: '/' },
-  { label: 'Sheets', icon: 'CS', href: '/cheat-sheets' },
+  { label: 'Tools', icon: 'TL', href: '/cheat-sheets' },
   { label: 'Ask', icon: 'AI', href: '/ask-kingfish' },
   { label: 'Account', icon: 'AC', href: '/account' },
 ]
@@ -147,7 +147,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>How They Work</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Cheat Sheets are generated reports. Pick a sheet, tap Generate Sheet, and KingFish returns a short list of names with the exact line, best book, and why each player made the report.
+                Cheat Sheets are saved daily boards for quick MLB research. Open a sheet and KingFish returns a short list of names with the exact line, best book, save time, and why each player made the board.
               </AppText>
             </Card>
             {cheatSheets.map((item) => <HelpCard key={item.title} title={item.title} body={item.body} />)}

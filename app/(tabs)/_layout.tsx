@@ -35,8 +35,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="cheat-sheets"
         options={{
-          title: 'Sheets',
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="CS" />,
+          title: 'Tools',
+          tabBarIcon: ({ color }) => <TabIcon color={color} label="TL" />,
         }}
       />
       <Tabs.Screen
