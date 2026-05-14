@@ -226,6 +226,20 @@ function teamAbbr(name?: string) {
   return TEAM_NAME_TO_ABBR[name || ''] || name || ''
 }
 
+function findLineupPlayer(lineupMap: Record<string, LineupPlayer> | undefined, playerName?: string) {
+  if (!lineupMap || !playerName) return undefined
+  const normalized = normalizeName(playerName)
+  const direct = lineupMap[normalized]
+  if (direct) return direct
+
+  const compact = normalized.replace(/\s/g, '')
+  return Object.entries(lineupMap).find(([key]) => {
+    if (!key) return false
+    const keyCompact = key.replace(/\s/g, '')
+    return key === normalized || keyCompact === compact || key.includes(normalized) || normalized.includes(key)
+  })?.[1]
+}
+
 function getBestBatterOutcomes(game: Game) {
   const outcomes: Array<{ player: string }> = []
   const seen = new Set<string>()
@@ -266,7 +280,7 @@ function buildBvpMatchups(
     const homePitcherName = pitcherNameMap[homeAbbr] || 'probable starter'
 
     getBestBatterOutcomes(game).forEach((outcome) => {
-      const lineup = lineups[normalizeName(outcome.player)]
+      const lineup = findLineupPlayer(lineups, outcome.player)
       if (!lineup?.id) return
 
       const batterTeam = teamAbbr(lineup.team)
@@ -496,8 +510,9 @@ function buildRows(games: Game[], marketKey: string, statField: string, lineupMa
 
   games.forEach((game) => {
     bestOutcomes(game, marketKey).forEach((outcome) => {
-      const lineup = lineupMap[normalizeName(outcome.player)]
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
       const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
       const season = getStat(playerStats, statField, 'season')
       const l10 = getStat(playerStats, statField, 'l10')
       const l5 = getStat(playerStats, statField, 'l5')
@@ -599,7 +614,7 @@ export default function CheatSheetsScreen() {
     const pitchers: LineupPlayer[] = []
     sheetGames.forEach((game) => {
       bestOutcomes(game, activeSheet.market || '').forEach((outcome) => {
-        const lineup = lineupMap[normalizeName(outcome.player)]
+        const lineup = findLineupPlayer(lineupMap, outcome.player)
         if (!lineup || seen.has(lineup.id)) return
         seen.add(lineup.id)
         if (activeSheet.market?.startsWith('pitcher_')) pitchers.push(lineup)
@@ -644,7 +659,7 @@ export default function CheatSheetsScreen() {
   )
 
   const bvpQuery = useQuery({
-    queryKey: ['cheat-sheet-bvp', bvpMatchups.map((matchup) => `${matchup.batterID}_${matchup.pitcherID}`).join(',')],
+    queryKey: ['cheat-sheet-bvp-career-v2', bvpMatchups.map((matchup) => `${matchup.batterID}_${matchup.pitcherID}`).join(',')],
     queryFn: () =>
       kingfishFetch<{ bvp: Record<string, any> }>('/api/mlb-bvp', {
         method: 'POST',
