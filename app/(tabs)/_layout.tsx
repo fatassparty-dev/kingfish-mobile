@@ -26,6 +26,13 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => <TabIcon color={color} label="HM" />,
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
@@ -42,7 +49,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ask-kingfish"
         options={{
-          title: 'Ask',
+          title: 'Ask AI',
           tabBarIcon: ({ color }) => <TabIcon color={color} label="AI" />,
         }}
       />

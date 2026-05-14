@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Image, ImageBackground, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -600,49 +600,6 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <View style={styles.homeHero}>
-        <ImageBackground
-          source={require('../../assets/images/bait-shop-hero.png')}
-          style={styles.homeImage}
-          imageStyle={styles.homeImageSource}
-        >
-          <View style={styles.homeShade}>
-            <View style={styles.homeTop}>
-              <Image source={require('../../assets/images/crown-logo.png')} style={styles.homeLogo} />
-              <View style={styles.homeTitleWrap}>
-                <AppText variant="eyebrow">// KingFish Bets</AppText>
-                <AppText variant="title" style={styles.homeTitle}>Welcome to the Bait Shop</AppText>
-              </View>
-            </View>
-            <AppText style={styles.homeCopy}>
-              Live odds, props, sportsbook prices, weather, and KingFish context in one sharp betting research workspace.
-            </AppText>
-            <View style={styles.homeNavGrid}>
-              <HomeAction
-                label="Dashboard"
-                body="Live odds, game lines, player props, and betting intelligence."
-                onPress={() => setView('lines')}
-              />
-              <HomeAction
-                label="Tools"
-                body="Cheat sheets, calculators, and game factors."
-                onPress={() => router.push('/cheat-sheets')}
-              />
-              <HomeAction
-                label="Ask"
-                body="Pressure-test props, parlays, totals, and matchup reads."
-                onPress={() => router.push('/ask-kingfish')}
-              />
-              <HomeAction
-                label="Account"
-                body="Premium status, restore purchases, and support."
-                onPress={() => router.push('/account')}
-              />
-            </View>
-          </View>
-        </ImageBackground>
-      </View>
-
       <View style={styles.boardIntro}>
         <AppText variant="eyebrow">// Live Board</AppText>
         <AppText variant="title" style={styles.title}>Dashboard</AppText>
@@ -1502,87 +1459,7 @@ export default function DashboardScreen() {
   )
 }
 
-function HomeAction({ label, body, onPress }: { label: string; body: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.homeAction}>
-      <AppText style={styles.homeActionLabel}>{label}</AppText>
-      <AppText variant="muted" style={styles.homeActionBody}>{body}</AppText>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
-  homeHero: {
-    borderWidth: 1,
-    borderColor: 'rgba(198,145,50,.32)',
-    borderRadius: 16,
-    backgroundColor: colors.bgCardAlt,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
-  },
-  homeImage: {
-    minHeight: 520,
-  },
-  homeImageSource: {
-    resizeMode: 'cover',
-  },
-  homeShade: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(8,9,14,.24)',
-    padding: spacing.lg,
-  },
-  homeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  homeLogo: {
-    width: 58,
-    height: 58,
-    resizeMode: 'contain',
-  },
-  homeTitleWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  homeTitle: {
-    marginTop: 6,
-    fontSize: 34,
-    lineHeight: 36,
-  },
-  homeCopy: {
-    color: colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 25,
-    marginTop: spacing.lg,
-  },
-  homeNavGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  homeAction: {
-    width: '48%',
-    minHeight: 118,
-    borderWidth: 1,
-    borderColor: 'rgba(198,145,50,.28)',
-    borderRadius: 10,
-    backgroundColor: 'rgba(8,9,14,.78)',
-    padding: spacing.md,
-  },
-  homeActionLabel: {
-    color: colors.gold,
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '900',
-  },
-  homeActionBody: {
-    marginTop: spacing.sm,
-    fontSize: 13,
-    lineHeight: 19,
-  },
   boardIntro: {
     marginBottom: spacing.lg,
   },
