@@ -111,6 +111,11 @@ type WeekOption<T extends { commence_time: string }> = {
   games: T[]
 }
 
+type DateGroup<T extends { commence_time: string }> = {
+  date: string
+  games: T[]
+}
+
 const SOCCER_LEAGUES = [
   { key: 'soccer_epl', label: 'Premier League' },
   { key: 'soccer_spain_la_liga', label: 'La Liga' },
@@ -243,6 +248,15 @@ function shortDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function fullDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/Chicago',
+  })
+}
+
 function upcomingGames<T extends { commence_time: string }>(games: T[] = []) {
   const now = Date.now()
   return games
@@ -275,6 +289,24 @@ function weekOptions<T extends { commence_time: string }>(games: T[]): WeekOptio
   })
 
   return weeks.filter(Boolean)
+}
+
+function groupGamesByDate<T extends { commence_time: string }>(games: T[]): DateGroup<T>[] {
+  const groups: DateGroup<T>[] = []
+  const indexByDate = new Map<string, number>()
+
+  games.forEach((game) => {
+    const date = fullDate(game.commence_time)
+    const index = indexByDate.get(date)
+    if (index == null) {
+      indexByDate.set(date, groups.length)
+      groups.push({ date, games: [game] })
+    } else {
+      groups[index].games.push(game)
+    }
+  })
+
+  return groups
 }
 
 function shortTeamName(team: string) {
@@ -424,6 +456,7 @@ export default function DashboardScreen() {
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<DashboardView>('lines')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
+  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
@@ -527,7 +560,7 @@ export default function DashboardScreen() {
   const nflMatchupsQuery = useQuery({
     queryKey: ['nfl-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/nfl-matchups'),
-    enabled: isSelectedSportActive && sport === 'NFL' && view === 'matchups' && isPremium,
+    enabled: isSelectedSportActive && sport === 'NFL' && view === 'matchups',
     staleTime: 10 * 60 * 1000,
   })
   const soccerTeamQuery = useQuery({
@@ -569,6 +602,12 @@ export default function DashboardScreen() {
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingGames(lineQuery.data || [])) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : (lineQuery.data || [])
+  const visibleLineGroups = groupGamesByDate(visibleLineGames)
+  const nflMatchupGames = upcomingGames(nflMatchupsQuery.data || [])
+  const nflMatchupWeeks = sport === 'NFL' ? weekOptions(nflMatchupGames) : []
+  const activeNflMatchupWeek = nflMatchupWeeks.find((week) => week.key === selectedMatchupWeek) || nflMatchupWeeks[0]
+  const visibleNflMatchups = activeNflMatchupWeek ? activeNflMatchupWeek.games : nflMatchupGames
+  const visibleNflMatchupGroups = groupGamesByDate(visibleNflMatchups)
   const ncaafTeams = ncaafOutlookQuery.data?.teams || []
   const ncaafConferences = ['All', ...Array.from(new Set(ncaafTeams.map((team) => team.conference))).sort()]
   const filteredNcaafTeams = ncaafTeams.filter((team) => {
@@ -595,6 +634,7 @@ export default function DashboardScreen() {
     }
     return true
   })
+  const ncaafMatchupGroups = groupGamesByDate(filteredNcaafMatchups)
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
   const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
 
@@ -911,7 +951,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'matchups' && !isPremium && (
+      {isSelectedSportActive && view === 'matchups' && !canViewMatchups && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Premium</AppText>
@@ -973,10 +1013,10 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && sport === 'NFL' && view === 'matchups' && isPremium && (
+      {isSelectedSportActive && sport === 'NFL' && view === 'matchups' && canViewMatchups && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Cached weekly NFL matchup context from posted game lines</AppText>
+            <AppText variant="mono">Free weekly matchup cards from posted NFL game lines</AppText>
           </View>
 
           {nflMatchupsQuery.isLoading && (
@@ -993,7 +1033,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {!nflMatchupsQuery.isLoading && !nflMatchupsQuery.isError && (nflMatchupsQuery.data || []).length === 0 && (
+          {!nflMatchupsQuery.isLoading && !nflMatchupsQuery.isError && nflMatchupGames.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
@@ -1001,28 +1041,49 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {(nflMatchupsQuery.data || []).map((game) => (
-            <Card key={game.id}>
-              <View style={styles.gameHeader}>
-                <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
-                <AppText variant="mono">{shortDate(new Date(game.commence_time))}</AppText>
-              </View>
-              <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
-              <View style={styles.teamInfoStats}>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Favorite</AppText>
-                  <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
-                </View>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Market</AppText>
-                  <AppText style={styles.teamInfoValue}>{game.favoriteDetail}</AppText>
-                </View>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Total</AppText>
-                  <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
-                </View>
-              </View>
-            </Card>
+          {nflMatchupWeeks.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRow}>
+              {nflMatchupWeeks.map((week) => (
+                <Pressable
+                  key={week.key}
+                  onPress={() => setSelectedMatchupWeek(week.key)}
+                  style={[styles.weekPill, activeNflMatchupWeek?.key === week.key && styles.weekPillActive]}
+                >
+                  <AppText style={[styles.weekPillText, activeNflMatchupWeek?.key === week.key && styles.weekPillTextActive]}>
+                    {week.label}
+                  </AppText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
+          {visibleNflMatchupGroups.map((group) => (
+            <View key={group.date} style={styles.dateGroup}>
+              <DateDivider label={group.date} />
+              {group.games.map((game) => (
+                <Card key={game.id}>
+                  <View style={styles.gameHeader}>
+                    <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
+                    <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                  </View>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
+                  <View style={styles.teamInfoStats}>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Favorite</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+                    </View>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Market</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.favoriteDetail}</AppText>
+                    </View>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Total</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </View>
           ))}
         </View>
       )}
@@ -1163,12 +1224,17 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {visibleLineGames.map((game) => (
-            <GameLineCard
-              key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
-              game={game}
-              weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
-            />
+          {visibleLineGroups.map((group) => (
+            <View key={group.date} style={styles.dateGroup}>
+              <DateDivider label={group.date} />
+              {group.games.map((game) => (
+                <GameLineCard
+                  key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
+                  game={game}
+                  weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
+                />
+              ))}
+            </View>
           ))}
         </View>
       )}
@@ -1341,39 +1407,44 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {filteredNcaafMatchups.map((game) => {
-            const awayRank = ncaafTeamForName(game.away_team)?.rank
-            const homeRank = ncaafTeamForName(game.home_team)?.rank
-            return (
-              <Card key={game.id}>
-                <View style={styles.gameHeader}>
-                  <AppText style={styles.gameTitle}>
-                    {shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}
-                  </AppText>
-                  <AppText variant="mono">{shortDate(new Date(game.commence_time))}</AppText>
-                </View>
-                <AppText variant="muted" style={styles.teamInfoMeta}>
-                  {awayRank && awayRank <= 25 ? `#${awayRank} ${shortTeamName(game.away_team)} · ` : ''}
-                  {homeRank && homeRank <= 25 ? `#${homeRank} ${shortTeamName(game.home_team)} · ` : ''}
-                  {game.status}
-                </AppText>
-                <View style={styles.teamInfoStats}>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">Favorite</AppText>
-                    <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
-                  </View>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">Spread</AppText>
-                    <AppText style={styles.teamInfoValue}>{game.spread == null ? '-' : `${game.spread > 0 ? '+' : ''}${game.spread}`}</AppText>
-                  </View>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">Total</AppText>
-                    <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
-                  </View>
-                </View>
-              </Card>
-            )
-          })}
+          {ncaafMatchupGroups.map((group) => (
+            <View key={group.date} style={styles.dateGroup}>
+              <DateDivider label={group.date} />
+              {group.games.map((game) => {
+                const awayRank = ncaafTeamForName(game.away_team)?.rank
+                const homeRank = ncaafTeamForName(game.home_team)?.rank
+                return (
+                  <Card key={game.id}>
+                    <View style={styles.gameHeader}>
+                      <AppText style={styles.gameTitle}>
+                        {shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}
+                      </AppText>
+                      <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                    </View>
+                    <AppText variant="muted" style={styles.teamInfoMeta}>
+                      {awayRank && awayRank <= 25 ? `#${awayRank} ${shortTeamName(game.away_team)} · ` : ''}
+                      {homeRank && homeRank <= 25 ? `#${homeRank} ${shortTeamName(game.home_team)} · ` : ''}
+                      {game.status}
+                    </AppText>
+                    <View style={styles.teamInfoStats}>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">Favorite</AppText>
+                        <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+                      </View>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">Spread</AppText>
+                        <AppText style={styles.teamInfoValue}>{game.spread == null ? '-' : `${game.spread > 0 ? '+' : ''}${game.spread}`}</AppText>
+                      </View>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">Total</AppText>
+                        <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                      </View>
+                    </View>
+                  </Card>
+                )
+              })}
+            </View>
+          ))}
         </View>
       )}
 
@@ -1456,6 +1527,14 @@ export default function DashboardScreen() {
         </View>
       )}
     </Screen>
+  )
+}
+
+function DateDivider({ label }: { label: string }) {
+  return (
+    <View style={styles.dateDivider}>
+      <AppText style={styles.dateDividerText}>{label}</AppText>
+    </View>
   )
 }
 
@@ -1592,6 +1671,22 @@ const styles = StyleSheet.create({
   },
   weekPillTextActive: {
     color: colors.bgPrimary,
+  },
+  dateGroup: {
+    gap: spacing.md,
+  },
+  dateDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  dateDividerText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   cardTitle: {
     fontSize: 26,
