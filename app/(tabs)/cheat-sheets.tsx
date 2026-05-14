@@ -146,6 +146,8 @@ interface LineupPlayer {
 }
 
 interface SheetRow {
+  divider?: boolean
+  label?: string
   player: string
   matchup: string
   line: number
@@ -157,6 +159,7 @@ interface SheetRow {
   hitRate: string
   reason: string
   edge: { label: string; color: string; score: number }
+  pickLabel?: string
 }
 
 interface BvpMatchup {
@@ -507,7 +510,164 @@ function bestOutcomes(game: Game, marketKey: string) {
   return Object.values(map)
 }
 
-function buildRows(games: Game[], marketKey: string, statField: string, lineupMap: Record<string, LineupPlayer>, stats: Record<number, any>, sheetKey: SheetKey, trend = false) {
+function bestHitFadeOutcomes(game: Game) {
+  const map: Record<string, {
+    player: string
+    line: number
+    overOdds?: number
+    overBook?: string
+    underOdds?: number
+    underBook?: string
+  }> = {}
+
+  game.bookmakers?.forEach((bookmaker) => {
+    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    const market = bookmaker.markets?.find((item) => item.key === 'batter_hits')
+    market?.outcomes?.forEach((outcome) => {
+      if (!outcome.description) return
+      if (typeof outcome.price !== 'number' || outcome.price > 700 || outcome.price < -10000) return
+      const line = outcome.point || 0.5
+      if (line !== 0.5) return
+      const key = `${outcome.description}-${line}`
+      map[key] ||= { player: outcome.description, line }
+      const book = SHEET_BOOK_NAMES[bookmaker.key] || BOOK_DISPLAY_NAMES[bookmaker.key] || bookmaker.key
+
+      if (outcome.name === 'Over' && (!map[key].overOdds || outcome.price > (map[key].overOdds || -10000))) {
+        map[key].overOdds = outcome.price
+        map[key].overBook = book
+      }
+
+      if (outcome.name === 'Under' && (!map[key].underOdds || outcome.price > (map[key].underOdds || -10000))) {
+        map[key].underOdds = outcome.price
+        map[key].underBook = book
+      }
+    })
+  })
+
+  return Object.values(map)
+}
+
+function buildHitFadeRows(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+  bvp: Record<string, any> = {},
+  matchups: BvpMatchup[] = [],
+) {
+  const rows: Array<SheetRow & { fadeScore: number; underOdds?: number; underBook?: string }> = []
+  const bvpByBatter = new Map(matchups.map((matchup) => [matchup.batterID, bvp[`${matchup.batterID}_${matchup.pitcherID}`]]))
+
+  games.forEach((game) => {
+    bestHitFadeOutcomes(game).forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
+
+      const season = getStat(playerStats, 'hits_per_game', 'season')
+      const l10 = getStat(playerStats, 'hits_per_game', 'l10')
+      const l5 = getStat(playerStats, 'hits_per_game', 'l5')
+      if (!season && !l10 && !l5) return
+
+      const matchupBvp = lineup ? bvpByBatter.get(String(lineup.id)) : null
+      const vsSpAb = Number(matchupBvp?.ab || 0)
+      const vsSpHits = Number(matchupBvp?.hits || 0)
+      const vsSpHitRate = vsSpAb > 0 ? vsSpHits / vsSpAb : 0
+      const hr = hitRate(playerStats, 'hits_per_game', outcome.line, 10)
+      const overMarket = impliedProbability(outcome.overOdds || 0)
+      const underMarket = impliedProbability(outcome.underOdds || 0)
+      const starterZeroScore =
+        vsSpAb >= 8 && vsSpHits === 0 ? 62 :
+        vsSpAb >= 5 && vsSpHits === 0 ? 48 :
+        vsSpAb >= 3 && vsSpHits === 0 ? 34 :
+        vsSpAb >= 6 && vsSpHitRate <= 0.167 ? 32 :
+        vsSpAb >= 3 && vsSpHitRate <= 0.200 ? 20 :
+        vsSpAb >= 3 ? Math.max(0, 18 - vsSpHitRate * 60) :
+        6
+      const hitScore = Math.round(
+        Math.min(l5 / 1.0, 1.5) * 34 +
+        Math.min(l10 / 1.0, 1.4) * 18 +
+        (vsSpAb >= 3 ? Math.min(vsSpHitRate / 0.34, 1.6) * 32 : 8) +
+        overMarket * 16
+      )
+      const fadeScore = Math.round(
+        starterZeroScore +
+        Math.max(0, 1 - Math.min(l5 / 0.70, 1)) * 28 +
+        Math.max(0, 1 - Math.min(l10 / 0.80, 1)) * 14 +
+        underMarket * 12
+      )
+      const overEdge = hitScore >= 78
+        ? { label: `Strong ${hitScore}`, color: colors.gold, score: hitScore }
+        : hitScore >= 64
+          ? { label: `Lean ${hitScore}`, color: colors.green, score: hitScore }
+          : hitScore >= 48
+            ? { label: `Neutral ${hitScore}`, color: colors.textSecondary, score: hitScore }
+            : { label: `Fade ${hitScore}`, color: colors.red, score: hitScore }
+
+      rows.push({
+        player: outcome.player,
+        matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
+        line: outcome.line,
+        odds: outcome.overOdds,
+        book: outcome.overBook,
+        underOdds: outcome.underOdds,
+        underBook: outcome.underBook,
+        season,
+        l10,
+        l5,
+        hitRate: hr.label,
+        reason: sheetReason('hits', { line: outcome.line, season, l10, l5, hitRate: hr.label, odds: outcome.overOdds }),
+        edge: overEdge,
+        fadeScore,
+        pickLabel: `Over ${outcome.line} Hits`,
+      })
+    })
+  })
+
+  const bets = rows
+    .filter((row) => row.odds !== undefined && row.edge.score >= 60)
+    .sort((a, b) => {
+      if (b.edge.score !== a.edge.score) return b.edge.score - a.edge.score
+      return b.l5 - a.l5
+    })
+    .slice(0, 5)
+
+  const used = new Set(bets.map((row) => `${row.player}_${row.line}`))
+  const fades = rows
+    .filter((row) => !used.has(`${row.player}_${row.line}`) && row.underOdds !== undefined)
+    .map((row) => ({
+      ...row,
+      odds: row.underOdds,
+      book: row.underBook,
+      reason: row.hitRate !== '-'
+        ? `Fade profile: L10 hit rate ${row.hitRate}, with L5 ${fmt(row.l5)} and season ${fmt(row.season)}.`
+        : `Fade profile: L5 ${fmt(row.l5)} and season ${fmt(row.season)} sit below the 0.5-hit line.`,
+      edge: { label: `Under ${row.fadeScore}`, color: colors.red, score: row.fadeScore },
+      pickLabel: `Under ${row.line} Hits`,
+    }))
+    .sort((a, b) => {
+      if (b.fadeScore !== a.fadeScore) return b.fadeScore - a.fadeScore
+      return a.l5 - b.l5
+    })
+    .slice(0, 5)
+
+  return fades.length > 0
+    ? [...bets, { divider: true, label: 'FADES - UNDER LEANS' } as SheetRow, ...fades]
+    : bets
+}
+
+function buildRows(
+  games: Game[],
+  marketKey: string,
+  statField: string,
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+  sheetKey: SheetKey,
+  trend = false,
+  bvp: Record<string, any> = {},
+  matchups: BvpMatchup[] = [],
+) {
+  if (sheetKey === 'hits') return buildHitFadeRows(games, lineupMap, stats, bvp, matchups)
+
   const rows: SheetRow[] = []
 
   games.forEach((game) => {
@@ -602,7 +762,7 @@ export default function CheatSheetsScreen() {
       pitcherNameMap?: Record<string, string>
       pitcherIdNameMap?: Record<string, string>
     }>('/api/mlb-schedule'),
-    enabled: canLoadData && activeKey === 'bvp',
+    enabled: canLoadData && (activeKey === 'bvp' || activeKey === 'hits'),
     staleTime: 60 * 60 * 1000,
   })
 
@@ -673,7 +833,7 @@ export default function CheatSheetsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchups: bvpMatchups.map(({ batterID, pitcherID }) => ({ batterID, pitcherID })) }),
       }),
-    enabled: canLoadData && activeKey === 'bvp' && bvpMatchups.length > 0,
+    enabled: canLoadData && (activeKey === 'bvp' || activeKey === 'hits') && bvpMatchups.length > 0,
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -720,7 +880,7 @@ export default function CheatSheetsScreen() {
   })
 
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
-    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend)
+    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups)
     : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
@@ -1074,18 +1234,22 @@ export default function CheatSheetsScreen() {
 
           {activeKey !== 'lines' && activeKey !== 'bvp' && rows.length > 0 && (
             <View style={styles.reportRows}>
-              {rows.slice(0, 6).map((row, index) => (
+              {(activeKey === 'hits' ? rows : rows.slice(0, 6)).map((row, index) => row.divider ? (
+                <View key={`divider-${row.label}-${index}`} style={styles.reportDivider}>
+                  <AppText variant="eyebrow" style={styles.reportDividerText}>{row.label}</AppText>
+                </View>
+              ) : (
                 <View key={`${row.player}-${row.line}-${index}`} style={styles.reportRow}>
                   <View style={styles.rankBadge}>
-                    <AppText style={styles.rankText}>{index + 1}</AppText>
+                    <AppText style={styles.rankText}>{row.pickLabel?.startsWith('Under') ? 'F' : index + 1}</AppText>
                   </View>
                   <View style={styles.rowMain}>
                     <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
                     <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
                       {row.matchup}
                     </AppText>
-                    {activeKey === 'k' && (
-                      <AppText style={styles.pickLine}>Over {row.line} Strikeouts</AppText>
+                    {(activeKey === 'k' || row.pickLabel) && (
+                      <AppText style={styles.pickLine}>{row.pickLabel || `Over ${row.line} Strikeouts`}</AppText>
                     )}
                     <AppText style={styles.reasonText}>
                       {row.reason}
@@ -1374,6 +1538,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingVertical: spacing.md,
+  },
+  reportDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  reportDividerText: {
+    color: colors.gold,
   },
   rankBadge: {
     width: 30,
