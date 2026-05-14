@@ -504,6 +504,51 @@ function uniqueTeamForms(teams: Record<string, any> = {}) {
     .sort((a: any, b: any) => String(a.teamName || a.commonName || '').localeCompare(String(b.teamName || b.commonName || '')))
 }
 
+function basketballRecordParts(team: any) {
+  const wins = Number(team?.wins ?? team?.currentWins ?? 0)
+  const losses = Number(team?.losses ?? team?.currentLosses ?? 0)
+  const previousWins = Number(team?.previousWins ?? 0)
+  const previousLosses = Number(team?.previousLosses ?? 0)
+  const usePrevious = wins + losses === 0 && previousWins + previousLosses > 0
+  return {
+    wins: usePrevious ? previousWins : wins,
+    losses: usePrevious ? previousLosses : losses,
+  }
+}
+
+function basketballPctLabel(team: any) {
+  const record = basketballRecordParts(team)
+  const games = record.wins + record.losses
+  return games > 0 ? (record.wins / games).toFixed(3).replace(/^0/, '') : '-'
+}
+
+function basketballGamesBackLabel(team: any, cutline?: { wins: number; losses: number }) {
+  if (!cutline) return '-'
+  const record = basketballRecordParts(team)
+  const gb = ((cutline.wins - record.wins) + (record.losses - cutline.losses)) / 2
+  if (gb <= 0) return 'In'
+  return Number.isInteger(gb) ? `${gb} GB` : `${gb.toFixed(1)} GB`
+}
+
+function wnbaPlayoffRaceTeams(teams: any[] = []) {
+  const sorted = [...teams].sort((a, b) => {
+    const ar = basketballRecordParts(a)
+    const br = basketballRecordParts(b)
+    const ag = ar.wins + ar.losses
+    const bg = br.wins + br.losses
+    const ap = ag > 0 ? ar.wins / ag : 0
+    const bp = bg > 0 ? br.wins / bg : 0
+    return bp - ap || br.wins - ar.wins || String(a.teamName || '').localeCompare(String(b.teamName || ''))
+  })
+  const cutline = sorted[7] ? basketballRecordParts(sorted[7]) : undefined
+  return sorted.map((team, index) => ({
+    ...team,
+    seed: index + 1,
+    path: index < 8 ? `Playoff ${index + 1}` : 'Chasing',
+    status: index < 8 ? 'In' : basketballGamesBackLabel(team, cutline),
+  }))
+}
+
 function findTeamForm(teams: Record<string, any> = {}, teamName: string) {
   const normalized = normalizeTeamKey(teamName)
   const lastWord = normalizeTeamKey(teamName.split(' ').pop() || teamName)
@@ -807,8 +852,10 @@ export default function DashboardScreen() {
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
   const isPlayoffLeagueScope = (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && leagueScope === 'playoff'
+  const isWnbaRaceScope = sport === 'WNBA' && leagueScope === 'playoff'
   const playoffConferences = teamFormQuery.data?.playoffPicture?.conferences || []
   const visibleLeagueTeams = uniqueTeamForms(teamFormQuery.data?.teams)
+  const wnbaRaceTeams = wnbaPlayoffRaceTeams(visibleLeagueTeams)
   const nflMatchupGames = upcomingGames(nflMatchupsQuery.data || [])
   const nflMatchupWeeks = sport === 'NFL' ? weekOptions(nflMatchupGames) : []
   const activeNflMatchupWeek = nflMatchupWeeks.find((week) => week.key === selectedMatchupWeek) || nflMatchupWeeks[0]
@@ -968,8 +1015,12 @@ export default function DashboardScreen() {
                   : 'Current MLB division standings with record, games back, winning percentage, and recent form'
                 : isPlayoffLeagueScope
                   ? `${sport} Playoff View: remaining teams, series score, and season form by conference`
+                  : isWnbaRaceScope
+                    ? 'WNBA Playoff View: current top-eight race using team record and recent form'
                   : (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff'
                     ? `${sport} Season View: broader team-form context separate from the posted playoff slate`
+                    : sport === 'WNBA'
+                      ? 'WNBA Season View: full team context with current record, previous record, and scoring form'
                     : `${sport} team record and recent-form context`}
             </AppText>
           </View>
@@ -1087,7 +1138,7 @@ export default function DashboardScreen() {
                   <AppText variant="muted" style={styles.stateText}>Loading {sport} league view...</AppText>
                 </View>
               )}
-              {(sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && (
+              {(((sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff') || sport === 'WNBA') && (
                 <View style={styles.scopeRow}>
                   {(['playoff', 'season'] as const).map((scope) => (
                     <Pressable
@@ -1110,7 +1161,38 @@ export default function DashboardScreen() {
                   </AppText>
                 </Card>
               )}
-              {isPlayoffLeagueScope ? (
+              {isWnbaRaceScope ? (
+                <Card>
+                  <AppText variant="eyebrow">// WNBA Playoff Race</AppText>
+                  {wnbaRaceTeams.map((team: any) => (
+                    <View key={`wnba-race-${team.teamAbbr}-${team.teamName}`} style={styles.playoffTeamRow}>
+                      <View style={styles.teamInfoRank}>
+                        <AppText style={styles.teamInfoRankText}>{team.seed}</AppText>
+                      </View>
+                      <View style={styles.teamInfoBody}>
+                        <AppText style={styles.teamInfoName}>{team.teamName || team.commonName}</AppText>
+                        <AppText variant="muted" style={styles.teamInfoMeta}>
+                          {team.teamAbbr || '-'} · {team.path}
+                        </AppText>
+                        <View style={styles.teamInfoStats}>
+                          <View style={styles.teamInfoStat}>
+                            <AppText variant="mono">Record</AppText>
+                            <AppText style={styles.teamInfoValue}>{teamRecordLabel(team, sport)}</AppText>
+                          </View>
+                          <View style={styles.teamInfoStat}>
+                            <AppText variant="mono">GB</AppText>
+                            <AppText style={styles.teamInfoValue}>{team.status}</AppText>
+                          </View>
+                          <View style={styles.teamInfoStat}>
+                            <AppText variant="mono">Pct</AppText>
+                            <AppText style={styles.teamInfoValue}>{basketballPctLabel(team)}</AppText>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </Card>
+              ) : isPlayoffLeagueScope ? (
                 playoffConferences.map((conference) => (
                   <Card key={conference.name}>
                     <AppText variant="eyebrow">// {conference.name}</AppText>
