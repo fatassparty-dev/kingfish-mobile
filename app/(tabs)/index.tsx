@@ -155,6 +155,70 @@ const MLB_TEAM_NAME_TO_ABBR: Record<string, string> = {
   'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
 }
 
+
+const MLB_DIVISIONS = [
+  {
+    name: 'AL East',
+    teams: [
+      { abbr: 'NYY', name: 'Yankees' },
+      { abbr: 'BOS', name: 'Red Sox' },
+      { abbr: 'TOR', name: 'Blue Jays' },
+      { abbr: 'BAL', name: 'Orioles' },
+      { abbr: 'TB', name: 'Rays' },
+    ],
+  },
+  {
+    name: 'AL Central',
+    teams: [
+      { abbr: 'CLE', name: 'Guardians' },
+      { abbr: 'DET', name: 'Tigers' },
+      { abbr: 'KC', name: 'Royals' },
+      { abbr: 'MIN', name: 'Twins' },
+      { abbr: 'CWS', name: 'White Sox' },
+    ],
+  },
+  {
+    name: 'AL West',
+    teams: [
+      { abbr: 'TEX', name: 'Rangers' },
+      { abbr: 'HOU', name: 'Astros' },
+      { abbr: 'SEA', name: 'Mariners' },
+      { abbr: 'LAA', name: 'Angels' },
+      { abbr: 'OAK', name: 'Athletics' },
+    ],
+  },
+  {
+    name: 'NL East',
+    teams: [
+      { abbr: 'ATL', name: 'Braves' },
+      { abbr: 'PHI', name: 'Phillies' },
+      { abbr: 'NYM', name: 'Mets' },
+      { abbr: 'MIA', name: 'Marlins' },
+      { abbr: 'WAS', name: 'Nationals' },
+    ],
+  },
+  {
+    name: 'NL Central',
+    teams: [
+      { abbr: 'CHC', name: 'Cubs' },
+      { abbr: 'MIL', name: 'Brewers' },
+      { abbr: 'STL', name: 'Cardinals' },
+      { abbr: 'CIN', name: 'Reds' },
+      { abbr: 'PIT', name: 'Pirates' },
+    ],
+  },
+  {
+    name: 'NL West',
+    teams: [
+      { abbr: 'LAD', name: 'Dodgers' },
+      { abbr: 'SD', name: 'Padres' },
+      { abbr: 'SF', name: 'Giants' },
+      { abbr: 'ARI', name: 'Diamondbacks' },
+      { abbr: 'COL', name: 'Rockies' },
+    ],
+  },
+]
+
 const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
@@ -334,6 +398,40 @@ function groupGamesByDate<T extends { commence_time: string }>(games: T[]): Date
   return groups
 }
 
+
+function formatMlbPct(pct?: number) {
+  if (typeof pct !== 'number') return '-'
+  return Number(pct).toFixed(3).replace(/^0/, '')
+}
+
+function formatGamesBack(record?: { wins: number; losses: number }, leader?: { wins: number; losses: number }) {
+  if (!record || !leader) return '-'
+  const gb = ((leader.wins - record.wins) + (record.losses - leader.losses)) / 2
+  if (gb <= 0) return '-'
+  return Number.isInteger(gb) ? String(gb) : gb.toFixed(1)
+}
+
+function mlbDivisionStandings(
+  records: Record<string, { wins: number; losses: number; pct: number }> = {},
+  l10Map: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }> = {}
+) {
+  return MLB_DIVISIONS.map((division) => {
+    const entries = division.teams
+      .map((team) => ({ team, record: records[team.abbr], l10: l10Map[team.abbr] }))
+      .filter((entry) => entry.record)
+      .sort((a, b) => Number(b.record?.pct || 0) - Number(a.record?.pct || 0))
+    const leader = entries[0]?.record
+    return {
+      name: division.name,
+      entries: entries.map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        gb: formatGamesBack(entry.record, leader),
+      })),
+    }
+  }).filter((division) => division.entries.length)
+}
+
 function shortTeamName(team: string) {
   return team.replace(/ University$/i, '').replace(/ College$/i, '')
 }
@@ -493,6 +591,7 @@ export default function DashboardScreen() {
   const [view, setView] = useState<DashboardView>('lines')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
+  const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
@@ -646,6 +745,7 @@ export default function DashboardScreen() {
     const bPos = Number(b.position || 999)
     return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
+  const mlbStandings = mlbDivisionStandings(mlbScheduleQuery.data?.teamRecords, mlbL10Query.data?.teamL10Map)
   const upcomingLineGames = upcomingGames(lineQuery.data || [])
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
@@ -814,34 +914,63 @@ export default function DashboardScreen() {
                   <AppText variant="muted" style={styles.stateText}>Loading MLB league view...</AppText>
                 </View>
               )}
-              {Object.entries(mlbScheduleQuery.data?.teamRecords || {}).map(([abbr, record]) => {
-                const l10 = mlbL10Query.data?.teamL10Map?.[abbr]
-                return (
-                  <Card key={abbr}>
-                    <View style={styles.teamInfoHeader}>
-                      <View style={styles.teamInfoRank}>
-                        <AppText style={styles.teamInfoRankText}>{abbr}</AppText>
+              {!mlbScheduleQuery.isLoading && !mlbL10Query.isLoading && mlbStandings.length === 0 && (
+                <Card>
+                  <AppText variant="eyebrow">// MLB Standings</AppText>
+                  <AppText variant="muted" style={styles.stateText}>No MLB standings are available right now.</AppText>
+                </Card>
+              )}
+
+              {mlbStandings.map((division) => (
+                <Card key={division.name}>
+                  <AppText variant="eyebrow">// {division.name}</AppText>
+                  <View style={styles.standingsHeader}>
+                    <AppText style={[styles.standingsHeaderText, styles.standingsRankCell]}>#</AppText>
+                    <AppText style={[styles.standingsHeaderText, styles.standingsTeamCell]}>Team</AppText>
+                    <AppText style={styles.standingsHeaderText}>W-L</AppText>
+                    <AppText style={styles.standingsHeaderText}>GB</AppText>
+                    <AppText style={styles.standingsHeaderText}>L10</AppText>
+                  </View>
+                  {division.entries.map((entry) => {
+                    const isExpanded = expandedMlbTeam === entry.team.abbr
+                    return (
+                      <View key={entry.team.abbr}>
+                        <Pressable
+                          onPress={() => setExpandedMlbTeam(isExpanded ? null : entry.team.abbr)}
+                          style={styles.standingsRow}
+                        >
+                          <AppText style={[styles.standingsRank, styles.standingsRankCell]}>{entry.rank}</AppText>
+                          <View style={styles.standingsTeamCell}>
+                            <AppText style={styles.standingsTeam}>{entry.team.name}</AppText>
+                            <AppText variant="mono">{entry.team.abbr} · {formatMlbPct(entry.record?.pct)} pct</AppText>
+                          </View>
+                          <AppText style={styles.standingsValue}>{entry.record ? `${entry.record.wins}-${entry.record.losses}` : '-'}</AppText>
+                          <AppText style={styles.standingsValue}>{entry.gb}</AppText>
+                          <AppText style={styles.standingsValue}>{entry.l10 ? `${entry.l10.wins}-${entry.l10.losses}` : '-'}</AppText>
+                        </Pressable>
+                        {isExpanded && (
+                          <View style={styles.standingsDetail}>
+                            <View style={styles.teamInfoStats}>
+                              <View style={styles.teamInfoStat}>
+                                <AppText variant="mono">Record</AppText>
+                                <AppText style={styles.teamInfoValue}>{entry.record ? `${entry.record.wins}-${entry.record.losses}` : '-'}</AppText>
+                              </View>
+                              <View style={styles.teamInfoStat}>
+                                <AppText variant="mono">Win Pct</AppText>
+                                <AppText style={styles.teamInfoValue}>{formatMlbPct(entry.record?.pct)}</AppText>
+                              </View>
+                              <View style={styles.teamInfoStat}>
+                                <AppText variant="mono">L10 Total</AppText>
+                                <AppText style={styles.teamInfoValue}>{entry.l10 ? Number(entry.l10.avgTotal).toFixed(1) : '-'}</AppText>
+                              </View>
+                            </View>
+                          </View>
+                        )}
                       </View>
-                      <View style={styles.teamInfoBody}>
-                        <AppText style={styles.teamInfoName}>{abbr}</AppText>
-                        <AppText variant="muted" style={styles.teamInfoMeta}>
-                          {record.wins}-{record.losses} · {Number(record.pct || 0).toFixed(3)} pct
-                        </AppText>
-                      </View>
-                    </View>
-                    <View style={styles.teamInfoStats}>
-                      <View style={styles.teamInfoStat}>
-                        <AppText variant="mono">L10</AppText>
-                        <AppText style={styles.teamInfoValue}>{l10 ? `${l10.wins}-${l10.losses}` : '-'}</AppText>
-                      </View>
-                      <View style={styles.teamInfoStat}>
-                        <AppText variant="mono">L10 Total</AppText>
-                        <AppText style={styles.teamInfoValue}>{l10 ? Number(l10.avgTotal).toFixed(1) : '-'}</AppText>
-                      </View>
-                    </View>
-                  </Card>
-                )
-              })}
+                    )
+                  })}
+                </Card>
+              ))}
             </>
           ) : (
             <>
@@ -1920,6 +2049,61 @@ const styles = StyleSheet.create({
   },
   upgradeAction: {
     marginTop: spacing.lg,
+  },
+
+  standingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  standingsHeaderText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  standingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: spacing.md,
+  },
+  standingsRankCell: {
+    flex: 0.35,
+  },
+  standingsTeamCell: {
+    flex: 1.7,
+    minWidth: 0,
+  },
+  standingsRank: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  standingsTeam: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  standingsValue: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  standingsDetail: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingBottom: spacing.md,
   },
   leagueHeader: {
     flexDirection: 'row',
