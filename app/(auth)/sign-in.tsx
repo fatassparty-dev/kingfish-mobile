@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { Image, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
-import { Link } from 'expo-router'
+import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
 export default function SignInScreen() {
-  const mobileConfig = useMobileConfig()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -76,13 +74,13 @@ export default function SignInScreen() {
       </View>
 
       <View style={styles.legalLinks}>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
+        <Pressable onPress={() => router.push('/terms')}>
           <AppText style={styles.legalLink}>Terms</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
+        <Pressable onPress={() => router.push('/privacy')}>
           <AppText style={styles.legalLink}>Privacy</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+        <Pressable onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>
           <AppText style={styles.legalLink}>Support</AppText>
         </Pressable>
       </View>

@@ -21,6 +21,8 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="help" />
+          <Stack.Screen name="terms" />
+          <Stack.Screen name="privacy" />
           <Stack.Screen name="modals/paywall" options={{ presentation: 'modal' }} />
         </Stack>
       </AuthProvider>

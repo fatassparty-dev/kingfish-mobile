@@ -166,10 +166,10 @@ export default function AccountScreen() {
           <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
             Contact Support
           </AppText>
-          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.terms)}>
+          <AppText style={styles.supportLink} onPress={() => router.push('/terms')}>
             Terms
           </AppText>
-          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
+          <AppText style={styles.supportLink} onPress={() => router.push('/privacy')}>
             Privacy
           </AppText>
         </View>

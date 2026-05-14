@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
-import { Link } from 'expo-router'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
 export default function SignUpScreen() {
-  const mobileConfig = useMobileConfig()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [state, setState] = useState('')
@@ -104,10 +102,10 @@ export default function SignUpScreen() {
       </Card>
 
       <View style={styles.footerLinks}>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.terms)}>
+        <Pressable onPress={() => router.push('/terms')}>
           <AppText style={styles.link}>Terms</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
+        <Pressable onPress={() => router.push('/privacy')}>
           <AppText style={styles.link}>Privacy</AppText>
         </Pressable>
         <Link href="/sign-in" asChild>

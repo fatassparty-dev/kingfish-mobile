@@ -1,5 +1,6 @@
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { AppBottomNav } from '@/components/AppBottomNav'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
@@ -81,13 +82,6 @@ const sportNotes = [
     title: 'NFL and College',
     body: 'NFL on mobile features League View, Game Lines, Game Matchups, and props as markets open. The NFL Command Center, Fantasy Draft Room, and deeper offseason research live on kingfishbets.com. College boards focus on team stats and matchup context where player prop betting is restricted.',
   },
-]
-
-const navItems = [
-  { label: 'Dashboard', icon: 'DB', href: '/' },
-  { label: 'Tools', icon: 'TL', href: '/cheat-sheets' },
-  { label: 'Ask', icon: 'AI', href: '/ask-kingfish' },
-  { label: 'Account', icon: 'AC', href: '/account' },
 ]
 
 export default function HelpScreen() {
@@ -175,13 +169,13 @@ export default function HelpScreen() {
           <View style={styles.section}>
             <AppText variant="eyebrow">Tutorials</AppText>
             <Card>
-              <AppText style={styles.cardTitle}>Need A Deeper Walkthrough?</AppText>
+              <AppText style={styles.cardTitle}>More Help</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                The web Help Center has longer guides, support articles, and tutorials we can keep expanding without an app update.
+                For account help or anything that looks off, send support a note from inside the app.
               </AppText>
               <View style={styles.buttonGap}>
-                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.help)}>
-                  Open Web Help Center
+                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+                  Contact Support
                 </Button>
               </View>
             </Card>
@@ -206,7 +200,7 @@ export default function HelpScreen() {
 
           <Button variant="outline" onPress={() => router.back()}>Back</Button>
         </ScrollView>
-        <HelpNav />
+        <AppBottomNav />
       </View>
     </Screen>
   )
@@ -235,19 +229,6 @@ function Scale({ label, value, color }: { label: string; value: string; color: s
     <View style={styles.scaleItem}>
       <AppText variant="mono">{label}</AppText>
       <AppText style={[styles.scaleValue, { color }]}>{value}</AppText>
-    </View>
-  )
-}
-
-function HelpNav() {
-  return (
-    <View style={styles.navBar}>
-      {navItems.map((item) => (
-        <Pressable key={item.label} onPress={() => router.replace(item.href as any)} style={styles.navItem}>
-          <AppText style={styles.navIcon}>{item.icon}</AppText>
-          <AppText style={styles.navLabel}>{item.label}</AppText>
-        </Pressable>
-      ))}
     </View>
   )
 }
@@ -343,31 +324,5 @@ const styles = StyleSheet.create({
   },
   buttonGap: {
     marginTop: spacing.lg,
-  },
-  navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.bgCardAlt,
-    marginHorizontal: -spacing.xl,
-    marginBottom: -spacing.xl,
-    paddingTop: 10,
-    paddingBottom: 14,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  navIcon: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  navLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
   },
 })
