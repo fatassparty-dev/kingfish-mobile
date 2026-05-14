@@ -61,6 +61,7 @@ type MLBSchedulePayload = {
   teamRecords?: Record<string, { wins: number; losses: number; pct: number }>
   pitcherNameMap?: Record<string, string>
   pitcherEraMap?: Record<string, number>
+  seasonPhase?: 'regular' | 'postseason'
 }
 
 type MLBL10Payload = {
@@ -902,7 +903,11 @@ export default function DashboardScreen() {
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">
-              {sport === 'MLB' ? 'Team records and recent form from today’s posted MLB slate' : `${sport} team record and recent-form context`}
+              {sport === 'MLB'
+                ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
+                  ? 'Postseason view: regular-season records stay as seeding context while active playoff games carry the board'
+                  : 'Current MLB division standings with record, games back, winning percentage, and recent form'
+                : `${sport} team record and recent-form context`}
             </AppText>
           </View>
 
