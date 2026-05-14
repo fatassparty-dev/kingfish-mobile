@@ -1473,7 +1473,6 @@ export default function DashboardScreen() {
                       <AppText style={styles.gameTitle}>{awayShort} @ {homeShort}</AppText>
                       <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                     </View>
-                    <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
                     <View style={styles.matchupTeamGrid}>
                       <MatchupTeamBox title={awayShort} grade={awayFavored ? 'Fav' : null} rows={awayRows} />
                       <MatchupTeamBox title={homeShort} grade={homeFavored ? 'Fav' : null} rows={homeRows} />
