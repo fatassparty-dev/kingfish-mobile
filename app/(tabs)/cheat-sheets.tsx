@@ -420,14 +420,17 @@ function parseNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
-function formatSavedAt(value?: string) {
-  if (!value) return 'Saved daily board'
-  return `Saved ${new Date(value).toLocaleString(undefined, {
+function formatSavedAt(value?: string, sheetDate?: string) {
+  if (!sheetDate && !value) return 'Published daily'
+  const dateLabel = new Date(sheetDate ? `${sheetDate}T12:00:00` : value || '').toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })}`
+  })
+  const publishedAt = value ? new Date(value) : null
+  const timeLabel = publishedAt && Number.isFinite(publishedAt.getTime())
+    ? publishedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : 'daily'
+  return `For ${dateLabel}, published ${timeLabel}`
 }
 
 function sheetReason(sheetKey: SheetKey, row: { line: number; season: number; l10: number; l5: number; hitRate: string; odds?: number }) {
@@ -564,7 +567,7 @@ export default function CheatSheetsScreen() {
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
-    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
+    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
     enabled: canLoadData,
     staleTime: 12 * 60 * 60 * 1000,
   })
@@ -993,7 +996,7 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.updated_at)}</AppText>
+              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}</AppText>
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
@@ -1333,10 +1336,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgCardAlt,
   },
   backButtonText: { color: colors.gold, fontWeight: '900' },
-  reportTitleRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  reportTitleRow: { gap: spacing.sm },
   reportTitleWrap: { flex: 1 },
-  reportTitle: { marginTop: 4, fontSize: 30, lineHeight: 34, fontWeight: '900' },
-  reportDate: { color: colors.textSecondary, fontWeight: '900' },
+  reportTitle: { marginTop: 4, fontSize: 28, lineHeight: 31, fontWeight: '900' },
+  reportDate: { color: colors.textSecondary, fontWeight: '900', lineHeight: 19 },
   reportCopy: { marginTop: spacing.sm, marginBottom: spacing.md },
   loading: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   errorText: { color: colors.red, marginTop: spacing.sm },
