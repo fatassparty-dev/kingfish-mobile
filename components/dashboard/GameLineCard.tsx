@@ -303,11 +303,13 @@ function TeamRow({ team, line }: { team: string; line: { price: number; book: st
 function MarketRow({ team, line }: { team: string; line: { price: number; point?: number; book: string } | null }) {
   return (
     <View style={styles.marketRow}>
-      <View style={[styles.teamNameWrap, styles.marketTeamNameWrap]}>
+      <View style={styles.teamNameWrap}>
         <AppText style={styles.marketTeam}>{team}</AppText>
-        {line?.book && <AppText variant="mono">{line.book}</AppText>}
+        <View style={styles.marketBookLine}>
+          {line?.book && <AppText variant="mono">{line.book}</AppText>}
+          <AppText style={styles.marketPrice}>{line ? `${fmtSpreadPoint(line.point)}${fmtOdds(line.price)}` : '-'}</AppText>
+        </View>
       </View>
-      <AppText style={styles.marketPrice}>{line ? `${fmtSpreadPoint(line.point)}${fmtOdds(line.price)}` : '-'}</AppText>
     </View>
   )
 }
@@ -461,20 +463,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   marketRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: spacing.sm,
     marginTop: 8,
-  },
-  marketTeamNameWrap: {
-    flex: 0,
-    maxWidth: '72%',
   },
   marketTeam: {
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '800',
+  },
+  marketBookLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 3,
   },
   marketPrice: {
     color: colors.gold,

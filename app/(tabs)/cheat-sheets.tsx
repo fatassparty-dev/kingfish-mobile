@@ -567,7 +567,7 @@ export default function CheatSheetsScreen() {
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
-    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
+    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
     enabled: canLoadData,
     staleTime: 12 * 60 * 60 * 1000,
   })
@@ -996,7 +996,7 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}</AppText>
+              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}</AppText>
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 

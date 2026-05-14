@@ -787,13 +787,6 @@ export default function DashboardScreen() {
             ? `${selectedSoccerLeague.label} game lines and team context when supported markets are available.`
             : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
         </AppText>
-        {sport === 'NFL' && (
-          <View style={styles.upgradeAction}>
-            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
-              Open NFL Command Center
-            </Button>
-          </View>
-        )}
         {!isSelectedSportActive && (
           <View style={styles.roadmapBox}>
             <AppText variant="eyebrow">// Season Watch</AppText>
@@ -1674,6 +1667,19 @@ export default function DashboardScreen() {
             </Card>
           ))}
         </View>
+      )}
+      {sport === 'NFL' && (
+        <Card>
+          <AppText variant="eyebrow">// More Research</AppText>
+          <AppText variant="muted" style={styles.roadmapText}>
+            Go deeper with futures, injuries, fantasy context, depth charts, and team research in the NFL Command Center.
+          </AppText>
+          <View style={styles.upgradeAction}>
+            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
+              Open NFL Command Center
+            </Button>
+          </View>
+        </Card>
       )}
     </Screen>
   )

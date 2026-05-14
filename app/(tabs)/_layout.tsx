@@ -5,6 +5,7 @@ import { colors } from '@/lib/theme'
 export default function TabsLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
