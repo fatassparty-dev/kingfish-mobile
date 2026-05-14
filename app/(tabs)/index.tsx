@@ -726,6 +726,7 @@ export default function DashboardScreen() {
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
+  const [collegeScopeOpen, setCollegeScopeOpen] = useState(false)
   const [collegeConference, setCollegeConference] = useState('All')
   const [collegeConferenceOpen, setCollegeConferenceOpen] = useState(false)
   const [ncaabScope, setNcaabScope] = useState<'top25' | 'all'>('top25')
@@ -1023,19 +1024,31 @@ export default function DashboardScreen() {
 
       {sport === 'NCAAF' && (
         <View style={styles.collegeFilterWrap}>
-          <View style={styles.soccerLeagueRow}>
-            {(['top25', 'all'] as const).map((item) => (
-              <Pressable
-                key={item}
-                onPress={() => setCollegeScope(item)}
-                style={[styles.soccerLeaguePill, collegeScope === item && styles.soccerLeaguePillActive]}
-              >
-                <AppText style={[styles.soccerLeagueText, collegeScope === item && styles.soccerLeagueTextActive]}>
-                  {item === 'top25' ? 'Top 25' : 'All Teams'}
-                </AppText>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable
+            onPress={() => setCollegeScopeOpen((open) => !open)}
+            style={styles.collegeSelect}
+          >
+            <AppText variant="mono">Show</AppText>
+            <AppText style={styles.collegeSelectValue}>{collegeScope === 'top25' ? 'Top 25' : 'All Teams'}</AppText>
+          </Pressable>
+          {collegeScopeOpen && (
+            <View style={styles.collegeSelectMenu}>
+              {(['top25', 'all'] as const).map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setCollegeScope(item)
+                    setCollegeScopeOpen(false)
+                  }}
+                  style={[styles.collegeSelectOption, collegeScope === item && styles.collegeSelectOptionActive]}
+                >
+                  <AppText style={[styles.collegeSelectOptionText, collegeScope === item && styles.collegeSelectOptionTextActive]}>
+                    {item === 'top25' ? 'Top 25' : 'All Teams'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <Pressable
             onPress={() => setCollegeConferenceOpen((open) => !open)}
             style={styles.collegeSelect}
