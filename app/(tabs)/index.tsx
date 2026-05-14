@@ -1874,7 +1874,7 @@ export default function DashboardScreen() {
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
                   weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
-                  showNeutralTotalWatch={sport === 'KBO' || sport === 'SOCCER'}
+                  showNeutralTotalWatch
                 />
               ))}
             </View>

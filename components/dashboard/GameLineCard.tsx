@@ -204,6 +204,7 @@ export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: {
   const homeSpread = bestSpread(bookmakers, game.home_team)
   const moneylineLean = consensusMoneylineLean(bookmakers, game)
   const totalLean = consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
+  const totalLeanLabel = totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
 
   return (
     <Card>
@@ -245,7 +246,7 @@ export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: {
       {(over || under) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Total</AppText>
-          {totalLean && <LeanBox label="Total Lean" lean={totalLean} compact />}
+          {totalLean && <LeanBox label={totalLeanLabel} lean={totalLean} compact />}
           <View style={styles.totalRow}>
             {over && (
               <AppText style={styles.totalText}>
