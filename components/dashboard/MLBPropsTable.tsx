@@ -161,6 +161,19 @@ function fmtRate(value: number | undefined) {
   return value ? value.toFixed(2) : '-'
 }
 
+function findLineupPlayer(lineupMap: Record<string, LineupPlayer>, playerName?: string) {
+  if (!playerName) return undefined
+  const normalized = normalizeName(playerName)
+  const direct = lineupMap[normalized]
+  if (direct) return direct
+
+  const compact = normalized.replace(/\s/g, '')
+  return Object.entries(lineupMap).find(([key]) => {
+    const keyCompact = key.replace(/\s/g, '')
+    return key === normalized || keyCompact === compact || key.includes(normalized) || normalized.includes(key)
+  })?.[1]
+}
+
 function buildRows(game: Game, marketKey: string, lineupMap: Record<string, LineupPlayer>, stats: Record<number, any>, search: string): PlayerRow[] {
   const playerMap: Record<string, Record<string, { over?: number; point?: number }>> = {}
 
@@ -186,7 +199,7 @@ function buildRows(game: Game, marketKey: string, lineupMap: Record<string, Line
       const bookData = playerMap[player]
       const line = getDisplayLine(bookData, PROP_BOOK_KEYS)
       const best = getBestOverAtLine(bookData, PROP_BOOK_KEYS, line)
-      const lineup = lineupMap[normalizeName(player)]
+      const lineup = findLineupPlayer(lineupMap, player)
       return {
         player,
         line,
@@ -286,7 +299,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
           if (m.key !== marketKey) return
           m.outcomes?.forEach((outcome) => {
             if (!outcome.description) return
-            const lineup = lineupMap[normalizeName(outcome.description)]
+            const lineup = findLineupPlayer(lineupMap, outcome.description)
             if (!lineup || seen.has(lineup.id)) return
             seen.add(lineup.id)
             if (market.isPitcher) pitchers.push(lineup)
