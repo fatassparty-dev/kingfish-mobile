@@ -428,9 +428,9 @@ function formatSavedAt(value?: string, sheetDate?: string) {
   })
   const publishedAt = value ? new Date(value) : null
   const timeLabel = publishedAt && Number.isFinite(publishedAt.getTime())
-    ? publishedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-    : 'daily'
-  return `For ${dateLabel}, published ${timeLabel}`
+    ? publishedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+    : '9:05 AM CT'
+  return `For ${dateLabel}, published ${timeLabel} daily`
 }
 
 function sheetReason(sheetKey: SheetKey, row: { line: number; season: number; l10: number; l5: number; hitRate: string; odds?: number }) {
