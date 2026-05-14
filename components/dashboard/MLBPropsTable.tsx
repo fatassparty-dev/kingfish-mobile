@@ -83,6 +83,35 @@ const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
+const MLB_STATS_BATCH_SIZE = 90
+
+function chunkPlayers(players: LineupPlayer[]) {
+  const chunks: LineupPlayer[][] = []
+  for (let index = 0; index < players.length; index += MLB_STATS_BATCH_SIZE) {
+    chunks.push(players.slice(index, index + MLB_STATS_BATCH_SIZE))
+  }
+  return chunks
+}
+
+async function fetchMlbStatsInBatches(batters: LineupPlayer[], pitchers: LineupPlayer[]) {
+  const requests = [
+    ...chunkPlayers(batters).map((batch) => ({ batters: batch, pitchers: [] as LineupPlayer[] })),
+    ...chunkPlayers(pitchers).map((batch) => ({ batters: [] as LineupPlayer[], pitchers: batch })),
+  ]
+
+  const results = await Promise.all(
+    requests.map((body) =>
+      kingfishFetch<{ stats: Record<number, any> }>('/api/mlb-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    ),
+  )
+
+  return results.reduce<Record<number, any>>((merged, result) => ({ ...merged, ...(result.stats || {}) }), {})
+}
+
 function edgeLabel(line: number, season: number, l10: number, l5: number, odds?: number, isHR = false) {
   if (!season) return { label: '-', color: colors.textMuted, score: 0 }
   if (isHR && line <= 0.5) {
@@ -253,21 +282,13 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
 
   const statsQuery = useQuery({
     queryKey: ['mlb-stats', marketKey, playersToFetch.batters.map((item) => item.id).join(','), playersToFetch.pitchers.map((item) => item.id).join(',')],
-    queryFn: () =>
-      kingfishFetch<{ stats: Record<number, any> }>('/api/mlb-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          batters: playersToFetch.batters,
-          pitchers: playersToFetch.pitchers,
-        }),
-      }),
+    queryFn: () => fetchMlbStatsInBatches(playersToFetch.batters, playersToFetch.pitchers),
     enabled: !!lineupsQuery.data && (playersToFetch.batters.length > 0 || playersToFetch.pitchers.length > 0),
     staleTime: 12 * 60 * 60 * 1000,
   })
 
   const lineupMap = lineupsQuery.data?.players || {}
-  const stats = statsQuery.data?.stats || {}
+  const stats = statsQuery.data || {}
   const visiblePlayerCount = games.reduce((total, game) => total + buildRows(game, marketKey, lineupMap, stats, search).length, 0)
 
   return (
