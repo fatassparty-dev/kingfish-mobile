@@ -114,6 +114,11 @@ type NCAAFOutlookData = {
     schedule: string
     profile: string
     lean: string
+    currentRecord?: string
+    conferenceRecord?: string
+    pointsForPerGame?: number
+    pointsAllowedPerGame?: number
+    recentForm?: string
   }>
 }
 
@@ -168,6 +173,19 @@ const NCAAF_MAJOR_CONFERENCES = [
   'Pac-12',
   'Sun Belt',
   'Independent',
+]
+
+const NCAAB_MAJOR_CONFERENCES = [
+  'All',
+  'ACC',
+  'Big 12',
+  'Big East',
+  'Big Ten',
+  'SEC',
+  'American',
+  'Atlantic 10',
+  'Mountain West',
+  'WCC',
 ]
 
 const SOCCER_LEAGUES = [
@@ -710,6 +728,8 @@ export default function DashboardScreen() {
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
   const [collegeConferenceOpen, setCollegeConferenceOpen] = useState(false)
+  const [ncaabConference, setNcaabConference] = useState('All')
+  const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
   const visibleSports = SPORTS.filter((item) => mobileFlag(item.visibilityFlag, true))
@@ -808,7 +828,7 @@ export default function DashboardScreen() {
   const ncaabBaselineQuery = useQuery({
     queryKey: ['ncaab-mobile-team-board'],
     queryFn: () => kingfishFetch<NCAABBaselineData>('/data/ncaab/team-baseline-2026.json'),
-    enabled: isSelectedSportActive && sport === 'NCAAB' && view === 'league',
+    enabled: isSelectedSportActive && sport === 'NCAAB' && (view === 'league' || view === 'matchups'),
     staleTime: 24 * 60 * 60 * 1000,
   })
   const ncaafMatchupsQuery = useQuery({
@@ -910,6 +930,19 @@ export default function DashboardScreen() {
     return true
   })
   const ncaafMatchupGroups = groupGamesByDate(filteredNcaafMatchups)
+  const ncaabTeams = ncaabBaselineQuery.data?.teams || []
+  const ncaabConferences = Array.from(new Set([...NCAAB_MAJOR_CONFERENCES, ...ncaabTeams.map((team) => team.conference).filter(Boolean)]))
+  const filteredNcaabTeams = ncaabTeams.filter((team) => ncaabConference === 'All' || team.conference === ncaabConference)
+  const ncaabTeamForName = (teamName: string) => ncaabTeams.find((team) => {
+    const posted = teamName.toLowerCase()
+    const known = team.team.toLowerCase()
+    return posted === known || posted.includes(known) || known.includes(posted)
+  })
+  const filteredNcaabMatchups = (ncaabMatchupsQuery.data || []).filter((game) => {
+    if (ncaabConference === 'All') return true
+    return ncaabTeamForName(game.away_team)?.conference === ncaabConference || ncaabTeamForName(game.home_team)?.conference === ncaabConference
+  })
+  const ncaabMatchupGroups = groupGamesByDate(filteredNcaabMatchups)
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
   const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
 
@@ -1010,6 +1043,36 @@ export default function DashboardScreen() {
                   style={[styles.collegeSelectOption, collegeConference === item && styles.collegeSelectOptionActive]}
                 >
                   <AppText style={[styles.collegeSelectOptionText, collegeConference === item && styles.collegeSelectOptionTextActive]}>
+                    {item}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {sport === 'NCAAB' && (
+        <View style={styles.collegeFilterWrap}>
+          <Pressable
+            onPress={() => setNcaabConferenceOpen((open) => !open)}
+            style={styles.collegeSelect}
+          >
+            <AppText variant="mono">Conference</AppText>
+            <AppText style={styles.collegeSelectValue}>{ncaabConference}</AppText>
+          </Pressable>
+          {ncaabConferenceOpen && (
+            <View style={styles.collegeSelectMenu}>
+              {ncaabConferences.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setNcaabConference(item)
+                    setNcaabConferenceOpen(false)
+                  }}
+                  style={[styles.collegeSelectOption, ncaabConference === item && styles.collegeSelectOptionActive]}
+                >
+                  <AppText style={[styles.collegeSelectOptionText, ncaabConference === item && styles.collegeSelectOptionTextActive]}>
                     {item}
                   </AppText>
                 </Pressable>
@@ -1638,7 +1701,7 @@ export default function DashboardScreen() {
                 <View style={styles.teamInfoBody}>
                   <AppText style={styles.teamInfoName}>{team.team}</AppText>
                   <AppText variant="muted" style={styles.teamInfoMeta}>
-                    {team.conference} · {team.lastRecord} · {team.schedule} schedule
+                    {team.conference} · {team.currentRecord || team.lastRecord} · {team.schedule} schedule
                   </AppText>
                 </View>
                 <View style={styles.teamInfoGrade}>
@@ -1652,8 +1715,12 @@ export default function DashboardScreen() {
                   <AppText style={styles.teamInfoValue}>{team.lean}</AppText>
                 </View>
                 <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Conference</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.conference}</AppText>
+                  <AppText variant="mono">{team.pointsForPerGame || team.pointsAllowedPerGame ? 'Scoring' : 'Conference'}</AppText>
+                  <AppText style={styles.teamInfoValue}>
+                    {team.pointsForPerGame || team.pointsAllowedPerGame
+                      ? `${team.pointsForPerGame ?? '-'} PF / ${team.pointsAllowedPerGame ?? '-'} PA`
+                      : team.conference}
+                  </AppText>
                 </View>
               </View>
             </Card>
@@ -1681,7 +1748,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {ncaabBaselineQuery.data?.teams.map((team) => (
+          {filteredNcaabTeams.map((team) => (
             <Card key={`${team.rank}-${team.team}`}>
               <View style={styles.teamInfoHeader}>
                 <View style={styles.teamInfoRank}>
@@ -1807,6 +1874,7 @@ export default function DashboardScreen() {
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
                   weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
+                  showNeutralTotalWatch={sport === 'KBO'}
                 />
               ))}
             </View>
@@ -2050,15 +2118,15 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {!ncaabMatchupsQuery.isLoading && !ncaabMatchupsQuery.isError && (ncaabMatchupsQuery.data || []).length === 0 && (
+          {!ncaabMatchupsQuery.isLoading && !ncaabMatchupsQuery.isError && filteredNcaabMatchups.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">NCAAB matchup context appears after sportsbooks post the next slate.</AppText>
+              <AppText variant="muted">NCAAB matchup context appears after sportsbooks post the next slate or when the selected conference has a posted game.</AppText>
             </Card>
           )}
 
-          {groupGamesByDate(ncaabMatchupsQuery.data || []).map((group) => (
+          {ncaabMatchupGroups.map((group) => (
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
               {group.games.map((game) => (

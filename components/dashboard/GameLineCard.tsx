@@ -107,7 +107,7 @@ function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game) {
   }
 }
 
-function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo) {
+function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo, showNeutralWatch = false) {
   const rows: Array<{ over: number; under: number; point: number; overPrice: number; underPrice: number; book: string }> = []
 
   bookmakers.forEach((bookmaker) => {
@@ -146,7 +146,13 @@ function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo) {
     edge = Math.max(edge, 0.04)
   }
 
-  if (edge < 0.03) return null
+  if (edge < 0.03) {
+    if (!showNeutralWatch) return null
+    return {
+      label: `Near ${Number(avgPoint.toFixed(1))}`,
+      detail: `Books are balanced on this total across ${rows.length} books.`,
+    }
+  }
 
   const best = rows
     .map((row) => ({ price: leanOver ? row.overPrice : row.underPrice, book: row.book }))
@@ -184,7 +190,7 @@ function fmtSpreadPoint(point?: number) {
   return `${point > 0 ? '+' : ''}${point}`
 }
 
-export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherInfo }) {
+export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: { game: Game; weather?: WeatherInfo; showNeutralTotalWatch?: boolean }) {
   const bookmakers = supportedBookmakers(game.bookmakers)
   const totalMarket = getMarket(bookmakers, 'totals')
   const over = findOutcome(totalMarket, 'Over')
@@ -197,7 +203,7 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
   const awaySpread = bestSpread(bookmakers, game.away_team)
   const homeSpread = bestSpread(bookmakers, game.home_team)
   const moneylineLean = consensusMoneylineLean(bookmakers, game)
-  const totalLean = consensusTotalLean(bookmakers, weather)
+  const totalLean = consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
 
   return (
     <Card>
