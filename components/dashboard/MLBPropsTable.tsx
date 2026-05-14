@@ -198,13 +198,32 @@ function buildRows(game: Game, marketKey: string, lineupMap: Record<string, Line
     .filter((row) => row.line || row.bestOdds)
 }
 
+function upcomingGames(games: Game[]) {
+  const now = Date.now()
+  return games
+    .filter((game) => new Date(game.commence_time).getTime() > now)
+    .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
+}
+
+function gameId(game: Game) {
+  return String(game.game_id || game.id || `${game.away_team}-${game.home_team}-${game.commence_time}`)
+}
+
 export function MLBPropsTable({ games }: { games: Game[] }) {
   const [marketKey, setMarketKey] = useState('batter_hits')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [selectedGame, setSelectedGame] = useState('all')
   const market = ALL_MARKETS.find((item) => item.key === marketKey) || ALL_MARKETS[0]
+  const gameOptions = upcomingGames(games)
+  const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => gameId(game) === selectedGame)
+    ? selectedGame
+    : 'all'
+  const filteredGames = activeGameFilter === 'all'
+    ? gameOptions
+    : gameOptions.filter((game) => gameId(game) === activeGameFilter)
 
   function toggleSort(nextKey: SortKey) {
     if (sortKey === nextKey) {
@@ -261,7 +280,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
     const batters: LineupPlayer[] = []
     const pitchers: LineupPlayer[] = []
 
-    games.forEach((game) => {
+    filteredGames.forEach((game) => {
       game.bookmakers?.forEach((bookmaker) => {
         bookmaker.markets?.forEach((m) => {
           if (m.key !== marketKey) return
@@ -278,7 +297,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
     })
 
     return { batters, pitchers }
-  }, [games, lineupsQuery.data?.players, market.isPitcher, marketKey])
+  }, [filteredGames, lineupsQuery.data?.players, market.isPitcher, marketKey])
 
   const statsQuery = useQuery({
     queryKey: ['mlb-stats', marketKey, playersToFetch.batters.map((item) => item.id).join(','), playersToFetch.pitchers.map((item) => item.id).join(',')],
@@ -289,7 +308,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
 
   const lineupMap = lineupsQuery.data?.players || {}
   const stats = statsQuery.data || {}
-  const visiblePlayerCount = games.reduce((total, game) => total + buildRows(game, marketKey, lineupMap, stats, search).length, 0)
+  const visiblePlayerCount = filteredGames.reduce((total, game) => total + buildRows(game, marketKey, lineupMap, stats, search).length, 0)
 
   return (
     <View style={styles.wrap}>
@@ -332,12 +351,36 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
           <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear</AppText>
         ) : null}
       </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
+        <Pressable
+          onPress={() => setSelectedGame('all')}
+          style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
+        >
+          <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
+        </Pressable>
+        {gameOptions.map((game) => {
+          const id = gameId(game)
+          const awayShort = game.away_team.split(' ').pop()
+          const homeShort = game.home_team.split(' ').pop()
+          return (
+            <Pressable
+              key={id}
+              onPress={() => setSelectedGame(id)}
+              style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
+            >
+              <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
+                {awayShort} @ {homeShort}
+              </AppText>
+            </Pressable>
+          )
+        })}
+      </ScrollView>
 
       {(lineupsQuery.isLoading || statsQuery.isLoading) && (
         <AppText variant="muted" style={styles.loading}>Loading stat columns...</AppText>
       )}
 
-      {games.map((game) => {
+      {filteredGames.map((game) => {
         const rows = sortRows(buildRows(game, marketKey, lineupMap, stats, search))
         if (rows.length === 0) return null
         const awayShort = game.away_team.split(' ').pop()
@@ -479,6 +522,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  gameFilterRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  gameFilterButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.bgCard,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  gameFilterButtonActive: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(198,145,50,.16)',
+  },
+  gameFilterText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  gameFilterTextActive: {
+    color: colors.gold,
   },
   clearText: {
     color: colors.gold,

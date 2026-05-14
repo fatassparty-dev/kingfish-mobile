@@ -440,7 +440,9 @@ function availableMarkets(games: Game[], sport: Sport) {
 
 function upcomingGames(games: Game[]) {
   const now = Date.now()
-  return games.filter((game) => new Date(game.commence_time).getTime() > now)
+  return games
+    .filter((game) => new Date(game.commence_time).getTime() > now)
+    .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
 }
 
 export function flattenProps(games: Game[], limit?: number, marketKey?: string): FlattenedProp[] {
@@ -610,8 +612,12 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   if (allProps.length === 0) {
     return (
       <Card>
-        <AppText variant="eyebrow">// Empty</AppText>
-        <AppText variant="muted" style={styles.emptyText}>No player props are available right now.</AppText>
+        <AppText variant="eyebrow">{sport === 'NFL' ? '// NFL Props' : '// Empty'}</AppText>
+        <AppText variant="muted" style={styles.emptyText}>
+          {sport === 'NFL'
+            ? 'NFL player prop markets will appear here when sportsbooks post them for the selected slate.'
+            : 'No player props are available right now.'}
+        </AppText>
       </Card>
     )
   }
