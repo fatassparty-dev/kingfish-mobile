@@ -514,7 +514,11 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
 }
 
 export function PropsList({ games, sport, limit, initialStats }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any> }) {
-  const markets = useMemo(() => availableMarkets(games, sport), [games, sport])
+  const availableMarketKeys = useMemo(() => availableMarkets(games, sport), [games, sport])
+  const markets = useMemo(() => {
+    if (availableMarketKeys.length || sport !== 'NFL') return availableMarketKeys
+    return NFL_MARKETS.filter((marketKey) => !isAlternateMarket(marketKey))
+  }, [availableMarketKeys, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
   const [nflGroup, setNflGroup] = useState<NflMarketGroup>('passing')
   const [sortKey, setSortKey] = useState<SortKey>('edge')
@@ -536,7 +540,9 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   }, [markets, activeNflGroup, sport])
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
   const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
-  const selectedAltMarket = sport === 'NFL' ? markets.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`) : undefined
+  const selectedAltMarket = sport === 'NFL' && availableMarketKeys.length
+    ? availableMarketKeys.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`)
+    : undefined
   const gameOptions = upcomingGames(games)
   const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => String(game.game_id || game.id) === selectedGame)
     ? selectedGame
@@ -607,19 +613,6 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
       }
       return ((aValue || 0) - (bValue || 0)) * direction
     })
-  }
-
-  if (allProps.length === 0) {
-    return (
-      <Card>
-        <AppText variant="eyebrow">{sport === 'NFL' ? '// NFL Props' : '// Empty'}</AppText>
-        <AppText variant="muted" style={styles.emptyText}>
-          {sport === 'NFL'
-            ? 'NFL player prop markets will appear here when sportsbooks post them for the selected slate.'
-            : 'No player props are available right now.'}
-        </AppText>
-      </Card>
-    )
   }
 
   return (
@@ -719,12 +712,21 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
           <AppText variant="muted" style={styles.emptyText}>Loading player stat trends...</AppText>
         </Card>
       )}
-      {props.length === 0 && (
+      {allProps.length === 0 ? (
+        <Card>
+          <AppText variant="eyebrow">{sport === 'NFL' ? '// NFL Props' : '// Empty'}</AppText>
+          <AppText variant="muted" style={styles.emptyText}>
+            {sport === 'NFL'
+              ? 'NFL player prop markets will appear here when sportsbooks post them for the selected slate.'
+              : 'No player props are available right now.'}
+          </AppText>
+        </Card>
+      ) : props.length === 0 ? (
         <Card>
           <AppText variant="eyebrow">// Empty</AppText>
           <AppText variant="muted" style={styles.emptyText}>No player props match these filters.</AppText>
         </Card>
-      )}
+      ) : null}
       {propsByGame.map(({ game, props: gameProps }) => (
         <View key={game.game_id || game.id || `${game.away_team}-${game.home_team}`} style={styles.gameBlock}>
           <View style={styles.gameHeader}>

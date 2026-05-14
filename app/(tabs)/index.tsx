@@ -1434,7 +1434,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {propsQuery.data && propsGames.length === 0 && (
+          {propsQuery.data && propsGames.length === 0 && sport !== 'NFL' && (
             <Card>
               <AppText variant="eyebrow">// Empty</AppText>
               <AppText variant="muted" style={styles.stateText}>No player props found for {sport} right now.</AppText>
@@ -1442,7 +1442,7 @@ export default function DashboardScreen() {
           )}
 
           {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} />}
-          {sport !== 'MLB' && propsGames.length > 0 && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} />}
+          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} />}
         </View>
       )}
 
