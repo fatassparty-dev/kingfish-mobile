@@ -739,27 +739,30 @@ export default function DashboardScreen() {
   const selectedSport = visibleSports.find((item) => item.key === sport) || visibleSports[0] || SPORTS[0]
   const isSelectedSportActive = mobileFlag(selectedSport.flag, selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => mobileFlag(item.flag, item.status === 'Live')
-  const tabVisible = (tab: DashboardView) => {
-    const prefix = sportApiKey(sport)
-    if (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
-    if (sport === 'NFL') {
+  const tabVisibleForSport = (sportKey: Sport, tab: DashboardView) => {
+    const prefix = sportApiKey(sportKey)
+    if (sportKey === 'MLB' || sportKey === 'NBA' || sportKey === 'NHL' || sportKey === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
+    if (sportKey === 'NFL') {
       if (tab === 'props') return true
       return mobileFlag(`nfl_dashboard_tab_${tab}`, true)
     }
     return true
   }
-  const rawDashboardViews: DashboardView[] =
-    sport === 'NFL'
+  const rawDashboardViewsForSport = (sportKey: Sport): DashboardView[] =>
+    sportKey === 'NFL'
       ? ['league', 'matchups', 'lines', 'props']
-    : sport === 'NCAAF'
+    : sportKey === 'NCAAF'
         ? ['league', 'matchups', 'lines']
-    : sport === 'NCAAB'
+    : sportKey === 'NCAAB'
         ? ['league', 'matchups', 'lines']
-      : sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+      : sportKey === 'MLB' || sportKey === 'NBA' || sportKey === 'NHL' || sportKey === 'WNBA'
         ? ['league', 'matchups', 'lines', 'props']
-        : sport === 'SOCCER'
+        : sportKey === 'SOCCER'
           ? ['league', 'matchups', 'lines']
           : ['lines', 'props']
+  const firstDashboardViewForSport = (sportKey: Sport) => rawDashboardViewsForSport(sportKey).find((tab) => tabVisibleForSport(sportKey, tab)) || 'lines'
+  const tabVisible = (tab: DashboardView) => tabVisibleForSport(sport, tab)
+  const rawDashboardViews = rawDashboardViewsForSport(sport)
   const dashboardViews = rawDashboardViews.filter(tabVisible)
   const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'Team Stats' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
@@ -975,10 +978,7 @@ export default function DashboardScreen() {
             key={item.key}
             onPress={() => {
               setSport(item.key)
-              if (item.key === 'NFL') setView('league')
-              else if (item.key === 'NCAAF') setView('league')
-              else if (view === 'league') setView('lines')
-              if (isCollegeSport(item.key) && view === 'props') setView('props')
+              setView(firstDashboardViewForSport(item.key))
             }}
             style={[styles.pill, sport === item.key && styles.activePill]}
           >
