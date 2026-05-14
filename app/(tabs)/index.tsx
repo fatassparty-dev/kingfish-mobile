@@ -1521,6 +1521,8 @@ const styles = StyleSheet.create({
   },
   segment: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
     backgroundColor: colors.bgCard,
     borderColor: colors.border,
     borderWidth: 1,
@@ -1529,10 +1531,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   segmentButton: {
-    flex: 1,
+    flexBasis: '48%',
+    flexGrow: 1,
     alignItems: 'center',
     borderRadius: 7,
     paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   segmentActive: {
     backgroundColor: colors.gold,
@@ -1541,6 +1545,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '800',
     fontSize: 13,
+    textAlign: 'center',
   },
   segmentTextActive: {
     color: colors.bgPrimary,

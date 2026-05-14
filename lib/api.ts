@@ -3,8 +3,16 @@ import { supabase } from './supabase'
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://kingfishbets.com'
 
 async function getAccessToken() {
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token
+  } catch (error) {
+    if (error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')) {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+      return undefined
+    }
+    throw error
+  }
 }
 
 export async function kingfishFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   sheet: {
-    maxHeight: '88%',
+    maxHeight: '84%',
     backgroundColor: colors.bgCardAlt,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
@@ -176,17 +176,17 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   headerText: {
     flex: 1,
   },
   name: {
-    fontSize: 34,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 32,
     marginTop: 8,
   },
   metaRow: {
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: spacing.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
     paddingBottom: spacing.xxl,
   },
   error: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statCard: {
-    width: '31.5%',
+    width: '31%',
     minHeight: 88,
     alignItems: 'center',
     justifyContent: 'center',

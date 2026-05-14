@@ -17,6 +17,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function isInvalidRefreshToken(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const segments = useSegments()
   const [session, setSession] = useState<Session | null>(null)
@@ -64,15 +68,34 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false)
     }).catch((err) => {
       if (!mounted) return
-      setProfileError(err.message || 'Could not load session.')
+      if (isInvalidRefreshToken(err)) {
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+        setSession(null)
+        setProfile(null)
+        setProfileError(null)
+      } else {
+        setProfileError(err.message || 'Could not load session.')
+      }
       setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      setSession(nextSession)
-      await configurePurchases(nextSession?.user?.id)
-      await loadProfile(nextSession)
-      setLoading(false)
+      try {
+        setSession(nextSession)
+        await configurePurchases(nextSession?.user?.id)
+        await loadProfile(nextSession)
+      } catch (err) {
+        if (isInvalidRefreshToken(err)) {
+          supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+          setSession(null)
+          setProfile(null)
+          setProfileError(null)
+        } else {
+          setProfileError(err instanceof Error ? err.message : 'Could not load session.')
+        }
+      } finally {
+        setLoading(false)
+      }
     })
 
     return () => {
