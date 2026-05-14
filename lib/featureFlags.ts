@@ -28,7 +28,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   dashboard_ncaaf: false,
   dashboard_soccer: false,
   fantasy_hub: true,
-  nfl_props: true,
+  nfl_props: false,
   mobile_paywall: true,
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { PlayerProfileModal } from '@/components/dashboard/PlayerProfileModal'
@@ -518,6 +518,8 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [selectedGame, setSelectedGame] = useState('all')
+  const [search, setSearch] = useState('')
   const availableNflGroups = useMemo(() => (
     NFL_MARKET_GROUPS.filter((group) =>
       markets.some((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === group.key)
@@ -533,9 +535,21 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
   const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
   const selectedAltMarket = sport === 'NFL' ? markets.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`) : undefined
-  const props = flattenProps(games, limit, selectedMarket)
+  const gameOptions = upcomingGames(games)
+  const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => String(game.game_id || game.id) === selectedGame)
+    ? selectedGame
+    : 'all'
+  const allProps = flattenProps(
+    activeGameFilter === 'all'
+      ? games
+      : games.filter((game) => String(game.game_id || game.id) === activeGameFilter),
+    limit,
+    selectedMarket
+  )
+  const props = allProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
-  const propsByGame = upcomingGames(games)
+  const propsByGame = gameOptions
+    .filter((game) => activeGameFilter === 'all' || String(game.game_id || game.id) === activeGameFilter)
     .map((game) => ({
       game,
       props: props.filter((prop) => (prop.game.game_id || prop.game.id) === (game.game_id || game.id)),
@@ -593,7 +607,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
     })
   }
 
-  if (props.length === 0) {
+  if (allProps.length === 0) {
     return (
       <Card>
         <AppText variant="eyebrow">// Empty</AppText>
@@ -654,10 +668,55 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
         </View>
       )}
 
+      <View style={styles.filterStack}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search player..."
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.search}
+        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
+          <Pressable
+            onPress={() => setSelectedGame('all')}
+            style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
+          >
+            <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
+          </Pressable>
+          {gameOptions.map((game) => {
+            const id = String(game.game_id || game.id)
+            return (
+              <Pressable
+                key={id}
+                onPress={() => setSelectedGame(id)}
+                style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
+              >
+                <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
+                  {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
+                </AppText>
+              </Pressable>
+            )
+          })}
+        </ScrollView>
+        {search ? (
+          <Pressable onPress={() => { setSearch(''); Keyboard.dismiss() }} style={styles.clearButton}>
+            <AppText style={styles.clearButtonText}>Clear Search</AppText>
+          </Pressable>
+        ) : null}
+      </View>
+
       {statsQuery.isLoading && !initialStats && (
         <Card>
           <AppText variant="eyebrow">// Stats</AppText>
           <AppText variant="muted" style={styles.emptyText}>Loading player stat trends...</AppText>
+        </Card>
+      )}
+      {props.length === 0 && (
+        <Card>
+          <AppText variant="eyebrow">// Empty</AppText>
+          <AppText variant="muted" style={styles.emptyText}>No player props match these filters.</AppText>
         </Card>
       )}
       {propsByGame.map(({ game, props: gameProps }) => (
@@ -1037,6 +1096,57 @@ const styles = StyleSheet.create({
   },
   variantTextActive: {
     color: colors.bgPrimary,
+  },
+  filterStack: {
+    gap: spacing.sm,
+  },
+  search: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  gameFilterRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  gameFilterButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+  },
+  gameFilterButtonActive: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  gameFilterText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  gameFilterTextActive: {
+    color: colors.bgPrimary,
+  },
+  clearButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  clearButtonText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
   },
   statsRow: {
     flexDirection: 'row',

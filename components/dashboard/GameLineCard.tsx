@@ -303,7 +303,7 @@ function TeamRow({ team, line }: { team: string; line: { price: number; book: st
 function MarketRow({ team, line }: { team: string; line: { price: number; point?: number; book: string } | null }) {
   return (
     <View style={styles.marketRow}>
-      <View style={styles.teamNameWrap}>
+      <View style={[styles.teamNameWrap, styles.marketTeamNameWrap]}>
         <AppText style={styles.marketTeam}>{team}</AppText>
         {line?.book && <AppText variant="mono">{line.book}</AppText>}
       </View>
@@ -463,9 +463,13 @@ const styles = StyleSheet.create({
   marketRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    justifyContent: 'flex-start',
+    gap: spacing.sm,
     marginTop: 8,
+  },
+  marketTeamNameWrap: {
+    flex: 0,
+    maxWidth: '72%',
   },
   marketTeam: {
     color: colors.textSecondary,
