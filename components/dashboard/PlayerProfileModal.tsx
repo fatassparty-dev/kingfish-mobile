@@ -78,6 +78,29 @@ function formatOpponent(game: RawGame) {
   return opponent
 }
 
+function formatGameLabel(game: RawGame, index: number) {
+  return [formatGameDate(game), formatOpponent(game)].filter(Boolean).join(' ') || String(game.label || '') || `Recent ${index + 1}`
+}
+
+function valueAt(values: unknown, index: number) {
+  if (!Array.isArray(values)) return undefined
+  const value = Number(values[index])
+  return Number.isFinite(value) ? value : undefined
+}
+
+function sumValues(game: RawGame, keys: string[]) {
+  let found = false
+  const sum = keys.reduce((total, key) => {
+    const value = Number(game[key])
+    if (Number.isFinite(value)) {
+      found = true
+      return total + value
+    }
+    return total
+  }, 0)
+  return found ? sum : undefined
+}
+
 function recentGameStats(sport: PlayerProfileModalProps['sport'], game: RawGame) {
   if (sport === 'mlb') {
     if (typeof game.strikeouts === 'number' || typeof game.outs === 'number') {
@@ -106,19 +129,63 @@ function recentGameStats(sport: PlayerProfileModalProps['sport'], game: RawGame)
     ]
   }
 
+  if (sport === 'nfl') {
+    return [
+      { label: 'PASS', value: game.passing_yards },
+      { label: 'RUSH', value: game.rushing_yards },
+      { label: 'REC', value: game.receiving_yards },
+      { label: 'CATCH', value: game.receptions },
+      { label: 'TD', value: game.total_tds },
+    ]
+  }
+
   return [
     { label: 'PTS', value: game.pts ?? game.points },
     { label: 'REB', value: game.reb ?? game.rebounds },
     { label: 'AST', value: game.ast ?? game.assists },
+    { label: '3PM', value: game.fg3m ?? game.threes },
     { label: 'MIN', value: game.min ?? game.minutes },
   ]
 }
 
 function recentGames(data?: PlayerProfileResponse) {
-  return Array.isArray(data?.stats?.raw_games) ? data?.stats?.raw_games.slice(0, 10) : []
+  const stats = data?.stats
+  if (!stats) return []
+  if (Array.isArray(stats.raw_games)) return stats.raw_games.slice(0, 10)
+  if (!Array.isArray(stats.raw10_games)) return []
+
+  return stats.raw10_games.slice(0, 10).map((game: RawGame | string, index: number) => {
+    const base = typeof game === 'string' ? { label: game } : { ...game }
+    const pts = valueAt(stats.raw10_pts, index)
+    const reb = valueAt(stats.raw10_reb, index)
+    const ast = valueAt(stats.raw10_ast, index)
+    const fg3m = valueAt(stats.raw10_fg3m, index)
+    const blk = valueAt(stats.raw10_blk, index)
+    const stl = valueAt(stats.raw10_stl, index)
+    const min = valueAt(stats.raw10_min, index) ?? valueAt(stats.raw10_minutes, index)
+
+    return {
+      ...base,
+      pts,
+      points: pts,
+      reb,
+      rebounds: reb,
+      ast,
+      assists: ast,
+      fg3m,
+      threes: fg3m,
+      blk,
+      blocks: blk,
+      stl,
+      steals: stl,
+      min,
+      minutes: min,
+    }
+  })
 }
 
 function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string) {
+  const baseMarketKey = marketKey.replace(/_alternate$/, '')
   const mlb: Record<string, string> = {
     batter_hits: 'hits',
     batter_runs_scored: 'runs',
@@ -160,29 +227,75 @@ function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string)
     player_pass_yds: 'passing_yards',
     player_pass_tds: 'passing_tds',
     player_pass_attempts: 'passing_attempts',
+    player_pass_completions: 'completions',
     player_pass_interceptions: 'interceptions',
+    player_pass_rush_yds: 'pass_rush_yards',
+    player_pass_rush_reception_tds: 'pass_rush_reception_tds',
+    player_pass_rush_reception_yds: 'pass_rush_reception_yards',
     player_rush_yds: 'rushing_yards',
     player_rush_attempts: 'carries',
+    player_rush_tds: 'rushing_tds',
+    player_rush_reception_tds: 'rush_reception_tds',
+    player_rush_reception_yds: 'rush_reception_yards',
     player_receptions: 'receptions',
     player_reception_yds: 'receiving_yards',
+    player_reception_tds: 'receiving_tds',
     player_anytime_td: 'total_tds',
+    player_tds_over: 'total_tds',
+    player_1st_td: 'total_tds',
+    player_last_td: 'total_tds',
+    player_field_goals: 'field_goals_made',
+    player_kicking_points: 'kicking_points',
+    player_pats: 'extra_points_made',
+    player_assists: 'def_tackle_assists',
+    player_defensive_interceptions: 'def_interceptions',
+    player_sacks: 'def_sacks',
+    player_solo_tackles: 'def_tackles_solo',
+    player_tackles_assists: 'def_tackles_assists',
   }
 
-  if (sport === 'mlb') return mlb[marketKey]
-  if (sport === 'nhl') return nhl[marketKey]
-  if (sport === 'nfl') return nfl[marketKey]
-  if (sport === 'nba' || sport === 'wnba') return nba[marketKey]
+  if (sport === 'mlb') return mlb[baseMarketKey]
+  if (sport === 'nhl') return nhl[baseMarketKey]
+  if (sport === 'nfl') return nfl[baseMarketKey]
+  if (sport === 'nba' || sport === 'wnba') return nba[baseMarketKey]
   return undefined
 }
 
 function statValue(game: RawGame, keys: string | string[]) {
   const parts = Array.isArray(keys) ? keys : [keys]
-  return parts.reduce((sum, key) => {
+  let found = false
+  const total = parts.reduce((sum, key) => {
+    const combo =
+      key === 'hrr'
+        ? sumValues(game, ['hits', 'runs', 'rbi'])
+        : key === 'pass_rush_yards'
+          ? sumValues(game, ['passing_yards', 'rushing_yards'])
+          : key === 'pass_rush_reception_yards'
+            ? sumValues(game, ['passing_yards', 'rushing_yards', 'receiving_yards'])
+            : key === 'pass_rush_reception_tds'
+              ? sumValues(game, ['passing_tds', 'rushing_tds', 'receiving_tds'])
+              : key === 'rush_reception_yards'
+                ? sumValues(game, ['rushing_yards', 'receiving_yards'])
+                : key === 'rush_reception_tds'
+                  ? sumValues(game, ['rushing_tds', 'receiving_tds'])
+                  : undefined
+    if (combo !== undefined) {
+      found = true
+      return sum + combo
+    }
     const direct = Number(game[key])
-    if (Number.isFinite(direct)) return sum + direct
+    if (Number.isFinite(direct)) {
+      found = true
+      return sum + direct
+    }
     const fallback = key === 'pts' ? Number(game.points) : key === 'reb' ? Number(game.rebounds) : key === 'ast' ? Number(game.assists) : NaN
-    return Number.isFinite(fallback) ? sum + fallback : sum
+    if (Number.isFinite(fallback)) {
+      found = true
+      return sum + fallback
+    }
+    return sum
   }, 0)
+  return found ? total : undefined
 }
 
 function buildPropFocus(sport: PlayerProfileModalProps['sport'], data?: PlayerProfileResponse, context?: PlayerProfileMarketContext | null) {
@@ -192,12 +305,14 @@ function buildPropFocus(sport: PlayerProfileModalProps['sport'], data?: PlayerPr
   if (!keys || games.length === 0) return null
   const rows = games.map((game, index) => {
     const value = statValue(game, keys)
+    if (value === undefined) return null
     return {
-      label: [formatGameDate(game), formatOpponent(game)].filter(Boolean).join(' ') || `Recent ${index + 1}`,
+      label: formatGameLabel(game, index),
       value,
       hit: value > context.commonLine,
     }
-  })
+  }).filter((game): game is { label: string; value: number; hit: boolean } => Boolean(game))
+  if (rows.length === 0) return null
   const hits = rows.filter((game) => game.hit).length
   const average = rows.reduce((sum, game) => sum + game.value, 0) / rows.length
   return { ...context, games: rows, hits, misses: rows.length - hits, average }
@@ -301,9 +416,9 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
                 <AppText variant="eyebrow" style={styles.sectionLabel}>// Last 10 Games</AppText>
                 <View style={styles.recentList}>
                   {recentGames(query.data).map((game, index) => (
-                    <View key={`${formatGameDate(game)}-${formatOpponent(game)}-${index}`} style={styles.recentRow}>
+                    <View key={`${formatGameLabel(game, index)}-${index}`} style={styles.recentRow}>
                       <View style={styles.recentGameMeta}>
-                        <AppText style={styles.recentDate}>{formatGameDate(game) || `Game ${index + 1}`}</AppText>
+                        <AppText style={styles.recentDate}>{formatGameDate(game) || String(game.label || '') || `Game ${index + 1}`}</AppText>
                         <AppText variant="mono" style={styles.recentOpponent}>{formatOpponent(game)}</AppText>
                       </View>
                       <View style={styles.recentStats}>
