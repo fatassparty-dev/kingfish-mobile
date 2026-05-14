@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { PlayerProfileModal } from '@/components/dashboard/PlayerProfileModal'
+import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { kingfishFetch } from '@/lib/api'
@@ -228,6 +228,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
   const market = ALL_MARKETS.find((item) => item.key === marketKey) || ALL_MARKETS[0]
   const gameOptions = upcomingGames(games)
@@ -425,7 +426,14 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
                   return (
                     <View key={row.player} style={styles.tableRow}>
                       <AppText
-                        onPress={() => setSelectedPlayer(row.player)}
+                        onPress={() => {
+                          setSelectedPlayer(row.player)
+                          setSelectedMarketContext({
+                            marketKey,
+                            marketLabel: market.label,
+                            commonLine: row.line,
+                          })
+                        }}
                         style={[styles.cell, styles.playerCell, styles.playerName]}
                         numberOfLines={2}
                       >
@@ -450,7 +458,15 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
           </View>
         )
       })}
-      <PlayerProfileModal playerName={selectedPlayer} sport="mlb" onClose={() => setSelectedPlayer(null)} />
+      <PlayerProfileModal
+        playerName={selectedPlayer}
+        sport="mlb"
+        marketContext={selectedMarketContext}
+        onClose={() => {
+          setSelectedPlayer(null)
+          setSelectedMarketContext(null)
+        }}
+      />
     </View>
   )
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { PlayerProfileModal } from '@/components/dashboard/PlayerProfileModal'
+import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
@@ -524,6 +524,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
   const [search, setSearch] = useState('')
   const availableNflGroups = useMemo(() => (
@@ -750,14 +751,25 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
                   prop={prop}
                   stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
                   sport={sport}
-                  onSelectPlayer={setSelectedPlayer}
+                  onSelectPlayer={(playerName, context) => {
+                    setSelectedPlayer(playerName)
+                    setSelectedMarketContext(context)
+                  }}
                 />
               ))}
             </View>
           </ScrollView>
         </View>
       ))}
-      <PlayerProfileModal playerName={selectedPlayer} sport={sportParam(sport)} onClose={() => setSelectedPlayer(null)} />
+      <PlayerProfileModal
+        playerName={selectedPlayer}
+        sport={sportParam(sport)}
+        marketContext={selectedMarketContext}
+        onClose={() => {
+          setSelectedPlayer(null)
+          setSelectedMarketContext(null)
+        }}
+      />
     </View>
   )
 }
@@ -814,7 +826,7 @@ function PropTableRow({
   prop: FlattenedProp
   stats?: Record<string, any>
   sport: Sport
-  onSelectPlayer: (playerName: string) => void
+  onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
@@ -828,7 +840,11 @@ function PropTableRow({
   return (
     <View style={styles.tableRow}>
       <AppText
-        onPress={() => prop.outcome.description && onSelectPlayer(prop.outcome.description)}
+        onPress={() => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
+          marketKey: prop.market.key,
+          marketLabel: marketLabel(prop.market.key),
+          commonLine: line,
+        })}
         style={[styles.cell, styles.playerCell, styles.playerName]}
         numberOfLines={2}
       >

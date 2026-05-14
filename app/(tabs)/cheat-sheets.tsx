@@ -5,6 +5,7 @@ import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
+import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
@@ -717,6 +718,8 @@ export default function CheatSheetsScreen() {
   const isPremium = profile?.is_premium === true
   const [toolMode, setToolMode] = useState<ToolMode>('sheets')
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
   const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
@@ -885,6 +888,27 @@ export default function CheatSheetsScreen() {
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
   const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
+
+  function openPlayerProfile(player: string, row?: SheetRow) {
+    setSelectedPlayer(player)
+    if (!row || activeKey === 'bvp') {
+      setSelectedMarketContext(null)
+      return
+    }
+    const marketKey =
+      activeKey === 'hits' || activeKey === 'hot' ? 'batter_hits' :
+      activeKey === 'hr' ? 'batter_home_runs' :
+      activeKey === 'tb' ? 'batter_total_bases' :
+      activeKey === 'k' ? 'pitcher_strikeouts' :
+      undefined
+    const marketLabel =
+      activeKey === 'hits' || activeKey === 'hot' ? 'Hits' :
+      activeKey === 'hr' ? 'Home Runs' :
+      activeKey === 'tb' ? 'Total Bases' :
+      activeKey === 'k' ? 'Strikeouts' :
+      ''
+    setSelectedMarketContext(marketKey ? { marketKey, marketLabel, commonLine: row.line } : null)
+  }
 
   const updateCalc = (key: string, value: string) => setCalcInputs((current) => ({ ...current, [key]: value }))
 
@@ -1215,7 +1239,13 @@ export default function CheatSheetsScreen() {
               {bvpRows.slice(0, 30).map((row) => (
                 <View key={row.key} style={styles.reportRow}>
                   <View style={styles.rowMain}>
-                    <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                    <AppText
+                      onPress={() => openPlayerProfile(row.player)}
+                      style={[styles.compactPlayer, styles.profileLink]}
+                      numberOfLines={1}
+                    >
+                      {row.player}
+                    </AppText>
                     <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
                       {row.gameLabel} · vs {row.pitcher}
                     </AppText>
@@ -1244,7 +1274,13 @@ export default function CheatSheetsScreen() {
                     <AppText style={styles.rankText}>{row.pickLabel?.startsWith('Under') ? 'F' : index + 1}</AppText>
                   </View>
                   <View style={styles.rowMain}>
-                    <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                    <AppText
+                      onPress={() => openPlayerProfile(row.player, row)}
+                      style={[styles.compactPlayer, styles.profileLink]}
+                      numberOfLines={1}
+                    >
+                      {row.player}
+                    </AppText>
                     <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
                       {row.matchup}
                     </AppText>
@@ -1274,6 +1310,16 @@ export default function CheatSheetsScreen() {
               No MLB markets were available when this daily board was saved.
             </AppText>
           )}
+
+          <PlayerProfileModal
+            playerName={selectedPlayer}
+            sport="mlb"
+            marketContext={selectedMarketContext}
+            onClose={() => {
+              setSelectedPlayer(null)
+              setSelectedMarketContext(null)
+            }}
+          />
           </Card>
         </>
       )}
@@ -1580,6 +1626,7 @@ const styles = StyleSheet.create({
   rowNumbers: { alignItems: 'flex-end', minWidth: 72 },
   compactEdge: { fontSize: 22, lineHeight: 26, fontWeight: '900' },
   compactOdds: { marginTop: 2, color: colors.gold, fontSize: 12, fontWeight: '900' },
+  profileLink: { color: colors.gold },
   bvpMetricRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

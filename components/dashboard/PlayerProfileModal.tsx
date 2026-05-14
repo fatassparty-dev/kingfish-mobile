@@ -26,9 +26,16 @@ interface PlayerProfileResponse {
 
 type RawGame = Record<string, any>
 
+export interface PlayerProfileMarketContext {
+  marketKey: string
+  marketLabel: string
+  commonLine: number
+}
+
 interface PlayerProfileModalProps {
   playerName: string | null
   sport: 'mlb' | 'nba' | 'nfl' | 'nhl' | 'wnba'
+  marketContext?: PlayerProfileMarketContext | null
   onClose: () => void
 }
 
@@ -111,7 +118,92 @@ function recentGames(data?: PlayerProfileResponse) {
   return Array.isArray(data?.stats?.raw_games) ? data?.stats?.raw_games.slice(0, 10) : []
 }
 
-export function PlayerProfileModal({ playerName, sport, onClose }: PlayerProfileModalProps) {
+function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string) {
+  const mlb: Record<string, string> = {
+    batter_hits: 'hits',
+    batter_runs_scored: 'runs',
+    batter_rbis: 'rbi',
+    batter_hits_runs_rbis: 'hrr',
+    batter_total_bases: 'tb',
+    batter_home_runs: 'hr',
+    batter_singles: 'singles',
+    batter_doubles: 'doubles',
+    batter_walks: 'walks',
+    batter_stolen_bases: 'sb',
+    pitcher_strikeouts: 'strikeouts',
+    pitcher_hits_allowed: 'hits_allowed',
+    pitcher_earned_runs: 'earned_runs',
+    pitcher_walks: 'walks',
+    pitcher_outs: 'outs',
+  }
+  const nba: Record<string, string[]> = {
+    player_points: ['pts', 'points'],
+    player_rebounds: ['reb', 'rebounds'],
+    player_assists: ['ast', 'assists'],
+    player_threes: ['fg3m', 'threes'],
+    player_blocks: ['blk', 'blocks'],
+    player_steals: ['stl', 'steals'],
+    player_points_rebounds_assists: ['pts', 'reb', 'ast'],
+    player_points_rebounds: ['pts', 'reb'],
+    player_points_assists: ['pts', 'ast'],
+    player_rebounds_assists: ['reb', 'ast'],
+  }
+  const nhl: Record<string, string> = {
+    player_goal_scorer_anytime: 'goals',
+    player_assists: 'assists',
+    player_points: 'points',
+    player_shots_on_goal: 'shots',
+    player_blocked_shots: 'blocks',
+    player_power_play_points: 'ppp',
+  }
+  const nfl: Record<string, string> = {
+    player_pass_yds: 'passing_yards',
+    player_pass_tds: 'passing_tds',
+    player_pass_attempts: 'passing_attempts',
+    player_pass_interceptions: 'interceptions',
+    player_rush_yds: 'rushing_yards',
+    player_rush_attempts: 'carries',
+    player_receptions: 'receptions',
+    player_reception_yds: 'receiving_yards',
+    player_anytime_td: 'total_tds',
+  }
+
+  if (sport === 'mlb') return mlb[marketKey]
+  if (sport === 'nhl') return nhl[marketKey]
+  if (sport === 'nfl') return nfl[marketKey]
+  if (sport === 'nba' || sport === 'wnba') return nba[marketKey]
+  return undefined
+}
+
+function statValue(game: RawGame, keys: string | string[]) {
+  const parts = Array.isArray(keys) ? keys : [keys]
+  return parts.reduce((sum, key) => {
+    const direct = Number(game[key])
+    if (Number.isFinite(direct)) return sum + direct
+    const fallback = key === 'pts' ? Number(game.points) : key === 'reb' ? Number(game.rebounds) : key === 'ast' ? Number(game.assists) : NaN
+    return Number.isFinite(fallback) ? sum + fallback : sum
+  }, 0)
+}
+
+function buildPropFocus(sport: PlayerProfileModalProps['sport'], data?: PlayerProfileResponse, context?: PlayerProfileMarketContext | null) {
+  if (!data?.stats || !context) return null
+  const keys = propStatKey(sport, context.marketKey)
+  const games = recentGames(data)
+  if (!keys || games.length === 0) return null
+  const rows = games.map((game, index) => {
+    const value = statValue(game, keys)
+    return {
+      label: [formatGameDate(game), formatOpponent(game)].filter(Boolean).join(' ') || `Recent ${index + 1}`,
+      value,
+      hit: value > context.commonLine,
+    }
+  })
+  const hits = rows.filter((game) => game.hit).length
+  const average = rows.reduce((sum, game) => sum + game.value, 0) / rows.length
+  return { ...context, games: rows, hits, misses: rows.length - hits, average }
+}
+
+export function PlayerProfileModal({ playerName, sport, marketContext, onClose }: PlayerProfileModalProps) {
   const query = useQuery({
     queryKey: ['player-profile', sport, playerName],
     queryFn: () => kingfishFetch<PlayerProfileResponse>(`/api/player-profile?sport=${sport}&name=${encodeURIComponent(playerName || '')}`),
@@ -119,6 +211,7 @@ export function PlayerProfileModal({ playerName, sport, onClose }: PlayerProfile
     staleTime: 5 * 60 * 1000,
   })
   const formNote = buildFormNote(sport, query.data)
+  const propFocus = buildPropFocus(sport, query.data, marketContext)
 
   return (
     <Modal visible={!!playerName} animationType="slide" transparent onRequestClose={onClose}>
@@ -157,6 +250,35 @@ export function PlayerProfileModal({ playerName, sport, onClose }: PlayerProfile
               <Card>
                 <AppText variant="eyebrow">// Recent Form</AppText>
                 <AppText style={styles.formNote}>{formNote}</AppText>
+              </Card>
+            )}
+
+            {propFocus && (
+              <Card>
+                <View style={styles.focusHeader}>
+                  <View style={styles.focusTitleWrap}>
+                    <AppText variant="eyebrow">// Prop Focus</AppText>
+                    <AppText style={styles.focusTitle}>{propFocus.marketLabel}</AppText>
+                    <AppText variant="mono" style={styles.focusLine}>Line {propFocus.commonLine}</AppText>
+                  </View>
+                  <View style={styles.focusSummary}>
+                    <AppText style={styles.focusSummaryValue}>{propFocus.average.toFixed(2)}</AppText>
+                    <AppText variant="mono">L10 AVG</AppText>
+                    <AppText style={styles.focusSummaryValue}>{propFocus.hits}-{propFocus.misses}</AppText>
+                    <AppText variant="mono">vs line</AppText>
+                  </View>
+                </View>
+                <View style={styles.focusGames}>
+                  {propFocus.games.map((game, index) => (
+                    <View key={`${game.label}-${index}`} style={[styles.focusGame, game.hit ? styles.focusGameHit : styles.focusGameMiss]}>
+                      <AppText variant="mono" style={styles.focusGameLabel} numberOfLines={1}>{game.label}</AppText>
+                      <AppText style={styles.focusGameValue}>{game.value}</AppText>
+                      <AppText variant="mono" style={[styles.focusGameResult, game.hit ? styles.focusGameResultHit : styles.focusGameResultMiss]}>
+                        {game.hit ? 'Hit' : 'Miss'}
+                      </AppText>
+                    </View>
+                  ))}
+                </View>
               </Card>
             )}
 
@@ -302,6 +424,76 @@ const styles = StyleSheet.create({
   formNote: {
     marginTop: spacing.sm,
     lineHeight: 22,
+  },
+  focusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  focusTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  focusTitle: {
+    marginTop: spacing.xs,
+    color: colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  focusLine: {
+    marginTop: 4,
+    color: colors.gold,
+  },
+  focusSummary: {
+    alignItems: 'flex-end',
+  },
+  focusSummaryValue: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 21,
+    fontWeight: '900',
+  },
+  focusGames: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  focusGame: {
+    width: '31%',
+    borderWidth: 1,
+    borderRadius: 9,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.sm,
+  },
+  focusGameHit: {
+    borderColor: 'rgba(34,197,94,.45)',
+  },
+  focusGameMiss: {
+    borderColor: 'rgba(239,68,68,.4)',
+  },
+  focusGameLabel: {
+    color: colors.textSecondary,
+    fontSize: 9,
+  },
+  focusGameValue: {
+    marginTop: 5,
+    color: colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  focusGameResult: {
+    marginTop: 3,
+    fontSize: 9,
+  },
+  focusGameResultHit: {
+    color: colors.green,
+  },
+  focusGameResultMiss: {
+    color: colors.red,
   },
   sectionLabel: {
     marginBottom: spacing.md,
