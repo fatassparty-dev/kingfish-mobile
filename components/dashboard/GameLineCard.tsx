@@ -223,13 +223,7 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
         </View>
       )}
 
-      {(moneylineLean || totalLean) && (
-        <View style={styles.leanGrid}>
-          {moneylineLean && <LeanBox label="Data Lean" lean={moneylineLean} />}
-          {totalLean && <LeanBox label="Total Lean" lean={totalLean} />}
-        </View>
-      )}
-
+      {moneylineLean && <LeanBox label="Moneyline Lean" lean={moneylineLean} />}
       <TeamRow team={game.away_team} line={awayBest} />
       {drawBest && <TeamRow team="Draw" line={drawBest} />}
       <TeamRow team={game.home_team} line={homeBest} />
@@ -245,6 +239,7 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
       {(over || under) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Total</AppText>
+          {totalLean && <LeanBox label="Total Lean" lean={totalLean} compact />}
           <View style={styles.totalRow}>
             {over && (
               <AppText style={styles.totalText}>
@@ -273,9 +268,9 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
   )
 }
 
-function LeanBox({ label, lean }: { label: string; lean: { label: string; detail: string; price?: number; book?: string } }) {
+function LeanBox({ label, lean, compact = false }: { label: string; lean: { label: string; detail: string; price?: number; book?: string }; compact?: boolean }) {
   return (
-    <View style={styles.leanBox}>
+    <View style={[styles.leanBox, compact && styles.leanBoxCompact]}>
       <View style={styles.leanCopy}>
         <AppText variant="mono">{label}</AppText>
         <AppText style={styles.leanMain}>{lean.label}</AppText>
@@ -420,10 +415,6 @@ const styles = StyleSheet.create({
   warnText: {
     color: colors.yellow,
   },
-  leanGrid: {
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
   leanBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -434,6 +425,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: 'rgba(198,145,50,.08)',
     padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  leanBoxCompact: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   leanCopy: {
     flex: 1,

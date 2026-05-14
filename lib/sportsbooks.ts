@@ -22,16 +22,22 @@ const SUPPORTED_BOOK_KEYS = new Set([
 export const PROP_BOOK_KEYS = ['fanduel', 'draftkings', 'betmgm', 'betrivers', 'williamhill_us']
 
 export const BOOK_DISPLAY_NAMES: Record<string, string> = {
-  betmgm: 'MGM',
-  betrivers: 'BR',
-  caesars: 'CZR',
-  draftkings: 'DK',
-  espnbet: 'ESPN',
-  fanduel: 'FD',
+  barstool: 'Barstool',
+  bet365: 'bet365',
+  betmgm: 'BetMGM',
+  betparx: 'BetPARX',
+  betrivers: 'BetRivers',
+  caesars: 'Caesars',
+  draftkings: 'DraftKings',
+  espnbet: 'ESPN BET',
+  fanduel: 'FanDuel',
   fanatics: 'Fanatics',
-  hardrockbet: 'Hard Rock',
+  hardrockbet: 'Hard Rock Bet',
   pointsbetus: 'PointsBet',
-  williamhill_us: 'CZR',
+  superbook: 'SuperBook',
+  unibet_us: 'Unibet',
+  williamhill_us: 'Caesars',
+  wynnbet: 'WynnBET',
 }
 
 export function isSupportedSportsbook(bookmaker: Pick<Bookmaker, 'key'>) {
