@@ -50,6 +50,119 @@ function bestMarketOutcome(bookmakers: Bookmaker[], marketKey: string, outcomeNa
   return best
 }
 
+function impliedProbability(price?: number) {
+  if (typeof price !== 'number' || price === 0) return null
+  return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100)
+}
+
+function shortTeamName(team: string) {
+  const pieces = team.split(' ').filter(Boolean)
+  return pieces[pieces.length - 1] || team
+}
+
+function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game) {
+  const totals: Record<string, number[]> = {}
+
+  bookmakers.forEach((bookmaker) => {
+    const market = bookmaker.markets?.find((item) => item.key === 'h2h')
+    const priced = market?.outcomes
+      ?.map((outcome) => {
+        const implied = impliedProbability(outcome.price)
+        return implied === null ? null : { name: outcome.name, implied }
+      })
+      .filter(Boolean) as Array<{ name: string; implied: number }>
+    const total = priced?.reduce((sum, outcome) => sum + outcome.implied, 0)
+    if (!priced?.length || !total) return
+
+    priced.forEach((outcome) => {
+      totals[outcome.name] = [...(totals[outcome.name] || []), outcome.implied / total]
+    })
+  })
+
+  const ranked = Object.entries(totals)
+    .map(([name, values]) => ({
+      name,
+      probability: values.reduce((sum, value) => sum + value, 0) / values.length,
+      books: values.length,
+    }))
+    .filter((item) => item.books >= 2)
+    .sort((a, b) => b.probability - a.probability)
+
+  const top = ranked[0]
+  const next = ranked[1]
+  if (!top || !next || top.probability - next.probability < 0.03) return null
+
+  const best =
+    top.name === game.away_team
+      ? bestMoneyline(bookmakers, game.away_team)
+      : top.name === game.home_team
+        ? bestMoneyline(bookmakers, game.home_team)
+        : bestMoneyline(bookmakers, top.name)
+
+  return {
+    label: `${shortTeamName(top.name)} ML`,
+    detail: `${Math.round(top.probability * 100)}% no-vig market lean across ${top.books} books.`,
+    price: best?.price,
+    book: best?.book,
+  }
+}
+
+function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo) {
+  const rows: Array<{ over: number; under: number; point: number; overPrice: number; underPrice: number; book: string }> = []
+
+  bookmakers.forEach((bookmaker) => {
+    const market = bookmaker.markets?.find((item) => item.key === 'totals')
+    const over = market?.outcomes?.find((outcome) => outcome.name === 'Over')
+    const under = market?.outcomes?.find((outcome) => outcome.name === 'Under')
+    const overImp = impliedProbability(over?.price)
+    const underImp = impliedProbability(under?.price)
+    if (!over || !under || overImp === null || underImp === null || typeof over.point !== 'number') return
+
+    const total = overImp + underImp
+    if (!total) return
+    rows.push({
+      over: overImp / total,
+      under: underImp / total,
+      point: over.point,
+      overPrice: over.price,
+      underPrice: under.price,
+      book: displayBookName(bookmaker.key, bookmaker.title),
+    })
+  })
+
+  if (rows.length < 2) return null
+
+  const overProb = rows.reduce((sum, row) => sum + row.over, 0) / rows.length
+  const underProb = rows.reduce((sum, row) => sum + row.under, 0) / rows.length
+  const avgPoint = rows.reduce((sum, row) => sum + row.point, 0) / rows.length
+  let leanOver = overProb >= underProb
+  let edge = Math.abs(overProb - underProb)
+
+  if (weather?.windImpact === 'boost') {
+    leanOver = true
+    edge = Math.max(edge, 0.04)
+  } else if (weather?.windImpact === 'suppress') {
+    leanOver = false
+    edge = Math.max(edge, 0.04)
+  }
+
+  if (edge < 0.03) return null
+
+  const best = rows
+    .map((row) => ({ price: leanOver ? row.overPrice : row.underPrice, book: row.book }))
+    .sort((a, b) => b.price - a.price)[0]
+  const side = leanOver ? 'Over' : 'Under'
+
+  return {
+    label: `${side} ${Number(avgPoint.toFixed(1))}`,
+    detail: weather?.windImpact === 'boost' || weather?.windImpact === 'suppress'
+      ? `${weather.windStr} adds ${leanOver ? 'over' : 'under'} context to the market price.`
+      : `${Math.round(Math.max(overProb, underProb) * 100)}% no-vig market lean across ${rows.length} books.`,
+    price: best?.price,
+    book: best?.book,
+  }
+}
+
 function bestSpread(bookmakers: Bookmaker[], team: string) {
   let best: { price: number; point?: number; book: string } | null = null
 
@@ -83,6 +196,8 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
   const bttsNo = bestMarketOutcome(bookmakers, 'btts', 'No')
   const awaySpread = bestSpread(bookmakers, game.away_team)
   const homeSpread = bestSpread(bookmakers, game.home_team)
+  const moneylineLean = consensusMoneylineLean(bookmakers, game)
+  const totalLean = consensusTotalLean(bookmakers, weather)
 
   return (
     <Card>
@@ -105,6 +220,13 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
             />
             {weather.precipPct > 30 && <WeatherPill label={`${weather.precipPct}% rain`} tone="warn" />}
           </View>
+        </View>
+      )}
+
+      {(moneylineLean || totalLean) && (
+        <View style={styles.leanGrid}>
+          {moneylineLean && <LeanBox label="Data Lean" lean={moneylineLean} />}
+          {totalLean && <LeanBox label="Total Lean" lean={totalLean} />}
         </View>
       )}
 
@@ -148,6 +270,24 @@ export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherI
         </View>
       )}
     </Card>
+  )
+}
+
+function LeanBox({ label, lean }: { label: string; lean: { label: string; detail: string; price?: number; book?: string } }) {
+  return (
+    <View style={styles.leanBox}>
+      <View style={styles.leanCopy}>
+        <AppText variant="mono">{label}</AppText>
+        <AppText style={styles.leanMain}>{lean.label}</AppText>
+        <AppText variant="muted" style={styles.leanDetail}>{lean.detail}</AppText>
+      </View>
+      {typeof lean.price === 'number' && (
+        <View style={styles.leanPrice}>
+          <AppText style={styles.leanPriceText}>{fmtOdds(lean.price)}</AppText>
+          {lean.book ? <AppText variant="mono">{lean.book}</AppText> : null}
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -279,6 +419,44 @@ const styles = StyleSheet.create({
   },
   warnText: {
     color: colors.yellow,
+  },
+  leanGrid: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  leanBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.25)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.08)',
+    padding: spacing.md,
+  },
+  leanCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  leanMain: {
+    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  leanDetail: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  leanPrice: {
+    minWidth: 70,
+    alignItems: 'flex-end',
+  },
+  leanPriceText: {
+    color: colors.gold,
+    fontSize: 17,
+    fontWeight: '900',
   },
   marketBox: {
     borderTopWidth: 1,
