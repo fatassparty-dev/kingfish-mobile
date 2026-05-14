@@ -24,6 +24,8 @@ interface PlayerProfileResponse {
   }>
 }
 
+type RawGame = Record<string, any>
+
 interface PlayerProfileModalProps {
   playerName: string | null
   sport: 'mlb' | 'nba' | 'nfl' | 'nhl' | 'wnba'
@@ -52,6 +54,61 @@ function buildFormNote(sport: PlayerProfileModalProps['sport'], data?: PlayerPro
   if (Math.abs(diff) < 8) return `Steady ${primary.label} - L5 in line with season average.`
   if (diff >= 8) return `Trending up - L5 ${primary.label} ${diff.toFixed(0)}% above season average.`
   return `Cooling off - L5 ${primary.label} ${Math.abs(diff).toFixed(0)}% below season average.`
+}
+
+function formatGameDate(game: RawGame) {
+  const raw = game.date || game.game_date || game.gameDate || game.officialDate
+  if (!raw) return ''
+  const date = new Date(raw)
+  if (!Number.isFinite(date.getTime())) return String(raw)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function formatOpponent(game: RawGame) {
+  const opponent = String(game.opponent || game.opponentAbbrev || game.opponentName || '').toUpperCase()
+  if (!opponent) return ''
+  if (typeof game.is_home === 'boolean') return `${game.is_home ? 'vs' : '@'} ${opponent}`
+  return opponent
+}
+
+function recentGameStats(sport: PlayerProfileModalProps['sport'], game: RawGame) {
+  if (sport === 'mlb') {
+    if (typeof game.strikeouts === 'number' || typeof game.outs === 'number') {
+      return [
+        { label: 'K', value: game.strikeouts },
+        { label: 'HA', value: game.hits_allowed },
+        { label: 'ER', value: game.earned_runs },
+        { label: 'Outs', value: game.outs },
+      ]
+    }
+    return [
+      { label: 'H', value: game.hits },
+      { label: 'TB', value: game.tb },
+      { label: 'R', value: game.runs },
+      { label: 'RBI', value: game.rbi },
+      { label: 'HR', value: game.hr },
+    ]
+  }
+
+  if (sport === 'nhl') {
+    return [
+      { label: 'G', value: game.goals },
+      { label: 'A', value: game.assists },
+      { label: 'PTS', value: game.points },
+      { label: 'SOG', value: game.shots },
+    ]
+  }
+
+  return [
+    { label: 'PTS', value: game.pts ?? game.points },
+    { label: 'REB', value: game.reb ?? game.rebounds },
+    { label: 'AST', value: game.ast ?? game.assists },
+    { label: 'MIN', value: game.min ?? game.minutes },
+  ]
+}
+
+function recentGames(data?: PlayerProfileResponse) {
+  return Array.isArray(data?.stats?.raw_games) ? data?.stats?.raw_games.slice(0, 10) : []
 }
 
 export function PlayerProfileModal({ playerName, sport, onClose }: PlayerProfileModalProps) {
@@ -111,6 +168,33 @@ export function PlayerProfileModal({ playerName, sport, onClose }: PlayerProfile
                     <View key={stat.label} style={styles.statCard}>
                       <AppText variant="eyebrow" style={styles.statLabel}>{stat.label}</AppText>
                       <AppText style={styles.statValue}>{stat.value}</AppText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {recentGames(query.data).length ? (
+              <View>
+                <AppText variant="eyebrow" style={styles.sectionLabel}>// Last 10 Games</AppText>
+                <View style={styles.recentList}>
+                  {recentGames(query.data).map((game, index) => (
+                    <View key={`${formatGameDate(game)}-${formatOpponent(game)}-${index}`} style={styles.recentRow}>
+                      <View style={styles.recentGameMeta}>
+                        <AppText style={styles.recentDate}>{formatGameDate(game) || `Game ${index + 1}`}</AppText>
+                        <AppText variant="mono" style={styles.recentOpponent}>{formatOpponent(game)}</AppText>
+                      </View>
+                      <View style={styles.recentStats}>
+                        {recentGameStats(sport, game)
+                          .filter((stat) => stat.value !== undefined && stat.value !== null && stat.value !== '')
+                          .slice(0, 5)
+                          .map((stat) => (
+                            <View key={stat.label} style={styles.recentStat}>
+                              <AppText variant="mono" style={styles.recentStatLabel}>{stat.label}</AppText>
+                              <AppText style={styles.recentStatValue}>{String(stat.value)}</AppText>
+                            </View>
+                          ))}
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -250,6 +334,53 @@ const styles = StyleSheet.create({
   },
   propsList: {
     gap: spacing.sm,
+  },
+  recentList: {
+    gap: spacing.sm,
+  },
+  recentRow: {
+    backgroundColor: colors.bgCard,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  recentGameMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  recentDate: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+  },
+  recentOpponent: {
+    color: colors.textSecondary,
+  },
+  recentStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  recentStat: {
+    minWidth: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  recentStatLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  recentStatValue: {
+    marginTop: 2,
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '900',
   },
   propRow: {
     flexDirection: 'row',

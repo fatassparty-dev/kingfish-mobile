@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   cell: {
-    width: 66,
+    width: 78,
     color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '800',
