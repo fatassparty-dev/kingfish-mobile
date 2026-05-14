@@ -43,7 +43,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
   app_notice: null,
   flags: {
     fantasy_hub: true,
-    nfl_props: false,
+    nfl_props: true,
     mobile_paywall: true,
     mlb_tab_league: true,
     mlb_tab_matchups: true,
@@ -64,7 +64,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     nfl_dashboard_tab_league: true,
     nfl_dashboard_tab_matchups: true,
     nfl_dashboard_tab_lines: true,
-    nfl_dashboard_tab_props: false,
+    nfl_dashboard_tab_props: true,
     mlb_access_lines_free: false,
     mlb_access_props_free: false,
     nba_access_lines_free: false,

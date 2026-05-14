@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -441,7 +441,7 @@ export default function DashboardScreen() {
     const prefix = sportApiKey(sport)
     if (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
     if (sport === 'NFL') {
-      if (tab === 'props') return mobileFlag('nfl_dashboard_tab_props', false) || mobileFlag('nfl_props', false)
+      if (tab === 'props') return true
       return mobileFlag(`nfl_dashboard_tab_${tab}`, true)
     }
     return true
@@ -712,18 +712,6 @@ export default function DashboardScreen() {
             </AppText>
           </View>
         )}
-      {sport === 'NFL' && (
-        <View style={styles.nflActions}>
-            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
-              Open Command Center
-            </Button>
-            {mobileConfig.flags.fantasy_hub ? (
-              <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.fantasy_hub)}>
-                Open Fantasy Hub
-              </Button>
-            ) : null}
-        </View>
-      )}
     </Card>
 
       {isSelectedSportActive && view === 'league' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (
@@ -1613,10 +1601,6 @@ const styles = StyleSheet.create({
   },
   roadmapText: {
     marginTop: 6,
-  },
-  nflActions: {
-    gap: spacing.md,
-    marginTop: spacing.lg,
   },
   liveSection: {
     gap: spacing.md,
