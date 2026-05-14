@@ -43,7 +43,6 @@ function HomeIcon({ color }: { color: string }) {
     <View style={styles.iconBox}>
       <View style={[styles.homeRoof, { borderColor: color }]} />
       <View style={[styles.homeBase, { borderColor: color }]} />
-      <View style={[styles.homeDoor, { backgroundColor: color }]} />
     </View>
   )
 }
@@ -130,14 +129,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderTopWidth: 0,
     borderRadius: 4,
-  },
-  homeDoor: {
-    position: 'absolute',
-    left: 11,
-    top: 16,
-    width: 2,
-    height: 5,
-    borderRadius: 1,
   },
   boardFrame: {
     width: 22,
