@@ -203,13 +203,13 @@ function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string)
     pitcher_walks: 'walks',
     pitcher_outs: 'outs',
   }
-  const nba: Record<string, string[]> = {
-    player_points: ['pts', 'points'],
-    player_rebounds: ['reb', 'rebounds'],
-    player_assists: ['ast', 'assists'],
-    player_threes: ['fg3m', 'threes'],
-    player_blocks: ['blk', 'blocks'],
-    player_steals: ['stl', 'steals'],
+  const nba: Record<string, string | string[]> = {
+    player_points: 'pts',
+    player_rebounds: 'reb',
+    player_assists: 'ast',
+    player_threes: 'fg3m',
+    player_blocks: 'blk',
+    player_steals: 'stl',
     player_points_rebounds_assists: ['pts', 'reb', 'ast'],
     player_points_rebounds: ['pts', 'reb'],
     player_points_assists: ['pts', 'ast'],
