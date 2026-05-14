@@ -55,6 +55,7 @@ type DashboardView = 'league' | 'matchups' | 'lines' | 'props'
 type TeamFormPayload = {
   teams: Record<string, any>
   updatedAt?: string
+  seasonPhase?: 'regular' | 'playoff'
 }
 
 type MLBSchedulePayload = {
@@ -907,7 +908,9 @@ export default function DashboardScreen() {
                 ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
                   ? 'Postseason view: regular-season records stay as seeding context while active playoff games carry the board'
                   : 'Current MLB division standings with record, games back, winning percentage, and recent form'
-                : `${sport} team record and recent-form context`}
+                : (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff'
+                  ? `${sport} Playoff View: active playoff games carry the board with record and recent form as context`
+                  : `${sport} team record and recent-form context`}
             </AppText>
           </View>
 
