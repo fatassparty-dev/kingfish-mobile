@@ -997,7 +997,7 @@ export default function DashboardScreen() {
                     style={[styles.scopePill, leagueScope === scope && styles.scopePillActive]}
                   >
                     <AppText style={[styles.scopePillText, leagueScope === scope && styles.scopePillTextActive]}>
-                      {scope === 'playoff' ? (mlbScheduleQuery.data?.seasonPhase === 'postseason' ? 'Playoff' : 'Race') : 'Season'}
+                      {scope === 'playoff' ? 'Playoff' : 'Season'}
                     </AppText>
                   </Pressable>
                 ))}
