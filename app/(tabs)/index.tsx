@@ -1049,6 +1049,7 @@ export default function DashboardScreen() {
                 <AppText style={styles.leagueHeaderText}>2025 Wins</AppText>
                 <AppText style={styles.leagueHeaderText}>Div Rank</AppText>
                 <AppText style={styles.leagueHeaderText}>L5</AppText>
+                <AppText style={styles.leagueHeaderText}>Info</AppText>
               </View>
               {division.entries.map((entry) => {
                 const context = nflFuturesQuery.data?.divisionContext[entry.team]
@@ -1063,16 +1064,17 @@ export default function DashboardScreen() {
                       <AppText style={styles.leagueValue}>{context ? `${context.wins}W` : '-'}</AppText>
                       <AppText style={styles.leagueValue}>{context ? `#${context.rank}` : '-'}</AppText>
                       <AppText style={styles.leagueValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
+                      <AppText style={styles.leagueInfo}>{isExpanded ? 'Hide' : 'View'}</AppText>
                     </Pressable>
                     {isExpanded && (
                       <View style={styles.leagueDetail}>
-                        <AppText variant="eyebrow">Team Snapshot</AppText>
+                        <AppText variant="eyebrow">{entry.team} Snapshot</AppText>
                         <AppText variant="muted" style={styles.leagueDetailText}>
-                          Showing 2025 baseline data until the 2026 schedule and live standings are wired in.
+                          Showing prior-season division context until live 2026 records, standings, and recent form are available.
                         </AppText>
                         <View style={styles.leagueDetailGrid}>
                           <View style={styles.leagueDetailItem}>
-                            <AppText variant="mono">2025 Record Context</AppText>
+                            <AppText variant="mono">2025 Wins</AppText>
                             <AppText style={styles.leagueDetailValue}>{context ? `${context.wins} wins` : '-'}</AppText>
                           </View>
                           <View style={styles.leagueDetailItem}>
@@ -1082,6 +1084,10 @@ export default function DashboardScreen() {
                           <View style={styles.leagueDetailItem}>
                             <AppText variant="mono">Last 5</AppText>
                             <AppText style={styles.leagueDetailValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
+                          </View>
+                          <View style={styles.leagueDetailItem}>
+                            <AppText variant="mono">2026 Live Record</AppText>
+                            <AppText style={styles.leagueDetailValue}>Pending schedule/results</AppText>
                           </View>
                         </View>
                       </View>
@@ -1932,6 +1938,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '900',
+  },
+  leagueInfo: {
+    flex: 1,
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   leagueDetail: {
     borderTopWidth: 1,
