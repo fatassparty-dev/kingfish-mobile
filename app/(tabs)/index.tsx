@@ -691,7 +691,7 @@ function soccerMatchupLean(awayInfo: SoccerTeamInfo | undefined, homeInfo: Socce
     type: isDrawWatch ? 'Draw Lean' : Math.abs(diff) >= 10 ? 'Strong Lean' : 'Lean',
     side: isDrawWatch ? 'Draw' : (stronger.shortName || stronger.team),
     detail: isDrawWatch
-      ? `${ppgGap.toFixed(2)} points/game gap with draw form on both sides.`
+      ? `${ppgGap.toFixed(2)} points/game gap with a draw profile on both sides.`
       : `${ppgEdge} points/game edge and ${gdEdge >= 0 ? '+' : ''}${gdEdge} goal-difference edge.`,
     best,
   }
@@ -1424,7 +1424,7 @@ export default function DashboardScreen() {
                     { label: 'Record', value: soccerRecordLine(soccerAway) },
                     { label: 'Table', value: soccerAway?.position ? `#${soccerAway.position} · ${soccerAway.points || 0} pts` : '-' },
                     { label: 'Goals', value: soccerStatLine(soccerAway) },
-                    { label: 'Form', value: soccerAway?.form || '-' },
+                    { label: 'Draw Rate', value: soccerAway?.played ? `${Math.round(drawRate(soccerAway) * 100)}%` : '-' },
                   ]
                 : [
                     { label: 'Record', value: teamRecordLabel(awayRecord, sport) },
@@ -1443,7 +1443,7 @@ export default function DashboardScreen() {
                     { label: 'Record', value: soccerRecordLine(soccerHome) },
                     { label: 'Table', value: soccerHome?.position ? `#${soccerHome.position} · ${soccerHome.points || 0} pts` : '-' },
                     { label: 'Goals', value: soccerStatLine(soccerHome) },
-                    { label: 'Form', value: soccerHome?.form || '-' },
+                    { label: 'Draw Rate', value: soccerHome?.played ? `${Math.round(drawRate(soccerHome) * 100)}%` : '-' },
                   ]
                 : [
                     { label: 'Record', value: teamRecordLabel(homeRecord, sport) },
@@ -1874,7 +1874,7 @@ export default function DashboardScreen() {
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
                   weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
-                  showNeutralTotalWatch={sport === 'KBO'}
+                  showNeutralTotalWatch={sport === 'KBO' || sport === 'SOCCER'}
                 />
               ))}
             </View>
@@ -2174,7 +2174,7 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'league' && sport === 'SOCCER' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">{selectedSoccerLeague.label} team table, goal form, and matchup context</AppText>
+            <AppText variant="mono">{selectedSoccerLeague.label} team table, goal context, and matchup context</AppText>
           </View>
 
           {soccerTeamQuery.isLoading && (
@@ -2229,8 +2229,8 @@ export default function DashboardScreen() {
                   <AppText style={styles.teamInfoValue}>{team.goalDifference != null ? `${Number(team.goalDifference) >= 0 ? '+' : ''}${team.goalDifference}` : '-'}</AppText>
                 </View>
                 <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Form</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.form || '-'}</AppText>
+                  <AppText variant="mono">PPG</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.played ? pointsPerGame(team).toFixed(2) : '-'}</AppText>
                 </View>
               </View>
             </Card>
