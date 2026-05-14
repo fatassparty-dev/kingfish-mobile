@@ -295,15 +295,6 @@ const SPORTS: Array<{
     inactiveDescription: 'No MLB markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
-    key: 'NBA',
-    flag: 'dashboard_nba',
-    visibilityFlag: 'dashboard_tab_nba',
-    status: 'Live',
-    description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
-    inactiveTitle: 'NBA Lines Unavailable',
-    inactiveDescription: 'No NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
-  },
-  {
     key: 'NFL',
     flag: 'nfl_props',
     visibilityFlag: 'dashboard_tab_nfl',
@@ -311,6 +302,15 @@ const SPORTS: Array<{
     description: 'NFL is year-round in KingFish. Game lines appear when books post regular-season markets, with player props and deeper research built around the NFL Command Center.',
     inactiveTitle: 'NFL Not In Season',
     inactiveDescription: 'NFL lives year-round in KingFish. Use the Command Center for fantasy tools, draft research, injuries, futures, and offseason notes while regular-season markets are off the board.',
+  },
+  {
+    key: 'NBA',
+    flag: 'dashboard_nba',
+    visibilityFlag: 'dashboard_tab_nba',
+    status: 'Live',
+    description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
+    inactiveTitle: 'NBA Lines Unavailable',
+    inactiveDescription: 'No NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'NHL',
@@ -728,6 +728,8 @@ export default function DashboardScreen() {
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
   const [collegeConferenceOpen, setCollegeConferenceOpen] = useState(false)
+  const [ncaabScope, setNcaabScope] = useState<'top25' | 'all'>('top25')
+  const [ncaabScopeOpen, setNcaabScopeOpen] = useState(false)
   const [ncaabConference, setNcaabConference] = useState('All')
   const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
@@ -932,13 +934,23 @@ export default function DashboardScreen() {
   const ncaafMatchupGroups = groupGamesByDate(filteredNcaafMatchups)
   const ncaabTeams = ncaabBaselineQuery.data?.teams || []
   const ncaabConferences = Array.from(new Set([...NCAAB_MAJOR_CONFERENCES, ...ncaabTeams.map((team) => team.conference).filter(Boolean)]))
-  const filteredNcaabTeams = ncaabTeams.filter((team) => ncaabConference === 'All' || team.conference === ncaabConference)
+  const filteredNcaabTeams = ncaabTeams.filter((team) => {
+    const scopeMatch = ncaabScope === 'all' || team.rank <= 25
+    const conferenceMatch = ncaabConference === 'All' || team.conference === ncaabConference
+    return scopeMatch && conferenceMatch
+  })
   const ncaabTeamForName = (teamName: string) => ncaabTeams.find((team) => {
     const posted = teamName.toLowerCase()
     const known = team.team.toLowerCase()
     return posted === known || posted.includes(known) || known.includes(posted)
   })
   const filteredNcaabMatchups = (ncaabMatchupsQuery.data || []).filter((game) => {
+    if (ncaabScope === 'top25') {
+      const awayRank = ncaabTeamForName(game.away_team)?.rank
+      const homeRank = ncaabTeamForName(game.home_team)?.rank
+      if (!awayRank && !homeRank) return false
+      if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
+    }
     if (ncaabConference === 'All') return true
     return ncaabTeamForName(game.away_team)?.conference === ncaabConference || ncaabTeamForName(game.home_team)?.conference === ncaabConference
   })
@@ -1054,6 +1066,31 @@ export default function DashboardScreen() {
 
       {sport === 'NCAAB' && (
         <View style={styles.collegeFilterWrap}>
+          <Pressable
+            onPress={() => setNcaabScopeOpen((open) => !open)}
+            style={styles.collegeSelect}
+          >
+            <AppText variant="mono">Show</AppText>
+            <AppText style={styles.collegeSelectValue}>{ncaabScope === 'top25' ? 'Top 25' : 'All Teams'}</AppText>
+          </Pressable>
+          {ncaabScopeOpen && (
+            <View style={styles.collegeSelectMenu}>
+              {(['top25', 'all'] as const).map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setNcaabScope(item)
+                    setNcaabScopeOpen(false)
+                  }}
+                  style={[styles.collegeSelectOption, ncaabScope === item && styles.collegeSelectOptionActive]}
+                >
+                  <AppText style={[styles.collegeSelectOptionText, ncaabScope === item && styles.collegeSelectOptionTextActive]}>
+                    {item === 'top25' ? 'Top 25' : 'All Teams'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <Pressable
             onPress={() => setNcaabConferenceOpen((open) => !open)}
             style={styles.collegeSelect}
@@ -1874,7 +1911,7 @@ export default function DashboardScreen() {
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
                   weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
-                  showNeutralTotalWatch
+                  showNeutralTotalWatch={sport !== 'NFL'}
                 />
               ))}
             </View>
