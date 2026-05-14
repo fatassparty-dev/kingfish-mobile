@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -600,11 +600,68 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <AppText variant="eyebrow">// Live Board</AppText>
-      <AppText variant="title" style={styles.title}>Dashboard</AppText>
+      <View style={styles.homeHero}>
+        <View style={styles.homeTop}>
+          <Image source={require('../../assets/images/crown-logo.png')} style={styles.homeLogo} />
+          <View style={styles.homeTitleWrap}>
+            <AppText variant="eyebrow">// KingFish Bets</AppText>
+            <AppText variant="title" style={styles.homeTitle}>Welcome to the Bait Shop</AppText>
+          </View>
+        </View>
+        <AppText style={styles.homeCopy}>
+          Live odds, props, sportsbook prices, weather, and KingFish context in one sharp betting research workspace.
+        </AppText>
+        <View style={styles.homeSignalRow}>
+          <View style={styles.homeSignal}>
+            <AppText style={styles.homeSignalValue}>Live</AppText>
+            <AppText variant="mono">Odds</AppText>
+          </View>
+          <View style={styles.homeSignal}>
+            <AppText style={styles.homeSignalValue}>Props</AppText>
+            <AppText variant="mono">Boards</AppText>
+          </View>
+          <View style={styles.homeSignal}>
+            <AppText style={styles.homeSignalValue}>AI</AppText>
+            <AppText variant="mono">Analyst</AppText>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.homeActionGrid}>
+        <HomeAction
+          label="Live Boards"
+          body="Moneylines, spreads, totals, and best available prices."
+          onPress={() => setView('lines')}
+        />
+        <HomeAction
+          label="Player Props"
+          body="Props with recent stats, hit rates, prices, and Edge Scores."
+          onPress={() => setView('props')}
+        />
+        <HomeAction
+          label="Cheat Sheets"
+          body="Saved boards and calculators for faster pregame research."
+          onPress={() => router.push('/cheat-sheets')}
+        />
+        <HomeAction
+          label="Ask KingFish"
+          body="Pressure-test props, parlays, totals, and matchup reads."
+          onPress={() => router.push('/ask-kingfish')}
+        />
+        <HomeAction
+          label="Game Factors"
+          body="Venue, weather, and market environment reads for MLB and NFL."
+          onPress={() => router.push('/cheat-sheets')}
+        />
+      </View>
+
+      <View style={styles.boardIntro}>
+        <AppText variant="eyebrow">// Live Board</AppText>
+        <AppText variant="title" style={styles.title}>Dashboard</AppText>
         <AppText variant="muted" style={styles.copy}>
         Live odds, props, weather, and betting intelligence across the sports KingFish supports.
-      </AppText>
+        </AppText>
+      </View>
 
       <View style={styles.row}>
         {SPORTS.map((item) => (
@@ -1457,7 +1514,97 @@ export default function DashboardScreen() {
   )
 }
 
+function HomeAction({ label, body, onPress }: { label: string; body: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.homeAction}>
+      <AppText style={styles.homeActionLabel}>{label}</AppText>
+      <AppText variant="muted" style={styles.homeActionBody}>{body}</AppText>
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
+  homeHero: {
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.32)',
+    borderRadius: 16,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  homeTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  homeLogo: {
+    width: 58,
+    height: 58,
+    resizeMode: 'contain',
+  },
+  homeTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  homeTitle: {
+    marginTop: 6,
+    fontSize: 34,
+    lineHeight: 36,
+  },
+  homeCopy: {
+    color: colors.textSecondary,
+    fontSize: 17,
+    lineHeight: 25,
+    marginTop: spacing.lg,
+  },
+  homeSignalRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  homeSignal: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCard,
+    padding: spacing.md,
+  },
+  homeSignalValue: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  homeActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  homeAction: {
+    width: '48%',
+    minHeight: 132,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCard,
+    padding: spacing.md,
+  },
+  homeActionLabel: {
+    color: colors.gold,
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  homeActionBody: {
+    marginTop: spacing.sm,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  boardIntro: {
+    marginBottom: spacing.lg,
+  },
   title: {
     marginTop: 8,
   },
