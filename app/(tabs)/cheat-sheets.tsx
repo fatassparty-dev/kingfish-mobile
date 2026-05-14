@@ -127,6 +127,8 @@ const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'factors', label: 'Game Factors' },
 ]
 
+const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
+
 const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
   { key: 'unit', label: 'Unit Plan', desc: 'Turn bankroll and risk percent into unit sizes and daily guardrails.' },
   { key: 'ev', label: 'EV', desc: 'Compare your true probability against the book price.' },
@@ -612,14 +614,19 @@ export default function CheatSheetsScreen() {
     const seen = new Set<number>()
     const batters: LineupPlayer[] = []
     const pitchers: LineupPlayer[] = []
-    sheetGames.forEach((game) => {
-      bestOutcomes(game, activeSheet.market || '').forEach((outcome) => {
-        const lineup = findLineupPlayer(lineupMap, outcome.player)
-        if (!lineup || seen.has(lineup.id)) return
-        seen.add(lineup.id)
-        if (activeSheet.market?.startsWith('pitcher_')) pitchers.push(lineup)
-        else batters.push(lineup)
-      })
+    const candidates = sheetGames
+      .flatMap((game) => bestOutcomes(game, activeSheet.market || ''))
+      .sort((a, b) => (b.odds || -10000) - (a.odds || -10000))
+
+    candidates.forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      if (!lineup || seen.has(lineup.id)) return
+      seen.add(lineup.id)
+      if (activeSheet.market?.startsWith('pitcher_')) {
+        if (pitchers.length < MAX_CHEAT_SHEET_STAT_PLAYERS) pitchers.push(lineup)
+      } else if (batters.length < MAX_CHEAT_SHEET_STAT_PLAYERS) {
+        batters.push(lineup)
+      }
     })
     return { batters, pitchers }
   }, [activeSheet.market, lineupsQuery.data?.players, sheetGames])
