@@ -73,10 +73,12 @@ function ToolsIcon({ color }: { color: string }) {
 function AiIcon({ color }: { color: string }) {
   return (
     <View style={styles.iconBox}>
-      <View style={[styles.sparkLine, styles.sparkVertical, { backgroundColor: color }]} />
-      <View style={[styles.sparkLine, styles.sparkHorizontal, { backgroundColor: color }]} />
-      <View style={[styles.sparkSmallLine, styles.sparkSmallVertical, { backgroundColor: color }]} />
-      <View style={[styles.sparkSmallLine, styles.sparkSmallHorizontal, { backgroundColor: color }]} />
+      <View style={[styles.lureBody, { borderColor: color }]} />
+      <View style={[styles.lureEye, { backgroundColor: color }]} />
+      <View style={[styles.lureHookStem, { backgroundColor: color }]} />
+      <View style={[styles.lureHookCurve, { borderColor: color }]} />
+      <View style={[styles.lureSparkLine, styles.lureSparkVertical, { backgroundColor: color }]} />
+      <View style={[styles.lureSparkLine, styles.lureSparkHorizontal, { backgroundColor: color }]} />
     </View>
   )
 }
@@ -194,28 +196,53 @@ const styles = StyleSheet.create({
     left: 10,
     top: 14,
   },
-  sparkLine: {
+  lureBody: {
     position: 'absolute',
-    left: 11,
-    top: 3,
-    width: 2,
-    height: 18,
+    left: 5,
+    top: 4,
+    width: 10,
+    height: 14,
+    borderWidth: 2,
+    borderRadius: 7,
+    transform: [{ rotate: '-18deg' }],
+  },
+  lureEye: {
+    position: 'absolute',
+    left: 9,
+    top: 8,
+    width: 3,
+    height: 3,
     borderRadius: 2,
   },
-  sparkVertical: {},
-  sparkHorizontal: {
-    transform: [{ rotate: '90deg' }],
+  lureHookStem: {
+    position: 'absolute',
+    left: 11,
+    top: 16,
+    width: 2,
+    height: 4,
+    borderRadius: 2,
   },
-  sparkSmallLine: {
+  lureHookCurve: {
+    position: 'absolute',
+    left: 10,
+    top: 18,
+    width: 7,
+    height: 5,
+    borderWidth: 2,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
+    borderBottomRightRadius: 7,
+  },
+  lureSparkLine: {
     position: 'absolute',
     right: 3,
-    bottom: 3,
+    top: 4,
     width: 2,
     height: 8,
     borderRadius: 2,
   },
-  sparkSmallVertical: {},
-  sparkSmallHorizontal: {
+  lureSparkVertical: {},
+  lureSparkHorizontal: {
     transform: [{ rotate: '90deg' }],
   },
   accountHead: {
