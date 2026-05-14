@@ -11,7 +11,7 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
-import { fmtTime } from '@/lib/format'
+import { fmtOdds, fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
@@ -132,6 +132,8 @@ type DateGroup<T extends { commence_time: string }> = {
   date: string
   games: T[]
 }
+
+type MarketLine = { price: number; point?: number; book: string }
 
 const SOCCER_LEAGUES = [
   { key: 'soccer_epl', label: 'Premier League' },
@@ -463,6 +465,40 @@ function findTeamForm(teams: Record<string, any> = {}, teamName: string) {
   })
 }
 
+function bestOutcome(game: Game, marketKey: string, outcomeName: string): MarketLine | null {
+  let best: MarketLine | null = null
+
+  game.bookmakers?.forEach((bookmaker) => {
+    const market = bookmaker.markets?.find((item) => item.key === marketKey)
+    const outcome = market?.outcomes?.find((item) => item.name === outcomeName)
+    if (!outcome || typeof outcome.price !== 'number') return
+
+    if (!best || outcome.price > best.price) {
+      best = {
+        price: outcome.price,
+        point: outcome.point,
+        book: BOOK_DISPLAY_NAMES[bookmaker.key] || bookmaker.title || bookmaker.key,
+      }
+    }
+  })
+
+  return best
+}
+
+function bestTotalPoint(game: Game) {
+  const total = game.bookmakers
+    ?.flatMap((bookmaker) => bookmaker.markets || [])
+    .find((market) => market.key === 'totals')
+    ?.outcomes?.find((outcome) => outcome.name === 'Over' && typeof outcome.point === 'number')
+  return total?.point
+}
+
+function fmtMarketPrice(line: MarketLine | null, includePoint = false) {
+  if (!line) return '-'
+  const point = includePoint && typeof line.point === 'number' ? `${line.point > 0 ? '+' : ''}${line.point} ` : ''
+  return `${point}${fmtOdds(line.price)}`
+}
+
 function teamRecordLabel(team: any, sport: Sport) {
   if (!team) return '-'
   if (sport === 'NHL') return `${team.wins || 0}-${team.losses || 0}-${team.otLosses || 0}`
@@ -754,8 +790,10 @@ export default function DashboardScreen() {
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
-  const playoffLeagueTeams = (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && leagueScope === 'playoff'
-    ? visibleLineGames.flatMap((game) => [
+  const isPlayoffLeagueScope = (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && leagueScope === 'playoff'
+  const playoffLeagueGames = isPlayoffLeagueScope ? visibleLineGames : []
+  const playoffLeagueTeams = isPlayoffLeagueScope
+    ? playoffLeagueGames.flatMap((game) => [
         findTeamForm(teamFormQuery.data?.teams, game.away_team),
         findTeamForm(teamFormQuery.data?.teams, game.home_team),
       ]).filter(Boolean)
@@ -918,9 +956,11 @@ export default function DashboardScreen() {
                 ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
                   ? 'Postseason view: regular-season records stay as seeding context while active playoff games carry the board'
                   : 'Current MLB division standings with record, games back, winning percentage, and recent form'
-                : (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff'
-                  ? `${sport} Playoff View: active playoff games carry the board with record and recent form as context`
-                  : `${sport} team record and recent-form context`}
+                : isPlayoffLeagueScope
+                  ? `${sport} Playoff View: posted playoff games only, with started games removed`
+                  : (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff'
+                    ? `${sport} Season View: broader team-form context separate from the posted playoff slate`
+                    : `${sport} team record and recent-form context`}
             </AppText>
           </View>
 
@@ -1013,31 +1053,86 @@ export default function DashboardScreen() {
                   ))}
                 </View>
               )}
-              {visibleLeagueTeams.map((team: any) => (
-                <Card key={`${team.teamAbbr}-${team.teamName}`}>
-                  <View style={styles.teamInfoHeader}>
-                    <View style={styles.teamInfoRank}>
-                      <AppText style={styles.teamInfoRankText}>{team.teamAbbr || '-'}</AppText>
-                    </View>
-                    <View style={styles.teamInfoBody}>
-                      <AppText style={styles.teamInfoName}>{team.teamName || team.commonName}</AppText>
-                      <AppText variant="muted" style={styles.teamInfoMeta}>
-                        {teamRecordLabel(team, sport)}{sport === 'NHL' ? ` · ${team.points || 0} pts` : ''}
-                      </AppText>
-                    </View>
-                  </View>
-                  <View style={styles.teamInfoStats}>
-                    <View style={styles.teamInfoStat}>
-                      <AppText variant="mono">Recent</AppText>
-                      <AppText style={styles.teamInfoValue}>{formLabel(team, sport)}</AppText>
-                    </View>
-                    <View style={styles.teamInfoStat}>
-                      <AppText variant="mono">Total</AppText>
-                      <AppText style={styles.teamInfoValue}>{team.l10Total ? Number(team.l10Total).toFixed(1) : team.goalsForPerGame ? `${Number(team.goalsForPerGame).toFixed(1)} GF` : '-'}</AppText>
-                    </View>
-                  </View>
+              {isPlayoffLeagueScope && playoffLeagueGames.length === 0 && (
+                <Card>
+                  <AppText variant="eyebrow">// Playoff Games</AppText>
+                  <AppText variant="muted" style={styles.stateText}>
+                    No upcoming playoff games are posted right now. Season still shows broader team context.
+                  </AppText>
                 </Card>
-              ))}
+              )}
+              {isPlayoffLeagueScope ? (
+                playoffLeagueGames.map((game) => {
+                  const awayForm = findTeamForm(teamFormQuery.data?.teams, game.away_team)
+                  const homeForm = findTeamForm(teamFormQuery.data?.teams, game.home_team)
+                  const awayMl = bestOutcome(game, 'h2h', game.away_team)
+                  const homeMl = bestOutcome(game, 'h2h', game.home_team)
+                  const awaySpread = bestOutcome(game, 'spreads', game.away_team)
+                  const homeSpread = bestOutcome(game, 'spreads', game.home_team)
+                  const totalPoint = bestTotalPoint(game)
+                  return (
+                    <Card key={game.id || `${game.away_team}-${game.home_team}`}>
+                      <View style={styles.gameHeader}>
+                        <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
+                        <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                      </View>
+                      <View style={styles.matchupTeamGrid}>
+                        <View style={styles.teamInfoStat}>
+                          <AppText variant="mono">{shortTeamName(game.away_team)}</AppText>
+                          <AppText style={styles.teamInfoValue}>{teamRecordLabel(awayForm, sport)}</AppText>
+                          <AppText variant="muted" style={styles.teamInfoMeta}>{formLabel(awayForm, sport)}</AppText>
+                        </View>
+                        <View style={styles.teamInfoStat}>
+                          <AppText variant="mono">{shortTeamName(game.home_team)}</AppText>
+                          <AppText style={styles.teamInfoValue}>{teamRecordLabel(homeForm, sport)}</AppText>
+                          <AppText variant="muted" style={styles.teamInfoMeta}>{formLabel(homeForm, sport)}</AppText>
+                        </View>
+                      </View>
+                      <View style={styles.teamInfoStats}>
+                        <View style={styles.teamInfoStat}>
+                          <AppText variant="mono">Moneyline</AppText>
+                          <AppText style={styles.teamInfoValue}>{fmtMarketPrice(awayMl)} / {fmtMarketPrice(homeMl)}</AppText>
+                          <AppText variant="muted" style={styles.teamInfoMeta}>{awayMl?.book || homeMl?.book || '-'}</AppText>
+                        </View>
+                        <View style={styles.teamInfoStat}>
+                          <AppText variant="mono">Spread</AppText>
+                          <AppText style={styles.teamInfoValue}>{fmtMarketPrice(awaySpread, true)} / {fmtMarketPrice(homeSpread, true)}</AppText>
+                        </View>
+                        <View style={styles.teamInfoStat}>
+                          <AppText variant="mono">Total</AppText>
+                          <AppText style={styles.teamInfoValue}>{typeof totalPoint === 'number' ? totalPoint : '-'}</AppText>
+                        </View>
+                      </View>
+                    </Card>
+                  )
+                })
+              ) : (
+                visibleLeagueTeams.map((team: any) => (
+                  <Card key={`${team.teamAbbr}-${team.teamName}`}>
+                    <View style={styles.teamInfoHeader}>
+                      <View style={styles.teamInfoRank}>
+                        <AppText style={styles.teamInfoRankText}>{team.teamAbbr || '-'}</AppText>
+                      </View>
+                      <View style={styles.teamInfoBody}>
+                        <AppText style={styles.teamInfoName}>{team.teamName || team.commonName}</AppText>
+                        <AppText variant="muted" style={styles.teamInfoMeta}>
+                          {teamRecordLabel(team, sport)}{sport === 'NHL' ? ` · ${team.points || 0} pts` : ''}
+                        </AppText>
+                      </View>
+                    </View>
+                    <View style={styles.teamInfoStats}>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">Recent</AppText>
+                        <AppText style={styles.teamInfoValue}>{formLabel(team, sport)}</AppText>
+                      </View>
+                      <View style={styles.teamInfoStat}>
+                        <AppText variant="mono">Total</AppText>
+                        <AppText style={styles.teamInfoValue}>{team.l10Total ? Number(team.l10Total).toFixed(1) : team.goalsForPerGame ? `${Number(team.goalsForPerGame).toFixed(1)} GF` : '-'}</AppText>
+                      </View>
+                    </View>
+                  </Card>
+                ))
+              )}
             </>
           )}
         </View>
