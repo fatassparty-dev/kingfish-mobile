@@ -155,6 +155,21 @@ type DateGroup<T extends { commence_time: string }> = {
   games: T[]
 }
 
+const NCAAF_MAJOR_CONFERENCES = [
+  'All',
+  'ACC',
+  'Big 12',
+  'Big Ten',
+  'SEC',
+  'American',
+  'Conference USA',
+  'MAC',
+  'Mountain West',
+  'Pac-12',
+  'Sun Belt',
+  'Independent',
+]
+
 const SOCCER_LEAGUES = [
   { key: 'soccer_epl', label: 'Premier League' },
   { key: 'soccer_spain_la_liga', label: 'La Liga' },
@@ -694,6 +709,7 @@ export default function DashboardScreen() {
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
+  const [collegeConferenceOpen, setCollegeConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
   const visibleSports = SPORTS.filter((item) => mobileFlag(item.visibilityFlag, true))
@@ -715,7 +731,7 @@ export default function DashboardScreen() {
     : sport === 'NCAAF'
         ? ['league', 'matchups', 'lines']
     : sport === 'NCAAB'
-        ? ['league', 'lines']
+        ? ['league', 'matchups', 'lines']
       : sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
         ? ['league', 'matchups', 'lines', 'props']
         : sport === 'SOCCER'
@@ -786,7 +802,7 @@ export default function DashboardScreen() {
   const ncaafOutlookQuery = useQuery({
     queryKey: ['ncaaf-mobile-league-view'],
     queryFn: () => kingfishFetch<NCAAFOutlookData>('/data/ncaaf/team-outlook-2026.json'),
-    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'league',
+    enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'matchups'),
     staleTime: 24 * 60 * 60 * 1000,
   })
   const ncaabBaselineQuery = useQuery({
@@ -799,6 +815,12 @@ export default function DashboardScreen() {
     queryKey: ['ncaaf-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaf-matchups'),
     enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'matchups',
+    staleTime: 10 * 60 * 1000,
+  })
+  const ncaabMatchupsQuery = useQuery({
+    queryKey: ['ncaab-mobile-matchups'],
+    queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaab-matchups'),
+    enabled: isSelectedSportActive && sport === 'NCAAB' && view === 'matchups',
     staleTime: 10 * 60 * 1000,
   })
   const nflMatchupsQuery = useQuery({
@@ -862,7 +884,7 @@ export default function DashboardScreen() {
   const visibleNflMatchups = activeNflMatchupWeek ? activeNflMatchupWeek.games : nflMatchupGames
   const visibleNflMatchupGroups = groupGamesByDate(visibleNflMatchups)
   const ncaafTeams = ncaafOutlookQuery.data?.teams || []
-  const ncaafConferences = ['All', ...Array.from(new Set(ncaafTeams.map((team) => team.conference))).sort()]
+  const ncaafConferences = Array.from(new Set([...NCAAF_MAJOR_CONFERENCES, ...ncaafTeams.map((team) => team.conference).filter(Boolean)]))
   const filteredNcaafTeams = ncaafTeams.filter((team) => {
     const scopeMatch = collegeScope === 'all' || team.rank <= 25
     const conferenceMatch = collegeConference === 'All' || team.conference === collegeConference
@@ -955,29 +977,45 @@ export default function DashboardScreen() {
       )}
 
       {sport === 'NCAAF' && (
-        <View style={styles.soccerLeagueRow}>
-          {(['top25', 'all'] as const).map((item) => (
-            <Pressable
-              key={item}
-              onPress={() => setCollegeScope(item)}
-              style={[styles.soccerLeaguePill, collegeScope === item && styles.soccerLeaguePillActive]}
-            >
-              <AppText style={[styles.soccerLeagueText, collegeScope === item && styles.soccerLeagueTextActive]}>
-                {item === 'top25' ? 'Top 25' : 'All Teams'}
-              </AppText>
-            </Pressable>
-          ))}
-          {ncaafConferences.map((item) => (
-            <Pressable
-              key={item}
-              onPress={() => setCollegeConference(item)}
-              style={[styles.soccerLeaguePill, collegeConference === item && styles.soccerLeaguePillActive]}
-            >
-              <AppText style={[styles.soccerLeagueText, collegeConference === item && styles.soccerLeagueTextActive]}>
-                {item}
-              </AppText>
-            </Pressable>
-          ))}
+        <View style={styles.collegeFilterWrap}>
+          <View style={styles.soccerLeagueRow}>
+            {(['top25', 'all'] as const).map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => setCollegeScope(item)}
+                style={[styles.soccerLeaguePill, collegeScope === item && styles.soccerLeaguePillActive]}
+              >
+                <AppText style={[styles.soccerLeagueText, collegeScope === item && styles.soccerLeagueTextActive]}>
+                  {item === 'top25' ? 'Top 25' : 'All Teams'}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable
+            onPress={() => setCollegeConferenceOpen((open) => !open)}
+            style={styles.collegeSelect}
+          >
+            <AppText variant="mono">Conference</AppText>
+            <AppText style={styles.collegeSelectValue}>{collegeConference}</AppText>
+          </Pressable>
+          {collegeConferenceOpen && (
+            <View style={styles.collegeSelectMenu}>
+              {ncaafConferences.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setCollegeConference(item)
+                    setCollegeConferenceOpen(false)
+                  }}
+                  style={[styles.collegeSelectOption, collegeConference === item && styles.collegeSelectOptionActive]}
+                >
+                  <AppText style={[styles.collegeSelectOptionText, collegeConference === item && styles.collegeSelectOptionTextActive]}>
+                    {item}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -1992,6 +2030,67 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {isSelectedSportActive && view === 'matchups' && sport === 'NCAAB' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">Cached matchup context from the latest NCAAB odds board</AppText>
+          </View>
+
+          {ncaabMatchupsQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NCAAB matchups...</AppText>
+            </View>
+          )}
+
+          {ncaabMatchupsQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load NCAAB matchups.</AppText>
+            </Card>
+          )}
+
+          {!ncaabMatchupsQuery.isLoading && !ncaabMatchupsQuery.isError && (ncaabMatchupsQuery.data || []).length === 0 && (
+            <Card>
+              <AppText variant="eyebrow">// Game Matchups</AppText>
+              <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
+              <AppText variant="muted">NCAAB matchup context appears after sportsbooks post the next slate.</AppText>
+            </Card>
+          )}
+
+          {groupGamesByDate(ncaabMatchupsQuery.data || []).map((group) => (
+            <View key={group.date} style={styles.dateGroup}>
+              <DateDivider label={group.date} />
+              {group.games.map((game) => (
+                <Card key={game.id}>
+                  <View style={styles.gameHeader}>
+                    <AppText style={styles.gameTitle}>
+                      {shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}
+                    </AppText>
+                    <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                  </View>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>{game.favoriteDetail}</AppText>
+                  <View style={styles.teamInfoStats}>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Favorite</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+                    </View>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Spread</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.spread == null ? '-' : `${game.spread > 0 ? '+' : ''}${game.spread}`}</AppText>
+                    </View>
+                    <View style={styles.teamInfoStat}>
+                      <AppText variant="mono">Total</AppText>
+                      <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+
       {isSelectedSportActive && view === 'props' && isCollegeSport(sport) && sport !== 'NCAAF' && (
         <View style={styles.liveSection}>
           <Card>
@@ -2203,6 +2302,49 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   soccerLeagueTextActive: {
+    color: colors.bgPrimary,
+  },
+  collegeFilterWrap: {
+    marginBottom: spacing.lg,
+  },
+  collegeSelect: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  collegeSelectValue: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+  },
+  collegeSelectMenu: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCard,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  collegeSelectOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  collegeSelectOptionActive: {
+    backgroundColor: colors.gold,
+  },
+  collegeSelectOptionText: {
+    color: colors.textSecondary,
+    fontWeight: '800',
+  },
+  collegeSelectOptionTextActive: {
     color: colors.bgPrimary,
   },
   scopeRow: {
