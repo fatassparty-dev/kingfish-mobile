@@ -90,7 +90,7 @@ export default function AccountScreen() {
       </View>
 
       <Card>
-        <AppText variant="eyebrow">// Status</AppText>
+        <AppText variant="eyebrow">// Membership</AppText>
         <View style={styles.statusRow}>
           <AppText style={styles.plan}>
             {loading ? 'Loading...' : isPremium ? 'Premium Active' : 'Free Tier'}
@@ -119,6 +119,19 @@ export default function AccountScreen() {
           <ProfileCell label="Renews" value={renewalLabel} />
         </View>
         {restoreMessage ? <AppText style={styles.noticeText}>{restoreMessage}</AppText> : null}
+        <View style={styles.cardAction}>
+          {!isPremium && mobileConfig.flags.mobile_paywall ? (
+            <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
+          ) : null}
+          {!isPremium ? (
+            <>
+              <View style={mobileConfig.flags.mobile_paywall ? styles.buttonGap : undefined} />
+              <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>
+                Restore Purchases
+              </Button>
+            </>
+          ) : null}
+        </View>
       </Card>
 
       {mobileConfig.app_notice ? (
@@ -135,98 +148,55 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
-        <AppText variant="eyebrow">// Help</AppText>
-        <AppText style={styles.webTitle}>How To Use KingFish</AppText>
+        <AppText variant="eyebrow">// Support</AppText>
+        <AppText style={styles.webTitle}>Need Something?</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Learn the Dashboard, Player Props, Edge Scores, Cheat Sheets, and Ask KingFish workflow.
+          Help, support, and the full KingFishBets.com workspace are here when you need them.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" onPress={() => router.push('/help')}>
-            Open Help Guide
-          </Button>
-        </View>
-      </Card>
-
-      <View style={styles.sectionGap} />
-
-      <View style={styles.linkGrid}>
-        {mobileConfig.flags.fantasy_hub ? (
-          <LinkCard
-            eyebrow="// Fantasy"
-            title="Fantasy Hub"
-            body="Open the draft room, rankings, player profiles, and NFL stack tools."
-            href={mobileConfig.links.fantasy_hub}
-          />
-        ) : null}
-        <LinkCard
-          eyebrow="// NFL"
-          title="Command Center"
-          body="NFL research, injuries, draft tools, fantasy, and season-long coverage."
-          href={mobileConfig.links.nfl_command_center}
-        />
-      </View>
-
-      <View style={styles.sectionGap} />
-
-      <Card>
-        <AppText variant="eyebrow">// Data & Privacy</AppText>
-        <AppText style={styles.webTitle}>Account Controls</AppText>
-        <AppText variant="muted" style={styles.copy}>
-          Clear your saved Ask KingFish history or delete your KingFish account from the app.
-          App Store subscriptions must be canceled separately in your Apple account settings.
-        </AppText>
-        <View style={styles.cardAction}>
-          <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
-            Clear Chat History
+            Help Guide
           </Button>
         </View>
         <View style={styles.buttonGap} />
-        <Button variant="outline" loading={deletingAccount} onPress={confirmDeleteAccount}>
-          Delete Account
+        <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.home)}>
+          Full Site
         </Button>
+        <View style={styles.supportLinks}>
+          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+            Contact Support
+          </AppText>
+          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.terms)}>
+            Terms
+          </AppText>
+          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.privacy)}>
+            Privacy
+          </AppText>
+        </View>
       </Card>
 
       <View style={styles.sectionGap} />
 
       <Card>
-        <AppText variant="eyebrow">// Full Website</AppText>
-        <AppText style={styles.webTitle}>KingFishBets.com</AppText>
+        <AppText variant="eyebrow">// Controls</AppText>
+        <AppText style={styles.webTitle}>Account</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Open the full desktop research workspace for news, fantasy depth, NFL offseason
-          coverage, draft results, and expanded research views.
+          Clear saved Ask AI history, sign out, or delete your account.
         </AppText>
         <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.home)}>
-            Open Full Website
+          <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
+            Clear Ask AI History
           </Button>
         </View>
-      </Card>
-
-      <View style={styles.actions}>
-        {!isPremium && mobileConfig.flags.mobile_paywall ? (
-          <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
-        ) : null}
-        {!isPremium ? (
-          <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
-        ) : null}
+        <View style={styles.buttonGap} />
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
-      </View>
+        <View style={styles.deleteWrap}>
+          <AppText style={styles.deleteLink} onPress={confirmDeleteAccount}>
+            {deletingAccount ? 'Deleting account...' : 'Delete Account'}
+          </AppText>
+        </View>
+      </Card>
     </Screen>
-  )
-}
-
-function LinkCard({ eyebrow, title, body, href }: { eyebrow: string; title: string; body: string; href: string }) {
-  return (
-    <Card style={styles.linkCard}>
-      <AppText variant="eyebrow">{eyebrow}</AppText>
-      <AppText style={styles.linkTitle}>{title}</AppText>
-      <AppText variant="muted" style={styles.linkBody}>{body}</AppText>
-      <View style={styles.cardAction}>
-        <Button variant="outline" onPress={() => Linking.openURL(href)}>
-          Open
-        </Button>
-      </View>
-    </Card>
   )
 }
 
@@ -354,24 +324,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionGap: { height: spacing.md },
-  linkGrid: {
-    gap: spacing.md,
-  },
-  linkCard: {
-    minHeight: 188,
-  },
-  linkTitle: {
-    marginTop: 8,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  linkBody: {
-    marginTop: 8,
-  },
   noticeCard: {
     borderColor: 'rgba(198,145,50,.45)',
   },
   cardAction: { marginTop: spacing.lg },
   buttonGap: { height: spacing.md },
-  actions: { gap: spacing.md, marginTop: spacing.lg },
+  supportLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  supportLink: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  deleteWrap: {
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  deleteLink: {
+    color: colors.red,
+    fontSize: 13,
+    fontWeight: '900',
+  },
 })

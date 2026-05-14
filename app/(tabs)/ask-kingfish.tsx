@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Keyboard,
   Pressable,
@@ -41,6 +42,7 @@ export default function AskKingFishScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [limitHit, setLimitHit] = useState(false)
 
   const date = useMemo(todayKey, [])
@@ -109,6 +111,35 @@ export default function AskKingFishScreen() {
     }
   }
 
+  function confirmClearChat() {
+    Alert.alert(
+      'Clear Chat',
+      'This removes your saved Ask KingFish conversation history from KingFish.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear Chat', style: 'destructive', onPress: clearChat },
+      ],
+    )
+  }
+
+  async function clearChat() {
+    setClearing(true)
+    try {
+      await kingfishFetch('/api/chat-history', { method: 'DELETE' })
+      setMessages([])
+      setInput('')
+      queryClient.setQueryData(['chat-history'], { messages: [] })
+      await queryClient.invalidateQueries({ queryKey: ['chat-history'] })
+    } catch {
+      setMessages((current) => [
+        ...current,
+        { role: 'assistant', content: 'Chat history could not be cleared. Try again in a minute.' },
+      ])
+    } finally {
+      setClearing(false)
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -145,6 +176,19 @@ export default function AskKingFishScreen() {
 
       {(messages.length > 0 || sending || historyQuery.isLoading) && (
         <Card>
+          {messages.length > 0 && (
+            <View style={styles.chatToolbar}>
+              <AppText variant="mono">Conversation</AppText>
+              <Pressable
+                onPress={confirmClearChat}
+                disabled={clearing || sending}
+                style={[styles.clearButton, (clearing || sending) && styles.clearButtonDisabled]}
+              >
+                <AppText style={styles.clearButtonText}>{clearing ? 'Clearing...' : 'Clear Chat'}</AppText>
+              </Pressable>
+            </View>
+          )}
+
           {historyQuery.isLoading && messages.length === 0 && (
             <View style={styles.contextRow}>
               <ActivityIndicator color={colors.gold} />
@@ -279,6 +323,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     marginBottom: spacing.md,
+  },
+  chatToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  clearButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  clearButtonDisabled: {
+    opacity: 0.5,
+  },
+  clearButtonText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
   },
   messages: {
     maxHeight: 430,
