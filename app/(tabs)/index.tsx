@@ -784,7 +784,7 @@ export default function DashboardScreen() {
     queryKey: ['mlb-schedule-context'],
     queryFn: () => kingfishFetch<MLBSchedulePayload>('/api/mlb-schedule'),
     enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups'),
-    staleTime: 60 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   })
   const mlbL10Query = useQuery({
     queryKey: ['mlb-team-l10'],
