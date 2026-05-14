@@ -119,11 +119,6 @@ export default function AccountScreen() {
           <ProfileCell label="Renews" value={renewalLabel} />
         </View>
         {restoreMessage ? <AppText style={styles.noticeText}>{restoreMessage}</AppText> : null}
-        <View style={styles.cardAction}>
-          <Button variant="secondary" loading={loading} onPress={refreshProfile}>
-            Refresh Status
-          </Button>
-        </View>
       </Card>
 
       {mobileConfig.app_notice ? (
@@ -211,7 +206,9 @@ export default function AccountScreen() {
         {!isPremium && mobileConfig.flags.mobile_paywall ? (
           <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
         ) : null}
-        <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
+        {!isPremium ? (
+          <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>Restore Purchases</Button>
+        ) : null}
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
       </View>
     </Screen>
