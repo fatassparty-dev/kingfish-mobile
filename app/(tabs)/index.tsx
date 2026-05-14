@@ -486,12 +486,6 @@ function MatchupTeamBox({ title, grade, rows }: { title: string; grade?: string 
   )
 }
 
-function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
-  const lines = data?.wins?.find((item) => item.team === team)?.lines || []
-  if (!lines.length) return '-'
-  return String(lines[Math.floor(lines.length / 2)].line)
-}
-
 export default function DashboardScreen() {
   const { profile } = useAuth()
   const mobileConfig = useMobileConfig()
@@ -499,6 +493,7 @@ export default function DashboardScreen() {
   const [view, setView] = useState<DashboardView>('lines')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
+  const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
@@ -1031,11 +1026,11 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && sport === 'NFL' && view === 'league' && (
+          {isSelectedSportActive && sport === 'NFL' && view === 'league' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">
-              Division baseline built from 2025 results and 2026 win-total context
+              Division baseline from 2025 results until live 2026 standings are available
             </AppText>
           </View>
 
@@ -1058,18 +1053,46 @@ export default function DashboardScreen() {
               <AppText variant="eyebrow">// {division.division}</AppText>
               <View style={styles.leagueHeader}>
                 <AppText style={[styles.leagueHeaderText, styles.leagueTeamCell]}>Team</AppText>
-                <AppText style={styles.leagueHeaderText}>2025</AppText>
+                <AppText style={styles.leagueHeaderText}>2025 Wins</AppText>
+                <AppText style={styles.leagueHeaderText}>Div Rank</AppText>
                 <AppText style={styles.leagueHeaderText}>L5</AppText>
-                <AppText style={styles.leagueHeaderText}>Win Total</AppText>
               </View>
               {division.entries.map((entry) => {
                 const context = nflFuturesQuery.data?.divisionContext[entry.team]
+                const isExpanded = expandedNflTeam === entry.team
                 return (
-                  <View key={`${division.division}-${entry.team}`} style={styles.leagueRow}>
-                    <AppText style={[styles.leagueTeam, styles.leagueTeamCell]}>{entry.team}</AppText>
-                    <AppText style={styles.leagueValue}>{context ? `${context.wins}W / ${context.rank}` : '-'}</AppText>
-                    <AppText style={styles.leagueValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
-                    <AppText style={styles.leagueValue}>{nflWinTotal(nflFuturesQuery.data, entry.team)}</AppText>
+                  <View key={`${division.division}-${entry.team}`}>
+                    <Pressable
+                      onPress={() => setExpandedNflTeam(isExpanded ? null : entry.team)}
+                      style={styles.leagueRow}
+                    >
+                      <AppText style={[styles.leagueTeam, styles.leagueTeamCell]}>{entry.team}</AppText>
+                      <AppText style={styles.leagueValue}>{context ? `${context.wins}W` : '-'}</AppText>
+                      <AppText style={styles.leagueValue}>{context ? `#${context.rank}` : '-'}</AppText>
+                      <AppText style={styles.leagueValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
+                    </Pressable>
+                    {isExpanded && (
+                      <View style={styles.leagueDetail}>
+                        <AppText variant="eyebrow">Team Snapshot</AppText>
+                        <AppText variant="muted" style={styles.leagueDetailText}>
+                          Showing 2025 baseline data until the 2026 schedule and live standings are wired in.
+                        </AppText>
+                        <View style={styles.leagueDetailGrid}>
+                          <View style={styles.leagueDetailItem}>
+                            <AppText variant="mono">2025 Record Context</AppText>
+                            <AppText style={styles.leagueDetailValue}>{context ? `${context.wins} wins` : '-'}</AppText>
+                          </View>
+                          <View style={styles.leagueDetailItem}>
+                            <AppText variant="mono">Division Finish</AppText>
+                            <AppText style={styles.leagueDetailValue}>{context ? `#${context.rank}` : '-'}</AppText>
+                          </View>
+                          <View style={styles.leagueDetailItem}>
+                            <AppText variant="mono">Last 5</AppText>
+                            <AppText style={styles.leagueDetailValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
+                          </View>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 )
               })}
@@ -1903,6 +1926,31 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '900',
+  },
+  leagueDetail: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+  },
+  leagueDetailText: {
+    marginTop: 6,
+  },
+  leagueDetailGrid: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  leagueDetailItem: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: spacing.md,
+    backgroundColor: colors.bgCard,
+  },
+  leagueDetailValue: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+    marginTop: 6,
   },
   teamInfoHeader: {
     flexDirection: 'row',
