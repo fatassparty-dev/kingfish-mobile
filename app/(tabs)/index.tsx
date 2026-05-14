@@ -646,9 +646,10 @@ export default function DashboardScreen() {
     const bPos = Number(b.position || 999)
     return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
-  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingGames(lineQuery.data || [])) : []
+  const upcomingLineGames = upcomingGames(lineQuery.data || [])
+  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
-  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : (lineQuery.data || [])
+  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
   const nflMatchupGames = upcomingGames(nflMatchupsQuery.data || [])
   const nflMatchupWeeks = sport === 'NFL' ? weekOptions(nflMatchupGames) : []
@@ -897,7 +898,7 @@ export default function DashboardScreen() {
               <AppText variant="muted" style={styles.stateText}>No matchups found for {sport} right now.</AppText>
             </Card>
           )}
-          {(lineQuery.data || []).map((game) => {
+          {upcomingLineGames.map((game) => {
             const awayAbbr = mlbAbbr(game.away_team)
             const homeAbbr = mlbAbbr(game.home_team)
             const awayForm = sport === 'MLB'

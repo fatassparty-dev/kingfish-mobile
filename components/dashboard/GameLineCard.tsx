@@ -181,7 +181,7 @@ function bestSpread(bookmakers: Bookmaker[], team: string) {
 
 function fmtSpreadPoint(point?: number) {
   if (typeof point !== 'number') return ''
-  return `${point > 0 ? '+' : ''}${point} `
+  return `${point > 0 ? '+' : ''}${point}`
 }
 
 export function GameLineCard({ game, weather }: { game: Game; weather?: WeatherInfo }) {
@@ -301,13 +301,17 @@ function TeamRow({ team, line }: { team: string; line: { price: number; book: st
 }
 
 function MarketRow({ team, line }: { team: string; line: { price: number; point?: number; book: string } | null }) {
+  const point = line ? fmtSpreadPoint(line.point) : ''
   return (
     <View style={styles.marketRow}>
       <View style={styles.teamNameWrap}>
-        <AppText style={styles.marketTeam}>{team}</AppText>
+        <View style={styles.marketTeamLine}>
+          <AppText style={styles.marketTeam}>{team}</AppText>
+          {point ? <AppText style={styles.marketPoint}>{point}</AppText> : null}
+        </View>
         <View style={styles.marketBookLine}>
           {line?.book && <AppText variant="mono">{line.book}</AppText>}
-          <AppText style={styles.marketPrice}>{line ? `${fmtSpreadPoint(line.point)}${fmtOdds(line.price)}` : '-'}</AppText>
+          <AppText style={styles.marketPrice}>{line ? fmtOdds(line.price) : '-'}</AppText>
         </View>
       </View>
     </View>
@@ -465,10 +469,21 @@ const styles = StyleSheet.create({
   marketRow: {
     marginTop: 8,
   },
+  marketTeamLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
   marketTeam: {
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '800',
+  },
+  marketPoint: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
   },
   marketBookLine: {
     flexDirection: 'row',
