@@ -456,6 +456,34 @@ function mlbDivisionStandings(
   }).filter((division) => division.entries.length)
 }
 
+function mlbPlayoffRace(
+  records: Record<string, { wins: number; losses: number; pct: number }> = {},
+  l10Map: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }> = {}
+) {
+  const standings = mlbDivisionStandings(records, l10Map)
+  return [
+    { name: 'American League', prefix: 'AL' },
+    { name: 'National League', prefix: 'NL' },
+  ].map((league) => {
+    const divisions = standings.filter((division) => division.name.startsWith(league.prefix))
+    const leaders = divisions
+      .map((division) => ({ ...division.entries[0], path: `${division.name} leader`, status: 'Division' }))
+      .filter((entry) => entry?.record)
+      .sort((a, b) => Number(b.record?.pct || 0) - Number(a.record?.pct || 0))
+    const leaderAbbrs = new Set(leaders.map((entry) => entry.team.abbr))
+    const wildCards = divisions
+      .flatMap((division) => division.entries.filter((entry) => !leaderAbbrs.has(entry.team.abbr)))
+      .sort((a, b) => Number(b.record?.pct || 0) - Number(a.record?.pct || 0))
+    const cutline = wildCards[2]?.record
+    const wildCardRows = wildCards.slice(0, 6).map((entry, index) => ({
+      ...entry,
+      path: index < 3 ? `Wild Card ${index + 1}` : 'Chasing',
+      status: index < 3 ? 'In' : formatGamesBack(entry.record, cutline),
+    }))
+    return { name: league.name, entries: [...leaders, ...wildCardRows] }
+  }).filter((league) => league.entries.length)
+}
+
 function shortTeamName(team: string) {
   return team.replace(/ University$/i, '').replace(/ College$/i, '')
 }
@@ -771,6 +799,8 @@ export default function DashboardScreen() {
     return aPos - bPos || String(a.team).localeCompare(String(b.team))
   })
   const mlbStandings = mlbDivisionStandings(mlbScheduleQuery.data?.teamRecords, mlbL10Query.data?.teamL10Map)
+  const mlbRace = mlbPlayoffRace(mlbScheduleQuery.data?.teamRecords, mlbL10Query.data?.teamL10Map)
+  const isMlbRaceScope = sport === 'MLB' && leagueScope === 'playoff'
   const upcomingLineGames = upcomingGames(lineQuery.data || [])
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
@@ -931,8 +961,10 @@ export default function DashboardScreen() {
           <View style={styles.dataNote}>
             <AppText variant="mono">
               {sport === 'MLB'
-                ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
-                  ? 'Postseason view: regular-season records stay as seeding context while active playoff games carry the board'
+                ? isMlbRaceScope
+                  ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
+                    ? 'MLB Playoff View: postseason teams and series context when playoff series are active'
+                    : 'MLB Playoff Race: division leaders, wild-card teams, and chase teams by league'
                   : 'Current MLB division standings with record, games back, winning percentage, and recent form'
                 : isPlayoffLeagueScope
                   ? `${sport} Playoff View: remaining teams, series score, and season form by conference`
@@ -957,7 +989,46 @@ export default function DashboardScreen() {
                 </Card>
               )}
 
-              {mlbStandings.map((division) => (
+              <View style={styles.scopeRow}>
+                {(['playoff', 'season'] as const).map((scope) => (
+                  <Pressable
+                    key={scope}
+                    onPress={() => setLeagueScope(scope)}
+                    style={[styles.scopePill, leagueScope === scope && styles.scopePillActive]}
+                  >
+                    <AppText style={[styles.scopePillText, leagueScope === scope && styles.scopePillTextActive]}>
+                      {scope === 'playoff' ? (mlbScheduleQuery.data?.seasonPhase === 'postseason' ? 'Playoff' : 'Race') : 'Season'}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+
+              {isMlbRaceScope ? (
+                mlbRace.map((league) => (
+                  <Card key={league.name}>
+                    <AppText variant="eyebrow">// {league.name}</AppText>
+                    <View style={styles.standingsHeader}>
+                      <AppText style={[styles.standingsHeaderText, styles.standingsRankCell]}>#</AppText>
+                      <AppText style={[styles.standingsHeaderText, styles.standingsTeamCell]}>Team</AppText>
+                      <AppText style={styles.standingsHeaderText}>Path</AppText>
+                      <AppText style={styles.standingsHeaderText}>GB</AppText>
+                      <AppText style={styles.standingsHeaderText}>L10</AppText>
+                    </View>
+                    {league.entries.map((entry, index) => (
+                      <View key={`${league.name}-${entry.team.abbr}`} style={styles.standingsRow}>
+                        <AppText style={[styles.standingsRank, styles.standingsRankCell]}>{index + 1}</AppText>
+                        <View style={styles.standingsTeamCell}>
+                          <AppText style={styles.standingsTeam}>{entry.team.name}</AppText>
+                          <AppText variant="mono">{entry.team.abbr} · {entry.record ? `${entry.record.wins}-${entry.record.losses}` : '-'} · {formatMlbPct(entry.record?.pct)} pct</AppText>
+                        </View>
+                        <AppText style={styles.standingsValue}>{entry.path}</AppText>
+                        <AppText style={styles.standingsValue}>{entry.status}</AppText>
+                        <AppText style={styles.standingsValue}>{entry.l10 ? `${entry.l10.wins}-${entry.l10.losses}` : '-'}</AppText>
+                      </View>
+                    ))}
+                  </Card>
+                ))
+              ) : mlbStandings.map((division) => (
                 <Card key={division.name}>
                   <AppText variant="eyebrow">// {division.name}</AppText>
                   <View style={styles.standingsHeader}>
