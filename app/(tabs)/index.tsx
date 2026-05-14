@@ -1147,29 +1147,46 @@ export default function DashboardScreen() {
           {visibleNflMatchupGroups.map((group) => (
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
-              {group.games.map((game) => (
-                <Card key={game.id}>
-                  <View style={styles.gameHeader}>
-                    <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
-                    <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
-                  </View>
-                  <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
-                  <View style={styles.teamInfoStats}>
-                    <View style={styles.teamInfoStat}>
-                      <AppText variant="mono">Favorite</AppText>
-                      <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
+              {group.games.map((game) => {
+                const awayShort = shortTeamName(game.away_team)
+                const homeShort = shortTeamName(game.home_team)
+                const favorite = game.favorite || 'Pending'
+                const awayFavored = favorite === awayShort
+                const homeFavored = favorite === homeShort
+                const marketDetail = game.favoriteDetail || 'Market not posted yet'
+                const totalLabel = game.total == null ? '-' : String(game.total)
+                const awayRows = [
+                  { label: 'Side', value: 'Away' },
+                  { label: 'Market', value: awayFavored ? marketDetail : homeFavored ? 'Plus side' : 'Pending' },
+                  { label: 'Total', value: totalLabel },
+                ]
+                const homeRows = [
+                  { label: 'Side', value: 'Home' },
+                  { label: 'Market', value: homeFavored ? marketDetail : awayFavored ? 'Plus side' : 'Pending' },
+                  { label: 'Total', value: totalLabel },
+                ]
+                const note = favorite === 'Pending'
+                  ? 'Schedule is loaded. Market context appears here when sportsbooks post moneyline, spread, or total prices.'
+                  : `${favorite} is the current market favorite (${marketDetail}). Use the Game Lines tab to compare that edge against the best available price.`
+
+                return (
+                  <Card key={game.id}>
+                    <View style={styles.gameHeader}>
+                      <AppText style={styles.gameTitle}>{awayShort} @ {homeShort}</AppText>
+                      <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                     </View>
-                    <View style={styles.teamInfoStat}>
-                      <AppText variant="mono">Market</AppText>
-                      <AppText style={styles.teamInfoValue}>{game.favoriteDetail}</AppText>
+                    <AppText variant="muted" style={styles.teamInfoMeta}>{game.status}</AppText>
+                    <View style={styles.matchupTeamGrid}>
+                      <MatchupTeamBox title={awayShort} grade={awayFavored ? 'Fav' : null} rows={awayRows} />
+                      <MatchupTeamBox title={homeShort} grade={homeFavored ? 'Fav' : null} rows={homeRows} />
                     </View>
-                    <View style={styles.teamInfoStat}>
-                      <AppText variant="mono">Total</AppText>
-                      <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                    <View style={styles.matchupNote}>
+                      <AppText variant="eyebrow">KingFish Matchup Note</AppText>
+                      <AppText variant="muted" style={styles.matchupNoteText}>{note}</AppText>
                     </View>
-                  </View>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </View>
           ))}
         </View>
