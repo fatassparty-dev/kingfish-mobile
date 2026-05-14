@@ -41,9 +41,9 @@ export function AppBottomNav() {
 function HomeIcon({ color }: { color: string }) {
   return (
     <View style={styles.iconBox}>
-      <View style={[styles.homeRoofLeft, { backgroundColor: color }]} />
-      <View style={[styles.homeRoofRight, { backgroundColor: color }]} />
+      <View style={[styles.homeRoof, { borderColor: color }]} />
       <View style={[styles.homeBase, { borderColor: color }]} />
+      <View style={[styles.homeDoor, { backgroundColor: color }]} />
     </View>
   )
 }
@@ -73,12 +73,14 @@ function ToolsIcon({ color }: { color: string }) {
 function AiIcon({ color }: { color: string }) {
   return (
     <View style={styles.iconBox}>
-      <View style={[styles.lureBody, { borderColor: color }]} />
-      <View style={[styles.lureEye, { backgroundColor: color }]} />
-      <View style={[styles.lureHookStem, { backgroundColor: color }]} />
-      <View style={[styles.lureHookCurve, { borderColor: color }]} />
-      <View style={[styles.lureSparkLine, styles.lureSparkVertical, { backgroundColor: color }]} />
-      <View style={[styles.lureSparkLine, styles.lureSparkHorizontal, { backgroundColor: color }]} />
+      <View style={[styles.robotAntenna, { backgroundColor: color }]} />
+      <View style={[styles.robotHead, { borderColor: color }]}>
+        <View style={[styles.robotEye, { backgroundColor: color }]} />
+        <View style={[styles.robotEye, { backgroundColor: color }]} />
+        <View style={[styles.robotMouth, { backgroundColor: color }]} />
+      </View>
+      <View style={[styles.robotEarLeft, { backgroundColor: color }]} />
+      <View style={[styles.robotEarRight, { backgroundColor: color }]} />
     </View>
   )
 }
@@ -108,34 +110,34 @@ const styles = StyleSheet.create({
     height: 24,
     position: 'relative',
   },
-  homeRoofLeft: {
+  homeRoof: {
     position: 'absolute',
-    left: 4,
-    top: 6,
-    width: 12,
-    height: 2,
-    borderRadius: 2,
-    transform: [{ rotate: '-38deg' }],
-  },
-  homeRoofRight: {
-    position: 'absolute',
-    right: 4,
-    top: 6,
-    width: 12,
-    height: 2,
-    borderRadius: 2,
-    transform: [{ rotate: '38deg' }],
+    left: 5,
+    top: 4,
+    width: 14,
+    height: 14,
+    borderLeftWidth: 2,
+    borderTopWidth: 2,
+    borderTopLeftRadius: 3,
+    transform: [{ rotate: '45deg' }],
   },
   homeBase: {
     position: 'absolute',
-    left: 6,
+    left: 5,
     top: 11,
-    width: 12,
-    height: 10,
+    width: 14,
+    height: 11,
     borderWidth: 2,
     borderTopWidth: 0,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
+    borderRadius: 4,
+  },
+  homeDoor: {
+    position: 'absolute',
+    left: 11,
+    top: 16,
+    width: 2,
+    height: 5,
+    borderRadius: 1,
   },
   boardFrame: {
     width: 22,
@@ -196,54 +198,58 @@ const styles = StyleSheet.create({
     left: 10,
     top: 14,
   },
-  lureBody: {
-    position: 'absolute',
-    left: 5,
-    top: 4,
-    width: 10,
-    height: 14,
-    borderWidth: 2,
-    borderRadius: 7,
-    transform: [{ rotate: '-18deg' }],
-  },
-  lureEye: {
-    position: 'absolute',
-    left: 9,
-    top: 8,
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-  },
-  lureHookStem: {
+  robotAntenna: {
     position: 'absolute',
     left: 11,
-    top: 16,
+    top: 2,
     width: 2,
     height: 4,
     borderRadius: 2,
   },
-  lureHookCurve: {
+  robotHead: {
     position: 'absolute',
-    left: 10,
-    top: 18,
-    width: 7,
-    height: 5,
+    left: 5,
+    top: 6,
+    width: 14,
+    height: 14,
     borderWidth: 2,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    borderBottomRightRadius: 7,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 3,
   },
-  lureSparkLine: {
+  robotEye: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    marginTop: -2,
+  },
+  robotMouth: {
     position: 'absolute',
-    right: 3,
-    top: 4,
-    width: 2,
-    height: 8,
+    left: 4,
+    right: 4,
+    bottom: 3,
+    height: 2,
     borderRadius: 2,
   },
-  lureSparkVertical: {},
-  lureSparkHorizontal: {
-    transform: [{ rotate: '90deg' }],
+  robotEarLeft: {
+    position: 'absolute',
+    left: 3,
+    top: 11,
+    width: 3,
+    height: 6,
+    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 2,
+  },
+  robotEarRight: {
+    position: 'absolute',
+    right: 3,
+    top: 11,
+    width: 3,
+    height: 6,
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
   },
   accountHead: {
     position: 'absolute',
