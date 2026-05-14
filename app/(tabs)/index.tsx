@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -10,7 +10,7 @@ import { AppText } from '@/components/Text'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
-import { fetchFeatureFlags, type FeatureFlagKey } from '@/lib/featureFlags'
+import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
@@ -93,6 +93,21 @@ type NCAAFOutlookData = {
   }>
 }
 
+type NCAABBaselineData = {
+  season: string
+  teams: Array<{
+    rank: number
+    team: string
+    record: string
+    conference: string
+    offense: string
+    defense: string
+    tempo: string
+    profile: string
+    lean: string
+  }>
+}
+
 type NCAAFMatchup = {
   id: string
   commence_time: string
@@ -143,6 +158,7 @@ const MLB_TEAM_NAME_TO_ABBR: Record<string, string> = {
 const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
+  visibilityFlag: string
   status: 'Live' | 'Offseason'
   description: string
   inactiveTitle: string
@@ -151,6 +167,7 @@ const SPORTS: Array<{
   {
     key: 'MLB',
     flag: 'dashboard_mlb',
+    visibilityFlag: 'dashboard_tab_mlb',
     status: 'Live',
     description: 'Track live MLB lines, player props, weather, stat trends, and cheat-sheet support in one place.',
     inactiveTitle: 'MLB Lines Unavailable',
@@ -159,6 +176,7 @@ const SPORTS: Array<{
   {
     key: 'NBA',
     flag: 'dashboard_nba',
+    visibilityFlag: 'dashboard_tab_nba',
     status: 'Live',
     description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
     inactiveTitle: 'NBA Lines Unavailable',
@@ -167,6 +185,7 @@ const SPORTS: Array<{
   {
     key: 'NFL',
     flag: 'nfl_props',
+    visibilityFlag: 'dashboard_tab_nfl',
     status: 'Offseason',
     description: 'NFL is year-round in KingFish. Game lines appear when books post regular-season markets, with player props and deeper research built around the NFL Command Center.',
     inactiveTitle: 'NFL Not In Season',
@@ -175,6 +194,7 @@ const SPORTS: Array<{
   {
     key: 'NHL',
     flag: 'dashboard_nhl',
+    visibilityFlag: 'dashboard_tab_nhl',
     status: 'Live',
     description: 'Track NHL lines, player props, shot volume, scoring trends, and Edge Scores in one board.',
     inactiveTitle: 'NHL Lines Unavailable',
@@ -183,6 +203,7 @@ const SPORTS: Array<{
   {
     key: 'WNBA',
     flag: 'dashboard_wnba',
+    visibilityFlag: 'dashboard_tab_wnba',
     status: 'Live',
     description: 'Follow WNBA lines and player props with recent stat trends, hit rates, and best available odds.',
     inactiveTitle: 'WNBA Lines Unavailable',
@@ -191,6 +212,7 @@ const SPORTS: Array<{
   {
     key: 'KBO',
     flag: 'dashboard_kbo',
+    visibilityFlag: 'dashboard_tab_kbo',
     status: 'Live',
     description: 'Follow KBO game lines and market movement from supported books.',
     inactiveTitle: 'KBO Lines Unavailable',
@@ -199,6 +221,7 @@ const SPORTS: Array<{
   {
     key: 'NCAAB',
     flag: 'dashboard_ncaab',
+    visibilityFlag: 'dashboard_tab_ncaab',
     status: 'Offseason',
     description: 'College basketball will focus on team stats, team trends, points for, points against, and matchup context.',
     inactiveTitle: 'College Basketball Not In Season',
@@ -207,6 +230,7 @@ const SPORTS: Array<{
   {
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
+    visibilityFlag: 'dashboard_tab_ncaaf',
     status: 'Offseason',
     description: 'College football will focus on game lines, team stats, matchup grades, and team leans instead of player props.',
     inactiveTitle: 'College Football Not In Season',
@@ -215,6 +239,7 @@ const SPORTS: Array<{
   {
     key: 'SOCCER',
     flag: 'dashboard_soccer',
+    visibilityFlag: 'dashboard_tab_soccer',
     status: 'Offseason',
     description: 'Follow soccer game lines for supported leagues when US sportsbooks post them.',
     inactiveTitle: 'Soccer Markets Unavailable',
@@ -444,6 +469,23 @@ function soccerMatchupLean(awayInfo: SoccerTeamInfo | undefined, homeInfo: Socce
   }
 }
 
+function MatchupTeamBox({ title, grade, rows }: { title: string; grade?: string | null; rows: Array<{ label: string; value: string }> }) {
+  return (
+    <View style={styles.matchupTeamBox}>
+      <View style={styles.matchupTeamTop}>
+        <AppText style={styles.matchupTeamTitle}>{title}</AppText>
+        {grade ? <AppText style={styles.matchupGrade}>{grade}</AppText> : null}
+      </View>
+      {rows.map((row) => (
+        <View key={`${title}-${row.label}`} style={styles.matchupStatRow}>
+          <AppText variant="muted" style={styles.matchupStatLabel}>{row.label}</AppText>
+          <AppText style={styles.matchupStatValue}>{row.value}</AppText>
+        </View>
+      ))}
+    </View>
+  )
+}
+
 function nflWinTotal(data: NFLFuturesData | undefined, team: string) {
   const lines = data?.wins?.find((item) => item.team === team)?.lines || []
   if (!lines.length) return '-'
@@ -460,16 +502,12 @@ export default function DashboardScreen() {
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeConference, setCollegeConference] = useState('All')
-  const selectedSport = SPORTS.find((item) => item.key === sport) || SPORTS[0]
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
-  const flagsQuery = useQuery({
-    queryKey: ['feature-flags'],
-    queryFn: fetchFeatureFlags,
-    staleTime: 60 * 1000,
-  })
-  const isSelectedSportActive = selectedSport.key === 'NFL' || (flagsQuery.data?.[selectedSport.flag] ?? selectedSport.status === 'Live')
-  const getSportActive = (item: (typeof SPORTS)[number]) => item.key === 'NFL' || (flagsQuery.data?.[item.flag] ?? item.status === 'Live')
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
+  const visibleSports = SPORTS.filter((item) => mobileFlag(item.visibilityFlag, true))
+  const selectedSport = visibleSports.find((item) => item.key === sport) || visibleSports[0] || SPORTS[0]
+  const isSelectedSportActive = mobileFlag(selectedSport.flag, selectedSport.status === 'Live')
+  const getSportActive = (item: (typeof SPORTS)[number]) => mobileFlag(item.flag, item.status === 'Live')
   const tabVisible = (tab: DashboardView) => {
     const prefix = sportApiKey(sport)
     if (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
@@ -482,8 +520,10 @@ export default function DashboardScreen() {
   const rawDashboardViews: DashboardView[] =
     sport === 'NFL'
       ? ['league', 'matchups', 'lines', 'props']
-      : sport === 'NCAAF'
-        ? ['league', 'props', 'lines']
+    : sport === 'NCAAF'
+        ? ['league', 'matchups', 'lines']
+    : sport === 'NCAAB'
+        ? ['league', 'lines']
       : sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
         ? ['league', 'matchups', 'lines', 'props']
         : sport === 'SOCCER'
@@ -500,7 +540,7 @@ export default function DashboardScreen() {
   const propsMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_props`, false)
   const canViewLines = isPremium || linesFree
   const canViewProps = isPremium || propsFree
-  const canViewMatchups = isPremium || sport === 'NFL'
+  const canViewMatchups = true
   const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
   const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups
   const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && canViewProps && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
@@ -508,6 +548,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (dashboardViews.length && !dashboardViews.includes(view)) setView(dashboardViews[0])
   }, [dashboardViews.join('|'), view])
+
+  useEffect(() => {
+    if (visibleSports.length && !visibleSports.some((item) => item.key === sport)) {
+      setSport(visibleSports[0].key)
+    }
+  }, [sport, visibleSports.map((item) => item.key).join('|')])
   const lineQuery = useQuery({
     queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default'],
     queryFn: () => kingfishFetch<Game[]>(
@@ -515,7 +561,7 @@ export default function DashboardScreen() {
         ? `/api/soccer-odds?league=${soccerLeague}${view === 'matchups' ? '&scope=matchups' : ''}`
         : `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
     ),
-    enabled: canFetchLines || (canFetchMatchups && sport !== 'NFL'),
+    enabled: canFetchLines || (canFetchMatchups && ['MLB', 'NBA', 'NHL', 'WNBA', 'SOCCER'].includes(sport)),
     staleTime: 5 * 60 * 1000,
   })
   const weatherQuery = useQuery({
@@ -548,13 +594,19 @@ export default function DashboardScreen() {
   const ncaafOutlookQuery = useQuery({
     queryKey: ['ncaaf-mobile-league-view'],
     queryFn: () => kingfishFetch<NCAAFOutlookData>('/data/ncaaf/team-outlook-2026.json'),
-    enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'props'),
+    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'league',
+    staleTime: 24 * 60 * 60 * 1000,
+  })
+  const ncaabBaselineQuery = useQuery({
+    queryKey: ['ncaab-mobile-team-board'],
+    queryFn: () => kingfishFetch<NCAABBaselineData>('/data/ncaab/team-baseline-2026.json'),
+    enabled: isSelectedSportActive && sport === 'NCAAB' && view === 'league',
     staleTime: 24 * 60 * 60 * 1000,
   })
   const ncaafMatchupsQuery = useQuery({
     queryKey: ['ncaaf-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaf-matchups'),
-    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'props',
+    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'matchups',
     staleTime: 10 * 60 * 1000,
   })
   const nflMatchupsQuery = useQuery({
@@ -572,7 +624,7 @@ export default function DashboardScreen() {
   const kboTeamQuery = useQuery({
     queryKey: ['kbo-team-stats'],
     queryFn: () => kingfishFetch<KBOTeamStats>('/api/kbo-team-stats'),
-    enabled: isSelectedSportActive && sport === 'KBO' && view === 'props',
+    enabled: isSelectedSportActive && sport === 'KBO' && (view === 'props' || view === 'lines'),
     staleTime: 18 * 60 * 60 * 1000,
   })
   const teamFormQuery = useQuery({
@@ -649,7 +701,7 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.row}>
-        {SPORTS.map((item) => (
+        {visibleSports.map((item) => (
           <Pressable
             key={item.key}
             onPress={() => {
@@ -665,13 +717,7 @@ export default function DashboardScreen() {
               <AppText style={[styles.pillText, sport === item.key && styles.activePillText]}>
                 {item.key}
               </AppText>
-              <View
-                style={[
-                  styles.statusDot,
-                  getSportActive(item) && styles.liveDot,
-                  !getSportActive(item) && item.status === 'Offseason' && styles.offseasonDot,
-                ]}
-              />
+              {getSportActive(item) && <View style={[styles.statusDot, styles.liveDot]} />}
             </View>
           </Pressable>
         ))}
@@ -746,6 +792,13 @@ export default function DashboardScreen() {
             ? `${selectedSoccerLeague.label} game lines and team context when supported markets are available.`
             : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
         </AppText>
+        {sport === 'NFL' && (
+          <View style={styles.upgradeAction}>
+            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
+              Open NFL Command Center
+            </Button>
+          </View>
+        )}
         {!isSelectedSportActive && (
           <View style={styles.roadmapBox}>
             <AppText variant="eyebrow">// Season Watch</AppText>
@@ -839,7 +892,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && isPremium && (
+      {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && canViewMatchups && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">Game matchup context using posted lines and team form</AppText>
@@ -883,19 +936,57 @@ export default function DashboardScreen() {
             const awayPct = sport === 'MLB' ? Number(awayRecord?.pct || 0) : 0
             const homePct = sport === 'MLB' ? Number(homeRecord?.pct || 0) : 0
             const stronger = sport === 'MLB' && awayPct !== homePct ? (awayPct > homePct ? shortTeamName(game.away_team) : shortTeamName(game.home_team)) : null
+            const note = sport === 'MLB'
+              ? stronger
+                ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points. Use the lines tab to compare that edge against the best available price.`
+                : 'Season records are close. Use probable pitchers, recent form, and the best posted line before making the call.'
+              : sport === 'SOCCER' && soccerLean
+                ? `${soccerLean.detail} Use posted moneylines to compare the table edge against the best available price.`
+                : 'Use team form and posted market prices together before making the call.'
+            const awayRows = sport === 'MLB'
+              ? [
+                  { label: 'Record', value: awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : '-' },
+                  { label: 'Win Pct', value: awayRecord ? `${(Number(awayRecord.pct || 0) * 100).toFixed(1)}%` : '-' },
+                  { label: 'Last 10', value: awayForm ? `${awayForm.wins}-${awayForm.losses}` : '-' },
+                  { label: 'Probable SP', value: mlbScheduleQuery.data?.pitcherNameMap?.[awayAbbr] || 'TBD' },
+                ]
+              : sport === 'SOCCER'
+                ? [
+                    { label: 'Record', value: soccerRecordLine(soccerAway) },
+                    { label: 'Table', value: soccerAway?.position ? `#${soccerAway.position} · ${soccerAway.points || 0} pts` : '-' },
+                    { label: 'Goals', value: soccerStatLine(soccerAway) },
+                    { label: 'Form', value: soccerAway?.form || '-' },
+                  ]
+                : [
+                    { label: 'Record', value: teamRecordLabel(awayRecord, sport) },
+                    { label: 'Recent', value: formLabel(awayRecord, sport) },
+                    { label: sport === 'NHL' ? 'Points' : 'Games', value: sport === 'NHL' ? String(awayRecord?.points || 0) : String(awayRecord?.games || 0) },
+                  ]
+            const homeRows = sport === 'MLB'
+              ? [
+                  { label: 'Record', value: homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : '-' },
+                  { label: 'Win Pct', value: homeRecord ? `${(Number(homeRecord.pct || 0) * 100).toFixed(1)}%` : '-' },
+                  { label: 'Last 10', value: homeForm ? `${homeForm.wins}-${homeForm.losses}` : '-' },
+                  { label: 'Probable SP', value: mlbScheduleQuery.data?.pitcherNameMap?.[homeAbbr] || 'TBD' },
+                ]
+              : sport === 'SOCCER'
+                ? [
+                    { label: 'Record', value: soccerRecordLine(soccerHome) },
+                    { label: 'Table', value: soccerHome?.position ? `#${soccerHome.position} · ${soccerHome.points || 0} pts` : '-' },
+                    { label: 'Goals', value: soccerStatLine(soccerHome) },
+                    { label: 'Form', value: soccerHome?.form || '-' },
+                  ]
+                : [
+                    { label: 'Record', value: teamRecordLabel(homeRecord, sport) },
+                    { label: 'Recent', value: formLabel(homeRecord, sport) },
+                    { label: sport === 'NHL' ? 'Points' : 'Games', value: sport === 'NHL' ? String(homeRecord?.points || 0) : String(homeRecord?.games || 0) },
+                  ]
             return (
               <Card key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}>
                 <View style={styles.gameHeader}>
                   <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
                   <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                 </View>
-                {sport === 'MLB' && (
-                  <AppText variant="muted" style={styles.teamInfoMeta}>
-                    {stronger
-                      ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points.`
-                      : 'Season records are close. Use probable pitchers, recent form, and the best posted line before making the call.'}
-                  </AppText>
-                )}
                 {sport === 'SOCCER' && soccerLean && (
                   <View style={styles.leanBox}>
                     <View style={styles.leanCopy}>
@@ -911,39 +1002,13 @@ export default function DashboardScreen() {
                     )}
                   </View>
                 )}
-                <View style={styles.teamInfoStats}>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">{shortTeamName(game.away_team)}</AppText>
-                    <AppText style={styles.teamInfoValue}>
-                      {sport === 'SOCCER'
-                        ? soccerRecordLine(soccerAway)
-                        : sport === 'MLB'
-                        ? awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : '-'
-                        : teamRecordLabel(awayRecord, sport)}
-                    </AppText>
-                    {sport === 'MLB' && <AppText variant="muted" style={styles.miniMeta}>{recordGrade(awayPct)} · SP {mlbScheduleQuery.data?.pitcherNameMap?.[awayAbbr] || 'TBD'}</AppText>}
-                    {sport === 'SOCCER' && <AppText variant="muted" style={styles.miniMeta}>{soccerStatLine(soccerAway)}</AppText>}
-                  </View>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">{shortTeamName(game.home_team)}</AppText>
-                    <AppText style={styles.teamInfoValue}>
-                      {sport === 'SOCCER'
-                        ? soccerRecordLine(soccerHome)
-                        : sport === 'MLB'
-                        ? homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : '-'
-                        : teamRecordLabel(homeRecord, sport)}
-                    </AppText>
-                    {sport === 'MLB' && <AppText variant="muted" style={styles.miniMeta}>{recordGrade(homePct)} · SP {mlbScheduleQuery.data?.pitcherNameMap?.[homeAbbr] || 'TBD'}</AppText>}
-                    {sport === 'SOCCER' && <AppText variant="muted" style={styles.miniMeta}>{soccerStatLine(soccerHome)}</AppText>}
-                  </View>
-                  <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">Form</AppText>
-                    <AppText style={styles.teamInfoValue}>
-                      {sport === 'MLB'
-                        ? `${awayForm ? `${awayForm.wins}-${awayForm.losses}` : '-'} / ${homeForm ? `${homeForm.wins}-${homeForm.losses}` : '-'}`
-                        : `${formLabel(awayForm, sport)} / ${formLabel(homeForm, sport)}`}
-                    </AppText>
-                  </View>
+                <View style={styles.matchupTeamGrid}>
+                  <MatchupTeamBox title={shortTeamName(game.away_team)} grade={sport === 'MLB' ? recordGrade(awayPct) : null} rows={awayRows} />
+                  <MatchupTeamBox title={shortTeamName(game.home_team)} grade={sport === 'MLB' ? recordGrade(homePct) : null} rows={homeRows} />
+                </View>
+                <View style={styles.matchupNote}>
+                  <AppText variant="eyebrow">KingFish Matchup Note</AppText>
+                  <AppText variant="muted" style={styles.matchupNoteText}>{note}</AppText>
                 </View>
               </Card>
             )
@@ -1140,6 +1205,58 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {isSelectedSportActive && sport === 'NCAAB' && view === 'league' && (
+        <View style={styles.liveSection}>
+          <View style={styles.dataNote}>
+            <AppText variant="mono">College basketball team baseline for offseason and pregame context</AppText>
+          </View>
+
+          {ncaabBaselineQuery.isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.gold} />
+              <AppText variant="muted" style={styles.stateText}>Loading NCAAB team board...</AppText>
+            </View>
+          )}
+
+          {ncaabBaselineQuery.isError && (
+            <Card>
+              <AppText variant="eyebrow">// Team Board</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load college basketball baseline.</AppText>
+            </Card>
+          )}
+
+          {ncaabBaselineQuery.data?.teams.map((team) => (
+            <Card key={`${team.rank}-${team.team}`}>
+              <View style={styles.teamInfoHeader}>
+                <View style={styles.teamInfoRank}>
+                  <AppText style={styles.teamInfoRankText}>{team.rank}</AppText>
+                </View>
+                <View style={styles.teamInfoBody}>
+                  <AppText style={styles.teamInfoName}>{team.team}</AppText>
+                  <AppText variant="muted" style={styles.teamInfoMeta}>
+                    {team.record} · {team.conference} · {team.tempo}
+                  </AppText>
+                </View>
+                <View style={styles.teamInfoGrade}>
+                  <AppText style={styles.teamInfoGradeText}>{team.lean}</AppText>
+                </View>
+              </View>
+              <AppText variant="muted" style={styles.roadmapText}>{team.profile}</AppText>
+              <View style={styles.teamInfoStats}>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Offense</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.offense}</AppText>
+                </View>
+                <View style={styles.teamInfoStat}>
+                  <AppText variant="mono">Defense</AppText>
+                  <AppText style={styles.teamInfoValue}>{team.defense}</AppText>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+
       {isSelectedSportActive && view === 'lines' && !canViewLines && (
         <View style={styles.liveSection}>
           <Card>
@@ -1172,7 +1289,9 @@ export default function DashboardScreen() {
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">
-              Live lines refresh throughout the day · best available odds are highlighted in gold
+              {sport === 'KBO' && kboTeams.length
+                ? `Live KBO lines with ${kboTeams.length} team records loaded for context`
+                : 'Live lines refresh throughout the day · best available odds are highlighted in gold'}
             </AppText>
           </View>
           {lineQuery.isLoading && (
@@ -1365,6 +1484,13 @@ export default function DashboardScreen() {
               </View>
             </Card>
           ))}
+          {kboTeamQuery.data?.updated_at && (
+            <View style={styles.dataNote}>
+              <AppText variant="mono">
+                Updated {new Date(kboTeamQuery.data.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </AppText>
+            </View>
+          )}
         </View>
       )}
 
@@ -1379,7 +1505,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && sport === 'NCAAF' && (
+      {isSelectedSportActive && view === 'matchups' && sport === 'NCAAF' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">Cached matchup context from the latest NCAAF odds board</AppText>
@@ -1843,6 +1969,68 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 11,
     lineHeight: 15,
+  },
+  matchupTeamGrid: {
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  matchupTeamBox: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: spacing.md,
+    backgroundColor: colors.bgCardAlt,
+  },
+  matchupTeamTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  matchupTeamTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 21,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  matchupGrade: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  matchupStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  matchupStatLabel: {
+    flex: 1,
+    fontSize: 13,
+  },
+  matchupStatValue: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  matchupNote: {
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.28)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.08)',
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  matchupNoteText: {
+    marginTop: 6,
   },
   leanBox: {
     flexDirection: 'row',
