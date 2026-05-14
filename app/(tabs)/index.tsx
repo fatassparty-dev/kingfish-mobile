@@ -593,6 +593,7 @@ export default function DashboardScreen() {
   const [view, setView] = useState<DashboardView>('lines')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
+  const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
@@ -753,6 +754,15 @@ export default function DashboardScreen() {
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
+  const playoffLeagueTeams = (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && leagueScope === 'playoff'
+    ? visibleLineGames.flatMap((game) => [
+        findTeamForm(teamFormQuery.data?.teams, game.away_team),
+        findTeamForm(teamFormQuery.data?.teams, game.home_team),
+      ]).filter(Boolean)
+    : []
+  const visibleLeagueTeams = playoffLeagueTeams.length
+    ? uniqueTeamForms(Object.fromEntries(playoffLeagueTeams.map((team: any) => [team.teamAbbr || team.teamName || team.commonName, team])))
+    : uniqueTeamForms(teamFormQuery.data?.teams)
   const nflMatchupGames = upcomingGames(nflMatchupsQuery.data || [])
   const nflMatchupWeeks = sport === 'NFL' ? weekOptions(nflMatchupGames) : []
   const activeNflMatchupWeek = nflMatchupWeeks.find((week) => week.key === selectedMatchupWeek) || nflMatchupWeeks[0]
@@ -988,7 +998,22 @@ export default function DashboardScreen() {
                   <AppText variant="muted" style={styles.stateText}>Loading {sport} league view...</AppText>
                 </View>
               )}
-              {uniqueTeamForms(teamFormQuery.data?.teams).map((team: any) => (
+              {(sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && (
+                <View style={styles.scopeRow}>
+                  {(['playoff', 'season'] as const).map((scope) => (
+                    <Pressable
+                      key={scope}
+                      onPress={() => setLeagueScope(scope)}
+                      style={[styles.scopePill, leagueScope === scope && styles.scopePillActive]}
+                    >
+                      <AppText style={[styles.scopePillText, leagueScope === scope && styles.scopePillTextActive]}>
+                        {scope === 'playoff' ? 'Playoff' : 'Season'}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              {visibleLeagueTeams.map((team: any) => (
                 <Card key={`${team.teamAbbr}-${team.teamName}`}>
                   <View style={styles.teamInfoHeader}>
                     <View style={styles.teamInfoRank}>
@@ -997,7 +1022,7 @@ export default function DashboardScreen() {
                     <View style={styles.teamInfoBody}>
                       <AppText style={styles.teamInfoName}>{team.teamName || team.commonName}</AppText>
                       <AppText variant="muted" style={styles.teamInfoMeta}>
-                        {teamRecordLabel(team, sport)} · {sport === 'NHL' ? `${team.points || 0} pts` : `${team.games || 0} recent games`}
+                        {teamRecordLabel(team, sport)}{sport === 'NHL' ? ` · ${team.points || 0} pts` : ''}
                       </AppText>
                     </View>
                   </View>
@@ -1964,7 +1989,33 @@ const styles = StyleSheet.create({
   soccerLeagueTextActive: {
     color: colors.bgPrimary,
   },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  scopePill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  scopePillActive: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  scopePillText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'capitalize',
+  },
+  scopePillTextActive: {
+    color: colors.bgPrimary,
+  },
   weekRow: {
+
     gap: spacing.sm,
     paddingRight: spacing.lg,
   },
