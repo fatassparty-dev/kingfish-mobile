@@ -343,8 +343,13 @@ export default function AccountScreen() {
             Help Guide
           </Button>
         </View>
-        <AppText variant="muted" style={styles.websiteNote}>
-          More research tools are available at KingFishBets.com.
+        <AppText
+          variant="muted"
+          style={styles.websiteNote}
+          accessibilityRole="link"
+          onPress={() => Linking.openURL(mobileConfig.links.home)}
+        >
+          Your KingFish account works across web and mobile. Sign in at KingFishBets.com to use KingFish on your computer.
         </AppText>
         <View style={styles.supportLinks}>
           <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
@@ -567,7 +572,9 @@ const styles = StyleSheet.create({
   buttonGap: { height: spacing.md },
   websiteNote: {
     marginTop: spacing.md,
+    color: colors.gold,
     fontSize: 13,
+    fontWeight: '800',
     lineHeight: 19,
   },
   supportLinks: {
