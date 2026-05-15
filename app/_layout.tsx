@@ -4,8 +4,9 @@ import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { colors } from '@/lib/theme'
 import { AuthProvider } from '@/lib/auth'
+import { Sentry } from '@/lib/sentry'
 
-export default function RootLayout() {
+function RootLayout() {
   const [queryClient] = useState(() => new QueryClient())
 
   return (
@@ -29,3 +30,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   )
 }
+
+export default Sentry.wrap(RootLayout)

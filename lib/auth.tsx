@@ -4,6 +4,7 @@ import { router, useSegments } from 'expo-router'
 import { supabase } from './supabase'
 import type { UserProfile } from '@/types'
 import { configurePurchases } from './purchases'
+import { Sentry } from './sentry'
 
 interface AuthContextValue {
   session: Session | null
@@ -19,6 +20,16 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 function isInvalidRefreshToken(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')
+}
+
+function setSentryUser(activeSession: Session | null) {
+  if (activeSession?.user) {
+    Sentry.setUser({
+      id: activeSession.user.id,
+    })
+  } else {
+    Sentry.setUser(null)
+  }
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -63,6 +74,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return
       setSession(data.session)
+      setSentryUser(data.session)
       await configurePurchases(data.session?.user?.id)
       await loadProfile(data.session)
       setLoading(false)
@@ -71,6 +83,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (isInvalidRefreshToken(err)) {
         supabase.auth.signOut({ scope: 'local' }).catch(() => {})
         setSession(null)
+        setSentryUser(null)
         setProfile(null)
         setProfileError(null)
       } else {
@@ -82,12 +95,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       try {
         setSession(nextSession)
+        setSentryUser(nextSession)
         await configurePurchases(nextSession?.user?.id)
         await loadProfile(nextSession)
       } catch (err) {
         if (isInvalidRefreshToken(err)) {
           supabase.auth.signOut({ scope: 'local' }).catch(() => {})
           setSession(null)
+          setSentryUser(null)
           setProfile(null)
           setProfileError(null)
         } else {
@@ -130,6 +145,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut: async () => {
         await supabase.auth.signOut()
         setSession(null)
+        setSentryUser(null)
         setProfile(null)
         router.replace('/sign-in')
       },
