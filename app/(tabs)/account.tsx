@@ -34,13 +34,13 @@ const NOTIFICATION_OPTIONS: Array<{
   },
   {
     key: 'betting',
-    label: 'KingFish Picks & Betting Alerts',
-    body: 'Future high-edge scores, mismatch spots, line movement, and slate alerts.',
+    label: 'Betting Alerts',
+    body: 'High-edge scores, mismatch spots, line movement, and slate alerts.',
   },
   {
     key: 'offers',
     label: 'News & Offers',
-    body: 'Product updates, feature launches, subscription offers, and free-trial promos.',
+    body: 'Product updates, feature launches, and promos.',
   },
 ]
 
@@ -333,33 +333,6 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
-        <AppText variant="eyebrow">// Notifications</AppText>
-        <AppText style={styles.webTitle}>Notification Preferences</AppText>
-        <AppText variant="muted" style={styles.copy}>
-          Choose what KingFish can send when mobile alerts go live. You can change these anytime.
-        </AppText>
-        <View style={styles.notificationList}>
-          {NOTIFICATION_OPTIONS.map((option) => (
-            <View key={option.key} style={styles.notificationRow}>
-              <View style={styles.notificationCopy}>
-                <AppText style={styles.notificationTitle}>{option.label}</AppText>
-                <AppText variant="muted" style={styles.notificationBody}>{option.body}</AppText>
-              </View>
-              <Switch
-                value={notificationPreferences[option.key]}
-                onValueChange={() => toggleNotificationPreference(option.key)}
-                trackColor={{ false: colors.borderActive, true: 'rgba(198,145,50,.45)' }}
-                thumbColor={notificationPreferences[option.key] ? colors.gold : colors.textSecondary}
-              />
-            </View>
-          ))}
-        </View>
-        {notificationMessage ? <AppText style={styles.noticeText}>{notificationMessage}</AppText> : null}
-      </Card>
-
-      <View style={styles.sectionGap} />
-
-      <Card>
         <AppText variant="eyebrow">// Support</AppText>
         <AppText style={styles.webTitle}>Need Something?</AppText>
         <AppText variant="muted" style={styles.copy}>
@@ -385,6 +358,33 @@ export default function AccountScreen() {
             Privacy
           </AppText>
         </View>
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
+        <AppText variant="eyebrow">// Notifications</AppText>
+        <AppText style={styles.webTitle}>Notification Preferences</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Choose what KingFish can send you. You can change these anytime.
+        </AppText>
+        <View style={styles.notificationList}>
+          {NOTIFICATION_OPTIONS.map((option) => (
+            <View key={option.key} style={styles.notificationRow}>
+              <View style={styles.notificationCopy}>
+                <AppText style={styles.notificationTitle}>{option.label}</AppText>
+                <AppText variant="muted" style={styles.notificationBody}>{option.body}</AppText>
+              </View>
+              <Switch
+                value={notificationPreferences[option.key]}
+                onValueChange={() => toggleNotificationPreference(option.key)}
+                trackColor={{ false: colors.borderActive, true: 'rgba(198,145,50,.45)' }}
+                thumbColor={notificationPreferences[option.key] ? colors.gold : colors.textSecondary}
+              />
+            </View>
+          ))}
+        </View>
+        {notificationMessage ? <AppText style={styles.noticeText}>{notificationMessage}</AppText> : null}
       </Card>
 
       <View style={styles.sectionGap} />
