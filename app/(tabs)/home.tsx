@@ -1,4 +1,4 @@
-import { Image, ImageBackground, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { AppText } from '@/components/Text'
 import { Screen } from '@/components/Screen'
@@ -8,48 +8,45 @@ export default function HomeScreen() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <ImageBackground
-          source={require('../../assets/images/bait-shop-hero.png')}
-          style={styles.heroImage}
-          imageStyle={styles.heroImageSource}
-        >
-          <View style={styles.heroShade}>
-            <View style={styles.brandRow}>
-              <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
-              <View style={styles.brandCopy}>
-                <AppText variant="eyebrow">// KingFish Bets</AppText>
-                <AppText variant="title" style={styles.title}>Welcome to the Bait Shop</AppText>
-              </View>
-            </View>
-
-            <AppText style={styles.copy}>
-              Live odds, props, sportsbook prices, weather, and KingFish context in one sharp betting research workspace.
-            </AppText>
-
-            <View style={styles.actionGrid}>
-              <HomeAction
-                label="Dashboard"
-                body="Live odds, game lines, player props, and betting intelligence."
-                onPress={() => router.push('/')}
-              />
-              <HomeAction
-                label="Tools"
-                body="Cheat sheets, calculators, and game factors."
-                onPress={() => router.push('/cheat-sheets')}
-              />
-              <HomeAction
-                label="Ask AI"
-                body="Pressure-test props, parlays, totals, and matchup reads."
-                onPress={() => router.push('/ask-kingfish')}
-              />
-              <HomeAction
-                label="Account"
-                body="Premium status, restore purchases, and support."
-                onPress={() => router.push('/account')}
-              />
+        <View style={styles.heroImageWrap}>
+          <Image source={require('../../assets/images/bait-shop-hero.png')} style={styles.heroImage} />
+        </View>
+        <View style={styles.heroContent}>
+          <View style={styles.brandRow}>
+            <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
+            <View style={styles.brandCopy}>
+              <AppText variant="eyebrow">// KingFish Bets</AppText>
+              <AppText variant="title" style={styles.title}>Welcome to the Bait Shop</AppText>
             </View>
           </View>
-        </ImageBackground>
+
+          <AppText style={styles.copy}>
+            Live odds, props, sportsbook prices, weather, and KingFish context in one sharp betting research workspace.
+          </AppText>
+
+          <View style={styles.actionGrid}>
+            <HomeAction
+              label="Dashboard"
+              body="Live odds, game lines, player props, and betting intelligence."
+              onPress={() => router.push('/')}
+            />
+            <HomeAction
+              label="Tools"
+              body="Cheat sheets, calculators, and game factors."
+              onPress={() => router.push('/cheat-sheets')}
+            />
+            <HomeAction
+              label="Ask AI"
+              body="Pressure-test props, parlays, totals, and matchup reads."
+              onPress={() => router.push('/ask-kingfish')}
+            />
+            <HomeAction
+              label="Account"
+              body="Premium status, restore purchases, and support."
+              onPress={() => router.push('/account')}
+            />
+          </View>
+        </View>
       </View>
     </Screen>
   )
@@ -66,25 +63,23 @@ function HomeAction({ label, body, onPress }: { label: string; body: string; onP
 
 const styles = StyleSheet.create({
   hero: {
-    flex: 1,
-    minHeight: 640,
     borderWidth: 1,
     borderColor: 'rgba(198,145,50,.32)',
     borderRadius: 16,
     backgroundColor: colors.bgCardAlt,
     overflow: 'hidden',
   },
-  heroImage: {
-    flex: 1,
-    minHeight: 640,
+  heroImageWrap: {
+    width: '100%',
+    height: 150,
+    overflow: 'hidden',
   },
-  heroImageSource: {
+  heroImage: {
+    width: '100%',
+    aspectRatio: 941 / 1672,
     resizeMode: 'cover',
   },
-  heroShade: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(8,9,14,.2)',
+  heroContent: {
     padding: spacing.lg,
   },
   brandRow: {

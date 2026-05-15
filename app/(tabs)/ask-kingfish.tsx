@@ -269,10 +269,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   avatar: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.35)',
+    backgroundColor: colors.bgCardAlt,
     marginBottom: spacing.lg,
+    resizeMode: 'contain',
   },
   title: {
     marginTop: 8,

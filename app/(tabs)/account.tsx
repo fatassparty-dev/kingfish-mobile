@@ -1,5 +1,5 @@
-import { Alert, Image, Linking, StyleSheet, View } from 'react-native'
-import { useState } from 'react'
+import { Alert, Image, Linking, StyleSheet, TextInput, View } from 'react-native'
+import { useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -9,6 +9,7 @@ import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
+import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
 export default function AccountScreen() {
@@ -18,12 +19,81 @@ export default function AccountScreen() {
   const [restoring, setRestoring] = useState(false)
   const [clearingChat, setClearingChat] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileFirstName, setProfileFirstName] = useState('')
+  const [profileLastName, setProfileLastName] = useState('')
+  const [profileState, setProfileState] = useState('')
+  const [profileMessage, setProfileMessage] = useState('')
   const isPremium = profile?.is_premium === true
+  const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   const sourceLabel = getAccessSource(profile)
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
+
+  useEffect(() => {
+    if (editingProfile) return
+    setProfileFirstName(profile?.first_name || '')
+    setProfileLastName(profile?.last_name || '')
+    setProfileState(profile?.state || '')
+  }, [editingProfile, profile?.first_name, profile?.last_name, profile?.state])
+
+  function startProfileEdit() {
+    setProfileMessage('')
+    setProfileFirstName(profile?.first_name || '')
+    setProfileLastName(profile?.last_name || '')
+    setProfileState(profile?.state || '')
+    setEditingProfile(true)
+  }
+
+  function cancelProfileEdit() {
+    setProfileMessage('')
+    setEditingProfile(false)
+  }
+
+  async function saveProfile() {
+    const nextFirstName = profileFirstName.trim()
+    const nextLastName = profileLastName.trim()
+    const nextState = profileState.trim().toUpperCase()
+
+    setProfileMessage('')
+    if (!nextFirstName || !nextLastName) {
+      setProfileMessage('First and last name are required.')
+      return
+    }
+    if (nextState && nextState.length !== 2) {
+      setProfileMessage('Use a 2-letter state abbreviation.')
+      return
+    }
+    if (!user?.id) {
+      setProfileMessage('Sign in again to update your profile.')
+      return
+    }
+
+    setSavingProfile(true)
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        first_name: nextFirstName,
+        last_name: nextLastName,
+        state: nextState || null,
+      })
+      .eq('user_id', user.id)
+
+    if (error) {
+      setProfileMessage(error.message || 'Profile could not be updated.')
+      setSavingProfile(false)
+      return
+    }
+
+    await refreshProfile()
+    setEditingProfile(false)
+    setProfileMessage('Profile updated.')
+    setSavingProfile(false)
+  }
+
   async function handleRestorePurchases() {
     setRestoring(true)
     const result = await restorePurchases(user?.id)
@@ -82,9 +152,9 @@ export default function AccountScreen() {
       <View style={styles.header}>
         <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
         <View style={styles.headerText}>
-          <AppText variant="eyebrow">// KingFish HQ</AppText>
+          <AppText variant="eyebrow">// Account Settings</AppText>
           <AppText variant="title" style={styles.title}>
-            {displayName ? `Welcome, ${profile?.first_name}` : 'Account'}
+            {firstName ? `Welcome, ${firstName}` : 'Account'}
           </AppText>
         </View>
       </View>
@@ -112,12 +182,55 @@ export default function AccountScreen() {
             {profileError}
           </AppText>
         ) : null}
-        <View style={styles.profileGrid}>
-          <ProfileCell label="Name" value={displayName || 'Not set'} />
-          <ProfileCell label="State" value={profile?.state || 'Not set'} />
-          <ProfileCell label="Plan" value={planLabel} />
-          <ProfileCell label="Renews" value={renewalLabel} />
-        </View>
+        {editingProfile ? (
+          <View style={styles.editForm}>
+            <View style={styles.nameRow}>
+              <TextInput
+                autoCapitalize="words"
+                placeholder="First name"
+                placeholderTextColor={colors.textMuted}
+                value={profileFirstName}
+                onChangeText={setProfileFirstName}
+                style={[styles.input, styles.nameInput]}
+              />
+              <TextInput
+                autoCapitalize="words"
+                placeholder="Last name"
+                placeholderTextColor={colors.textMuted}
+                value={profileLastName}
+                onChangeText={setProfileLastName}
+                style={[styles.input, styles.nameInput]}
+              />
+            </View>
+            <TextInput
+              autoCapitalize="characters"
+              maxLength={2}
+              placeholder="State, optional"
+              placeholderTextColor={colors.textMuted}
+              value={profileState}
+              onChangeText={setProfileState}
+              style={styles.input}
+            />
+            <View style={styles.cardAction}>
+              <Button loading={savingProfile} onPress={saveProfile}>Save Profile</Button>
+            </View>
+            <View style={styles.buttonGap} />
+            <Button variant="outline" disabled={savingProfile} onPress={cancelProfileEdit}>Cancel</Button>
+          </View>
+        ) : (
+          <>
+            <View style={styles.profileGrid}>
+              <ProfileCell label="Name" value={displayName || 'Not set'} />
+              <ProfileCell label="State" value={profile?.state || 'Not set'} />
+              <ProfileCell label="Plan" value={planLabel} />
+              <ProfileCell label="Renews" value={renewalLabel} />
+            </View>
+            <View style={styles.cardAction}>
+              <Button variant="secondary" onPress={startProfileEdit}>Edit Profile</Button>
+            </View>
+          </>
+        )}
+        {profileMessage ? <AppText style={styles.noticeText}>{profileMessage}</AppText> : null}
         {restoreMessage ? <AppText style={styles.noticeText}>{restoreMessage}</AppText> : null}
         <View style={styles.cardAction}>
           {!isPremium && mobileConfig.flags.mobile_paywall ? (
@@ -151,7 +264,7 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Support</AppText>
         <AppText style={styles.webTitle}>Need Something?</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Help, support, and the full KingFishBets.com workspace are here when you need them.
+          Get help with your account, support requests, legal details, and KingFish settings.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" onPress={() => router.push('/help')}>
@@ -160,7 +273,7 @@ export default function AccountScreen() {
         </View>
         <View style={styles.buttonGap} />
         <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.home)}>
-          Full Site
+          Open Bait Shop
         </Button>
         <View style={styles.supportLinks}>
           <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
@@ -181,11 +294,11 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Controls</AppText>
         <AppText style={styles.webTitle}>Account</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Clear saved Ask AI history, sign out, or delete your account.
+          Clear saved Ask KingFish history, sign out, or delete your account.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
-            Clear Ask AI History
+            Clear Ask KingFish History
           </Button>
         </View>
         <View style={styles.buttonGap} />
@@ -322,6 +435,27 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     fontWeight: '700',
+  },
+  editForm: {
+    marginTop: spacing.lg,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  nameInput: {
+    flex: 1,
+  },
+  input: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+    borderRadius: 8,
+    backgroundColor: '#161C2C',
+    color: colors.textPrimary,
+    paddingHorizontal: 14,
+    marginBottom: spacing.md,
+    fontSize: 15,
   },
   sectionGap: { height: spacing.md },
   noticeCard: {
