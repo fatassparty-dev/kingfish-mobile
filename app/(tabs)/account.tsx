@@ -343,10 +343,9 @@ export default function AccountScreen() {
             Help Guide
           </Button>
         </View>
-        <View style={styles.buttonGap} />
-        <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.home)}>
-          Open Bait Shop
-        </Button>
+        <AppText variant="muted" style={styles.websiteNote}>
+          More research tools are available at KingFishBets.com.
+        </AppText>
         <View style={styles.supportLinks}>
           <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
             Contact Support
@@ -566,6 +565,11 @@ const styles = StyleSheet.create({
   },
   cardAction: { marginTop: spacing.lg },
   buttonGap: { height: spacing.md },
+  websiteNote: {
+    marginTop: spacing.md,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   supportLinks: {
     flexDirection: 'row',
     flexWrap: 'wrap',
