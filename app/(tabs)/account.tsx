@@ -1,4 +1,5 @@
-import { Alert, Image, Linking, StyleSheet, TextInput, View } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Alert, Image, Linking, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -11,6 +12,37 @@ import { useMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
+
+type NotificationPreferenceKey = 'account' | 'betting' | 'offers'
+type NotificationPreferences = Record<NotificationPreferenceKey, boolean>
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  account: true,
+  betting: false,
+  offers: false,
+}
+
+const NOTIFICATION_OPTIONS: Array<{
+  key: NotificationPreferenceKey
+  label: string
+  body: string
+}> = [
+  {
+    key: 'account',
+    label: 'Account Notifications',
+    body: 'Important subscription, billing, security, and account updates.',
+  },
+  {
+    key: 'betting',
+    label: 'KingFish Picks & Betting Alerts',
+    body: 'Future high-edge scores, mismatch spots, line movement, and slate alerts.',
+  },
+  {
+    key: 'offers',
+    label: 'News & Offers',
+    body: 'Product updates, feature launches, subscription offers, and free-trial promos.',
+  },
+]
 
 export default function AccountScreen() {
   const { user, profile, loading, profileError, refreshProfile, signOut } = useAuth()
@@ -25,6 +57,8 @@ export default function AccountScreen() {
   const [profileLastName, setProfileLastName] = useState('')
   const [profileState, setProfileState] = useState('')
   const [profileMessage, setProfileMessage] = useState('')
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
+  const [notificationMessage, setNotificationMessage] = useState('')
   const isPremium = profile?.is_premium === true
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
@@ -39,6 +73,27 @@ export default function AccountScreen() {
     setProfileLastName(profile?.last_name || '')
     setProfileState(profile?.state || '')
   }, [editingProfile, profile?.first_name, profile?.last_name, profile?.state])
+
+  useEffect(() => {
+    const storageKey = notificationStorageKey(user?.id)
+    if (!storageKey) return
+
+    let mounted = true
+    AsyncStorage.getItem(storageKey)
+      .then((saved) => {
+        if (!mounted || !saved) return
+        const parsed = JSON.parse(saved) as Partial<NotificationPreferences>
+        setNotificationPreferences({
+          ...DEFAULT_NOTIFICATION_PREFERENCES,
+          ...parsed,
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      mounted = false
+    }
+  }, [user?.id])
 
   function startProfileEdit() {
     setProfileMessage('')
@@ -144,6 +199,23 @@ export default function AccountScreen() {
     } catch (error: any) {
       setRestoreMessage(error?.message || 'Account could not be deleted. Please contact support.')
       setDeletingAccount(false)
+    }
+  }
+
+  async function toggleNotificationPreference(key: NotificationPreferenceKey) {
+    const storageKey = notificationStorageKey(user?.id)
+    const nextPreferences = {
+      ...notificationPreferences,
+      [key]: !notificationPreferences[key],
+    }
+    setNotificationPreferences(nextPreferences)
+    setNotificationMessage('Notification preferences saved.')
+
+    if (!storageKey) return
+    try {
+      await AsyncStorage.setItem(storageKey, JSON.stringify(nextPreferences))
+    } catch {
+      setNotificationMessage('Preference saved for this session. Sign in again if it does not stick.')
     }
   }
 
@@ -261,6 +333,33 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
+        <AppText variant="eyebrow">// Notifications</AppText>
+        <AppText style={styles.webTitle}>Notification Preferences</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Choose what KingFish can send when mobile alerts go live. You can change these anytime.
+        </AppText>
+        <View style={styles.notificationList}>
+          {NOTIFICATION_OPTIONS.map((option) => (
+            <View key={option.key} style={styles.notificationRow}>
+              <View style={styles.notificationCopy}>
+                <AppText style={styles.notificationTitle}>{option.label}</AppText>
+                <AppText variant="muted" style={styles.notificationBody}>{option.body}</AppText>
+              </View>
+              <Switch
+                value={notificationPreferences[option.key]}
+                onValueChange={() => toggleNotificationPreference(option.key)}
+                trackColor={{ false: colors.borderActive, true: 'rgba(198,145,50,.45)' }}
+                thumbColor={notificationPreferences[option.key] ? colors.gold : colors.textSecondary}
+              />
+            </View>
+          ))}
+        </View>
+        {notificationMessage ? <AppText style={styles.noticeText}>{notificationMessage}</AppText> : null}
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
         <AppText variant="eyebrow">// Support</AppText>
         <AppText style={styles.webTitle}>Need Something?</AppText>
         <AppText variant="muted" style={styles.copy}>
@@ -320,6 +419,10 @@ function ProfileCell({ label, value }: { label: string; value: string }) {
       <AppText style={styles.profileValue}>{value}</AppText>
     </View>
   )
+}
+
+function notificationStorageKey(userId?: string | null) {
+  return userId ? `kingfish-notifications:${userId}` : null
 }
 
 function getAccessSource(profile: ReturnType<typeof useAuth>['profile']) {
@@ -473,6 +576,33 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 13,
     fontWeight: '900',
+  },
+  notificationList: {
+    marginTop: spacing.lg,
+    gap: spacing.md,
+  },
+  notificationRow: {
+    minHeight: 84,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  notificationCopy: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  notificationBody: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
   },
   deleteWrap: {
     alignItems: 'center',
