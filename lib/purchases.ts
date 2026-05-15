@@ -7,6 +7,10 @@ export type PurchaseResult = {
   message: string
 }
 
+export type PurchasePlanDetails = Partial<Record<PurchasePlan, {
+  price: string
+}>>
+
 declare const require: (name: string) => any
 
 const ENTITLEMENT_IDS = ['kingfish_bets_pro', 'KingFish Bets Pro', 'premium']
@@ -121,6 +125,31 @@ function choosePackage(offerings: any, plan?: PurchasePlan) {
   }
 
   return availablePackages[0]
+}
+
+function packagePrice(pkg: any) {
+  return pkg?.product?.priceString || pkg?.product?.price_string || ''
+}
+
+export async function getPremiumPlanDetails(appUserID?: string | null): Promise<PurchasePlanDetails> {
+  const configured = await configurePurchases(appUserID)
+  if (!configured.ok) return {}
+
+  try {
+    const offerings = await Purchases.getOfferings()
+    const monthlyPackage = choosePackage(offerings, 'monthly')
+    const yearlyPackage = choosePackage(offerings, 'yearly')
+    return {
+      monthly: monthlyPackage
+        ? { price: packagePrice(monthlyPackage) }
+        : undefined,
+      yearly: yearlyPackage
+        ? { price: packagePrice(yearlyPackage) }
+        : undefined,
+    }
+  } catch {
+    return {}
+  }
 }
 
 export async function purchasePremium(appUserID?: string | null, plan?: PurchasePlan): Promise<PurchaseResult> {

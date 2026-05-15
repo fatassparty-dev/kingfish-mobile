@@ -272,7 +272,7 @@ export default function AccountScreen() {
           </Button>
         </View>
         <View style={styles.buttonGap} />
-        <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.home)}>
+        <Button variant="outline" onPress={() => router.push('/home')}>
           Open Bait Shop
         </Button>
         <View style={styles.supportLinks}>

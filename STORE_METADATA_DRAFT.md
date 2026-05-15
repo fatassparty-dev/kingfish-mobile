@@ -29,7 +29,7 @@ Inside KingFish:
 - MLB and NFL Game Factors for venue, weather, and scoring environment context
 - Ask KingFish AI analyst with live KingFish context
 - NFL Command Center and Fantasy Hub links
-- Account access shared across web and mobile
+- Account settings, profile editing, purchase restore, support, and legal access
 
 KingFish does not accept wagers. KingFish is a 17+ analytics and information platform where permitted by law. All tools, stats, research signals, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
 
@@ -41,7 +41,7 @@ sports analytics, sports betting research, odds research, player props, fantasy 
 
 KingFish Bets is an analytics and sports information app. The app does not accept wagers, process bets, or operate as a sportsbook.
 
-Premium access unlocks advanced research tools, player prop views, cheat sheets, and AI usage. Payments are handled through App Store / Google Play in the mobile app and through Stripe on the website. User premium status is shared through the KingFish account system.
+Premium access unlocks advanced research tools, player prop views, cheat sheets, and AI usage. Payments in the mobile app are handled through App Store / Google Play in-app purchase. Existing web or manually granted premium status is shared through the KingFish account system.
 
 The app uses public mobile-safe API keys only. Server-only keys and paid data provider keys remain on the KingFish backend.
 
@@ -55,7 +55,7 @@ Capture screenshots after the production build is stable:
 - Player profile modal
 - Cheat Sheets screen
 - Ask KingFish
-- Account / KingFish HQ
+- Account Settings
 - Paywall / subscription screen
 
 ## Data Safety Notes
