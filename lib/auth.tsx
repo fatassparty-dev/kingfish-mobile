@@ -112,7 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!session && !inAuthGroup) {
       router.replace('/sign-in')
     } else if (session && inAuthGroup) {
-      router.replace('/')
+      router.replace('/home')
     }
   }, [loading, session, segments])
 

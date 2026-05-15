@@ -6,7 +6,7 @@ import { Screen } from '@/components/Screen'
 import { colors, spacing } from '@/lib/theme'
 
 export default function HomeScreen() {
-  const lampGlow = useRef(new Animated.Value(0.16)).current
+  const lampGlow = useRef(new Animated.Value(0.28)).current
   const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
@@ -25,18 +25,18 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (reduceMotion) {
-      lampGlow.setValue(0.14)
+      lampGlow.setValue(0.24)
       return
     }
 
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(lampGlow, { toValue: 0.22, duration: 900, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.14, duration: 700, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.25, duration: 140, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.16, duration: 520, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.2, duration: 1200, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.38, duration: 900, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.24, duration: 700, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.44, duration: 140, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.3, duration: 520, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.36, duration: 1200, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.26, duration: 800, useNativeDriver: true }),
       ]),
     )
     animation.start()
@@ -123,10 +123,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 98,
     top: 58,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255,231,166,.5)',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,231,166,.72)',
   },
   heroContent: {
     padding: spacing.lg,

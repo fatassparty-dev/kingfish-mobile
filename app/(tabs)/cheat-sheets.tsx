@@ -8,7 +8,7 @@ import { GameLineCard } from '@/components/dashboard/GameLineCard'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
-import { kingfishFetch } from '@/lib/api'
+import { API_BASE_URL, kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fmtOdds, normalizeName } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
@@ -16,7 +16,7 @@ import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines'
+type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td'
 type ToolMode = 'sheets' | 'calculators' | 'factors'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 type FactorSport = 'MLB' | 'NFL'
@@ -25,7 +25,7 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'td'
   market?: string
   statField?: string
   trend?: boolean
@@ -37,6 +37,7 @@ const SHEETS: Array<{
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
+  { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -194,6 +195,13 @@ interface FactorRow {
   lean: string
   tone: string
   tags: string[]
+}
+
+interface TdStreakRow {
+  player: string
+  team: string
+  position: string
+  streak_games: number
 }
 
 function getStat(stats: Record<string, any> | undefined, field: string, prefix: 'season' | 'l10' | 'l5') {
@@ -412,6 +420,24 @@ function buildFactorRows(games: Game[] = [], weatherData: Record<string, any> = 
         tags: [baseline.market, ...weather.tags],
       }
     })
+}
+
+function parseTdStreakCsv(csv: string): TdStreakRow[] {
+  return csv
+    .trim()
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => {
+      const [player, team, position, streakGames] = line.split(',').map((value) => value.trim())
+      return {
+        player,
+        team,
+        position,
+        streak_games: Number(streakGames) || 0,
+      }
+    })
+    .filter((row) => row.player && row.team && row.position && row.streak_games > 0)
+    .sort((a, b) => b.streak_games - a.streak_games || a.player.localeCompare(b.player))
 }
 
 function fmtMoney(value: number) {
@@ -743,18 +769,20 @@ export default function CheatSheetsScreen() {
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
   const hasOpenSheet = selectedKey !== null
   const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet
+  const isTdSheet = activeSheet.type === 'td'
+  const canLoadMlbSheetData = canLoadData && !isTdSheet
   const canLoadFactors = isPremium && toolMode === 'factors'
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
     queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
-    enabled: canLoadData,
+    enabled: canLoadMlbSheetData,
     staleTime: 12 * 60 * 60 * 1000,
   })
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
-    enabled: canLoadData && activeSheet.type !== 'lines',
+    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines',
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -765,8 +793,19 @@ export default function CheatSheetsScreen() {
       pitcherNameMap?: Record<string, string>
       pitcherIdNameMap?: Record<string, string>
     }>('/api/mlb-schedule'),
-    enabled: canLoadData && (activeKey === 'bvp' || activeKey === 'hits'),
+    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits'),
     staleTime: 60 * 60 * 1000,
+  })
+
+  const tdStreaksQuery = useQuery({
+    queryKey: ['nfl-td-streaks-2026'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/data/nfl/td-streaks-2026.csv`)
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+      return parseTdStreakCsv(await response.text())
+    },
+    enabled: canLoadData && isTdSheet,
+    staleTime: 24 * 60 * 60 * 1000,
   })
 
   const sheetGames = useMemo(() => sheetQuery.data?.data || [], [sheetQuery.data?.data])
@@ -802,7 +841,7 @@ export default function CheatSheetsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(playersToFetch),
       }),
-    enabled: canLoadData && activeSheet.type !== 'lines' && (playersToFetch.batters.length > 0 || playersToFetch.pitchers.length > 0),
+    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && (playersToFetch.batters.length > 0 || playersToFetch.pitchers.length > 0),
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -814,7 +853,7 @@ export default function CheatSheetsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ games: sheetGames }),
       }),
-    enabled: canLoadData && activeKey === 'lines' && sheetGames.length > 0,
+    enabled: canLoadMlbSheetData && activeKey === 'lines' && sheetGames.length > 0,
     staleTime: 60 * 60 * 1000,
   })
 
@@ -836,7 +875,7 @@ export default function CheatSheetsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchups: bvpMatchups.map(({ batterID, pitcherID }) => ({ batterID, pitcherID })) }),
       }),
-    enabled: canLoadData && (activeKey === 'bvp' || activeKey === 'hits') && bvpMatchups.length > 0,
+    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits') && bvpMatchups.length > 0,
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -887,6 +926,7 @@ export default function CheatSheetsScreen() {
     : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
+  const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
   const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
 
   function openPlayerProfile(player: string, row?: SheetRow) {
@@ -1175,7 +1215,7 @@ export default function CheatSheetsScreen() {
                 onPress={() => setSelectedKey(sheet.key)}
                 style={styles.sheetTile}
               >
-                <AppText variant="eyebrow">// MLB</AppText>
+                <AppText variant="eyebrow">// {sheet.type === 'td' ? 'NFL' : 'MLB'}</AppText>
                 <AppText style={styles.sheetTileTitle}>{sheet.label}</AppText>
                 <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{sheet.desc}</AppText>
               </Pressable>
@@ -1199,27 +1239,60 @@ export default function CheatSheetsScreen() {
           <Card>
             <View style={styles.reportTitleRow}>
               <View style={styles.reportTitleWrap}>
-                <AppText variant="eyebrow">// {activeSheet.label}</AppText>
+                <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              <AppText style={styles.reportDate}>{formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}</AppText>
+              <AppText style={styles.reportDate}>
+                {isTdSheet ? '2025 regular season' : formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
+              </AppText>
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading) && (
+          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
             </View>
           )}
 
-          {sheetQuery.isError && (
+          {(sheetQuery.isError || tdStreaksQuery.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
-                {sheetQuery.error instanceof Error ? sheetQuery.error.message : 'Could not load this sheet.'}
+                {sheetQuery.error instanceof Error
+                  ? sheetQuery.error.message
+                  : tdStreaksQuery.error instanceof Error
+                    ? tdStreaksQuery.error.message
+                    : 'Could not load this sheet.'}
               </AppText>
             </Card>
+          )}
+
+          {activeKey === 'td' && tdStreakRows.length > 0 && (
+            <>
+              <View style={styles.reportRows}>
+                {tdStreakRows.slice(0, 30).map((row, index) => (
+                  <View key={`${row.player}-${row.team}-${index}`} style={styles.reportRow}>
+                    <View style={styles.rankBadge}>
+                      <AppText style={styles.rankText}>{index + 1}</AppText>
+                    </View>
+                    <View style={styles.rowMain}>
+                      <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                      <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                        {row.team} · {row.position}
+                      </AppText>
+                    </View>
+                    <View style={styles.rowNumbers}>
+                      <AppText style={styles.compactEdge}>{row.streak_games}</AppText>
+                      <AppText style={styles.compactOdds}>games</AppText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <AppText variant="muted" style={styles.cardCopy}>
+                Rushing, receiving, return, and fumble-recovery touchdowns only. Passing touchdowns are excluded.
+              </AppText>
+            </>
           )}
 
           {activeKey === 'lines' && (
@@ -1262,7 +1335,7 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'lines' && activeKey !== 'bvp' && rows.length > 0 && (
+          {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'td' && rows.length > 0 && (
             <View style={styles.reportRows}>
               {(activeKey === 'hits' ? rows : rows.slice(0, 6)).map((row, index) => row.divider ? (
                 <View key={`divider-${row.label}-${index}`} style={styles.reportDivider}>
@@ -1305,7 +1378,13 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {!sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey === 'td' && !tdStreaksQuery.isLoading && !tdStreaksQuery.isError && tdStreakRows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No NFL touchdown streak rows are available yet.
+            </AppText>
+          )}
+
+          {activeKey !== 'td' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
