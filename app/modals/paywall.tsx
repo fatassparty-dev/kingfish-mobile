@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -7,7 +7,8 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
-import { PurchasePlan, PurchasePlanDetails, getPremiumPlanDetails, purchasePremium, restorePurchases } from '@/lib/purchases'
+import { purchasePremium, restorePurchases } from '@/lib/purchases'
+import type { PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 
 const PLANS: {
@@ -47,15 +48,8 @@ export default function PaywallScreen() {
   const [message, setMessage] = useState('')
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
-  const [planDetails, setPlanDetails] = useState<PurchasePlanDetails>({})
   const isPremium = profile?.is_premium === true
   const purchasePaused = mobileConfig.flags.mobile_paywall === false
-  const monthlyPrice = planDetails.monthly?.price || '$9.99'
-  const yearlyPrice = planDetails.yearly?.price || '$99'
-
-  useEffect(() => {
-    getPremiumPlanDetails(user?.id).then(setPlanDetails)
-  }, [user?.id])
 
   async function handlePurchase() {
     if (purchasePaused) {
@@ -142,7 +136,7 @@ export default function PaywallScreen() {
                   </View>
                 ) : null}
               </View>
-              <AppText style={styles.price}>{planDetails[plan.id]?.price || plan.price}</AppText>
+              <AppText style={styles.price}>{plan.price}</AppText>
               <AppText variant="muted">{plan.sub}</AppText>
             </Pressable>
           )
@@ -165,7 +159,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is {monthlyPrice} per month or {yearlyPrice} per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 17+ where permitted by law.
+        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 17+ where permitted by law.
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => router.push('/terms')}>

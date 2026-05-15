@@ -910,6 +910,15 @@ export default function DashboardScreen() {
   const visibleNflMatchups = activeNflMatchupWeek ? activeNflMatchupWeek.games : nflMatchupGames
   const visibleNflMatchupGroups = groupGamesByDate(visibleNflMatchups)
   const ncaafTeams = ncaafOutlookQuery.data?.teams || []
+  const hasLiveNcaafTeamData = ncaafTeams.some((team) =>
+    Boolean(
+      team.currentRecord ||
+      team.conferenceRecord ||
+      team.recentForm ||
+      typeof team.pointsForPerGame === 'number' ||
+      typeof team.pointsAllowedPerGame === 'number',
+    ),
+  )
   const ncaafConferences = Array.from(new Set([...NCAAF_MAJOR_CONFERENCES, ...ncaafTeams.map((team) => team.conference).filter(Boolean)]))
   const filteredNcaafTeams = ncaafTeams.filter((team) => {
     const scopeMatch = collegeScope === 'all' || team.rank <= 25
@@ -1552,12 +1561,6 @@ export default function DashboardScreen() {
 
           {isSelectedSportActive && sport === 'NFL' && view === 'league' && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">
-              Division baseline from 2025 results until live 2026 standings are available
-            </AppText>
-          </View>
-
           {nflFuturesQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -1600,9 +1603,6 @@ export default function DashboardScreen() {
                     {isExpanded && (
                       <View style={styles.leagueDetail}>
                         <AppText variant="eyebrow">{entry.team} Snapshot</AppText>
-                        <AppText variant="muted" style={styles.leagueDetailText}>
-                          Showing prior-season division context until live 2026 records, standings, and recent form are available.
-                        </AppText>
                         <View style={styles.leagueDetailGrid}>
                           <View style={styles.leagueDetailItem}>
                             <AppText variant="mono">2025 Wins</AppText>
@@ -1615,10 +1615,6 @@ export default function DashboardScreen() {
                           <View style={styles.leagueDetailItem}>
                             <AppText variant="mono">Last 5</AppText>
                             <AppText style={styles.leagueDetailValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
-                          </View>
-                          <View style={styles.leagueDetailItem}>
-                            <AppText variant="mono">2026 Live Record</AppText>
-                            <AppText style={styles.leagueDetailValue}>Pending schedule/results</AppText>
                           </View>
                         </View>
                       </View>
@@ -1725,7 +1721,9 @@ export default function DashboardScreen() {
       {isSelectedSportActive && sport === 'NCAAF' && view === 'league' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">College football team outlook for league context</AppText>
+            <AppText variant="mono">
+              {hasLiveNcaafTeamData ? '2026 college football team context' : 'College football team outlook for league context'}
+            </AppText>
           </View>
 
           {ncaafOutlookQuery.isLoading && (
@@ -1742,39 +1740,57 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {filteredNcaafTeams.map((team) => (
-            <Card key={`${team.rank}-${team.team}`}>
-              <View style={styles.teamInfoHeader}>
-                <View style={styles.teamInfoRank}>
-                  <AppText style={styles.teamInfoRankText}>{team.rank}</AppText>
+          {filteredNcaafTeams.map((team) => {
+            const hasLiveTeamData = Boolean(
+              team.currentRecord ||
+              team.conferenceRecord ||
+              team.recentForm ||
+              typeof team.pointsForPerGame === 'number' ||
+              typeof team.pointsAllowedPerGame === 'number',
+            )
+            const recordLabel = hasLiveTeamData ? '2026 Record' : '2025 Record'
+            const recordValue = team.currentRecord || team.lastRecord
+            const contextLine = hasLiveTeamData
+              ? [team.conference, team.currentRecord, team.conferenceRecord ? `${team.conferenceRecord} conf` : null].filter(Boolean).join(' · ')
+              : `${team.conference} · ${team.lastRecord} · ${team.schedule} schedule`
+            return (
+              <Card key={`${team.rank}-${team.team}`}>
+                <View style={styles.teamInfoHeader}>
+                  <View style={styles.teamInfoRank}>
+                    <AppText style={styles.teamInfoRankText}>{team.rank}</AppText>
+                  </View>
+                  <View style={styles.teamInfoBody}>
+                    <AppText style={styles.teamInfoName}>{team.team}</AppText>
+                    <AppText variant="muted" style={styles.teamInfoMeta}>
+                      {contextLine}
+                    </AppText>
+                  </View>
+                  <View style={styles.teamInfoGrade}>
+                    <AppText style={styles.teamInfoGradeText}>{team.power}</AppText>
+                  </View>
                 </View>
-                <View style={styles.teamInfoBody}>
-                  <AppText style={styles.teamInfoName}>{team.team}</AppText>
-                  <AppText variant="muted" style={styles.teamInfoMeta}>
-                    {team.conference} · {team.currentRecord || team.lastRecord} · {team.schedule} schedule
-                  </AppText>
+                <AppText variant="muted" style={styles.roadmapText}>{team.recentForm || team.profile}</AppText>
+                <View style={styles.teamInfoStats}>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">{recordLabel}</AppText>
+                    <AppText style={styles.teamInfoValue}>{recordValue}</AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">{hasLiveTeamData ? 'Form' : 'Lean'}</AppText>
+                    <AppText style={styles.teamInfoValue}>{team.recentForm || team.lean}</AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">{team.pointsForPerGame || team.pointsAllowedPerGame ? 'Scoring' : 'Conference'}</AppText>
+                    <AppText style={styles.teamInfoValue}>
+                      {team.pointsForPerGame || team.pointsAllowedPerGame
+                        ? `${team.pointsForPerGame ?? '-'} PF / ${team.pointsAllowedPerGame ?? '-'} PA`
+                        : team.conference}
+                    </AppText>
+                  </View>
                 </View>
-                <View style={styles.teamInfoGrade}>
-                  <AppText style={styles.teamInfoGradeText}>{team.power}</AppText>
-                </View>
-              </View>
-              <AppText variant="muted" style={styles.roadmapText}>{team.profile}</AppText>
-              <View style={styles.teamInfoStats}>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Lean</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.lean}</AppText>
-                </View>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">{team.pointsForPerGame || team.pointsAllowedPerGame ? 'Scoring' : 'Conference'}</AppText>
-                  <AppText style={styles.teamInfoValue}>
-                    {team.pointsForPerGame || team.pointsAllowedPerGame
-                      ? `${team.pointsForPerGame ?? '-'} PF / ${team.pointsAllowedPerGame ?? '-'} PA`
-                      : team.conference}
-                  </AppText>
-                </View>
-              </View>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </View>
       )}
 
@@ -2103,7 +2119,9 @@ export default function DashboardScreen() {
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">NCAAF matchup context appears after sportsbooks post the next slate.</AppText>
+              <AppText variant="muted">
+                NCAAF matchup context appears after sportsbooks post the next slate. Use League View for 2025 team baselines until Week 1 markets arrive.
+              </AppText>
             </Card>
           )}
 
@@ -2111,13 +2129,52 @@ export default function DashboardScreen() {
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
               {group.games.map((game) => {
-                const awayRank = ncaafTeamForName(game.away_team)?.rank
-                const homeRank = ncaafTeamForName(game.home_team)?.rank
+                const awayTeam = ncaafTeamForName(game.away_team)
+                const homeTeam = ncaafTeamForName(game.home_team)
+                const awayRank = awayTeam?.rank
+                const homeRank = homeTeam?.rank
+                const awayShort = shortTeamName(game.away_team)
+                const homeShort = shortTeamName(game.home_team)
+                const favorite = game.favorite || 'Pending'
+                const awayFavored = favorite === awayShort
+                const homeFavored = favorite === homeShort
+                const marketDetail = game.favoriteDetail || 'Market not posted yet'
+                const totalLabel = game.total == null ? '-' : String(game.total)
+                const rankValue = (rank?: number) => rank && rank <= 25 ? `AP #${rank}` : 'Unranked'
+                const recordValue = (team?: typeof ncaafTeams[number]) => team?.currentRecord || team?.lastRecord || '-'
+                const formValue = (team?: typeof ncaafTeams[number]) => team?.recentForm || team?.lean || team?.conference || '-'
+                const awayRows = [
+                  { label: '2025 Rank', value: rankValue(awayRank) },
+                  { label: '2025 Record', value: recordValue(awayTeam) },
+                  { label: awayTeam?.recentForm ? 'Form' : 'Baseline', value: formValue(awayTeam) },
+                  { label: 'Market', value: awayFavored ? marketDetail : homeFavored ? 'Plus side' : 'Pending' },
+                ]
+                const homeRows = [
+                  { label: '2025 Rank', value: rankValue(homeRank) },
+                  { label: '2025 Record', value: recordValue(homeTeam) },
+                  { label: homeTeam?.recentForm ? 'Form' : 'Baseline', value: formValue(homeTeam) },
+                  { label: 'Market', value: homeFavored ? marketDetail : awayFavored ? 'Plus side' : 'Pending' },
+                ]
+                const baselineLeader = awayRank && homeRank
+                  ? awayRank < homeRank ? awayShort : homeRank < awayRank ? homeShort : null
+                  : awayRank ? awayShort : homeRank ? homeShort : null
+                const baselineDetail = awayRank && homeRank
+                  ? `2025 AP baseline: ${awayShort} #${awayRank}, ${homeShort} #${homeRank}.`
+                  : awayRank
+                    ? `${awayShort} carries a 2025 AP Top 25 baseline at #${awayRank}.`
+                    : homeRank
+                      ? `${homeShort} carries a 2025 AP Top 25 baseline at #${homeRank}.`
+                      : 'No 2025 AP Top 25 baseline is available for either team.'
+                const note = favorite === 'Pending'
+                  ? `${baselineDetail} Market context appears when sportsbooks post the Week 1 board.`
+                  : baselineLeader
+                    ? `${baselineDetail} ${favorite} is the market favorite (${marketDetail}); compare that price against the ${baselineLeader} baseline before treating it as an edge.`
+                    : `${baselineDetail} ${favorite} is the market favorite (${marketDetail}); use the Game Lines tab to compare books.`
                 return (
                   <Card key={game.id}>
                     <View style={styles.gameHeader}>
                       <AppText style={styles.gameTitle}>
-                        {shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}
+                        {awayShort} @ {homeShort}
                       </AppText>
                       <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                     </View>
@@ -2126,19 +2183,23 @@ export default function DashboardScreen() {
                       {homeRank && homeRank <= 25 ? `#${homeRank} ${shortTeamName(game.home_team)} · ` : ''}
                       {game.status}
                     </AppText>
+                    <View style={styles.matchupTeamGrid}>
+                      <MatchupTeamBox title={awayShort} grade={awayFavored ? 'Fav' : awayRank && awayRank <= 25 ? `#${awayRank}` : null} rows={awayRows} />
+                      <MatchupTeamBox title={homeShort} grade={homeFavored ? 'Fav' : homeRank && homeRank <= 25 ? `#${homeRank}` : null} rows={homeRows} />
+                    </View>
                     <View style={styles.teamInfoStats}>
-                      <View style={styles.teamInfoStat}>
-                        <AppText variant="mono">Favorite</AppText>
-                        <AppText style={styles.teamInfoValue}>{game.favorite}</AppText>
-                      </View>
                       <View style={styles.teamInfoStat}>
                         <AppText variant="mono">Spread</AppText>
                         <AppText style={styles.teamInfoValue}>{game.spread == null ? '-' : `${game.spread > 0 ? '+' : ''}${game.spread}`}</AppText>
                       </View>
                       <View style={styles.teamInfoStat}>
                         <AppText variant="mono">Total</AppText>
-                        <AppText style={styles.teamInfoValue}>{game.total ?? '-'}</AppText>
+                        <AppText style={styles.teamInfoValue}>{totalLabel}</AppText>
                       </View>
+                    </View>
+                    <View style={styles.matchupNote}>
+                      <AppText variant="eyebrow">KingFish Matchup Note</AppText>
+                      <AppText variant="muted" style={styles.matchupNoteText}>{note}</AppText>
                     </View>
                   </Card>
                 )

@@ -1,4 +1,4 @@
-import { PropsWithChildren } from 'react'
+import type { PropsWithChildren } from 'react'
 import { StyleSheet, Text as RNText, TextProps } from 'react-native'
 import { colors } from '@/lib/theme'
 

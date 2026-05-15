@@ -154,7 +154,7 @@ export default function AccountScreen() {
         <View style={styles.headerText}>
           <AppText variant="eyebrow">// Account Settings</AppText>
           <AppText variant="title" style={styles.title}>
-            {firstName ? `Welcome, ${firstName}` : 'Account'}
+            {firstName ? `Hello, ${firstName}` : 'Account'}
           </AppText>
         </View>
       </View>
@@ -272,7 +272,7 @@ export default function AccountScreen() {
           </Button>
         </View>
         <View style={styles.buttonGap} />
-        <Button variant="outline" onPress={() => router.push('/home')}>
+        <Button variant="outline" onPress={() => Linking.openURL(mobileConfig.links.home)}>
           Open Bait Shop
         </Button>
         <View style={styles.supportLinks}>
