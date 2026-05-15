@@ -508,7 +508,7 @@ function mlbPlayoffRace(
       .flatMap((division) => division.entries.filter((entry) => !leaderAbbrs.has(entry.team.abbr)))
       .sort((a, b) => Number(b.record?.pct || 0) - Number(a.record?.pct || 0))
     const cutline = wildCards[2]?.record
-    const wildCardRows = wildCards.slice(0, 6).map((entry, index) => ({
+    const wildCardRows = wildCards.map((entry, index) => ({
       ...entry,
       path: index < 3 ? `Wild Card ${index + 1}` : 'Chasing',
       status: index < 3 ? 'In' : formatGamesBack(entry.record, cutline),
