@@ -143,7 +143,7 @@ export default function AskKingFishScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Image source={require('../../assets/images/kingfish-mascot2.png')} style={styles.avatar} />
+        <Image source={require('../../assets/images/kingfish-picks.png')} style={styles.avatar} />
         <AppText variant="eyebrow">// AI Analyst</AppText>
         <AppText variant="title" style={styles.title}>Ask KingFish</AppText>
         <AppText variant="muted" style={styles.copy}>
