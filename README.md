@@ -4,19 +4,24 @@ Expo app shell for KingFish Bets.
 
 ## First Local Setup
 
-When npm can reach the registry, run:
+When npm can reach the registry, install dependencies:
 
 ```bash
-cd mobile
+cd mobile-push-today
 npm install
-npm run start
 ```
 
-Then choose:
+For the current iOS simulator review flow, run a local native build:
 
-- `i` for iPhone Simulator, if Xcode is installed
-- `a` for Android Emulator, if Android Studio is installed
-- scan the QR code with Expo Go for a physical-device preview
+```bash
+SENTRY_DISABLE_AUTO_UPLOAD=true EXPO_PUBLIC_SKIP_REVENUECAT=true npx expo run:ios --configuration Release
+```
+
+Notes:
+
+- Use the native build path for simulator review. Expo Go is not the review path for this app.
+- `SENTRY_DISABLE_AUTO_UPLOAD=true` keeps local builds from requiring a Sentry auth token.
+- `EXPO_PUBLIC_SKIP_REVENUECAT=true` keeps simulator review from being blocked by test RevenueCat keys.
 
 ## Environment
 
@@ -83,7 +88,7 @@ Before the first real store build, confirm:
 - The App Store app record uses bundle ID `com.kingfishbets.app`.
 - The Google Play app uses package name `com.kingfishbets.app`.
 - Terms, Privacy, Refund, Help, and support links are live on `kingfishbets.com`.
-- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and approved full-website research links.
+- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and support/legal account links.
 - Export compliance can answer that the app does not use non-exempt encryption beyond standard platform HTTPS/security.
 
 ## npm Cache Permission Fix
@@ -98,5 +103,5 @@ Then run:
 
 ```bash
 npm install
-npm run start
+SENTRY_DISABLE_AUTO_UPLOAD=true EXPO_PUBLIC_SKIP_REVENUECAT=true npx expo run:ios --configuration Release
 ```

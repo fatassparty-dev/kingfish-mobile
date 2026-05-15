@@ -1,15 +1,55 @@
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { AccessibilityInfo, Animated, Image, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { AppText } from '@/components/Text'
 import { Screen } from '@/components/Screen'
 import { colors, spacing } from '@/lib/theme'
 
 export default function HomeScreen() {
+  const lampGlow = useRef(new Animated.Value(0.16)).current
+  const [reduceMotion, setReduceMotion] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setReduceMotion(enabled)
+    })
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+
+    return () => {
+      mounted = false
+      subscription.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (reduceMotion) {
+      lampGlow.setValue(0.14)
+      return
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(lampGlow, { toValue: 0.22, duration: 900, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.14, duration: 700, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.25, duration: 140, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.16, duration: 520, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.2, duration: 1200, useNativeDriver: true }),
+        Animated.timing(lampGlow, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+      ]),
+    )
+    animation.start()
+
+    return () => animation.stop()
+  }, [lampGlow, reduceMotion])
+
   return (
     <Screen>
       <View style={styles.hero}>
         <View style={styles.heroImageWrap}>
           <Image source={require('../../assets/images/bait-shop-hero.png')} style={styles.heroImage} />
+          <Animated.View pointerEvents="none" style={[styles.lampGlow, { opacity: lampGlow }]} />
         </View>
         <View style={styles.heroContent}>
           <View style={styles.brandRow}>
@@ -78,6 +118,15 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 941 / 1672,
     resizeMode: 'cover',
+  },
+  lampGlow: {
+    position: 'absolute',
+    left: 98,
+    top: 58,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,231,166,.5)',
   },
   heroContent: {
     padding: spacing.lg,
