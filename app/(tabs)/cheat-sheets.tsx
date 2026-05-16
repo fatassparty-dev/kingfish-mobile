@@ -467,7 +467,7 @@ function parseNumber(value: string) {
 }
 
 function formatSavedAt(value?: string, sheetDate?: string) {
-  if (!sheetDate && !value) return 'Published daily'
+  if (!sheetDate && !value) return 'Locks daily at 9:05 AM CT'
   const dateLabel = new Date(sheetDate ? `${sheetDate}T12:00:00` : value || '').toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -476,7 +476,7 @@ function formatSavedAt(value?: string, sheetDate?: string) {
   const timeLabel = publishedAt && Number.isFinite(publishedAt.getTime())
     ? publishedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
     : '9:05 AM CT'
-  return `For ${dateLabel}, published ${timeLabel} daily`
+  return `For ${dateLabel}, locks ${timeLabel} daily`
 }
 
 function sheetReason(sheetKey: SheetKey, row: { line: number; season: number; l10: number; l5: number; hitRate: string; odds?: number }) {
