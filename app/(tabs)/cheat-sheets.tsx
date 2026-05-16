@@ -1242,9 +1242,11 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              <AppText style={styles.reportDate}>
-                {isTdSheet ? '2025 regular season' : formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
-              </AppText>
+              {!isTdSheet ? (
+                <AppText style={styles.reportDate}>
+                  {formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
+                </AppText>
+              ) : null}
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
