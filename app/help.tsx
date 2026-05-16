@@ -13,7 +13,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Tools when you want cheat sheets, calculators, or game factors.',
+  'Open Tools when you want stat sheets, calculators, or game factors.',
 ]
 
 const tools = [
@@ -67,12 +67,14 @@ const cheatSheets = [
   { title: 'Hot Hitters', body: 'Recent form first: last 5, last 10, and streak-style momentum.' },
   { title: 'Batter vs Pitcher', body: "Career batter history against today's probable starter, with sample size shown up front." },
   { title: 'Game Lines & Edge', body: 'A game-level view of odds, totals, and context such as MLB weather.' },
+  { title: 'NFL TD Streaks', body: 'Regular-season touchdown scoring streaks by player for quick NFL scoring-form research.' },
+  { title: 'NFL QB 2+ TD Streaks', body: 'Quarterbacks on recent streaks of 2+ passing touchdown games.' },
 ]
 
 const sportNotes = [
   {
     title: 'MLB',
-    body: 'MLB leads the app with live game lines, player props, player stats, weather, profiles, and cheat sheets.',
+    body: 'MLB leads the app with live game lines, player props, player stats, weather, profiles, and stat sheets.',
   },
   {
     title: 'NBA, NHL, WNBA, KBO',
@@ -80,7 +82,7 @@ const sportNotes = [
   },
   {
     title: 'NFL and College',
-    body: 'NFL on mobile features League View, Game Lines, Game Matchups, and props as markets open. The NFL Command Center, Fantasy Draft Room, and deeper offseason research live on kingfishbets.com. College boards focus on team stats and matchup context where player prop betting is restricted.',
+    body: 'NFL on mobile features League View, Game Lines, Game Matchups, stat sheets, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
   },
 ]
 
@@ -141,11 +143,11 @@ export default function HelpScreen() {
           </View>
 
           <View style={styles.section}>
-            <AppText variant="eyebrow">Cheat Sheets</AppText>
+            <AppText variant="eyebrow">Stat Sheets</AppText>
             <Card>
               <AppText style={styles.cardTitle}>How They Work</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Cheat Sheets are saved daily boards for quick MLB research. Open a sheet and KingFish returns a short list of names with the exact line, best book, saved time, and why each player made the board.
+                Stat sheets are saved boards for quick MLB and NFL research. Open a sheet and KingFish returns a short list of names with the line, best book when available, timing, and why each player made the board.
               </AppText>
             </Card>
             {cheatSheets.map((item) => <HelpCard key={item.title} title={item.title} body={item.body} />)}
@@ -161,7 +163,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>From Board To Bet Slip</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Start with Cheat Sheets for ideas. Open the Dashboard to confirm the market and best price. Tap the player profile to check recent form. Use Ask KingFish if you want a plain-English second read before making your own decision.
+                Start with stat sheets for ideas. Open the Dashboard to confirm the market and best price. Tap the player profile to check recent form. Use Ask KingFish if you want a plain-English second read before making your own decision.
               </AppText>
             </Card>
           </View>
