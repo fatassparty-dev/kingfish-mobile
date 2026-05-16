@@ -461,7 +461,7 @@ function parseQbTdCsv(csv: string): TdStreakRow[] {
         two_td_rate: twoTdRate,
       }
     })
-    .filter((row) => row.player && row.team && row.position)
+    .filter((row) => row.player && row.team && row.position && row.streak_games >= 2)
     .sort((a, b) => b.streak_games - a.streak_games || (b.two_td_games || 0) - (a.two_td_games || 0) || a.player.localeCompare(b.player))
 }
 
