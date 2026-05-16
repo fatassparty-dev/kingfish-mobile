@@ -16,7 +16,7 @@ import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td'
+type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd'
 type ToolMode = 'sheets' | 'calculators' | 'factors'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 type FactorSport = 'MLB' | 'NFL'
@@ -38,6 +38,7 @@ const SHEETS: Array<{
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
+  { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -202,6 +203,9 @@ interface TdStreakRow {
   team: string
   position: string
   streak_games: number
+  two_td_games?: number
+  games?: number
+  two_td_rate?: string
 }
 
 function getStat(stats: Record<string, any> | undefined, field: string, prefix: 'season' | 'l10' | 'l5') {
@@ -438,6 +442,27 @@ function parseTdStreakCsv(csv: string): TdStreakRow[] {
     })
     .filter((row) => row.player && row.team && row.position && row.streak_games > 0)
     .sort((a, b) => b.streak_games - a.streak_games || a.player.localeCompare(b.player))
+}
+
+function parseQbTdCsv(csv: string): TdStreakRow[] {
+  return csv
+    .trim()
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => {
+      const [player, team, position, streakGames, twoTdGames, games, twoTdRate] = line.split(',').map((value) => value.trim())
+      return {
+        player,
+        team,
+        position,
+        streak_games: Number(streakGames) || 0,
+        two_td_games: Number(twoTdGames) || 0,
+        games: Number(games) || 0,
+        two_td_rate: twoTdRate,
+      }
+    })
+    .filter((row) => row.player && row.team && row.position)
+    .sort((a, b) => b.streak_games - a.streak_games || (b.two_td_games || 0) - (a.two_td_games || 0) || a.player.localeCompare(b.player))
 }
 
 function fmtMoney(value: number) {
@@ -808,6 +833,17 @@ export default function CheatSheetsScreen() {
     staleTime: 24 * 60 * 60 * 1000,
   })
 
+  const qbTdStreaksQuery = useQuery({
+    queryKey: ['nfl-qb-2td-streaks-2026'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/data/nfl/qb-2td-streaks-2026.csv`)
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+      return parseQbTdCsv(await response.text())
+    },
+    enabled: canLoadData && activeKey === 'qbtd',
+    staleTime: 24 * 60 * 60 * 1000,
+  })
+
   const sheetGames = useMemo(() => sheetQuery.data?.data || [], [sheetQuery.data?.data])
 
   const playersToFetch = useMemo(() => {
@@ -927,6 +963,7 @@ export default function CheatSheetsScreen() {
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
   const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
+  const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
   const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
 
   function openPlayerProfile(player: string, row?: SheetRow) {
@@ -1250,14 +1287,14 @@ export default function CheatSheetsScreen() {
             </View>
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading) && (
+          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
             </View>
           )}
 
-          {(sheetQuery.isError || tdStreaksQuery.isError) && (
+          {(sheetQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
@@ -1265,6 +1302,8 @@ export default function CheatSheetsScreen() {
                   ? sheetQuery.error.message
                   : tdStreaksQuery.error instanceof Error
                     ? tdStreaksQuery.error.message
+                    : qbTdStreaksQuery.error instanceof Error
+                      ? qbTdStreaksQuery.error.message
                     : 'Could not load this sheet.'}
               </AppText>
             </Card>
@@ -1293,6 +1332,32 @@ export default function CheatSheetsScreen() {
               </View>
               <AppText variant="muted" style={styles.cardCopy}>
                 Rushing, receiving, return, and fumble-recovery touchdowns only. Passing touchdowns are excluded.
+              </AppText>
+            </>
+          )}
+
+          {activeKey === 'qbtd' && qbTdRows.length > 0 && (
+            <>
+              <View style={styles.reportRows}>
+                {qbTdRows.slice(0, 30).map((row, index) => (
+                  <View key={`${row.player}-${row.team}-${index}`} style={styles.reportRow}>
+                    <View style={styles.rankBadge}>
+                      <AppText style={styles.rankText}>{index + 1}</AppText>
+                    </View>
+                    <View style={styles.rowMain}>
+                      <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                      <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                        {row.team} · QB · {row.two_td_games}/{row.games} games
+                      </AppText>
+                    </View>
+                    <View style={styles.rowNumbers}>
+                      <AppText style={styles.compactEdgeLarge}>{row.streak_games}</AppText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <AppText variant="muted" style={styles.cardCopy}>
+                Passing touchdowns only. Streak is consecutive recent regular-season games with 2+ passing TDs.
               </AppText>
             </>
           )}
@@ -1386,7 +1451,13 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey !== 'td' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey === 'qbtd' && !qbTdStreaksQuery.isLoading && !qbTdStreaksQuery.isError && qbTdRows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No NFL QB 2+ TD streak rows are available yet.
+            </AppText>
+          )}
+
+          {activeKey !== 'td' && activeKey !== 'qbtd' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
@@ -1706,6 +1777,7 @@ const styles = StyleSheet.create({
   reasonText: { marginTop: 6, color: colors.textPrimary, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   rowNumbers: { alignItems: 'flex-end', minWidth: 72 },
   compactEdge: { fontSize: 22, lineHeight: 26, fontWeight: '900' },
+  compactEdgeLarge: { fontSize: 34, lineHeight: 38, fontWeight: '900' },
   compactOdds: { marginTop: 2, color: colors.gold, fontSize: 12, fontWeight: '900' },
   profileLink: { color: colors.gold },
   bvpMetricRow: {

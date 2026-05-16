@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   Keyboard,
   Pressable,
@@ -39,6 +40,7 @@ export default function AskKingFishScreen() {
   const mobileConfig = useMobileConfig()
   const queryClient = useQueryClient()
   const scrollRef = useRef<ScrollView>(null)
+  const mascotNod = useRef(new Animated.Value(0)).current
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -61,6 +63,15 @@ export default function AskKingFishScreen() {
   const chatsLeft = Math.max(0, FREE_DAILY_LIMIT - chatsUsed)
   const isPremium = profile?.is_premium === true
   const reachedLimit = !isPremium && (limitHit || chatsLeft <= 0)
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.delay(250),
+      Animated.timing(mascotNod, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(mascotNod, { toValue: -0.45, duration: 160, useNativeDriver: true }),
+      Animated.timing(mascotNod, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start()
+  }, [mascotNod])
 
   useEffect(() => {
     if (messages.length === 0 && historyQuery.data?.messages?.length) {
@@ -143,7 +154,28 @@ export default function AskKingFishScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Image source={require('../../assets/images/kingfish-picks.png')} style={styles.avatar} />
+        <Animated.Image
+          source={require('../../assets/images/kingfish-picks.png')}
+          style={[
+            styles.avatar,
+            {
+              transform: [
+                {
+                  rotate: mascotNod.interpolate({
+                    inputRange: [-1, 0, 1],
+                    outputRange: ['-3deg', '0deg', '4deg'],
+                  }),
+                },
+                {
+                  translateY: mascotNod.interpolate({
+                    inputRange: [-1, 0, 1],
+                    outputRange: [1, 0, 3],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
         <AppText variant="eyebrow">// AI Analyst</AppText>
         <AppText variant="title" style={styles.title}>Ask KingFish</AppText>
         <AppText variant="muted" style={styles.copy}>

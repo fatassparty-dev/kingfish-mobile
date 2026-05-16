@@ -6,7 +6,8 @@ import { Screen } from '@/components/Screen'
 import { colors, spacing } from '@/lib/theme'
 
 export default function HomeScreen() {
-  const lampGlow = useRef(new Animated.Value(0.28)).current
+  const lampGlow = useRef(new Animated.Value(0.46)).current
+  const lampScale = useRef(new Animated.Value(1)).current
   const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
@@ -25,31 +26,42 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (reduceMotion) {
-      lampGlow.setValue(0.24)
+      lampGlow.setValue(0.42)
+      lampScale.setValue(1)
       return
     }
 
     const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(lampGlow, { toValue: 0.38, duration: 900, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.24, duration: 700, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.44, duration: 140, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.3, duration: 520, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.36, duration: 1200, useNativeDriver: true }),
-        Animated.timing(lampGlow, { toValue: 0.26, duration: 800, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(lampGlow, { toValue: 0.82, duration: 900, useNativeDriver: true }),
+          Animated.timing(lampGlow, { toValue: 0.48, duration: 700, useNativeDriver: true }),
+          Animated.timing(lampGlow, { toValue: 0.92, duration: 140, useNativeDriver: true }),
+          Animated.timing(lampGlow, { toValue: 0.58, duration: 520, useNativeDriver: true }),
+          Animated.timing(lampGlow, { toValue: 0.74, duration: 1200, useNativeDriver: true }),
+          Animated.timing(lampGlow, { toValue: 0.5, duration: 800, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(lampScale, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+          Animated.timing(lampScale, { toValue: 0.96, duration: 700, useNativeDriver: true }),
+          Animated.timing(lampScale, { toValue: 1.12, duration: 140, useNativeDriver: true }),
+          Animated.timing(lampScale, { toValue: 1, duration: 2520, useNativeDriver: true }),
+        ]),
       ]),
     )
     animation.start()
 
     return () => animation.stop()
-  }, [lampGlow, reduceMotion])
+  }, [lampGlow, lampScale, reduceMotion])
 
   return (
     <Screen>
       <View style={styles.hero}>
         <View style={styles.heroImageWrap}>
           <Image source={require('../../assets/images/bait-shop-hero.png')} style={styles.heroImage} />
-          <Animated.View pointerEvents="none" style={[styles.lampGlow, { opacity: lampGlow }]} />
+          <Animated.View pointerEvents="none" style={[styles.lampGlow, { opacity: lampGlow, transform: [{ scale: lampScale }] }]}>
+            <View style={styles.lampCore} />
+          </Animated.View>
         </View>
         <View style={styles.heroContent}>
           <View style={styles.brandRow}>
@@ -121,12 +133,20 @@ const styles = StyleSheet.create({
   },
   lampGlow: {
     position: 'absolute',
-    left: 98,
-    top: 58,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,231,166,.72)',
+    left: 92,
+    top: 48,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,220,126,.18)',
+  },
+  lampCore: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,245,198,.62)',
   },
   heroContent: {
     padding: spacing.lg,
