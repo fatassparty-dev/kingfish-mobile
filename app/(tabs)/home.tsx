@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   lampGlow: {
     position: 'absolute',
-    left: 92,
+    left: 102,
     top: 63,
     width: 18,
     height: 18,
