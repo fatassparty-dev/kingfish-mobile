@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AccessibilityInfo,
   Image,
   Keyboard,
   Pressable,
@@ -41,6 +42,7 @@ export default function AskKingFishScreen() {
   const queryClient = useQueryClient()
   const scrollRef = useRef<ScrollView>(null)
   const mascotNod = useRef(new Animated.Value(0)).current
+  const [reduceMotion, setReduceMotion] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -65,13 +67,32 @@ export default function AskKingFishScreen() {
   const reachedLimit = !isPremium && (limitHit || chatsLeft <= 0)
 
   useEffect(() => {
+    let mounted = true
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setReduceMotion(enabled)
+    })
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+
+    return () => {
+      mounted = false
+      subscription.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (reduceMotion) {
+      mascotNod.setValue(0)
+      return
+    }
+
     Animated.sequence([
       Animated.delay(250),
-      Animated.timing(mascotNod, { toValue: 1, duration: 180, useNativeDriver: true }),
-      Animated.timing(mascotNod, { toValue: -0.45, duration: 160, useNativeDriver: true }),
-      Animated.timing(mascotNod, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(mascotNod, { toValue: 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(mascotNod, { toValue: -0.25, duration: 110, useNativeDriver: true }),
+      Animated.timing(mascotNod, { toValue: 0, duration: 160, useNativeDriver: true }),
     ]).start()
-  }, [mascotNod])
+  }, [mascotNod, reduceMotion])
 
   useEffect(() => {
     if (messages.length === 0 && historyQuery.data?.messages?.length) {
@@ -154,28 +175,37 @@ export default function AskKingFishScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Animated.Image
-          source={require('../../assets/images/kingfish-picks.png')}
-          style={[
-            styles.avatar,
-            {
-              transform: [
-                {
-                  rotate: mascotNod.interpolate({
-                    inputRange: [-1, 0, 1],
-                    outputRange: ['-3deg', '0deg', '4deg'],
-                  }),
-                },
-                {
-                  translateY: mascotNod.interpolate({
-                    inputRange: [-1, 0, 1],
-                    outputRange: [1, 0, 3],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
+        <View style={styles.avatar}>
+          <Image source={require('../../assets/images/kingfish-body-layer.png')} style={styles.avatarLayer} />
+          <Animated.Image
+            source={require('../../assets/images/kingfish-head-layer.png')}
+            style={[
+              styles.avatarLayer,
+              {
+                transform: [
+                  {
+                    translateY: mascotNod.interpolate({
+                      inputRange: [-1, 0, 1],
+                      outputRange: [-1, 0, 3],
+                    }),
+                  },
+                  {
+                    translateX: mascotNod.interpolate({
+                      inputRange: [-1, 0, 1],
+                      outputRange: [0, 0, -1],
+                    }),
+                  },
+                  {
+                    rotate: mascotNod.interpolate({
+                      inputRange: [-1, 0, 1],
+                      outputRange: ['0.8deg', '0deg', '-1.8deg'],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        </View>
         <AppText variant="eyebrow">// AI Analyst</AppText>
         <AppText variant="title" style={styles.title}>Ask KingFish</AppText>
         <AppText variant="muted" style={styles.copy}>
@@ -308,6 +338,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(198,145,50,.35)',
     backgroundColor: colors.bgCardAlt,
     marginBottom: spacing.lg,
+    overflow: 'hidden',
+  },
+  avatarLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
     resizeMode: 'contain',
   },
   title: {
