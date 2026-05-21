@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/Button'
@@ -25,6 +26,13 @@ interface PlayerProfileResponse {
 }
 
 type RawGame = Record<string, any>
+
+type PropFocus = PlayerProfileMarketContext & {
+  games: Array<{ label: string; value: number; hit: boolean }>
+  hits: number
+  misses: number
+  average: number
+}
 
 export interface PlayerProfileMarketContext {
   marketKey: string
@@ -318,7 +326,20 @@ function buildPropFocus(sport: PlayerProfileModalProps['sport'], data?: PlayerPr
   return { ...context, games: rows, hits, misses: rows.length - hits, average }
 }
 
+function formatShareNumber(value: number) {
+  if (!Number.isFinite(value)) return '--'
+  if (Math.abs(value) >= 100) return value.toFixed(0)
+  if (Number.isInteger(value)) return String(value)
+  return value.toFixed(value < 10 ? 1 : 0)
+}
+
+function compactShareText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, Math.max(0, maxLength - 1))}.`
+}
+
 export function PlayerProfileModal({ playerName, sport, marketContext, onClose }: PlayerProfileModalProps) {
+  const [shareCardOpen, setShareCardOpen] = useState(false)
   const query = useQuery({
     queryKey: ['player-profile', sport, playerName],
     queryFn: () => kingfishFetch<PlayerProfileResponse>(`/api/player-profile?sport=${sport}&name=${encodeURIComponent(playerName || '')}`),
@@ -344,9 +365,16 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
                 {query.data?.injury_status ? <Badge label={query.data.injury_status} danger /> : null}
               </View>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <AppText style={styles.closeText}>x</AppText>
-            </Pressable>
+            <View style={styles.headerActions}>
+              {propFocus && query.data ? (
+                <Pressable onPress={() => setShareCardOpen(true)} style={styles.shareButton}>
+                  <AppText variant="mono" style={styles.shareButtonText}>Card</AppText>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <AppText style={styles.closeText}>x</AppText>
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -464,8 +492,125 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
             <Button variant="secondary" onPress={onClose}>Close</Button>
           </ScrollView>
         </View>
+        <Modal visible={shareCardOpen && !!propFocus && !!query.data && !!playerName} animationType="fade" transparent onRequestClose={() => setShareCardOpen(false)}>
+          <View style={styles.sharePreviewOverlay}>
+            <ShareCard
+              playerName={playerName || ''}
+              sport={sport}
+              team={query.data?.team || null}
+              position={query.data?.position || null}
+              propFocus={propFocus as PropFocus}
+            />
+            <View style={styles.sharePreviewActions}>
+              <AppText variant="mono" style={styles.sharePreviewHint}>Screenshot this card</AppText>
+              <Pressable onPress={() => setShareCardOpen(false)} style={styles.sharePreviewClose}>
+                <AppText style={styles.sharePreviewCloseText}>Close</AppText>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
+  )
+}
+
+function ShareCard({
+  playerName,
+  sport,
+  team,
+  position,
+  propFocus,
+}: {
+  playerName: string
+  sport: PlayerProfileModalProps['sport']
+  team: string | null
+  position: string | null
+  propFocus: PropFocus
+}) {
+  const l5Games = propFocus.games.slice(0, 5)
+  const l5Average = l5Games.length
+    ? l5Games.reduce((sum, game) => sum + game.value, 0) / l5Games.length
+    : propFocus.average
+  const hitRate = `${Math.round((propFocus.hits / propFocus.games.length) * 100)}%`
+  const meta = [team, position].filter(Boolean).join(' / ') || 'PLAYER SNAPSHOT'
+
+  return (
+    <View style={styles.shareCard}>
+      <Ticker />
+      <View style={styles.shareInner}>
+        <View style={styles.shareTopRow}>
+          <View>
+            <AppText variant="mono" style={styles.shareBrand}>KINGFISH BETS</AppText>
+            <AppText variant="mono" style={styles.shareSubtitle}>{sport.toUpperCase()} PROP PROFILE</AppText>
+          </View>
+          <AppText style={styles.shareMark}>KFB</AppText>
+        </View>
+
+        <AppText style={styles.shareName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
+          {playerName.toUpperCase()}
+        </AppText>
+        <AppText variant="mono" style={styles.shareMeta} numberOfLines={1}>{meta.toUpperCase()}</AppText>
+
+        <View style={styles.shareFocus}>
+          <View style={styles.shareFocusCopy}>
+            <AppText style={styles.shareMarket} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {propFocus.marketLabel.toUpperCase()}
+            </AppText>
+            <AppText variant="mono" style={styles.shareLine}>LINE {propFocus.commonLine}</AppText>
+          </View>
+          <View style={styles.shareVsLine}>
+            <AppText style={styles.shareVsValue}>{propFocus.hits}-{propFocus.misses}</AppText>
+            <AppText variant="mono" style={styles.shareVsLabel}>LAST 10 VS LINE</AppText>
+          </View>
+        </View>
+
+        <View style={styles.shareMetricRow}>
+          <ShareMetric label="L10 AVG" value={formatShareNumber(propFocus.average)} />
+          <ShareMetric label="L5 AVG" value={formatShareNumber(l5Average)} />
+          <ShareMetric label="HIT RATE" value={hitRate} accent={propFocus.hits >= propFocus.misses ? colors.green : colors.red} />
+        </View>
+
+        <AppText variant="mono" style={styles.shareSection}>LAST 10 GAMES</AppText>
+        <View style={styles.shareGames}>
+          {propFocus.games.slice(0, 10).map((game, index) => (
+            <View key={`${game.label}-${index}`} style={[styles.shareGame, game.hit ? styles.shareGameHit : styles.shareGameMiss]}>
+              <AppText variant="mono" style={styles.shareGameLabel} numberOfLines={1}>
+                {compactShareText(game.label.toUpperCase(), 14)}
+              </AppText>
+              <AppText style={styles.shareGameValue}>{formatShareNumber(game.value)}</AppText>
+              <AppText variant="mono" style={[styles.shareGameResult, game.hit ? styles.shareGameResultHit : styles.shareGameResultMiss]}>
+                {game.hit ? 'HIT' : 'MISS'}
+              </AppText>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.shareFooter}>
+          <AppText variant="mono" style={styles.shareFooterMuted}>Analytics snapshot. Lines move.</AppText>
+          <AppText variant="mono" style={styles.shareFooterBrand}>KINGFISHBETS.COM</AppText>
+        </View>
+      </View>
+      <Ticker bottom />
+    </View>
+  )
+}
+
+function Ticker({ bottom }: { bottom?: boolean }) {
+  return (
+    <View style={[styles.shareTicker, bottom && styles.shareTickerBottom]}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <AppText key={index} style={styles.shareTickerText}>KINGFISH BETS</AppText>
+      ))}
+    </View>
+  )
+}
+
+function ShareMetric({ label, value, accent = colors.textPrimary }: { label: string; value: string; accent?: string }) {
+  return (
+    <View style={styles.shareMetric}>
+      <AppText variant="mono" style={styles.shareMetricLabel}>{label}</AppText>
+      <AppText style={[styles.shareMetricValue, { color: accent }]}>{value}</AppText>
+    </View>
   )
 }
 
@@ -515,6 +660,24 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.md,
+  },
+  headerActions: {
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+  },
+  shareButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.32)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  shareButtonText: {
+    color: colors.gold,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   closeButton: {
     width: 36,
@@ -750,5 +913,242 @@ const styles = StyleSheet.create({
   },
   badgeTextDanger: {
     color: colors.red,
+  },
+  sharePreviewOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8,9,14,.94)',
+    paddingHorizontal: spacing.md,
+  },
+  sharePreviewActions: {
+    marginTop: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sharePreviewHint: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  sharePreviewClose: {
+    minWidth: 120,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.35)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  sharePreviewCloseText: {
+    color: colors.gold,
+    fontWeight: '900',
+  },
+  shareCard: {
+    width: '100%',
+    maxWidth: 360,
+    aspectRatio: 0.8,
+    backgroundColor: '#080A0F',
+    overflow: 'hidden',
+  },
+  shareTicker: {
+    height: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: colors.gold,
+  },
+  shareTickerBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  shareTickerText: {
+    color: '#080A0F',
+    fontSize: 8,
+    lineHeight: 10,
+    fontWeight: '900',
+    fontStyle: 'italic',
+  },
+  shareInner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: 34,
+    bottom: 34,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    padding: 14,
+  },
+  shareTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  shareBrand: {
+    color: colors.gold,
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  shareSubtitle: {
+    marginTop: 3,
+    color: colors.textSecondary,
+    fontSize: 8,
+  },
+  shareMark: {
+    color: colors.gold,
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '900',
+  },
+  shareName: {
+    marginTop: 14,
+    color: colors.textPrimary,
+    fontSize: 34,
+    lineHeight: 36,
+    fontWeight: '900',
+  },
+  shareMeta: {
+    marginTop: 4,
+    color: colors.gold,
+    fontSize: 8,
+  },
+  shareFocus: {
+    marginTop: 14,
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.42)',
+    borderRadius: 12,
+    backgroundColor: '#10141E',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  shareFocusCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  shareMarket: {
+    color: colors.textPrimary,
+    fontSize: 19,
+    lineHeight: 21,
+    fontWeight: '900',
+  },
+  shareLine: {
+    marginTop: 4,
+    color: colors.gold,
+    fontSize: 9,
+  },
+  shareVsLine: {
+    alignItems: 'flex-end',
+  },
+  shareVsValue: {
+    color: colors.textPrimary,
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: '900',
+  },
+  shareVsLabel: {
+    color: colors.textSecondary,
+    fontSize: 7,
+  },
+  shareMetricRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareMetric: {
+    flex: 1,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: '#10141E',
+  },
+  shareMetricLabel: {
+    color: colors.textSecondary,
+    fontSize: 7,
+  },
+  shareMetricValue: {
+    marginTop: 3,
+    fontSize: 18,
+    lineHeight: 20,
+    fontWeight: '900',
+  },
+  shareSection: {
+    marginTop: 18,
+    color: colors.gold,
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  shareGames: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  shareGame: {
+    width: 57,
+    height: 52,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+  },
+  shareGameHit: {
+    borderColor: 'rgba(34,197,94,.7)',
+    backgroundColor: '#071813',
+  },
+  shareGameMiss: {
+    borderColor: 'rgba(239,68,68,.64)',
+    backgroundColor: '#190D13',
+  },
+  shareGameLabel: {
+    color: colors.textSecondary,
+    fontSize: 6,
+  },
+  shareGameValue: {
+    marginTop: 3,
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 19,
+    fontWeight: '900',
+  },
+  shareGameResult: {
+    marginTop: 1,
+    fontSize: 6,
+    fontWeight: '900',
+  },
+  shareGameResultHit: {
+    color: colors.green,
+  },
+  shareGameResultMiss: {
+    color: colors.red,
+  },
+  shareFooter: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  shareFooterMuted: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 7,
+  },
+  shareFooterBrand: {
+    color: colors.gold,
+    fontSize: 7,
+    fontWeight: '900',
   },
 })
