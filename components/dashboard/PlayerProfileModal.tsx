@@ -368,7 +368,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
             <View style={styles.headerActions}>
               {propFocus && query.data ? (
                 <Pressable onPress={() => setShareCardOpen(true)} style={styles.shareButton}>
-                  <AppText variant="mono" style={styles.shareButtonText}>Card</AppText>
+                  <AppText variant="mono" style={styles.shareButtonText}>Copy</AppText>
                 </Pressable>
               ) : null}
               <Pressable onPress={onClose} style={styles.closeButton}>

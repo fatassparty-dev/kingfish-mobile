@@ -606,7 +606,14 @@ function buildHitFadeRows(
   bvp: Record<string, any> = {},
   matchups: BvpMatchup[] = [],
 ) {
-  const rows: Array<SheetRow & { fadeScore: number; underOdds?: number; underBook?: string }> = []
+  const rows: Array<SheetRow & {
+    fadeScore: number
+    underOdds?: number
+    underBook?: string
+    vsSpAb: number
+    vsSpHits: number
+    vsSpHitRate: number
+  }> = []
   const bvpByBatter = new Map(matchups.map((matchup) => [matchup.batterID, bvp[`${matchup.batterID}_${matchup.pitcherID}`]]))
 
   games.forEach((game) => {
@@ -670,22 +677,67 @@ function buildHitFadeRows(
         reason: sheetReason('hits', { line: outcome.line, season, l10, l5, hitRate: hr.label, odds: outcome.overOdds }),
         edge: overEdge,
         fadeScore,
+        vsSpAb,
+        vsSpHits,
+        vsSpHitRate,
         pickLabel: `Over ${outcome.line} Hits`,
       })
     })
   })
 
-  const bets = rows
+  const dedupedMap = new Map<string, typeof rows[number]>()
+
+  rows.forEach((row) => {
+    const key = `${row.player}_${row.matchup}_${row.line}`
+    const existing = dedupedMap.get(key)
+
+    if (!existing) {
+      dedupedMap.set(key, row)
+      return
+    }
+
+    dedupedMap.set(key, {
+      ...existing,
+      odds:
+        row.odds !== undefined && (existing.odds === undefined || row.odds > existing.odds)
+          ? row.odds
+          : existing.odds,
+      book:
+        row.odds !== undefined && (existing.odds === undefined || row.odds > existing.odds)
+          ? row.book
+          : existing.book,
+      underOdds:
+        row.underOdds !== undefined && (existing.underOdds === undefined || row.underOdds > existing.underOdds)
+          ? row.underOdds
+          : existing.underOdds,
+      underBook:
+        row.underOdds !== undefined && (existing.underOdds === undefined || row.underOdds > existing.underOdds)
+          ? row.underBook
+          : existing.underBook,
+    })
+  })
+
+  const withStats = Array.from(dedupedMap.values()).filter((row) => row.season > 0 || row.l10 > 0 || row.l5 > 0)
+
+  const bets = withStats
     .filter((row) => row.odds !== undefined && row.edge.score >= 60)
     .sort((a, b) => {
       if (b.edge.score !== a.edge.score) return b.edge.score - a.edge.score
+      if (b.vsSpHitRate !== a.vsSpHitRate) return b.vsSpHitRate - a.vsSpHitRate
       return b.l5 - a.l5
     })
     .slice(0, 5)
 
   const used = new Set(bets.map((row) => `${row.player}_${row.line}`))
-  const fades = rows
+  const fades = withStats
     .filter((row) => !used.has(`${row.player}_${row.line}`) && row.underOdds !== undefined)
+    .filter((row) =>
+      row.fadeScore >= 34 ||
+      (row.vsSpAb >= 3 && row.vsSpHits === 0) ||
+      (row.vsSpAb >= 5 && row.vsSpHitRate <= 0.200) ||
+      row.l5 <= 0.60 ||
+      row.l10 <= 0.70
+    )
     .map((row) => ({
       ...row,
       odds: row.underOdds,
@@ -697,7 +749,12 @@ function buildHitFadeRows(
       pickLabel: `Under ${row.line} Hits`,
     }))
     .sort((a, b) => {
+      const aZero = a.vsSpAb >= 3 && a.vsSpHits === 0 ? 1 : 0
+      const bZero = b.vsSpAb >= 3 && b.vsSpHits === 0 ? 1 : 0
+      if (bZero !== aZero) return bZero - aZero
+      if (bZero && b.vsSpAb !== a.vsSpAb) return b.vsSpAb - a.vsSpAb
       if (b.fadeScore !== a.fadeScore) return b.fadeScore - a.fadeScore
+      if (a.vsSpHitRate !== b.vsSpHitRate) return a.vsSpHitRate - b.vsSpHitRate
       return a.l5 - b.l5
     })
     .slice(0, 5)
