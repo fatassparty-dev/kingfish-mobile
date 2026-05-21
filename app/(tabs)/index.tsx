@@ -1464,10 +1464,16 @@ export default function DashboardScreen() {
             const awayPct = sport === 'MLB' ? Number(awayRecord?.pct || 0) : 0
             const homePct = sport === 'MLB' ? Number(homeRecord?.pct || 0) : 0
             const stronger = sport === 'MLB' && awayPct !== homePct ? (awayPct > homePct ? shortTeamName(game.away_team) : shortTeamName(game.home_team)) : null
+            const awayPitcherEra = sport === 'MLB' ? mlbScheduleQuery.data?.pitcherEraMap?.[awayAbbr] : undefined
+            const homePitcherEra = sport === 'MLB' ? mlbScheduleQuery.data?.pitcherEraMap?.[homeAbbr] : undefined
+            const pitcherEraNote = typeof awayPitcherEra === 'number' && typeof homePitcherEra === 'number' && Math.abs(awayPitcherEra - homePitcherEra) >= 0.5
+              ? `${awayPitcherEra < homePitcherEra ? shortTeamName(game.away_team) : shortTeamName(game.home_team)} has the probable-starter ERA edge (${awayPitcherEra.toFixed(2)} vs ${homePitcherEra.toFixed(2)}).`
+              : null
             const note = sport === 'MLB'
-              ? stronger
-                ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points. Use the lines tab to compare that edge against the best available price.`
-                : 'Season records are close. Use probable pitchers, recent form, and the best posted line before making the call.'
+              ? [stronger
+                  ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points.`
+                  : 'Season records are close.',
+                pitcherEraNote || 'Use probable pitchers, recent form, and the best posted line before making the call.'].join(' ')
               : sport === 'SOCCER' && soccerLean
                 ? `${soccerLean.detail} Use posted moneylines to compare the table edge against the best available price.`
                 : 'Use team form and posted market prices together before making the call.'
@@ -1477,6 +1483,7 @@ export default function DashboardScreen() {
                   { label: 'Win Pct', value: awayRecord ? `${(Number(awayRecord.pct || 0) * 100).toFixed(1)}%` : '-' },
                   { label: 'Last 10', value: awayForm ? `${awayForm.wins}-${awayForm.losses}` : '-' },
                   { label: 'Probable SP', value: mlbScheduleQuery.data?.pitcherNameMap?.[awayAbbr] || 'TBD' },
+                  { label: 'SP ERA', value: typeof awayPitcherEra === 'number' ? awayPitcherEra.toFixed(2) : '-' },
                 ]
               : sport === 'SOCCER'
                 ? [
@@ -1496,6 +1503,7 @@ export default function DashboardScreen() {
                   { label: 'Win Pct', value: homeRecord ? `${(Number(homeRecord.pct || 0) * 100).toFixed(1)}%` : '-' },
                   { label: 'Last 10', value: homeForm ? `${homeForm.wins}-${homeForm.losses}` : '-' },
                   { label: 'Probable SP', value: mlbScheduleQuery.data?.pitcherNameMap?.[homeAbbr] || 'TBD' },
+                  { label: 'SP ERA', value: typeof homePitcherEra === 'number' ? homePitcherEra.toFixed(2) : '-' },
                 ]
               : sport === 'SOCCER'
                 ? [
