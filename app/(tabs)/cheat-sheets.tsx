@@ -236,6 +236,22 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, hitVal
   return { label: `Fade ${score}`, color: colors.red, score }
 }
 
+function webEdgeLabel(line: number, season: number, l10: number, l5: number) {
+  const safeLine = Math.max(line || 0, 0.5)
+  if (!season && !l10 && !l5) return { label: '-', color: colors.textSecondary, score: 0 }
+
+  const seasonRatio = season > 0 ? season / safeLine : 0
+  const l10Ratio = l10 > 0 ? l10 / safeLine : seasonRatio
+  const l5Ratio = l5 > 0 ? l5 / safeLine : seasonRatio
+  const formRatio = seasonRatio * 0.30 + l10Ratio * 0.25 + l5Ratio * 0.45
+  const score = Math.round(Math.max(0, Math.min(100, ((formRatio - 0.70) / 0.70) * 85)))
+
+  if (score >= 75) return { label: `Strong ${score}`, color: colors.gold, score }
+  if (score >= 62) return { label: `Lean ${score}`, color: colors.green, score }
+  if (score >= 45) return { label: `Neutral ${score}`, color: colors.textSecondary, score }
+  return { label: `Fade ${score}`, color: colors.red, score }
+}
+
 function fmt(value: number) {
   return value ? value.toFixed(2) : '-'
 }
@@ -599,6 +615,69 @@ function bestHitFadeOutcomes(game: Game) {
   return Object.values(map)
 }
 
+function bestBookOutcomes(game: Game, marketKey: string) {
+  const map: Record<string, {
+    player: string
+    line: number
+    overOdds?: number
+    overBook?: string
+    underOdds?: number
+    underBook?: string
+  }> = {}
+
+  game.bookmakers?.forEach((bookmaker) => {
+    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    const market = bookmaker.markets?.find((item) => item.key === marketKey)
+    market?.outcomes?.forEach((outcome) => {
+      if (!outcome.description) return
+      if (typeof outcome.price !== 'number' || outcome.price > 700 || outcome.price < -10000) return
+      const line = outcome.point || 0.5
+      const key = `${outcome.description}-${line}`
+      map[key] ||= { player: outcome.description, line }
+      const book = SHEET_BOOK_NAMES[bookmaker.key] || BOOK_DISPLAY_NAMES[bookmaker.key] || bookmaker.key
+
+      if (outcome.name === 'Over' && (map[key].overOdds === undefined || outcome.price > (map[key].overOdds || -10000))) {
+        map[key].overOdds = outcome.price
+        map[key].overBook = book
+      }
+
+      if (outcome.name === 'Under' && (map[key].underOdds === undefined || outcome.price > (map[key].underOdds || -10000))) {
+        map[key].underOdds = outcome.price
+        map[key].underBook = book
+      }
+    })
+  })
+
+  return Object.values(map)
+}
+
+function dedupeBestOdds<T extends SheetRow & { underOdds?: number; underBook?: string }>(rows: T[]) {
+  const map = new Map<string, T>()
+
+  rows.forEach((row) => {
+    const key = `${row.player}_${row.matchup}_${row.line}`
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, row)
+      return
+    }
+
+    map.set(key, {
+      ...existing,
+      odds: row.odds !== undefined && (existing.odds === undefined || row.odds > existing.odds) ? row.odds : existing.odds,
+      book: row.odds !== undefined && (existing.odds === undefined || row.odds > existing.odds) ? row.book : existing.book,
+      underOdds: row.underOdds !== undefined && (existing.underOdds === undefined || row.underOdds > existing.underOdds) ? row.underOdds : existing.underOdds,
+      underBook: row.underOdds !== undefined && (existing.underOdds === undefined || row.underOdds > existing.underOdds) ? row.underBook : existing.underBook,
+    })
+  })
+
+  return Array.from(map.values())
+}
+
+function bvpByBatterId(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = []) {
+  return new Map(matchups.map((matchup) => [matchup.batterID, bvp[`${matchup.batterID}_${matchup.pitcherID}`]]))
+}
+
 function buildHitFadeRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
@@ -776,6 +855,10 @@ function buildRows(
   matchups: BvpMatchup[] = [],
 ) {
   if (sheetKey === 'hits') return buildHitFadeRows(games, lineupMap, stats, bvp, matchups)
+  if (sheetKey === 'hr') return buildHrRows(games, lineupMap, stats, bvp, matchups)
+  if (sheetKey === 'tb') return buildTotalBaseRows(games, lineupMap, stats)
+  if (sheetKey === 'hot') return buildHotHitterRows(games, lineupMap, stats)
+  if (sheetKey === 'k') return buildStrikeoutRows(games, lineupMap, stats)
 
   const rows: SheetRow[] = []
 
@@ -818,6 +901,237 @@ function buildRows(
   return rows
     .sort((a, b) => b.edge.score - a.edge.score)
     .slice(0, 30)
+}
+
+function buildHotHitterRows(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+) {
+  const rows: Array<SheetRow & { hotFactor: number; underOdds?: number; underBook?: string }> = []
+
+  games.forEach((game) => {
+    bestBookOutcomes(game, 'batter_hits').forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
+
+      const season = getStat(playerStats, 'hits_per_game', 'season')
+      const l10 = getStat(playerStats, 'hits_per_game', 'l10')
+      const l5 = getStat(playerStats, 'hits_per_game', 'l5')
+      if (season <= 0 || l5 <= 0) return
+
+      const hotFactor = l5 / season
+      if (hotFactor < 1.20) return
+
+      const edge = webEdgeLabel(outcome.line, season, l10, l5)
+      rows.push({
+        player: outcome.player,
+        matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
+        line: outcome.line,
+        odds: outcome.overOdds,
+        book: outcome.overBook,
+        underOdds: outcome.underOdds,
+        underBook: outcome.underBook,
+        season,
+        l10,
+        l5,
+        hitRate: '-',
+        reason: `L5 is ${(hotFactor * 100).toFixed(0)}% of season pace (${fmt(l5)} vs ${fmt(season)}).`,
+        edge,
+        hotFactor,
+        pickLabel: `Over ${outcome.line} Hits`,
+      })
+    })
+  })
+
+  return dedupeBestOdds(rows)
+    .sort((a, b) => b.hotFactor - a.hotFactor || b.l10 - a.l10)
+    .slice(0, 10)
+}
+
+function buildHrRows(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+  bvp: Record<string, any> = {},
+  matchups: BvpMatchup[] = [],
+) {
+  const rows: Array<SheetRow & { vsSpHrRate: number; underOdds?: number; underBook?: string }> = []
+  const bvpMap = bvpByBatterId(bvp, matchups)
+
+  games.forEach((game) => {
+    bestBookOutcomes(game, 'batter_home_runs').forEach((outcome) => {
+      if (outcome.line !== 0.5) return
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
+
+      const season = getStat(playerStats, 'hr_per_game', 'season')
+      const l10 = getStat(playerStats, 'hr_per_game', 'l10')
+      const l5 = getStat(playerStats, 'hr_per_game', 'l5')
+      const matchupBvp = lineup ? bvpMap.get(String(lineup.id)) : null
+      const vsSpAb = Number(matchupBvp?.ab || 0)
+      const vsSpHr = Number(matchupBvp?.hr || 0)
+      const vsSpHrRate = vsSpAb > 0 ? vsSpHr / vsSpAb : 0
+      const marketChance = impliedProbability(outcome.overOdds || 0)
+      const score = Math.round(
+        (vsSpAb >= 3 ? Math.min(vsSpHrRate / 0.12, 1.8) * 42 : 8) +
+        Math.min(l5 / 0.45, 1.5) * 28 +
+        Math.min(l10 / 0.35, 1.4) * 12 +
+        Math.min(marketChance / 0.12, 1.4) * 18
+      )
+      const edge = score >= 72
+        ? { label: `Strong ${score}`, color: colors.gold, score }
+        : score >= 58
+          ? { label: `Lean ${score}`, color: colors.green, score }
+          : score >= 42
+            ? { label: `Neutral ${score}`, color: colors.textSecondary, score }
+            : { label: `Fade ${score}`, color: colors.red, score }
+      const tier = score >= 72 ? 'Top Target' : score >= 58 ? 'Lean HR' : 'Long Shot'
+
+      rows.push({
+        player: outcome.player,
+        matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
+        line: outcome.line,
+        odds: outcome.overOdds,
+        book: outcome.overBook,
+        underOdds: outcome.underOdds,
+        underBook: outcome.underBook,
+        season,
+        l10,
+        l5,
+        hitRate: '-',
+        reason: vsSpAb >= 3
+          ? `${tier}: ${vsSpHr} HR in ${vsSpAb} AB vs today's starter.`
+          : `${tier}: recent power and market price drive this look.`,
+        edge,
+        vsSpHrRate,
+        pickLabel: `Over ${outcome.line} HR`,
+      })
+    })
+  })
+
+  return dedupeBestOdds(rows)
+    .filter((row) => row.odds !== undefined)
+    .filter((row) => row.l5 > 0 || row.l10 > 0 || row.vsSpHrRate > 0 || row.odds !== undefined)
+    .sort((a, b) => {
+      if (b.edge.score !== a.edge.score) return b.edge.score - a.edge.score
+      if (b.vsSpHrRate !== a.vsSpHrRate) return b.vsSpHrRate - a.vsSpHrRate
+      return b.l5 - a.l5
+    })
+    .slice(0, 10)
+}
+
+function buildTotalBaseRows(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+) {
+  const rows: Array<SheetRow & { l5Hits: number; l10Hits: number }> = []
+
+  games.forEach((game) => {
+    bestBookOutcomes(game, 'batter_total_bases').forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
+
+      const season = getStat(playerStats, 'tb_per_game', 'season')
+      const l10 = getStat(playerStats, 'tb_per_game', 'l10')
+      const l5 = getStat(playerStats, 'tb_per_game', 'l5')
+      const rawGames = Array.isArray(playerStats.raw_games) ? playerStats.raw_games : []
+      const l5Games = rawGames.slice(0, 5)
+      const l10Games = rawGames.slice(0, 10)
+      const l5Hits = l5Games.filter((raw: any) => Number(raw?.tb || 0) >= Number(outcome.line || 0)).length
+      const l10Hits = l10Games.filter((raw: any) => Number(raw?.tb || 0) >= Number(outcome.line || 0)).length
+      const l5HitRate = l5Games.length ? l5Hits / l5Games.length : 0
+      const l10HitRate = l10Games.length ? l10Hits / l10Games.length : 0
+      const score = Math.round(
+        Math.min(l5HitRate, 1) * 42 +
+        Math.min(l10HitRate, 1) * 18 +
+        Math.min((l5 || 0) / Math.max(Number(outcome.line || 0.5), 0.5), 1.6) * 24 +
+        impliedProbability(outcome.overOdds || 0) * 16
+      )
+      const edge = score >= 76
+        ? { label: `Strong ${score}`, color: colors.gold, score }
+        : score >= 62
+          ? { label: `Lean ${score}`, color: colors.green, score }
+          : score >= 45
+            ? { label: `Watch ${score}`, color: colors.textSecondary, score }
+            : { label: `Pass ${score}`, color: colors.red, score }
+
+      rows.push({
+        player: outcome.player,
+        matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
+        line: outcome.line,
+        odds: outcome.overOdds,
+        book: outcome.overBook,
+        season,
+        l10,
+        l5,
+        hitRate: `${l10Hits}/${l10Games.length || 10}`,
+        reason: `Cleared this line ${l5Hits}/5 recently and ${l10Hits}/10 over the larger window.`,
+        edge,
+        l5Hits,
+        l10Hits,
+        pickLabel: `Over ${outcome.line} Total Bases`,
+      })
+    })
+  })
+
+  return dedupeBestOdds(rows)
+    .filter((row) => row.odds !== undefined)
+    .filter((row) => row.line <= 2.5)
+    .filter((row) => row.l5Hits >= 3 || row.l10Hits >= 6 || row.edge.score >= 60)
+    .sort((a, b) => {
+      if (b.l5Hits !== a.l5Hits) return b.l5Hits - a.l5Hits
+      if (b.edge.score !== a.edge.score) return b.edge.score - a.edge.score
+      return b.l5 - a.l5
+    })
+    .slice(0, 10)
+}
+
+function buildStrikeoutRows(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+) {
+  const rows: Array<SheetRow & { underOdds?: number; underBook?: string }> = []
+
+  games.forEach((game) => {
+    bestBookOutcomes(game, 'pitcher_strikeouts').forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      const playerStats = lineup ? stats[lineup.id] : undefined
+      if (!playerStats) return
+
+      const season = getStat(playerStats, 'strikeouts_per_game', 'season')
+      const l10 = getStat(playerStats, 'strikeouts_per_game', 'l10')
+      const l5 = getStat(playerStats, 'strikeouts_per_game', 'l5')
+      const edge = webEdgeLabel(outcome.line, season, l10, l5)
+
+      rows.push({
+        player: outcome.player,
+        matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
+        line: outcome.line,
+        odds: outcome.overOdds,
+        book: outcome.overBook,
+        underOdds: outcome.underOdds,
+        underBook: outcome.underBook,
+        season,
+        l10,
+        l5,
+        hitRate: '-',
+        reason: l10 > outcome.line ? 'Recent K form clears this number.' : 'Strikeout profile fits this number.',
+        edge,
+        pickLabel: `Over ${outcome.line} Strikeouts`,
+      })
+    })
+  })
+
+  return dedupeBestOdds(rows)
+    .filter((row) => row.season > 0)
+    .sort((a, b) => b.edge.score - a.edge.score || b.l5 - a.l5)
+    .slice(0, 10)
 }
 
 export default function CheatSheetsScreen() {
@@ -968,7 +1282,7 @@ export default function CheatSheetsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchups: bvpMatchups.map(({ batterID, pitcherID }) => ({ batterID, pitcherID })) }),
       }),
-    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits') && bvpMatchups.length > 0,
+    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits' || activeKey === 'hr') && bvpMatchups.length > 0,
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -1461,7 +1775,7 @@ export default function CheatSheetsScreen() {
 
           {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'td' && rows.length > 0 && (
             <View style={styles.reportRows}>
-              {(activeKey === 'hits' ? rows : rows.slice(0, 6)).map((row, index) => row.divider ? (
+              {(activeKey === 'hits' ? rows : rows.slice(0, 10)).map((row, index) => row.divider ? (
                 <View key={`divider-${row.label}-${index}`} style={styles.reportDivider}>
                   <AppText variant="eyebrow" style={styles.reportDividerText}>{row.label}</AppText>
                 </View>
