@@ -103,6 +103,17 @@ type NFLFuturesData = {
   }>
 }
 
+type NFLCommandData = {
+  depth_charts?: {
+    updated_at?: string | null
+    uploaded_at?: string | null
+    teams?: Array<{
+      team: string
+      depth_chart?: Record<string, Array<{ name: string; rank?: number | null; role?: string | null }>>
+    }>
+  }
+}
+
 type NCAAFOutlookData = {
   season: string
   teams: Array<{
@@ -521,6 +532,59 @@ function shortTeamName(team: string) {
   return team.replace(/ University$/i, '').replace(/ College$/i, '')
 }
 
+const NFL_TEAM_ABBR: Record<string, string> = {
+  'Arizona Cardinals': 'ARI',
+  'Atlanta Falcons': 'ATL',
+  'Baltimore Ravens': 'BAL',
+  'Buffalo Bills': 'BUF',
+  'Carolina Panthers': 'CAR',
+  'Chicago Bears': 'CHI',
+  'Cincinnati Bengals': 'CIN',
+  'Cleveland Browns': 'CLE',
+  'Dallas Cowboys': 'DAL',
+  'Denver Broncos': 'DEN',
+  'Detroit Lions': 'DET',
+  'Green Bay Packers': 'GB',
+  'Houston Texans': 'HOU',
+  'Indianapolis Colts': 'IND',
+  'Jacksonville Jaguars': 'JAX',
+  'Kansas City Chiefs': 'KC',
+  'Las Vegas Raiders': 'LV',
+  'Los Angeles Chargers': 'LAC',
+  'Los Angeles Rams': 'LAR',
+  'Miami Dolphins': 'MIA',
+  'Minnesota Vikings': 'MIN',
+  'New England Patriots': 'NE',
+  'New Orleans Saints': 'NO',
+  'New York Giants': 'NYG',
+  'New York Jets': 'NYJ',
+  'Philadelphia Eagles': 'PHI',
+  'Pittsburgh Steelers': 'PIT',
+  'San Francisco 49ers': 'SF',
+  'Seattle Seahawks': 'SEA',
+  'Tampa Bay Buccaneers': 'TB',
+  'Tennessee Titans': 'TEN',
+  'Washington Commanders': 'WAS',
+}
+
+function nflTeamCode(team: string) {
+  return NFL_TEAM_ABBR[team] || team
+}
+
+function nflDepthSummary(commandData: NFLCommandData | undefined, team: string, limit = 4) {
+  const teamCode = nflTeamCode(team)
+  const row = commandData?.depth_charts?.teams?.find((item) => item.team === teamCode)
+  const chart = row?.depth_chart || {}
+  return ['QB', 'RB', 'WR', 'TE']
+    .map((position) => {
+      const players = Array.isArray(chart[position]) ? chart[position] : []
+      const starter = players.find((player) => player.rank === 1) || players[0]
+      return starter ? `${position} ${starter.name}` : ''
+    })
+    .filter(Boolean)
+    .slice(0, limit)
+}
+
 function normalizeTeamKey(name: string) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
@@ -824,6 +888,12 @@ export default function DashboardScreen() {
     queryFn: () => kingfishFetch<NFLFuturesData>('/data/nfl/futures-2026.json'),
     enabled: isSelectedSportActive && sport === 'NFL' && view === 'league',
     staleTime: 24 * 60 * 60 * 1000,
+  })
+  const nflCommandQuery = useQuery({
+    queryKey: ['nfl-mobile-command-data'],
+    queryFn: () => kingfishFetch<NFLCommandData>('/api/nfl-command-data'),
+    enabled: isSelectedSportActive && sport === 'NFL' && (view === 'league' || view === 'matchups'),
+    staleTime: 10 * 60 * 1000,
   })
   const ncaafOutlookQuery = useQuery({
     queryKey: ['ncaaf-mobile-league-view'],
@@ -1595,6 +1665,7 @@ export default function DashboardScreen() {
               </View>
               {division.entries.map((entry) => {
                 const context = nflFuturesQuery.data?.divisionContext[entry.team]
+                const depthStarters = nflDepthSummary(nflCommandQuery.data, entry.team)
                 const isExpanded = expandedNflTeam === entry.team
                 return (
                   <View key={`${division.division}-${entry.team}`}>
@@ -1625,6 +1696,12 @@ export default function DashboardScreen() {
                             <AppText style={styles.leagueDetailValue}>{context ? `${context.last5Wins}-${5 - context.last5Wins}` : '-'}</AppText>
                           </View>
                         </View>
+                        {depthStarters.length ? (
+                          <View style={styles.matchupNote}>
+                            <AppText variant="eyebrow">Depth Starters</AppText>
+                            <AppText variant="muted" style={styles.matchupNoteText}>{depthStarters.join(' · ')}</AppText>
+                          </View>
+                        ) : null}
                       </View>
                     )}
                   </View>
@@ -1690,15 +1767,19 @@ export default function DashboardScreen() {
                 const homeFavored = favorite === homeShort
                 const marketDetail = game.favoriteDetail || 'Market not posted yet'
                 const totalLabel = game.total == null ? '-' : String(game.total)
+                const awayDepth = nflDepthSummary(nflCommandQuery.data, game.away_team, 2)
+                const homeDepth = nflDepthSummary(nflCommandQuery.data, game.home_team, 2)
                 const awayRows = [
                   { label: 'Side', value: 'Away' },
                   { label: 'Market', value: awayFavored ? marketDetail : homeFavored ? 'Plus side' : 'Pending' },
                   { label: 'Total', value: totalLabel },
+                  { label: 'Depth', value: awayDepth.length ? awayDepth.join(' · ') : '-' },
                 ]
                 const homeRows = [
                   { label: 'Side', value: 'Home' },
                   { label: 'Market', value: homeFavored ? marketDetail : awayFavored ? 'Plus side' : 'Pending' },
                   { label: 'Total', value: totalLabel },
+                  { label: 'Depth', value: homeDepth.length ? homeDepth.join(' · ') : '-' },
                 ]
                 const note = favorite === 'Pending'
                   ? 'Schedule is loaded. Market context appears here when sportsbooks post moneyline, spread, or total prices.'

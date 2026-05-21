@@ -14,6 +14,15 @@ interface PlayerProfileResponse {
   matchup?: string | null
   searchHint?: string | null
   injury_status: string | null
+  depthRole?: {
+    team?: string | null
+    position?: string | null
+    rank?: number | null
+    slot?: number | null
+    role?: string | null
+    updated_at?: string | null
+    uploaded_at?: string | null
+  } | null
   stats: Record<string, any> | null
   statDisplay: Array<{ label: string; value: string }>
   props: Array<{
@@ -88,6 +97,16 @@ function formatOpponent(game: RawGame) {
 
 function formatGameLabel(game: RawGame, index: number) {
   return [formatGameDate(game), formatOpponent(game)].filter(Boolean).join(' ') || String(game.label || '') || `Recent ${index + 1}`
+}
+
+function nflDepthRoleLabel(depthRole?: PlayerProfileResponse['depthRole'], fallbackPosition?: string | null) {
+  const rank = Number(depthRole?.rank)
+  const position = String(depthRole?.position || fallbackPosition || '').toUpperCase()
+  if (!Number.isFinite(rank) || rank <= 0) return depthRole?.role || 'Depth'
+  if (rank === 1) return 'Starter'
+  if (rank === 2) return position === 'QB' ? 'Backup QB' : `${position}2`
+  if (rank === 3) return position === 'QB' ? 'Third QB' : `${position}3`
+  return `${position || 'Depth'}${rank}`
 }
 
 function valueAt(values: unknown, index: number) {
@@ -396,6 +415,25 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </Card>
             )}
 
+            {sport === 'nfl' && query.data?.depthRole ? (
+              <Card>
+                <AppText variant="eyebrow">// Depth Chart Role</AppText>
+                <View style={styles.roleGrid}>
+                  {[
+                    ['Role', nflDepthRoleLabel(query.data.depthRole, query.data.position)],
+                    ['Team', query.data.depthRole.team || query.data.team || '-'],
+                    ['Depth', query.data.depthRole.rank ? `#${query.data.depthRole.rank}` : '-'],
+                    ['Position', query.data.depthRole.position || query.data.position || '-'],
+                  ].map(([label, value]) => (
+                    <View key={label} style={styles.roleItem}>
+                      <AppText variant="mono">{label}</AppText>
+                      <AppText style={styles.roleValue}>{value}</AppText>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
+
             {propFocus && (
               <Card>
                 <View style={styles.focusHeader}>
@@ -702,6 +740,30 @@ const styles = StyleSheet.create({
   formNote: {
     marginTop: spacing.sm,
     lineHeight: 22,
+  },
+  roleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  roleItem: {
+    width: '48%',
+    minHeight: 70,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCard,
+    padding: spacing.md,
+    justifyContent: 'center',
+  },
+  roleValue: {
+    marginTop: 5,
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   focusHeader: {
     flexDirection: 'row',
