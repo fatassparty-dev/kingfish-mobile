@@ -7,7 +7,7 @@ Expo app shell for KingFish Bets.
 When npm can reach the registry, install dependencies:
 
 ```bash
-cd mobile-push-today
+cd "/Users/briandelancey/Developer/KingFishBetsLLC/kingfish-mobile"
 npm install
 ```
 
