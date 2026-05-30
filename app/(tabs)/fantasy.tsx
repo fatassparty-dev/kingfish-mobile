@@ -52,6 +52,7 @@ type FantasyPayload = {
   generated_at?: string | null
   latest_season?: number | null
   players: DraftPlayer[]
+  bestBallPlayers?: DraftPlayer[]
   sleeper?: {
     user?: { user_id: string; username: string; display_name?: string } | null
     leagues?: SleeperLeague[]
@@ -114,8 +115,10 @@ export default function FantasyToolScreen() {
   })
 
   const players = fantasyQuery.data?.players || []
+  const bestBallPlayers = fantasyQuery.data?.bestBallPlayers || []
   const boardPlayers = useMemo(() => {
-    return players
+    const sourcePlayers = mode === 'bestball' && bestBallPlayers.length ? bestBallPlayers : players
+    return sourcePlayers
       .filter(player => mode !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
       .filter(player => position === 'ALL' || (position === 'FLEX' ? FLEX.has(player.position) : player.position === position))
       .filter(player => {
@@ -124,7 +127,7 @@ export default function FantasyToolScreen() {
         return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle)
       })
       .slice(0, 80)
-  }, [mode, players, position, search])
+  }, [bestBallPlayers, mode, players, position, search])
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
