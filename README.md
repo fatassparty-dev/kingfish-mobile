@@ -45,6 +45,9 @@ Keep these rules in place:
 - The `mobile_paywall` switch is an emergency hold for native purchase buttons. Keep it on for App Store launch unless mobile checkout must be paused.
 - Weekly NFL data belongs on the web/backend side first. The app should consume the backend result.
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
+- When touching a mobile area, check the related screen, route, or backend link before calling it done whenever a local or deployed view is available.
+- Keep the app clean, crisp, and simple. Think Apple: short copy, obvious actions, restrained controls, and no extra explanation unless it prevents confusion.
+- Avoid AI-looking UI: bubbly pills, decorative badges, generic helper text, and repeated label chips. Prefer boxier labels, table-like clarity, and quiet actions.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
 
 ## Server-Driven Update Map
