@@ -10,8 +10,9 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { colors, spacing } from '@/lib/theme'
 
-type FantasyMode = 'home' | 'bestball' | 'sleeper'
+type FantasyMode = 'home' | 'bestball' | 'planner' | 'sleeper'
 type Position = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'K' | 'DST'
+type PlannerLeague = 'home' | 'bestball'
 
 type DraftPlayer = {
   id: string
@@ -70,6 +71,10 @@ const STORAGE_KEY = 'kingfish_sleeper_connect_v1'
 const HIDDEN_STORAGE_KEY = 'kingfish_fantasy_hidden_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
+const PLANNER_TARGETS: Record<PlannerLeague, Record<string, number>> = {
+  home: { QB: 2, RB: 5, WR: 6, TE: 2, K: 1, DST: 1 },
+  bestball: { QB: 3, RB: 7, WR: 8, TE: 3 },
+}
 
 function freshness(value?: string | null) {
   if (!value) return null
@@ -82,6 +87,18 @@ function roundLabel(rank: number) {
   return rank > 0 ? `R${Math.ceil(rank / 12)}` : 'NR'
 }
 
+function snakePick(round: number, teams: number, slot: number) {
+  return round % 2 === 1
+    ? (round - 1) * teams + slot
+    : (round - 1) * teams + (teams - slot + 1)
+}
+
+function positionNeed(position: string, counts: Record<string, number>, targets: Record<string, number>) {
+  const target = targets[position] || 0
+  if (!target) return -99
+  return target - (counts[position] || 0)
+}
+
 export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
@@ -90,6 +107,10 @@ export default function FantasyToolScreen() {
   const [activeSleeper, setActiveSleeper] = useState<{ username: string; leagueId?: string; rosterId?: string } | null>(null)
   const [profilePlayer, setProfilePlayer] = useState<string | null>(null)
   const [hiddenIds, setHiddenIds] = useState<Record<'home' | 'bestball', string[]>>({ home: [], bestball: [] })
+  const [plannerLeague, setPlannerLeague] = useState<PlannerLeague>('home')
+  const [plannerTeams, setPlannerTeams] = useState('12')
+  const [plannerSlot, setPlannerSlot] = useState('6')
+  const [plannerTaken, setPlannerTaken] = useState<string[]>([])
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -147,6 +168,37 @@ export default function FantasyToolScreen() {
   }, [bestBallPlayers, hiddenIds.bestball, hiddenIds.home, mode, players, position, search])
 
   const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
+  const plannerTeamsNum = Math.max(8, Math.min(14, Number(plannerTeams) || 12))
+  const plannerSlotNum = Math.max(1, Math.min(plannerTeamsNum, Number(plannerSlot) || 1))
+  const plannerRounds = plannerLeague === 'bestball' ? 18 : 16
+  const plannerPath = useMemo(() => {
+    const sourcePlayers = (plannerLeague === 'bestball' ? bestBallPlayers : players)
+      .filter(player => plannerLeague !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
+      .sort((a, b) => (a.rank || 9999) - (b.rank || 9999))
+    const taken = new Set(plannerTaken)
+    const used = new Set<string>()
+    const counts: Record<string, number> = {}
+    const targets = PLANNER_TARGETS[plannerLeague]
+
+    return Array.from({ length: plannerRounds }, (_, index) => {
+      const round = index + 1
+      const pick = snakePick(round, plannerTeamsNum, plannerSlotNum)
+      const candidates = sourcePlayers.filter(player => !taken.has(player.id) && !used.has(player.id))
+      const nearPick = candidates.filter(player => (player.rank || 9999) >= Math.max(1, pick - 10))
+      const preferred = nearPick.find(player => positionNeed(player.position, counts, targets) > 0)
+        || candidates.find(player => positionNeed(player.position, counts, targets) > 0)
+        || nearPick[0]
+        || candidates[0]
+        || null
+
+      if (preferred) {
+        used.add(preferred.id)
+        counts[preferred.position] = (counts[preferred.position] || 0) + 1
+      }
+
+      return { round, pick, player: preferred }
+    })
+  }, [bestBallPlayers, plannerLeague, plannerRounds, plannerSlotNum, plannerTaken, plannerTeamsNum, players])
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
@@ -187,6 +239,11 @@ export default function FantasyToolScreen() {
     await AsyncStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next))
   }
 
+  function markPlannerTaken(playerId?: string) {
+    if (!playerId) return
+    setPlannerTaken(current => Array.from(new Set([...current, playerId])))
+  }
+
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
@@ -208,6 +265,7 @@ export default function FantasyToolScreen() {
         {([
           { key: 'home', label: 'Home' },
           { key: 'bestball', label: 'Best Ball' },
+          { key: 'planner', label: 'Planner' },
           { key: 'sleeper', label: 'Sleeper' },
         ] as Array<{ key: FantasyMode; label: string }>).map(item => (
           <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.segmentButton, mode === item.key && styles.segmentButtonActive]}>
@@ -292,6 +350,71 @@ export default function FantasyToolScreen() {
               </View>
             </Card>
           ) : null}
+        </>
+      ) : mode === 'planner' ? (
+        <>
+          <Card style={styles.metaCard}>
+            <AppText variant="eyebrow">// Draft Planner</AppText>
+            <AppText style={styles.cardTitle}>Draft Path</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>Build from the right board and adjust as players go.</AppText>
+
+            <View style={styles.plannerToggleRow}>
+              {(['home', 'bestball'] as PlannerLeague[]).map(item => (
+                <Pressable key={item} onPress={() => {
+                  setPlannerLeague(item)
+                  setPlannerTaken([])
+                }} style={[styles.plannerToggle, plannerLeague === item && styles.plannerToggleActive]}>
+                  <AppText style={[styles.plannerToggleText, plannerLeague === item && styles.plannerToggleTextActive]}>
+                    {item === 'home' ? 'Home League' : 'Best Ball'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.plannerInputs}>
+              <View style={styles.plannerInputBlock}>
+                <AppText variant="eyebrow">Teams</AppText>
+                <TextInput
+                  value={plannerTeams}
+                  onChangeText={setPlannerTeams}
+                  keyboardType="number-pad"
+                  placeholder="12"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.plannerInputBlock}>
+                <AppText variant="eyebrow">Slot</AppText>
+                <TextInput
+                  value={plannerSlot}
+                  onChangeText={setPlannerSlot}
+                  keyboardType="number-pad"
+                  placeholder="6"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            {plannerTaken.length ? (
+              <Pressable onPress={() => setPlannerTaken([])} style={styles.clearButton}>
+                <AppText style={styles.clearButtonText}>Clear Taken</AppText>
+              </Pressable>
+            ) : null}
+          </Card>
+
+          <View style={styles.playerList}>
+            {plannerPath.map(item => (
+              <PlannerPickCard
+                key={`${item.round}-${item.pick}`}
+                round={item.round}
+                pick={item.pick}
+                player={item.player}
+                onPress={() => item.player && setProfilePlayer(item.player.name)}
+                onTaken={() => markPlannerTaken(item.player?.id)}
+              />
+            ))}
+          </View>
         </>
       ) : (
         <>
@@ -410,6 +533,51 @@ function PlayerRow({
   )
 }
 
+function PlannerPickCard({
+  round,
+  pick,
+  player,
+  onPress,
+  onTaken,
+}: {
+  round: number
+  pick: number
+  player: DraftPlayer | null
+  onPress: () => void
+  onTaken: () => void
+}) {
+  return (
+    <Pressable onPress={onPress} disabled={!player} style={styles.plannerPickCard}>
+      <View style={styles.plannerPickHead}>
+        <AppText style={styles.plannerRound}>R{round}</AppText>
+        <AppText style={styles.plannerPick}>Pick {pick}</AppText>
+      </View>
+      {player ? (
+        <>
+          <View style={styles.playerTitleRow}>
+            <AppText style={styles.playerName}>{player.name}</AppText>
+            <AppText style={styles.positionBox}>{player.position}</AppText>
+          </View>
+          <AppText variant="muted" style={styles.playerMeta}>
+            {player.team || '-'} · Rank #{player.rank}
+          </AppText>
+          <View style={styles.plannerActions}>
+            <AppText style={styles.grade}>{player.grade || '-'}</AppText>
+            <Pressable onPress={event => {
+              event.stopPropagation()
+              onTaken()
+            }} style={styles.plannerTakenButton}>
+              <AppText style={styles.plannerTakenText}>Taken</AppText>
+            </Pressable>
+          </View>
+        </>
+      ) : (
+        <AppText variant="muted" style={styles.cardCopy}>No player found.</AppText>
+      )}
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
@@ -466,6 +634,20 @@ const styles = StyleSheet.create({
   actionText: { color: colors.bgPrimary, fontWeight: '900' },
   textButton: { marginTop: spacing.md },
   textButtonLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
+  plannerToggleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  plannerToggle: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
+  plannerToggleActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
+  plannerToggleText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
+  plannerToggleTextActive: { color: colors.gold },
+  plannerInputs: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md },
+  plannerInputBlock: { flex: 1, gap: spacing.xs },
+  plannerPickCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md },
+  plannerPickHead: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.md },
+  plannerRound: { color: colors.gold, fontSize: 14, fontWeight: '900' },
+  plannerPick: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
+  plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  plannerTakenButton: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  plannerTakenText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   leagueList: { gap: spacing.md, marginBottom: spacing.md },
   leagueCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md },
   leagueCardActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.12)' },
