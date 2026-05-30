@@ -117,7 +117,7 @@ export default function FantasyToolScreen() {
   const players = fantasyQuery.data?.players || []
   const bestBallPlayers = fantasyQuery.data?.bestBallPlayers || []
   const boardPlayers = useMemo(() => {
-    const sourcePlayers = mode === 'bestball' && bestBallPlayers.length ? bestBallPlayers : players
+    const sourcePlayers = mode === 'bestball' ? bestBallPlayers : players
     return sourcePlayers
       .filter(player => mode !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
       .filter(player => position === 'ALL' || (position === 'FLEX' ? FLEX.has(player.position) : player.position === position))
@@ -299,7 +299,7 @@ export default function FantasyToolScreen() {
         </>
       )}
 
-      <PlayerProfileModal playerName={profilePlayer} sport="nfl" onClose={() => setProfilePlayer(null)} />
+      <PlayerProfileModal playerName={profilePlayer} sport="nfl" context="fantasy" onClose={() => setProfilePlayer(null)} />
     </Screen>
   )
 }

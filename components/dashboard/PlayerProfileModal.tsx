@@ -55,6 +55,7 @@ interface PlayerProfileModalProps {
   playerName: string | null
   sport: 'mlb' | 'nba' | 'nfl' | 'nhl' | 'wnba'
   marketContext?: PlayerProfileMarketContext | null
+  context?: 'fantasy' | 'props'
   onClose: () => void
 }
 
@@ -366,11 +367,15 @@ function compactShareText(value: string, maxLength: number) {
   return `${value.slice(0, Math.max(0, maxLength - 1))}.`
 }
 
-export function PlayerProfileModal({ playerName, sport, marketContext, onClose }: PlayerProfileModalProps) {
+export function PlayerProfileModal({ playerName, sport, marketContext, context = 'props', onClose }: PlayerProfileModalProps) {
   const [shareCardOpen, setShareCardOpen] = useState(false)
+  const isFantasyProfile = context === 'fantasy'
   const query = useQuery({
-    queryKey: ['player-profile', sport, playerName],
-    queryFn: () => kingfishFetch<PlayerProfileResponse>(`/api/player-profile?sport=${sport}&name=${encodeURIComponent(playerName || '')}`),
+    queryKey: ['player-profile', sport, playerName, context],
+    queryFn: () => {
+      const params = new URLSearchParams({ sport, name: playerName || '', context })
+      return kingfishFetch<PlayerProfileResponse>(`/api/player-profile?${params.toString()}`)
+    },
     enabled: !!playerName,
     staleTime: 5 * 60 * 1000,
   })
@@ -394,7 +399,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </View>
             </View>
             <View style={styles.headerActions}>
-              {propFocus && query.data ? (
+              {propFocus && query.data && !isFantasyProfile ? (
                 <Pressable onPress={() => setShareCardOpen(true)} style={styles.shareButton}>
                   <AppText variant="mono" style={styles.shareButtonText}>Copy</AppText>
                 </Pressable>
@@ -424,7 +429,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </Card>
             )}
 
-            {sport === 'nfl' && query.data ? (
+            {sport === 'nfl' && query.data && !isFantasyProfile ? (
               <Card>
                 <AppText variant="eyebrow">// Data Status</AppText>
                 <AppText style={styles.formNote}>{query.data.oddsStatus || 'Odds live when NFL prop markets are posted'}</AppText>
@@ -451,7 +456,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </Card>
             ) : null}
 
-            {propFocus && (
+            {propFocus && !isFantasyProfile && (
               <Card>
                 <View style={styles.focusHeader}>
                   <View style={styles.focusTitleWrap}>
@@ -521,28 +526,30 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </View>
             ) : null}
 
-            <View>
-              <AppText variant="eyebrow" style={styles.sectionLabel}>// Today's Props</AppText>
-              {query.data?.props?.length ? (
-                <View style={styles.propsList}>
-                  {query.data.props.map((prop) => (
-                    <View key={`${prop.marketKey}-${prop.book}-${prop.line}`} style={styles.propRow}>
-                      <View style={styles.propInfo}>
-                        <AppText style={styles.propMarket}>{prop.market}</AppText>
-                        <AppText variant="mono">Line {prop.line} · {prop.book}</AppText>
+            {!isFantasyProfile ? (
+              <View>
+                <AppText variant="eyebrow" style={styles.sectionLabel}>// Today's Props</AppText>
+                {query.data?.props?.length ? (
+                  <View style={styles.propsList}>
+                    {query.data.props.map((prop) => (
+                      <View key={`${prop.marketKey}-${prop.book}-${prop.line}`} style={styles.propRow}>
+                        <View style={styles.propInfo}>
+                          <AppText style={styles.propMarket}>{prop.market}</AppText>
+                          <AppText variant="mono">Line {prop.line} · {prop.book}</AppText>
+                        </View>
+                        <View style={styles.oddsBadge}>
+                          <AppText style={styles.oddsText}>{fmtOdds(prop.odds)}</AppText>
+                        </View>
                       </View>
-                      <View style={styles.oddsBadge}>
-                        <AppText style={styles.oddsText}>{fmtOdds(prop.odds)}</AppText>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Card>
-                  <AppText variant="muted">No props available for this player today.</AppText>
-                </Card>
-              )}
-            </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Card>
+                    <AppText variant="muted">No props available for this player today.</AppText>
+                  </Card>
+                )}
+              </View>
+            ) : null}
 
             <Button variant="secondary" onPress={onClose}>Close</Button>
           </ScrollView>
