@@ -92,9 +92,9 @@ function formatGameDate(game: RawGame) {
 }
 
 function formatStatsFreshness(value?: string | null) {
-  if (!value) return 'Player stats updated by KingFish manual NFL sheet'
+  if (!value) return 'Player stats update when KingFish refreshes NFL player stats'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Player stats updated by KingFish manual NFL sheet'
+  if (Number.isNaN(date.getTime())) return 'Player stats update when KingFish refreshes NFL player stats'
   return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
