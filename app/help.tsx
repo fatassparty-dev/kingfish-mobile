@@ -13,7 +13,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Tools when you want stat sheets, calculators, or game factors.',
+  'Open Tools when you want cheat sheets, calculators, game factors, or Fantasy Hub.',
 ]
 
 const tools = [
@@ -36,6 +36,10 @@ const tools = [
   {
     title: 'Game Factors',
     body: 'Use mobile Game Factors to scan MLB and NFL game environments, including venue baseline, weather, and Boost/Watch/Suppress reads.',
+  },
+  {
+    title: 'Fantasy Hub',
+    body: 'Use Home League, Best Ball, Draft Planner, and Roster Watch for football draft prep and season-long team tracking.',
   },
   {
     title: 'Ask KingFish',
@@ -82,7 +86,7 @@ const sportNotes = [
   },
   {
     title: 'NFL and College',
-    body: 'NFL on mobile features League View, Game Lines, Game Matchups, stat sheets, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
+    body: 'NFL on mobile features League View, Game Lines, Game Matchups, Fantasy Hub, stat sheets, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
   },
 ]
 
