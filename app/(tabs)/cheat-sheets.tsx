@@ -2128,7 +2128,7 @@ const styles = StyleSheet.create({
   backButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: spacing.md,
     paddingVertical: 9,
     backgroundColor: colors.bgCardAlt,
@@ -2163,7 +2163,7 @@ const styles = StyleSheet.create({
   rankBadge: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(198,145,50,.18)',
@@ -2179,7 +2179,7 @@ const styles = StyleSheet.create({
     marginTop: 7,
     borderWidth: 1,
     borderColor: 'rgba(198,145,50,.55)',
-    borderRadius: 999,
+    borderRadius: 6,
     backgroundColor: 'rgba(198,145,50,.12)',
     color: colors.gold,
     fontSize: 14,

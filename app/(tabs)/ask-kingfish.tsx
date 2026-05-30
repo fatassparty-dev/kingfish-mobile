@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   starterButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: colors.bgCardAlt,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   clearButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },

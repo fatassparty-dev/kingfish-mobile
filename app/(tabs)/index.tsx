@@ -2482,7 +2482,7 @@ const styles = StyleSheet.create({
   pill: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 9,
     backgroundColor: colors.bgCardAlt,
@@ -2900,7 +2900,7 @@ const styles = StyleSheet.create({
   teamInfoGrade: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 6,
     paddingHorizontal: 13,
     paddingVertical: 8,
     backgroundColor: colors.bgCardAlt,

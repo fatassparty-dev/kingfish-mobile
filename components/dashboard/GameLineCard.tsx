@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   weatherPill: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: colors.bgCardAlt,
     paddingHorizontal: 10,
     paddingVertical: 6,

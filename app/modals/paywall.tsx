@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: 999,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.borderActive,
   },

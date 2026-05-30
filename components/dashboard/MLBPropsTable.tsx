@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   gameFilterButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: colors.bgCard,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,

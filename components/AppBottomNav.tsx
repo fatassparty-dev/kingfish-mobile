@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
+    borderRadius: 8,
   },
   iconShellActive: {
     backgroundColor: 'rgba(198,145,50,.12)',
