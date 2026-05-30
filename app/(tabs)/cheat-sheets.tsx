@@ -1463,7 +1463,7 @@ export default function CheatSheetsScreen() {
           <AppText variant="eyebrow">// Football Draft Room</AppText>
           <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
           <AppText variant="muted" style={styles.featureToolText}>
-            Draft boards, best ball context, and Sleeper team tracking.
+            Quick draft boards, best ball targets, and team tracking.
           </AppText>
         </View>
         <AppText style={styles.featureToolArrow}>Open</AppText>

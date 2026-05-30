@@ -164,7 +164,7 @@ export default function FantasyToolScreen() {
       <AppText variant="eyebrow">// Fantasy Draft Room</AppText>
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Preseason draft boards, best ball context, and your Sleeper teams in one football workspace.
+        Quick draft boards, best ball targets, and your football teams in one place.
       </AppText>
 
       <View style={styles.segmentRow}>
