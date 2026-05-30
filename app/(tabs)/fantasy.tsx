@@ -67,6 +67,7 @@ type FantasyPayload = {
 }
 
 const STORAGE_KEY = 'kingfish_sleeper_connect_v1'
+const HIDDEN_STORAGE_KEY = 'kingfish_fantasy_hidden_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
 
@@ -88,6 +89,7 @@ export default function FantasyToolScreen() {
   const [sleeperUsername, setSleeperUsername] = useState('')
   const [activeSleeper, setActiveSleeper] = useState<{ username: string; leagueId?: string; rosterId?: string } | null>(null)
   const [profilePlayer, setProfilePlayer] = useState<string | null>(null)
+  const [hiddenIds, setHiddenIds] = useState<Record<'home' | 'bestball', string[]>>({ home: [], bestball: [] })
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -98,6 +100,19 @@ export default function FantasyToolScreen() {
           setSleeperUsername(parsed.username)
           setActiveSleeper(parsed)
         }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    AsyncStorage.getItem(HIDDEN_STORAGE_KEY)
+      .then(value => {
+        if (!value) return
+        const parsed = JSON.parse(value)
+        setHiddenIds({
+          home: Array.isArray(parsed?.home) ? parsed.home : [],
+          bestball: Array.isArray(parsed?.bestball) ? parsed.bestball : [],
+        })
       })
       .catch(() => {})
   }, [])
@@ -118,7 +133,9 @@ export default function FantasyToolScreen() {
   const bestBallPlayers = fantasyQuery.data?.bestBallPlayers || []
   const boardPlayers = useMemo(() => {
     const sourcePlayers = mode === 'bestball' ? bestBallPlayers : players
+    const hidden = new Set(mode === 'bestball' ? hiddenIds.bestball : hiddenIds.home)
     return sourcePlayers
+      .filter(player => !hidden.has(player.id))
       .filter(player => mode !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
       .filter(player => position === 'ALL' || (position === 'FLEX' ? FLEX.has(player.position) : player.position === position))
       .filter(player => {
@@ -127,7 +144,9 @@ export default function FantasyToolScreen() {
         return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle)
       })
       .slice(0, 80)
-  }, [bestBallPlayers, mode, players, position, search])
+  }, [bestBallPlayers, hiddenIds.bestball, hiddenIds.home, mode, players, position, search])
+
+  const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
@@ -151,6 +170,23 @@ export default function FantasyToolScreen() {
     await AsyncStorage.removeItem(STORAGE_KEY)
   }
 
+  async function hidePlayer(playerId: string) {
+    if (mode !== 'home' && mode !== 'bestball') return
+    const next = {
+      ...hiddenIds,
+      [mode]: Array.from(new Set([...hiddenIds[mode], playerId])),
+    }
+    setHiddenIds(next)
+    await AsyncStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next))
+  }
+
+  async function resetHiddenPlayers() {
+    if (mode !== 'home' && mode !== 'bestball') return
+    const next = { ...hiddenIds, [mode]: [] }
+    setHiddenIds(next)
+    await AsyncStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next))
+  }
+
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
@@ -164,7 +200,7 @@ export default function FantasyToolScreen() {
       <AppText variant="eyebrow">// Fantasy Draft Room</AppText>
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Quick draft boards, best ball targets, and your football teams in one place.
+        Draft boards and team tracking for football season.
       </AppText>
 
       <View style={styles.segmentRow}>
@@ -261,7 +297,14 @@ export default function FantasyToolScreen() {
           <Card style={styles.metaCard}>
             <AppText variant="eyebrow">// Draft Board</AppText>
             <AppText style={styles.cardTitle}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
-            <AppText variant="muted" style={styles.cardCopy}>{freshness(fantasyQuery.data?.generated_at)}</AppText>
+            <View style={styles.metaActions}>
+              <AppText variant="muted" style={styles.cardCopy}>{freshness(fantasyQuery.data?.generated_at)}</AppText>
+              {activeHiddenCount ? (
+                <Pressable onPress={resetHiddenPlayers} style={styles.clearButton}>
+                  <AppText style={styles.clearButtonText}>Show {activeHiddenCount}</AppText>
+                </Pressable>
+              ) : null}
+            </View>
           </Card>
 
           <TextInput
@@ -291,8 +334,10 @@ export default function FantasyToolScreen() {
                 fpts={player.fpts}
                 volume={player.volume}
                 risk={player.risk}
-                rankLabel={`${roundLabel(player.rank)} · ADP ${player.adp ? player.adp.toFixed(1) : 'NR'}`}
+                rank={player.rank}
+                rankLabel={`${roundLabel(player.rank)} · ${player.adp ? player.adp.toFixed(1) : 'NR'}`}
                 onPress={() => setProfilePlayer(player.name)}
+                onHide={() => hidePlayer(player.id)}
               />
             ))}
           </View>
@@ -312,9 +357,11 @@ function PlayerRow({
   fpts,
   volume,
   risk,
+  rank,
   rankLabel,
   starter,
   onPress,
+  onHide,
 }: {
   name: string
   team: string
@@ -323,19 +370,23 @@ function PlayerRow({
   fpts?: number | null
   volume?: string | null
   risk?: string | null
+  rank?: number
   rankLabel?: string
   starter?: boolean
   onPress: () => void
+  onHide?: () => void
 }) {
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
       <View style={styles.playerMain}>
+        {rank ? <AppText style={styles.rankText}>#{rank}</AppText> : null}
         <View style={styles.playerTitleRow}>
           <AppText style={styles.playerName}>{name}</AppText>
+          {position ? <AppText style={styles.positionBox}>{position}</AppText> : null}
           {starter ? <AppText style={styles.starterTag}>START</AppText> : null}
         </View>
         <AppText variant="muted" style={styles.playerMeta}>
-          {position || '-'} · {team || '-'}{rankLabel ? ` · ${rankLabel}` : ''}
+          {team || '-'}{rankLabel ? ` · ${rankLabel}` : ''}
         </AppText>
         <View style={styles.tagRow}>
           {volume ? <AppText style={styles.smallTag}>Vol {volume}</AppText> : null}
@@ -343,7 +394,17 @@ function PlayerRow({
           {typeof fpts === 'number' ? <AppText style={styles.smallTag}>{fpts.toFixed(1)} PPR/G</AppText> : null}
         </View>
       </View>
-      <AppText style={styles.grade}>{grade || '-'}</AppText>
+      <View style={styles.rowActions}>
+        <AppText style={styles.grade}>{grade || '-'}</AppText>
+        {onHide ? (
+          <Pressable onPress={event => {
+            event.stopPropagation()
+            onHide()
+          }} style={styles.hideButton}>
+            <AppText style={styles.hideText}>Hide</AppText>
+          </Pressable>
+        ) : null}
+      </View>
     </Pressable>
   )
 }
@@ -378,6 +439,15 @@ const styles = StyleSheet.create({
   loading: { gap: spacing.md, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
   cardTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
   cardCopy: { marginTop: spacing.sm, lineHeight: 20 },
+  metaActions: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md },
+  clearButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.32)',
+    borderRadius: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  clearButtonText: { color: colors.gold, fontSize: 11, fontWeight: '900' },
   connectCard: { marginBottom: spacing.md },
   inputRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   input: {
@@ -421,11 +491,27 @@ const styles = StyleSheet.create({
   playerList: { gap: spacing.md },
   playerRow: { flexDirection: 'row', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md, alignItems: 'center' },
   playerMain: { flex: 1, minWidth: 0 },
+  rankText: { color: colors.gold, fontSize: 13, fontWeight: '900', marginBottom: 5 },
   playerTitleRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   playerName: { flex: 1, color: colors.textPrimary, fontSize: 20, lineHeight: 23, fontWeight: '900' },
+  positionBox: {
+    minWidth: 34,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.28)',
+    borderRadius: 6,
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
   playerMeta: { marginTop: 4, fontSize: 12 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  smallTag: { color: colors.gold, borderWidth: 1, borderColor: 'rgba(198,145,50,.28)', borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 3, fontSize: 10, fontWeight: '900' },
-  starterTag: { color: colors.green, borderWidth: 1, borderColor: 'rgba(34,197,94,.35)', borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 3, fontSize: 10, fontWeight: '900' },
+  smallTag: { color: colors.textSecondary, borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: 3, fontSize: 10, fontWeight: '900' },
+  starterTag: { color: colors.green, borderWidth: 1, borderColor: 'rgba(34,197,94,.35)', borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: 3, fontSize: 10, fontWeight: '900' },
+  rowActions: { alignItems: 'flex-end', gap: spacing.md },
   grade: { minWidth: 42, textAlign: 'right', color: colors.gold, fontSize: 24, fontWeight: '900' },
+  hideButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+  hideText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
 })
