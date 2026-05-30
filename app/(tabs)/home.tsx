@@ -88,7 +88,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/cheat-sheets')}
             />
             <HomeAction
-              label="Ask AI"
+              label="Ask KingFish"
               body="Pressure-test props, parlays, totals, and matchup reads."
               onPress={() => router.push('/ask-kingfish')}
             />

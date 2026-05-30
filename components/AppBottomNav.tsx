@@ -9,7 +9,7 @@ const navItems: Array<{ label: string; icon: TabIconName; href: string }> = [
   { label: 'Home', icon: 'home', href: '/home' },
   { label: 'Board', icon: 'board', href: '/' },
   { label: 'Tools', icon: 'tools', href: '/cheat-sheets' },
-  { label: 'Ask AI', icon: 'ai', href: '/ask-kingfish' },
+  { label: 'Ask', icon: 'ai', href: '/ask-kingfish' },
   { label: 'Account', icon: 'account', href: '/account' },
 ]
 

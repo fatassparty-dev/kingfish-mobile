@@ -38,7 +38,7 @@ const FEATURES = [
   'Live props, game lines, and best odds',
   'Player profiles with recent form',
   'MLB cheat sheets and stat reports',
-  'Ask KingFish AI with live context',
+  'Ask KingFish with live context',
   'NFL Command Center and all supported sports',
 ]
 
