@@ -44,6 +44,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="fantasy"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="ask-kingfish"
         options={{
           title: 'Ask AI',

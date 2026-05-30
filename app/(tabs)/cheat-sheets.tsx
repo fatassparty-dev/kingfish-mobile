@@ -1458,6 +1458,17 @@ export default function CheatSheetsScreen() {
         Cheat sheets, calculators, and game factors in one clean workspace.
       </AppText>
 
+      <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
+        <View style={styles.featureToolCopy}>
+          <AppText variant="eyebrow">// Football Draft Room</AppText>
+          <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
+          <AppText variant="muted" style={styles.featureToolText}>
+            Draft boards, best ball context, and Sleeper team tracking.
+          </AppText>
+        </View>
+        <AppText style={styles.featureToolArrow}>Open</AppText>
+      </Pressable>
+
       <View style={styles.segmentRow}>
         {TOOL_MODES.map((mode) => (
           <Pressable
@@ -1925,6 +1936,38 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  featureTool: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.34)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(198,145,50,.08)',
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  featureToolCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  featureToolTitle: {
+    marginTop: 4,
+    color: colors.textPrimary,
+    fontSize: 24,
+    lineHeight: 27,
+    fontWeight: '900',
+  },
+  featureToolText: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  featureToolArrow: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '900',
   },
   sheetTile: {
     width: '47%',

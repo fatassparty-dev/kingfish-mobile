@@ -25,6 +25,8 @@ interface PlayerProfileResponse {
   } | null
   stats: Record<string, any> | null
   statDisplay: Array<{ label: string; value: string }>
+  statsUpdatedAt?: string | null
+  oddsStatus?: string | null
   props: Array<{
     marketKey: string
     market: string
@@ -86,6 +88,13 @@ function formatGameDate(game: RawGame) {
   const date = new Date(raw)
   if (!Number.isFinite(date.getTime())) return String(raw)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function formatStatsFreshness(value?: string | null) {
+  if (!value) return 'Player stats updated by KingFish manual NFL sheet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Player stats updated by KingFish manual NFL sheet'
+  return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
 function formatOpponent(game: RawGame) {
@@ -415,6 +424,14 @@ export function PlayerProfileModal({ playerName, sport, marketContext, onClose }
               </Card>
             )}
 
+            {sport === 'nfl' && query.data ? (
+              <Card>
+                <AppText variant="eyebrow">// Data Status</AppText>
+                <AppText style={styles.formNote}>{query.data.oddsStatus || 'Odds live when NFL prop markets are posted'}</AppText>
+                <AppText variant="muted" style={styles.statusText}>{formatStatsFreshness(query.data.statsUpdatedAt)}</AppText>
+              </Card>
+            ) : null}
+
             {sport === 'nfl' && query.data?.depthRole ? (
               <Card>
                 <AppText variant="eyebrow">// Depth Chart Role</AppText>
@@ -740,6 +757,10 @@ const styles = StyleSheet.create({
   formNote: {
     marginTop: spacing.sm,
     lineHeight: 22,
+  },
+  statusText: {
+    marginTop: spacing.sm,
+    lineHeight: 20,
   },
   roleGrid: {
     flexDirection: 'row',
