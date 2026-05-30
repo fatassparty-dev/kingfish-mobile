@@ -72,9 +72,9 @@ const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST'
 const FLEX = new Set(['RB', 'WR', 'TE'])
 
 function freshness(value?: string | null) {
-  if (!value) return 'Player stats update when KingFish refreshes NFL player stats'
+  if (!value) return null
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Player stats update when KingFish refreshes NFL player stats'
+  if (Number.isNaN(date.getTime())) return null
   return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
@@ -190,6 +190,7 @@ export default function FantasyToolScreen() {
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
+  const statsFreshness = freshness(fantasyQuery.data?.generated_at)
 
   return (
     <Screen>
@@ -271,7 +272,7 @@ export default function FantasyToolScreen() {
               <AppText variant="eyebrow">// {selectedSleeper.league.name}</AppText>
               <AppText style={styles.cardTitle}>Roster Watch</AppText>
               <AppText variant="muted" style={styles.cardCopy}>
-                Week {selectedSleeper.week} · {freshness(fantasyQuery.data?.generated_at)}
+                {statsFreshness ? `Week ${selectedSleeper.week} · ${statsFreshness}` : `Week ${selectedSleeper.week}`}
               </AppText>
               <View style={styles.playerList}>
                 {rosterPlayers.map(player => (
@@ -298,7 +299,7 @@ export default function FantasyToolScreen() {
             <AppText variant="eyebrow">// Draft Board</AppText>
             <AppText style={styles.cardTitle}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
             <View style={styles.metaActions}>
-              <AppText variant="muted" style={styles.cardCopy}>{freshness(fantasyQuery.data?.generated_at)}</AppText>
+              {statsFreshness ? <AppText variant="muted" style={styles.cardCopy}>{statsFreshness}</AppText> : <View />}
               {activeHiddenCount ? (
                 <Pressable onPress={resetHiddenPlayers} style={styles.clearButton}>
                   <AppText style={styles.clearButtonText}>Show {activeHiddenCount}</AppText>

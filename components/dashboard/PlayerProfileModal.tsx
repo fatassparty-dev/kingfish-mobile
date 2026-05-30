@@ -92,9 +92,9 @@ function formatGameDate(game: RawGame) {
 }
 
 function formatStatsFreshness(value?: string | null) {
-  if (!value) return 'Player stats update when KingFish refreshes NFL player stats'
+  if (!value) return null
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Player stats update when KingFish refreshes NFL player stats'
+  if (Number.isNaN(date.getTime())) return null
   return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
@@ -381,6 +381,8 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
   })
   const formNote = buildFormNote(sport, query.data)
   const propFocus = buildPropFocus(sport, query.data, marketContext)
+  const statsFreshness = formatStatsFreshness(query.data?.statsUpdatedAt)
+  const hasNflDataStatus = Boolean(query.data?.oddsStatus || statsFreshness)
 
   return (
     <Modal visible={!!playerName} animationType="slide" transparent onRequestClose={onClose}>
@@ -429,11 +431,11 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
               </Card>
             )}
 
-            {sport === 'nfl' && query.data && !isFantasyProfile ? (
+            {sport === 'nfl' && query.data && !isFantasyProfile && hasNflDataStatus ? (
               <Card>
                 <AppText variant="eyebrow">// Data Status</AppText>
-                <AppText style={styles.formNote}>{query.data.oddsStatus || 'Odds live when NFL prop markets are posted'}</AppText>
-                <AppText variant="muted" style={styles.statusText}>{formatStatsFreshness(query.data.statsUpdatedAt)}</AppText>
+                {query.data.oddsStatus ? <AppText style={styles.formNote}>{query.data.oddsStatus}</AppText> : null}
+                {statsFreshness ? <AppText variant="muted" style={styles.statusText}>{statsFreshness}</AppText> : null}
               </Card>
             ) : null}
 
