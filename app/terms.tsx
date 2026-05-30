@@ -13,7 +13,7 @@ const sections = [
   },
   {
     title: '2. Description of Service',
-    body: 'KingFish Bets provides sports betting analytics, odds comparison, and picks for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, or operate as a sportsbook.',
+    body: 'KingFish Bets provides sports analytics, betting research tools, odds comparison, market context, AI-assisted analysis, and picks for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, or operate as a sportsbook.',
   },
   {
     title: '3. Not a Gambling Service',
@@ -29,34 +29,38 @@ const sections = [
   },
   {
     title: '6. Subscription and Payments',
-    body: 'Premium subscriptions may be purchased through KingFishBets.com or through the Apple App Store inside the mobile app. Apple subscriptions, in-app purchases, cancellations, renewals, and mobile refund requests are handled through your Apple account and Apple policies.',
+    body: 'Premium subscriptions may be purchased through KingFishBets.com or, where available, through in-app purchase. Mobile subscriptions, in-app purchases, cancellations, renewals, and mobile refund requests are handled through your App Store or Google Play account and are subject to the applicable store policies. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
   },
   {
-    title: '7. Prohibited Uses',
+    title: '7. Mobile App License',
+    body: 'We grant you a limited, non-transferable, non-exclusive license to use the KingFish Bets mobile app on devices you own or control, subject to these Terms and the applicable app store rules.',
+  },
+  {
+    title: '8. Prohibited Uses',
     body: 'You may not use the Service for unlawful purposes, resell or redistribute premium content, scrape or reverse engineer the Service, impersonate another person, or use the Service where sports betting analytics services are prohibited.',
   },
   {
-    title: '8. Intellectual Property',
+    title: '9. Intellectual Property',
     body: 'KingFish Bets content, analysis, algorithms, and design are the property of KingFish Bets and may not be reproduced or redistributed without written permission.',
   },
   {
-    title: '9. Disclaimer of Warranties',
+    title: '10. Disclaimer of Warranties',
     body: 'The Service is provided as is. Odds, stats, injuries, weather, schedules, lineups, AI responses, and other data may be delayed, incomplete, unavailable, or incorrect. Sportsbook lines can change quickly and may differ by state, account, market, promotion, or sportsbook.',
   },
   {
-    title: '10. AI and Automated Analysis',
+    title: '11. AI and Automated Analysis',
     body: 'Ask KingFish and other automated tools may generate analysis using available data, historical context, and user prompts. AI-generated responses may contain errors or omissions and should not be treated as instructions to wager.',
   },
   {
-    title: '11. Limitation of Liability',
+    title: '12. Limitation of Liability',
     body: 'KingFish Bets shall not be liable for indirect, incidental, special, or consequential damages arising from your use of the Service, including gambling losses incurred based on information provided by the Service.',
   },
   {
-    title: '12. Responsible Gambling',
+    title: '13. Responsible Gambling',
     body: 'If you or someone you know has a gambling problem, call the National Problem Gambling Helpline at 1-800-522-4700.',
   },
   {
-    title: '13. Changes to Terms',
+    title: '14. Changes to Terms',
     body: 'We may modify these terms from time to time. Continued use of the Service after changes constitutes acceptance of the new terms.',
   },
 ]
@@ -66,7 +70,7 @@ export default function TermsScreen() {
     <Screen>
       <AppText variant="eyebrow">// Legal</AppText>
       <AppText variant="title" style={styles.title}>Terms of Service</AppText>
-      <AppText variant="muted" style={styles.updated}>Last updated: May 6, 2026</AppText>
+      <AppText variant="muted" style={styles.updated}>Last updated: May 30, 2026</AppText>
 
       <Card style={styles.notice}>
         <AppText variant="muted">
