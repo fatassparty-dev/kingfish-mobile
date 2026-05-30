@@ -48,6 +48,7 @@ Keep these rules in place:
 - When touching a mobile area, check the related screen, route, or backend link before calling it done whenever a local or deployed view is available.
 - Keep the app clean, crisp, and simple. Think Apple: short copy, obvious actions, restrained controls, and no extra explanation unless it prevents confusion.
 - Avoid AI-looking UI: bubbly pills, decorative badges, generic helper text, and repeated label chips. Prefer boxier labels, table-like clarity, and quiet actions.
+- Do not remove or flatten custom branded identity pieces without approval. Intentional KingFish visuals are not generic AI tells.
 - Do not name third-party data providers in public mobile copy unless there is a legal or product reason, such as asking the user to connect an outside fantasy account.
 - Run `npm run typecheck` before packaging an App Store or Google Play build.
 
