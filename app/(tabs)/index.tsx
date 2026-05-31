@@ -103,7 +103,25 @@ type NFLFuturesData = {
   }>
 }
 
+type NFLTeamStats = {
+  team: string
+  games?: number
+  pass_yds_g?: number
+  rush_yds_g?: number
+  total_yds_g?: number
+  offensive_tds_g?: number
+  turnovers_g?: number
+  penalties_g?: number
+  penalty_yds_g?: number
+  pass_epa_g?: number
+  rush_epa_g?: number
+  powerScore?: number
+}
+
 type NFLCommandData = {
+  team_stats?: {
+    teams?: NFLTeamStats[]
+  }
   depth_charts?: {
     updated_at?: string | null
     uploaded_at?: string | null
@@ -571,6 +589,24 @@ function nflTeamCode(team: string) {
   return NFL_TEAM_ABBR[team] || team
 }
 
+function nflPowerScore(team: NFLTeamStats) {
+  return (
+    Number(team.total_yds_g || 0) / 10 +
+    Number(team.offensive_tds_g || 0) * 18 +
+    Number(team.pass_epa_g || 0) * 2 +
+    Number(team.rush_epa_g || 0) * 2 -
+    Number(team.turnovers_g || 0) * 15 -
+    Number(team.penalties_g || 0) * 2
+  )
+}
+
+function nflTeamStatsMap(commandData: NFLCommandData | undefined) {
+  return (commandData?.team_stats?.teams || []).reduce<Record<string, { powerScore?: number }>>((acc, team) => {
+    acc[team.team] = { powerScore: nflPowerScore(team) }
+    return acc
+  }, {})
+}
+
 function nflDepthSummary(commandData: NFLCommandData | undefined, team: string, limit = 4) {
   const teamCode = nflTeamCode(team)
   const row = commandData?.depth_charts?.teams?.find((item) => item.team === teamCode)
@@ -892,7 +928,7 @@ export default function DashboardScreen() {
   const nflCommandQuery = useQuery({
     queryKey: ['nfl-mobile-command-data'],
     queryFn: () => kingfishFetch<NFLCommandData>('/api/nfl-command-data'),
-    enabled: isSelectedSportActive && sport === 'NFL' && (view === 'league' || view === 'matchups'),
+    enabled: isSelectedSportActive && sport === 'NFL' && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 10 * 60 * 1000,
   })
   const ncaafOutlookQuery = useQuery({
@@ -940,19 +976,19 @@ export default function DashboardScreen() {
   const teamFormQuery = useQuery({
     queryKey: ['team-form', sport],
     queryFn: () => kingfishFetch<TeamFormPayload>(`/api/${sportApiKey(sport)}-team-form`),
-    enabled: isSelectedSportActive && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (view === 'league' || view === 'matchups'),
+    enabled: isSelectedSportActive && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 30 * 60 * 1000,
   })
   const mlbScheduleQuery = useQuery({
     queryKey: ['mlb-schedule-context'],
     queryFn: () => kingfishFetch<MLBSchedulePayload>('/api/mlb-schedule'),
-    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups'),
+    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 5 * 60 * 1000,
   })
   const mlbL10Query = useQuery({
     queryKey: ['mlb-team-l10'],
     queryFn: () => kingfishFetch<MLBL10Payload>('/api/mlb-team-l10'),
-    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups'),
+    enabled: isSelectedSportActive && sport === 'MLB' && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 60 * 60 * 1000,
   })
   const kboTeams = [...(kboTeamQuery.data?.teams || [])].sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999))
@@ -2026,7 +2062,22 @@ export default function DashboardScreen() {
                 <GameLineCard
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
+                  sport={sport}
                   weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
+                  mlbContext={sport === 'MLB' ? {
+                    teamAbbrMap: MLB_TEAM_NAME_TO_ABBR,
+                    records: mlbScheduleQuery.data?.teamRecords,
+                    l10Map: mlbL10Query.data?.teamL10Map,
+                    pitcherEraMap: mlbScheduleQuery.data?.pitcherEraMap,
+                  } : undefined}
+                  teamFormContext={sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' ? {
+                    awayForm: findTeamForm(teamFormQuery.data?.teams, game.away_team),
+                    homeForm: findTeamForm(teamFormQuery.data?.teams, game.home_team),
+                  } : undefined}
+                  nflContext={sport === 'NFL' ? {
+                    teamAbbrMap: NFL_TEAM_ABBR,
+                    teamStatsMap: nflTeamStatsMap(nflCommandQuery.data),
+                  } : undefined}
                   showNeutralTotalWatch={sport !== 'NFL'}
                 />
               ))}

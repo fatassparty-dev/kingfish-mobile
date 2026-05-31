@@ -1728,7 +1728,6 @@ export default function CheatSheetsScreen() {
                 <View style={styles.sheetTileCenter}>
                   <AppText style={styles.sheetTileTitle}>{sheet.label}</AppText>
                 </View>
-                <AppText style={styles.sheetTileOpen}>Open</AppText>
               </Pressable>
             ))}
           </View>
@@ -2084,7 +2083,6 @@ const styles = StyleSheet.create({
   sheetTileTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 20, lineHeight: 23 },
   sheetTileTitleActive: { color: colors.gold },
   sheetTileCopy: { marginTop: spacing.sm, fontSize: 12, lineHeight: 16 },
-  sheetTileOpen: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   calcTile: { minHeight: 134 },
   inputGrid: {
     flexDirection: 'row',

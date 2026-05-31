@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
@@ -342,21 +342,18 @@ function edgeLabel(
   l10: number,
   l5: number,
   odds: number | undefined,
-  stats: Record<string, any> | undefined,
-  marketKey: string
+  sport?: Sport
 ) {
   if (!season) return { label: 'No Stats', color: colors.textMuted, score: 0 }
-  const safeLine = Math.max(line || 0, 0.5)
+  const safeLine = Math.max(line || 0, sport === 'NHL' ? 0.1 : 0.5)
   const seasonRatio = season / safeLine
   const l10Ratio = (l10 || season) / safeLine
   const l5Ratio = (l5 || season) / safeLine
   const composite = seasonRatio * 0.5 + l10Ratio * 0.3 + l5Ratio * 0.2
   const implied = odds && odds > 0 ? 100 / (odds + 100) : odds ? Math.abs(odds) / (Math.abs(odds) + 100) : 0.5
-  const l10Hit = hitRate(recentValues(stats, marketKey, 10), safeLine)
-  const l5Hit = hitRate(recentValues(stats, marketKey, 5), safeLine)
   const avgScore = clamp((composite - 0.82) / 0.55) * 35
-  const l10Score = (l10Hit ?? clamp((l10Ratio - 0.75) / 0.55)) * 25
-  const l5Score = (l5Hit ?? clamp((l5Ratio - 0.75) / 0.55)) * 20
+  const l10Score = clamp((l10Ratio - 0.75) / 0.55) * 25
+  const l5Score = clamp((l5Ratio - 0.75) / 0.55) * 20
   const priceScore = implied <= 0.52 ? 12 : implied <= 0.58 ? 9 : implied <= 0.65 ? 5 : implied <= 0.72 ? 2 : 0
   const trendScore = l5 >= l10 && l10 >= season * 0.92 ? 8 : l5 >= l10 ? 4 : 0
   const score = Math.round(avgScore + l10Score + l5Score + priceScore + trendScore)
@@ -514,6 +511,8 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
 }
 
 export function PropsList({ games, sport, limit, initialStats }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any> }) {
+  const { width, height } = useWindowDimensions()
+  const compactTable = sport === 'NFL' && width > height
   const availableMarketKeys = useMemo(() => availableMarkets(games, sport), [games, sport])
   const markets = useMemo(() => {
     if (availableMarketKeys.length || sport !== 'NFL') return availableMarketKeys
@@ -731,7 +730,9 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
       {propsByGame.map(({ game, props: gameProps }) => (
         <View key={game.game_id || game.id || `${game.away_team}-${game.home_team}`} style={styles.gameBlock}>
           <View style={styles.gameHeader}>
-            <AppText style={styles.gameTitle}>{game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}</AppText>
+            <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
+              {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
+            </AppText>
             <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -739,7 +740,15 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
               <View style={styles.tableHeader}>
                 {(sport === 'NFL' ? NFL_TABLE_HEADERS : TABLE_HEADERS).map((header) => (
                   <Pressable key={header.label} onPress={() => header.key !== 'risk' && toggleSort(header.key)}>
-                    <AppText variant="eyebrow" style={[styles.cell, header.key === 'player' && styles.playerCell]}>
+                    <AppText
+                      variant="eyebrow"
+                      style={[
+                        styles.cell,
+                        compactTable && styles.cellCompact,
+                        header.key === 'player' && styles.playerCell,
+                        compactTable && header.key === 'player' && styles.playerCellCompact,
+                      ]}
+                    >
                       {header.label}{sortKey === header.key ? (sortDir === 'desc' ? ' v' : ' ^') : ''}
                     </AppText>
                   </Pressable>
@@ -755,6 +764,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
                     setSelectedPlayer(playerName)
                     setSelectedMarketContext(context)
                   }}
+                  compact={compactTable}
                 />
               ))}
             </View>
@@ -804,7 +814,7 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
 
   if (key === 'player') return prop.outcome.description || ''
   if (key === 'line') return line
@@ -822,11 +832,13 @@ function PropTableRow({
   stats,
   sport,
   onSelectPlayer,
+  compact,
 }: {
   prop: FlattenedProp
   stats?: Record<string, any>
   sport: Sport
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
+  compact?: boolean
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
@@ -835,41 +847,41 @@ function PropTableRow({
   const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
 
   return (
-    <View style={styles.tableRow}>
+    <View style={[styles.tableRow, compact && styles.tableRowCompact]}>
       <AppText
         onPress={() => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
           marketKey: prop.market.key,
           marketLabel: marketLabel(prop.market.key),
           commonLine: line,
         })}
-        style={[styles.cell, styles.playerCell, styles.playerName]}
-        numberOfLines={2}
+        style={[styles.cell, compact && styles.cellCompact, styles.playerCell, compact && styles.playerCellCompact, styles.playerName]}
+        numberOfLines={compact ? 1 : 2}
       >
         {prop.outcome.description}
       </AppText>
-      <AppText style={styles.cell}>{line || '-'}</AppText>
-      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} />
+      <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{line || '-'}</AppText>
+      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} compact={compact} />
       {sport === 'NFL' ? (
-        <AppText style={styles.cell}>{stats?.risk?.label || '-'}</AppText>
+        <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{stats?.risk?.label || '-'}</AppText>
       ) : (
         <>
-          <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} />
-          <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} />
-          <AppText style={styles.cell}>{hitRateLabel(l10Hit)}</AppText>
+          <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} compact={compact} />
+          <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} compact={compact} />
+          <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{hitRateLabel(l10Hit)}</AppText>
         </>
       )}
-      <AppText style={[styles.cell, styles.best]}>{fmtOdds(prop.outcome.price)}</AppText>
-      <AppText style={styles.cell}>{prop.book}</AppText>
-      <AppText style={[styles.cell, { color: edge.color }]}>{edge.label}</AppText>
+      <AppText style={[styles.cell, compact && styles.cellCompact, styles.best]} numberOfLines={1}>{fmtOdds(prop.outcome.price)}</AppText>
+      <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{prop.book}</AppText>
+      <AppText style={[styles.cell, compact && styles.cellCompact, { color: edge.color }]} numberOfLines={1}>{edge.label}</AppText>
     </View>
   )
 }
 
-function StatTableCell({ value, color }: { value: string; color: string }) {
-  return <AppText style={[styles.cell, { color }]}>{value}</AppText>
+function StatTableCell({ value, color, compact }: { value: string; color: string; compact?: boolean }) {
+  return <AppText style={[styles.cell, compact && styles.cellCompact, { color }]} numberOfLines={1}>{value}</AppText>
 }
 
 export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<string, any> }) {
@@ -879,7 +891,7 @@ export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
-  const edge = edgeLabel(line, season, l10, l5, prop.outcome.price, stats, prop.market.key)
+  const edge = edgeLabel(line, season, l10, l5, prop.outcome.price)
 
   return (
     <Card>
@@ -1000,6 +1012,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textTransform: 'uppercase',
   },
+  gameTitleCompact: {
+    fontSize: 20,
+    lineHeight: 23,
+  },
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -1013,6 +1029,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  tableRowCompact: {
+    minHeight: 46,
+  },
   cell: {
     width: 78,
     color: colors.textPrimary,
@@ -1020,8 +1039,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     paddingRight: spacing.sm,
   },
+  cellCompact: {
+    width: 62,
+    fontSize: 10,
+    paddingRight: 6,
+  },
   playerCell: {
     width: 132,
+  },
+  playerCellCompact: {
+    width: 112,
   },
   playerName: {
     color: colors.gold,

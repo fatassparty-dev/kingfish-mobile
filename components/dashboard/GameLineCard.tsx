@@ -4,7 +4,32 @@ import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime } from '@/lib/format'
 import { displayBookName, supportedBookmakers } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
-import type { Bookmaker, Game, Market, Outcome, WeatherInfo } from '@/types'
+import type { Bookmaker, Game, Market, Outcome, Sport, WeatherInfo } from '@/types'
+
+type MlbLineContext = {
+  teamAbbrMap?: Record<string, string>
+  records?: Record<string, { wins: number; losses: number; pct: number }>
+  l10Map?: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }>
+  pitcherEraMap?: Record<string, number>
+}
+
+type TeamFormLineContext = {
+  awayForm?: Record<string, any>
+  homeForm?: Record<string, any>
+}
+
+type NflLineContext = {
+  teamAbbrMap?: Record<string, string>
+  teamStatsMap?: Record<string, { powerScore?: number }>
+}
+
+type LeanResult = {
+  label: string
+  detail: string
+  price?: number
+  book?: string
+  type?: string
+}
 
 function getMarket(bookmakers: Bookmaker[], key: string): Market | undefined {
   for (const bookmaker of bookmakers) {
@@ -55,12 +80,16 @@ function impliedProbability(price?: number) {
   return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100)
 }
 
+function clampScore(value: number) {
+  return Math.max(0, Math.min(100, value))
+}
+
 function shortTeamName(team: string) {
   const pieces = team.split(' ').filter(Boolean)
   return pieces[pieces.length - 1] || team
 }
 
-function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game) {
+function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game): LeanResult | null {
   const totals: Record<string, number[]> = {}
 
   bookmakers.forEach((bookmaker) => {
@@ -101,13 +130,71 @@ function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game) {
 
   return {
     label: `${shortTeamName(top.name)} ML`,
-    detail: `${Math.round(top.probability * 100)}% no-vig market lean across ${top.books} books.`,
+    detail: `Books lean this side across ${top.books} prices. Best number shown.`,
     price: best?.price,
     book: best?.book,
   }
 }
 
-function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo, showNeutralWatch = false) {
+function mlScoreType(diff: number) {
+  if (diff >= 10) return 'Strong Lean'
+  if (diff >= 4) return 'Lean'
+  return 'Price Watch'
+}
+
+function mlbTeamScore(
+  line: { price: number } | null,
+  ctx: { isHome: boolean; record?: { pct?: number }; l10?: { winPct?: number }; starterEra?: number },
+) {
+  const market = line ? (impliedProbability(line.price) || 0.5) * 100 : 50
+  const record = Number.isFinite(Number(ctx.record?.pct)) ? Number(ctx.record?.pct) * 100 : 50
+  const recent = Number.isFinite(Number(ctx.l10?.winPct)) ? Number(ctx.l10?.winPct) * 100 : record
+  const starterEra = Number(ctx.starterEra)
+  const starter = Number.isFinite(starterEra) && starterEra > 0 ? clampScore(100 - ((starterEra - 2.5) * 18)) : 50
+  const venue = ctx.isHome ? 55 : 49
+  return clampScore((market * 0.3) + (record * 0.22) + (recent * 0.2) + (starter * 0.18) + (venue * 0.1))
+}
+
+function mlbAbbr(team: string, context?: MlbLineContext) {
+  return context?.teamAbbrMap?.[team] || team
+}
+
+function mlbMoneylineLean(
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  context?: MlbLineContext,
+): LeanResult | null {
+  if (!awayMoneyline || !homeMoneyline) return null
+  const awayAbbr = mlbAbbr(game.away_team, context)
+  const homeAbbr = mlbAbbr(game.home_team, context)
+  const awayScore = mlbTeamScore(awayMoneyline, {
+    isHome: false,
+    record: context?.records?.[awayAbbr],
+    l10: context?.l10Map?.[awayAbbr],
+    starterEra: context?.pitcherEraMap?.[awayAbbr],
+  })
+  const homeScore = mlbTeamScore(homeMoneyline, {
+    isHome: true,
+    record: context?.records?.[homeAbbr],
+    l10: context?.l10Map?.[homeAbbr],
+    starterEra: context?.pitcherEraMap?.[homeAbbr],
+  })
+  const homeLean = homeScore >= awayScore
+  const diff = Math.abs(homeScore - awayScore)
+  const score = Math.round(homeLean ? homeScore : awayScore)
+  const otherScore = Math.round(homeLean ? awayScore : homeScore)
+  const best = homeLean ? homeMoneyline : awayMoneyline
+  return {
+    label: homeLean ? game.home_team : game.away_team,
+    detail: `KF ML score ${score}-${otherScore} from record, recent form, probable starter, home/away, and market price.${diff >= 4 ? '' : ' Tight edge, so shop the moneyline before making a call.'}`,
+    price: best.price,
+    book: best.book,
+    type: mlScoreType(diff),
+  }
+}
+
+function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo, showNeutralWatch = false): LeanResult | null {
   const rows: Array<{ over: number; under: number; point: number; overPrice: number; underPrice: number; book: string }> = []
 
   bookmakers.forEach((bookmaker) => {
@@ -150,7 +237,7 @@ function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo, show
     if (!showNeutralWatch) return null
     return {
       label: `Near ${Number(avgPoint.toFixed(1))}`,
-      detail: `Books are balanced on this total across ${rows.length} books.`,
+      detail: `Books are balanced on this total across ${rows.length} prices.`,
     }
   }
 
@@ -163,9 +250,231 @@ function consensusTotalLean(bookmakers: Bookmaker[], weather?: WeatherInfo, show
     label: `${side} ${Number(avgPoint.toFixed(1))}`,
     detail: weather?.windImpact === 'boost' || weather?.windImpact === 'suppress'
       ? `${weather.windStr} adds ${leanOver ? 'over' : 'under'} context to the market price.`
-      : `${Math.round(Math.max(overProb, underProb) * 100)}% no-vig market lean across ${rows.length} books.`,
+      : `Books lean ${side.toLowerCase()} across ${rows.length} prices. Best number shown.`,
     price: best?.price,
     book: best?.book,
+  }
+}
+
+function mlbTotalLean(
+  game: Game,
+  over: Outcome | undefined,
+  under: Outcome | undefined,
+  bookmakers: Bookmaker[],
+  context?: MlbLineContext,
+): LeanResult | null {
+  if (!over || !under || typeof over.point !== 'number') return null
+  const awayAbbr = mlbAbbr(game.away_team, context)
+  const homeAbbr = mlbAbbr(game.home_team, context)
+  const recentTotals = [context?.l10Map?.[awayAbbr]?.avgTotal, context?.l10Map?.[homeAbbr]?.avgTotal]
+    .filter((value): value is number => Number.isFinite(Number(value)) && Number(value) > 0)
+  if (recentTotals.length === 0) return null
+  const eras = [context?.pitcherEraMap?.[awayAbbr], context?.pitcherEraMap?.[homeAbbr]]
+    .filter((value): value is number => Number.isFinite(Number(value)) && Number(value) > 0)
+  const recentAvg = recentTotals.reduce((sum, value) => sum + value, 0) / recentTotals.length
+  const eraAvg = eras.length ? eras.reduce((sum, value) => sum + value, 0) / eras.length : 4.2
+  const projection = Math.max(5.5, Math.min(13.5, recentAvg + ((eraAvg - 4.2) * 0.6)))
+  const diff = projection - over.point
+  const leanOver = diff >= 0
+  const best = bookmakers
+    .map((bookmaker) => {
+      const market = bookmaker.markets?.find((item) => item.key === 'totals')
+      const outcome = market?.outcomes?.find((item) => item.name === (leanOver ? 'Over' : 'Under'))
+      return outcome && typeof outcome.price === 'number'
+        ? { price: outcome.price, book: displayBookName(bookmaker.key, bookmaker.title) }
+        : null
+    })
+    .filter((item): item is { price: number; book: string } => Boolean(item))
+    .sort((a, b) => b.price - a.price)[0]
+  return {
+    label: Math.abs(diff) >= 0.35 ? `${leanOver ? 'Over' : 'Under'} ${over.point}` : `Near ${over.point}`,
+    detail: `${projection.toFixed(1)} projected from recent game totals and probable starter ERA.`,
+    price: best?.price,
+    book: best?.book,
+    type: Math.abs(diff) >= 1 ? 'Strong Total Lean' : Math.abs(diff) >= 0.35 ? 'Total Lean' : 'Total Watch',
+  }
+}
+
+function basketballFormScore(form: Record<string, any> | undefined, isHome: boolean) {
+  if (!form?.games) return isHome ? 52 : 50
+  const games = Math.max(1, Number(form.games || 1))
+  const winPct = Number.isFinite(Number(form.wins)) ? (Number(form.wins || 0) / games) * 100 : 50
+  const l10Net = Number(form.l10For || 0) - Number(form.l10Against || 0)
+  const l5Net = Number(form.l5For || form.l10For || 0) - Number(form.l5Against || form.l10Against || 0)
+  const netScore = clampScore(50 + (l10Net * 2.5))
+  const recentScore = clampScore(50 + (l5Net * 2.8))
+  return clampScore((winPct * 0.35) + (netScore * 0.35) + (recentScore * 0.2) + ((isHome ? 55 : 49) * 0.1))
+}
+
+function nhlFormScore(form: Record<string, any> | undefined, isHome: boolean) {
+  if (!form?.games && !form?.pointPctg) return isHome ? 52 : 50
+  const pointPct = Number.isFinite(Number(form.pointPctg)) ? Number(form.pointPctg) * 100 : 50
+  const l10Games = Number(form.l10Games || 0)
+  const l10Pct = l10Games > 0
+    ? ((Number(form.l10Wins || 0) + (Number(form.l10OtLosses || 0) * 0.5)) / l10Games) * 100
+    : pointPct
+  const gf = Number(form.l10GoalsForPerGame || form.goalsForPerGame || 0)
+  const ga = Number(form.l10GoalsAgainstPerGame || form.goalsAgainstPerGame || 0)
+  const goalDiffScore = gf || ga ? clampScore(50 + ((gf - ga) * 12)) : 50
+  return clampScore((pointPct * 0.32) + (l10Pct * 0.28) + (goalDiffScore * 0.28) + ((isHome ? 55 : 49) * 0.12))
+}
+
+function teamFormMoneylineLean(
+  sport: Sport | undefined,
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  context?: TeamFormLineContext,
+): LeanResult | null {
+  if (!awayMoneyline || !homeMoneyline) return null
+  const awayProb = impliedProbability(awayMoneyline.price) || 0.5
+  const homeProb = impliedProbability(homeMoneyline.price) || 0.5
+  const formScore = sport === 'NHL' ? nhlFormScore : basketballFormScore
+  const marketWeight = sport === 'NHL' ? 0.4 : 0.42
+  const formWeight = sport === 'NHL' ? 0.6 : 0.58
+  const awayScore = clampScore((awayProb * 100 * marketWeight) + (formScore(context?.awayForm, false) * formWeight))
+  const homeScore = clampScore((homeProb * 100 * marketWeight) + (formScore(context?.homeForm, true) * formWeight))
+  const awayLean = awayScore >= homeScore
+  const diff = Math.abs(awayScore - homeScore)
+  const score = Math.round(awayLean ? awayScore : homeScore)
+  const otherScore = Math.round(awayLean ? homeScore : awayScore)
+  const detail = sport === 'NHL'
+    ? `KF ML score ${score}-${otherScore} from moneyline, points pace, recent form, goal edge, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`
+    : `KF ML score ${score}-${otherScore} from moneyline, recent scoring margin, record, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`
+  return {
+    label: awayLean ? game.away_team : game.home_team,
+    detail,
+    price: awayLean ? awayMoneyline.price : homeMoneyline.price,
+    book: awayLean ? awayMoneyline.book : homeMoneyline.book,
+    type: mlScoreType(diff),
+  }
+}
+
+function pricedTotals(bookmakers: Bookmaker[]) {
+  const rows: Array<{ over: number; under: number; point: number }> = []
+  bookmakers.forEach((bookmaker) => {
+    const market = bookmaker.markets?.find((item) => item.key === 'totals')
+    const over = market?.outcomes?.find((outcome) => outcome.name === 'Over')
+    const under = market?.outcomes?.find((outcome) => outcome.name === 'Under')
+    if (typeof over?.price === 'number' && typeof under?.price === 'number' && typeof over.point === 'number') {
+      rows.push({ over: over.price, under: under.price, point: over.point })
+    }
+  })
+  return rows
+}
+
+function teamFormTotalLean(
+  sport: Sport | undefined,
+  postedTotal: number | undefined,
+  bestOver: { book: string; price: number } | null,
+  bestUnder: { book: string; price: number } | null,
+  allTotals: Array<{ over: number; under: number; point: number }>,
+  context?: TeamFormLineContext,
+): LeanResult | null {
+  if (!postedTotal || (!bestOver && !bestUnder)) return null
+  const rows = allTotals.filter((item) => Number.isFinite(item.point) && Number.isFinite(item.over) && Number.isFinite(item.under))
+  const avgTotal = rows.length ? rows.reduce((sum, item) => sum + item.point, 0) / rows.length : postedTotal
+  const awayForm = context?.awayForm
+  const homeForm = context?.homeForm
+  const hasTeamForm = awayForm?.games && homeForm?.games
+  const formProjection = hasTeamForm
+    ? sport === 'NHL'
+      ? (
+          (((Number(awayForm.l10GoalsForPerGame || awayForm.goalsForPerGame || 0) + Number(homeForm.l10GoalsAgainstPerGame || homeForm.goalsAgainstPerGame || 0)) / 2) +
+          ((Number(homeForm.l10GoalsForPerGame || homeForm.goalsForPerGame || 0) + Number(awayForm.l10GoalsAgainstPerGame || awayForm.goalsAgainstPerGame || 0)) / 2)) * 0.7
+        ) + (
+          (((Number(awayForm.goalsForPerGame || 0) + Number(homeForm.goalsAgainstPerGame || 0)) / 2) +
+          ((Number(homeForm.goalsForPerGame || 0) + Number(awayForm.goalsAgainstPerGame || 0)) / 2)) * 0.3
+        )
+      : (
+          (((Number(awayForm.l10For || 0) + Number(homeForm.l10Against || 0)) / 2) +
+          ((Number(homeForm.l10For || 0) + Number(awayForm.l10Against || 0)) / 2)) * 0.7
+        ) + (
+          (((Number(awayForm.l5For || awayForm.l10For || 0) + Number(homeForm.l5Against || homeForm.l10Against || 0)) / 2) +
+          ((Number(homeForm.l5For || homeForm.l10For || 0) + Number(awayForm.l5Against || awayForm.l10Against || 0)) / 2)) * 0.3
+        )
+    : null
+
+  if (!bestOver || !bestUnder) {
+    const best = bestOver || bestUnder
+    const side = bestOver ? 'Over' : 'Under'
+    return {
+      label: `${side} ${postedTotal}`,
+      detail: formProjection
+        ? `${formProjection.toFixed(1)} estimated from recent team scoring.`
+        : `${avgTotal.toFixed(1)} estimated from available total markets.`,
+      price: best?.price,
+      book: best?.book,
+      type: 'Total Watch',
+    }
+  }
+
+  const pressureSamples = rows.length
+    ? rows.map((item) => {
+        const overImp = impliedProbability(item.over) || 0.5
+        const underImp = impliedProbability(item.under) || 0.5
+        return overImp / (overImp + underImp)
+      })
+    : [(impliedProbability(bestOver.price) || 0.5) / ((impliedProbability(bestOver.price) || 0.5) + (impliedProbability(bestUnder.price) || 0.5))]
+  const overPressure = pressureSamples.reduce((sum, value) => sum + value, 0) / pressureSamples.length
+  const marketEstimate = avgTotal + ((overPressure - 0.5) * (sport === 'NHL' ? 1.2 : 6))
+  const estimate = formProjection
+    ? sport === 'NHL'
+      ? (formProjection * 0.86) + (avgTotal * 0.08) + (marketEstimate * 0.06)
+      : (formProjection * 0.90) + (avgTotal * 0.05) + (marketEstimate * 0.05)
+    : marketEstimate
+  const diff = estimate - postedTotal
+  const tightThreshold = sport === 'NHL' ? 0.15 : 0.25
+  if (Math.abs(diff) < tightThreshold) {
+    return {
+      label: `Near ${postedTotal}`,
+      detail: `${estimate.toFixed(1)} estimated. Books graded this total tightly.`,
+      type: 'Total Watch',
+    }
+  }
+  const overLean = diff >= 0
+  const strongThreshold = sport === 'NHL' ? 0.5 : 1.5
+  const leanThreshold = sport === 'NHL' ? 0.25 : 0.5
+  return {
+    label: `${overLean ? 'Over' : 'Under'} ${postedTotal}`,
+    detail: formProjection
+      ? `${estimate.toFixed(1)} estimated from recent scoring and market total.`
+      : `${estimate.toFixed(1)} estimated from consensus total and O/U pricing.`,
+    price: overLean ? bestOver.price : bestUnder.price,
+    book: overLean ? bestOver.book : bestUnder.book,
+    type: Math.abs(diff) >= strongThreshold ? 'Strong Total Lean' : Math.abs(diff) >= leanThreshold ? 'Total Lean' : 'Total Watch',
+  }
+}
+
+function nflMlScore(price: number, stats: { powerScore?: number } | undefined, isHome: boolean) {
+  const marketScore = (impliedProbability(price) || 0.5) * 100
+  const powerScore = clampScore(Number(stats?.powerScore || 55))
+  const venueScore = isHome ? 58 : 50
+  return clampScore((marketScore * 0.45) + (powerScore * 0.45) + (venueScore * 0.1))
+}
+
+function nflMoneylineLean(
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  context?: NflLineContext,
+): LeanResult | null {
+  if (!awayMoneyline || !homeMoneyline) return null
+  const awayAbbr = context?.teamAbbrMap?.[game.away_team] || game.away_team
+  const homeAbbr = context?.teamAbbrMap?.[game.home_team] || game.home_team
+  const awayScore = nflMlScore(awayMoneyline.price, context?.teamStatsMap?.[awayAbbr], false)
+  const homeScore = nflMlScore(homeMoneyline.price, context?.teamStatsMap?.[homeAbbr], true)
+  const homeLean = homeScore >= awayScore
+  const diff = Math.abs(homeScore - awayScore)
+  const score = Math.round(homeLean ? homeScore : awayScore)
+  const otherScore = Math.round(homeLean ? awayScore : homeScore)
+  const best = homeLean ? homeMoneyline : awayMoneyline
+  return {
+    label: homeLean ? game.home_team : game.away_team,
+    detail: `KF ML score ${score}-${otherScore} from moneyline, team power, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`,
+    price: best.price,
+    book: best.book,
+    type: mlScoreType(diff),
   }
 }
 
@@ -190,7 +499,23 @@ function fmtSpreadPoint(point?: number) {
   return `${point > 0 ? '+' : ''}${point}`
 }
 
-export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: { game: Game; weather?: WeatherInfo; showNeutralTotalWatch?: boolean }) {
+export function GameLineCard({
+  game,
+  weather,
+  showNeutralTotalWatch = false,
+  sport,
+  mlbContext,
+  teamFormContext,
+  nflContext,
+}: {
+  game: Game
+  weather?: WeatherInfo
+  showNeutralTotalWatch?: boolean
+  sport?: Sport
+  mlbContext?: MlbLineContext
+  teamFormContext?: TeamFormLineContext
+  nflContext?: NflLineContext
+}) {
   const bookmakers = supportedBookmakers(game.bookmakers)
   const totalMarket = getMarket(bookmakers, 'totals')
   const over = findOutcome(totalMarket, 'Over')
@@ -202,9 +527,21 @@ export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: {
   const bttsNo = bestMarketOutcome(bookmakers, 'btts', 'No')
   const awaySpread = bestSpread(bookmakers, game.away_team)
   const homeSpread = bestSpread(bookmakers, game.home_team)
-  const moneylineLean = consensusMoneylineLean(bookmakers, game)
-  const totalLean = consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
-  const totalLeanLabel = totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
+  const usesTeamFormLean = sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
+  const moneylineLean = sport === 'MLB'
+    ? mlbMoneylineLean(game, awayBest, homeBest, mlbContext)
+    : sport === 'NFL'
+      ? nflMoneylineLean(game, awayBest, homeBest, nflContext)
+    : usesTeamFormLean
+      ? teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext)
+    : consensusMoneylineLean(bookmakers, game)
+  const totalLean = sport === 'MLB'
+    ? mlbTotalLean(game, over, under, bookmakers, mlbContext)
+    : usesTeamFormLean
+      ? teamFormTotalLean(sport, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), teamFormContext)
+    : consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
+  const moneylineLeanLabel = moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
+  const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
 
   return (
     <Card>
@@ -230,7 +567,7 @@ export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: {
         </View>
       )}
 
-      {moneylineLean && <LeanBox label="Moneyline Lean" lean={moneylineLean} />}
+      {moneylineLean && <LeanBox label={moneylineLeanLabel} lean={moneylineLean} />}
       <TeamRow team={game.away_team} line={awayBest} />
       {drawBest && <TeamRow team="Draw" line={drawBest} />}
       <TeamRow team={game.home_team} line={homeBest} />
@@ -275,7 +612,7 @@ export function GameLineCard({ game, weather, showNeutralTotalWatch = false }: {
   )
 }
 
-function LeanBox({ label, lean, compact = false }: { label: string; lean: { label: string; detail: string; price?: number; book?: string }; compact?: boolean }) {
+function LeanBox({ label, lean, compact = false }: { label: string; lean: LeanResult; compact?: boolean }) {
   return (
     <View style={[styles.leanBox, compact && styles.leanBoxCompact]}>
       <View style={styles.leanCopy}>
@@ -372,18 +709,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   oddsBadge: {
-    minWidth: 72,
+    minWidth: 62,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(198,145,50,.3)',
     borderRadius: 8,
     backgroundColor: 'rgba(198,145,50,.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   oddsText: {
     color: colors.gold,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
   },
   weatherRowWrap: {
