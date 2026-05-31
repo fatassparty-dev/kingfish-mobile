@@ -147,6 +147,15 @@ function fmtRate(value: number | undefined) {
   return value ? value.toFixed(2) : '-'
 }
 
+function displayPlayerName(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length < 2) return name
+  const suffixes = new Set(['Jr.', 'Jr', 'Sr.', 'Sr', 'II', 'III', 'IV', 'V'])
+  const suffix = suffixes.has(parts[parts.length - 1]) ? ` ${parts.pop()}` : ''
+  const last = parts.slice(1).join(' ')
+  return `${parts[0][0]}. ${last}${suffix}`
+}
+
 function findLineupPlayer(lineupMap: Record<string, LineupPlayer>, playerName?: string) {
   if (!playerName) return undefined
   const normalized = normalizeName(playerName)
@@ -216,6 +225,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
+  const [searchOpen, setSearchOpen] = useState(false)
   const market = ALL_MARKETS.find((item) => item.key === marketKey) || ALL_MARKETS[0]
   const gameOptions = upcomingGames(games)
   const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => gameId(game) === selectedGame)
@@ -324,22 +334,13 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
         ))}
       </ScrollView>
 
-      <View style={styles.searchRow}>
-        <TextInput
-          autoCapitalize="words"
-          autoCorrect={false}
-          blurOnSubmit
-          placeholder="Search player..."
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-          value={search}
-          onChangeText={setSearch}
-          onSubmitEditing={() => Keyboard.dismiss()}
-          style={styles.search}
-        />
-      </View>
-      {search ? <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear search</AppText> : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
+        <Pressable
+          onPress={() => setSearchOpen((open) => !open)}
+          style={[styles.gameFilterButton, (searchOpen || !!search) && styles.gameFilterButtonActive]}
+        >
+          <AppText style={[styles.gameFilterText, (searchOpen || !!search) && styles.gameFilterTextActive]}>Search</AppText>
+        </Pressable>
         <Pressable
           onPress={() => setSelectedGame('all')}
           style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
@@ -363,6 +364,23 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
           )
         })}
       </ScrollView>
+      {searchOpen && (
+        <View style={styles.searchRow}>
+          <TextInput
+            autoCapitalize="words"
+            autoCorrect={false}
+            blurOnSubmit
+            placeholder="Search player..."
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={() => Keyboard.dismiss()}
+            style={styles.search}
+          />
+          {search ? <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear</AppText> : null}
+        </View>
+      )}
 
       {(lineupsQuery.isLoading || statsQuery.isLoading) && (
         <AppText variant="muted" style={styles.loading}>Loading stat columns...</AppText>
@@ -468,7 +486,7 @@ function PlayerPropRow({
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
       <View style={[styles.compactCell, styles.playerColumn]}>
-        <AppText style={styles.playerName} numberOfLines={2}>{row.player}</AppText>
+        <AppText style={styles.playerName} numberOfLines={1}>{displayPlayerName(row.player)}</AppText>
         <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
           {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
         </AppText>
@@ -521,6 +539,7 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   search: {
     flex: 1,
@@ -561,28 +580,29 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 13,
     fontWeight: '800',
+    paddingHorizontal: spacing.sm,
   },
   loading: {
     marginTop: spacing.sm,
   },
   gameBlock: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
   gameHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   gameTitle: {
     color: colors.textPrimary,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   playerName: {
-    fontSize: 14,
+    fontSize: 15,
     textTransform: 'uppercase',
     color: colors.gold,
     fontWeight: '900',
@@ -604,7 +624,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
   },
   compactCell: {
     width: 58,
@@ -634,12 +654,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   edgeScore: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '900',
   },
   edgeLabel: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: 1,
+    fontSize: 10,
     fontWeight: '900',
   },
   bookName: {
