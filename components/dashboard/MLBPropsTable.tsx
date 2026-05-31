@@ -101,8 +101,8 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, odds?:
   if (!season) return { label: '-', color: colors.textMuted, score: 0 }
   if (isHR && line <= 0.5) {
     const score = Math.min(season * 100, 100) * 0.4 + Math.min(l10 * 100, 100) * 0.35 + Math.min(l5 * 100, 100) * 0.25
-    if (score >= 35) return { label: 'Strong', color: colors.gold, score }
-    if (score >= 25) return { label: 'Lean', color: colors.green, score }
+    if (score >= 35) return { label: 'Strong', color: colors.green, score }
+    if (score >= 25) return { label: 'Lean', color: colors.gold, score }
     if (score >= 15) return { label: 'Neutral', color: colors.textSecondary, score }
     return { label: 'Fade', color: colors.red, score }
   }
@@ -112,8 +112,8 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, odds?:
   const implied = odds && odds > 0 ? 100 / (odds + 100) : odds ? Math.abs(odds) / (Math.abs(odds) + 100) : 0.5
   const oddsBonus = implied <= 0.52 ? 18 : implied <= 0.6 ? 11 : implied <= 0.7 ? 5 : 0
   const score = Math.round(Math.max(0, Math.min(100, ((composite - 0.7) / 1.55) * 82 + oddsBonus)))
-  if (score >= 80) return { label: 'Strong', color: colors.gold, score }
-  if (score >= 55) return { label: 'Lean', color: colors.green, score }
+  if (score >= 80) return { label: 'Strong', color: colors.green, score }
+  if (score >= 55) return { label: 'Lean', color: colors.gold, score }
   if (score >= 35) return { label: 'Neutral', color: colors.textSecondary, score }
   return { label: 'Fade', color: colors.red, score }
 }
@@ -224,6 +224,9 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
   const filteredGames = activeGameFilter === 'all'
     ? gameOptions
     : gameOptions.filter((game) => gameId(game) === activeGameFilter)
+  const selectedGameForHeader = activeGameFilter === 'all'
+    ? null
+    : gameOptions.find((game) => gameId(game) === activeGameFilter)
 
   function toggleSort(nextKey: SortKey) {
     if (sortKey === nextKey) {
@@ -308,6 +311,10 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
 
   const lineupMap = lineupsQuery.data?.players || {}
   const stats = statsQuery.data || {}
+  const selectedGameLabel = selectedGameForHeader
+    ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
+    : 'All Games'
+  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search)))
 
   return (
     <View style={styles.wrap}>
@@ -361,79 +368,33 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
         <AppText variant="muted" style={styles.loading}>Loading stat columns...</AppText>
       )}
 
-      {filteredGames.map((game) => {
-        const rows = sortRows(buildRows(game, marketKey, lineupMap, stats, search))
-        if (rows.length === 0) return null
-        const awayShort = game.away_team.split(' ').pop()
-        const homeShort = game.home_team.split(' ').pop()
-
-        return (
-          <View key={game.game_id || game.id || `${game.away_team}-${game.home_team}`} style={styles.gameBlock}>
-            <View style={styles.gameHeader}>
-              <AppText style={styles.gameTitle}>{awayShort} @ {homeShort}</AppText>
-              <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRail}>
-              {[
-                { key: 'edge' as SortKey, label: 'Edge' },
-                { key: 'l10' as SortKey, label: 'L10' },
-                { key: 'l5' as SortKey, label: 'L5' },
-              ].map((item) => (
-                <Pressable key={item.key} onPress={() => toggleSort(item.key)} style={[styles.sortChip, sortKey === item.key && styles.sortChipActive]}>
-                  <AppText style={[styles.sortChipText, sortKey === item.key && styles.sortChipTextActive]}>
-                    {item.label}{sortKey === item.key ? (sortDir === 'desc' ? ' v' : ' ^') : ''}
-                  </AppText>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <View style={styles.compactHeader}>
-              <AppText variant="eyebrow" style={[styles.compactCell, styles.playerColumn]}>Player</AppText>
-              <AppText variant="eyebrow" style={styles.compactCell}>Line</AppText>
-              <AppText variant="eyebrow" style={styles.compactCell}>L10</AppText>
-              <AppText variant="eyebrow" style={[styles.compactCell, styles.edgeColumn]}>Edge</AppText>
-            </View>
-            {rows.map((row) => {
-              const season = row.stats?.[`season_${market.statField}`] || 0
-              const l10 = row.stats?.[`l10_${market.statField}`] || 0
-              const l5 = row.stats?.[`l5_${market.statField}`] || 0
-              const edge = edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
-              return (
-                <Pressable
-                  key={row.player}
-                  onPress={() => {
-                    setSelectedPlayer(row.player)
-                    setSelectedMarketContext({
-                      marketKey,
-                      marketLabel: market.label,
-                      commonLine: row.line,
-                    })
-                  }}
-                  style={styles.playerRow}
-                >
-                  <View style={[styles.compactCell, styles.playerColumn]}>
-                    <AppText style={styles.playerName} numberOfLines={2}>{row.player}</AppText>
-                    <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-                      {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
-                    </AppText>
-                  </View>
-                  <View style={styles.compactCell}>
-                    <AppText style={styles.lineValue}>{row.line || '-'}</AppText>
-                    <AppText variant="mono" style={styles.marketName} numberOfLines={1}>{market.label}</AppText>
-                  </View>
-                  <View style={styles.compactCell}>
-                    <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
-                    <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, market.statField, row.line, 5)}</AppText>
-                  </View>
-                  <View style={[styles.compactCell, styles.edgeColumn]}>
-                    <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
-                    <AppText style={[styles.edgeLabel, { color: edge.color }]}>{edge.label}</AppText>
-                  </View>
-                </Pressable>
-              )
-            })}
+      {allRows.length > 0 && (
+        <View style={styles.gameBlock}>
+          <View style={styles.gameHeader}>
+            <AppText style={styles.gameTitle}>{selectedGameLabel}</AppText>
+            {selectedGameForHeader ? <AppText variant="mono">{fmtTime(selectedGameForHeader.commence_time)}</AppText> : null}
           </View>
-        )
-      })}
+          <SortControls sortKey={sortKey} onSort={toggleSort} />
+          <TableHeader />
+          {allRows.map((row, index) => (
+            <PlayerPropRow
+              key={`${row.player}-${row.line}-${index}`}
+              row={row}
+              marketKey={marketKey}
+              marketLabel={market.label}
+              statField={market.statField}
+              onPress={() => {
+                setSelectedPlayer(row.player)
+                setSelectedMarketContext({
+                  marketKey,
+                  marketLabel: market.label,
+                  commonLine: row.line,
+                })
+              }}
+            />
+          ))}
+        </View>
+      )}
       <PlayerProfileModal
         playerName={selectedPlayer}
         sport="mlb"
@@ -452,6 +413,75 @@ function MarketButton({ active, label, onPress }: { active: boolean; label: stri
     <AppText onPress={onPress} style={[styles.marketButton, active && styles.marketButtonActive, active && styles.marketButtonTextActive]}>
       {label}
     </AppText>
+  )
+}
+
+function SortControls({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: SortKey) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRail}>
+      {[
+        { key: 'edge' as SortKey, label: 'Edge' },
+        { key: 'l10' as SortKey, label: 'L10' },
+        { key: 'l5' as SortKey, label: 'L5' },
+      ].map((item) => (
+        <Pressable key={item.key} onPress={() => onSort(item.key)} style={[styles.sortChip, sortKey === item.key && styles.sortChipActive]}>
+          <AppText style={[styles.sortChipText, sortKey === item.key && styles.sortChipTextActive]}>{item.label}</AppText>
+        </Pressable>
+      ))}
+    </ScrollView>
+  )
+}
+
+function TableHeader() {
+  return (
+    <View style={styles.compactHeader}>
+      <AppText variant="eyebrow" style={[styles.compactCell, styles.playerColumn]}>Player</AppText>
+      <AppText variant="eyebrow" style={styles.compactCell}>Line</AppText>
+      <AppText variant="eyebrow" style={styles.compactCell}>L10</AppText>
+      <AppText variant="eyebrow" style={[styles.compactCell, styles.edgeColumn]}>Edge</AppText>
+    </View>
+  )
+}
+
+function PlayerPropRow({
+  row,
+  marketKey,
+  marketLabel,
+  statField,
+  onPress,
+}: {
+  row: PlayerRow
+  marketKey: string
+  marketLabel: string
+  statField: string
+  onPress: () => void
+}) {
+  const season = row.stats?.[`season_${statField}`] || 0
+  const l10 = row.stats?.[`l10_${statField}`] || 0
+  const l5 = row.stats?.[`l5_${statField}`] || 0
+  const edge = edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+
+  return (
+    <Pressable onPress={onPress} style={styles.playerRow}>
+      <View style={[styles.compactCell, styles.playerColumn]}>
+        <AppText style={styles.playerName} numberOfLines={2}>{row.player}</AppText>
+        <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
+          {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
+        </AppText>
+      </View>
+      <View style={styles.compactCell}>
+        <AppText style={styles.lineValue}>{row.line || '-'}</AppText>
+        <AppText variant="mono" style={styles.marketName} numberOfLines={1}>{marketLabel}</AppText>
+      </View>
+      <View style={styles.compactCell}>
+        <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
+        <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, statField, row.line, 5)}</AppText>
+      </View>
+      <View style={[styles.compactCell, styles.edgeColumn]}>
+        <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
+        <AppText style={[styles.edgeLabel, { color: edge.color }]}>{edge.label}</AppText>
+      </View>
+    </Pressable>
   )
 }
 
