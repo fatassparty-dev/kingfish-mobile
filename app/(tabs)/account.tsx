@@ -224,7 +224,6 @@ export default function AccountScreen() {
       <View style={styles.header}>
         <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
         <View style={styles.headerText}>
-          <AppText variant="eyebrow">// Account Settings</AppText>
           <AppText variant="title" style={styles.title}>
             {firstName ? `Hello, ${firstName}` : 'Account'}
           </AppText>

@@ -32,7 +32,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Board',
+          title: 'Dashboard',
           tabBarIcon: ({ color, focused }) => <TabIcon name="board" color={color} focused={focused} />,
         }}
       />

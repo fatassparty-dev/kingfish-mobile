@@ -144,7 +144,7 @@ function hitRateValue(stats: Record<string, any> | undefined, statField: string,
 }
 
 function fmtRate(value: number | undefined) {
-  return value ? value.toFixed(2) : '-'
+  return value ? value.toFixed(1) : '-'
 }
 
 function displayPlayerName(name: string) {
@@ -457,9 +457,9 @@ function TableHeader({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: Sort
   return (
     <View style={styles.compactHeader}>
       <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} style={styles.playerColumn} />
-      <SortHeader label="Line" target="line" sortKey={sortKey} onSort={onSort} />
-      <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} />
-      <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} />
+      <SortHeader label="SZN" target="season" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
+      <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
+      <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} style={styles.edgeColumn} />
     </View>
   )
@@ -486,22 +486,21 @@ function PlayerPropRow({
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
       <View style={[styles.compactCell, styles.playerColumn]}>
-        <AppText style={styles.playerName} numberOfLines={1}>{displayPlayerName(row.player)}</AppText>
+        <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+          {displayPlayerName(row.player)}
+        </AppText>
         <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-          {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
+          {row.line || '-'} {marketLabel}  {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
         </AppText>
       </View>
-      <View style={styles.compactCell}>
-        <AppText style={styles.lineValue}>{row.line || '-'}</AppText>
-        <AppText variant="mono" style={styles.marketName} numberOfLines={1}>{marketLabel}</AppText>
+      <View style={[styles.compactCell, styles.statColumn]}>
+        <AppText style={[styles.statValue, { color: statColor(season, row.line) }]}>{fmtRate(season)}</AppText>
       </View>
-      <View style={styles.compactCell}>
+      <View style={[styles.compactCell, styles.statColumn]}>
         <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
-        <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, statField, row.line, 5)}</AppText>
       </View>
-      <View style={styles.compactCell}>
+      <View style={[styles.compactCell, styles.statColumn]}>
         <AppText style={[styles.statValue, { color: statColor(l5, row.line) }]}>{fmtRate(l5)}</AppText>
-        <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, statField, row.line, 5)}</AppText>
       </View>
       <View style={[styles.compactCell, styles.edgeColumn]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
@@ -627,31 +626,24 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   compactCell: {
-    width: 58,
+    width: 48,
     paddingRight: spacing.sm,
   },
   playerColumn: {
     flex: 1,
     minWidth: 0,
   },
+  statColumn: {
+    alignItems: 'center',
+  },
   edgeColumn: {
-    width: 62,
+    width: 54,
     alignItems: 'flex-end',
     paddingRight: 0,
-  },
-  lineValue: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '900',
   },
   statValue: {
     fontSize: 16,
     fontWeight: '900',
-  },
-  marketName: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 10,
   },
   edgeScore: {
     fontSize: 18,
@@ -663,7 +655,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   bookName: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.textSecondary,
   },
 })

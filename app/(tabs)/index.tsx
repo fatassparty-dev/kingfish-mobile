@@ -1088,12 +1088,6 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <View style={styles.boardIntro}>
-        <AppText variant="eyebrow">// Live Board</AppText>
-        <AppText variant="title" style={styles.title}>Dashboard</AppText>
-        {view !== 'props' && <AppText variant="muted" style={styles.copy}>Live boards by sport.</AppText>}
-      </View>
-
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {visibleSports.map((item) => (
           <Pressable

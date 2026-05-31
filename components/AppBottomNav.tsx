@@ -7,7 +7,7 @@ export type TabIconName = 'home' | 'board' | 'tools' | 'ai' | 'account'
 
 const navItems: Array<{ label: string; icon: TabIconName; href: string }> = [
   { label: 'Home', icon: 'home', href: '/home' },
-  { label: 'Board', icon: 'board', href: '/' },
+  { label: 'Dashboard', icon: 'board', href: '/' },
   { label: 'Tools', icon: 'tools', href: '/cheat-sheets' },
   { label: 'Ask', icon: 'ai', href: '/ask-kingfish' },
   { label: 'Account', icon: 'account', href: '/account' },

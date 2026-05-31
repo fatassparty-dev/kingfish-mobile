@@ -1629,7 +1629,6 @@ export default function CheatSheetsScreen() {
 
   return (
     <Screen>
-      <AppText variant="eyebrow">// KingFish Tacklebox</AppText>
       <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
         Cheat sheets, calculators, and game factors in one clean workspace.
