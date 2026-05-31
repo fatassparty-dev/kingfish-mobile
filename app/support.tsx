@@ -17,6 +17,7 @@ export default function SupportScreen() {
   const { user } = useAuth()
   const [topic, setTopic] = useState('Account')
   const [email, setEmail] = useState(user?.email || '')
+  const [ccEmail, setCcEmail] = useState('')
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -25,8 +26,11 @@ export default function SupportScreen() {
   const appVersion = Constants.expoConfig?.version || ''
 
   const canSend = useMemo(() => {
-    return email.trim().length > 4 && message.trim().length >= 8 && !sending
-  }, [email, message, sending])
+    const hasPrimaryEmail = email.trim().length > 4
+    const cc = ccEmail.trim()
+    const ccLooksOk = !cc || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cc)
+    return hasPrimaryEmail && ccLooksOk && message.trim().length >= 8 && !sending
+  }, [ccEmail, email, message, sending])
 
   async function submitSupport() {
     setError('')
@@ -40,6 +44,7 @@ export default function SupportScreen() {
         body: JSON.stringify({
           topic,
           email: email.trim(),
+          ccEmail: ccEmail.trim(),
           message: message.trim(),
           platform: Platform.OS,
           appVersion,
@@ -81,17 +86,37 @@ export default function SupportScreen() {
           ))}
         </View>
 
-        <AppText variant="eyebrow" style={styles.label}>Email</AppText>
+        {emailLocked ? (
+          <View style={styles.accountEmailRow}>
+            <AppText variant="eyebrow">Account Email</AppText>
+            <AppText style={styles.accountEmail}>{email}</AppText>
+          </View>
+        ) : (
+          <>
+            <AppText variant="eyebrow" style={styles.label}>Email</AppText>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              placeholder="Email"
+              placeholderTextColor={colors.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+            />
+          </>
+        )}
+
+        <AppText variant="eyebrow" style={styles.label}>CC Email</AppText>
         <TextInput
           autoCapitalize="none"
           autoComplete="email"
-          editable={!emailLocked}
           keyboardType="email-address"
-          placeholder="Email"
+          placeholder="Optional"
           placeholderTextColor={colors.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          style={[styles.input, emailLocked && styles.lockedInput]}
+          value={ccEmail}
+          onChangeText={setCcEmail}
+          style={styles.input}
         />
 
         <AppText variant="eyebrow" style={styles.label}>Message</AppText>
@@ -165,8 +190,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     fontSize: 15,
   },
-  lockedInput: {
+  accountEmailRow: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: '#111520',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  accountEmail: {
     color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '800',
   },
   messageInput: {
     minHeight: 150,

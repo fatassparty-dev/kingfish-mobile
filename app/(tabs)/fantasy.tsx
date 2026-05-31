@@ -15,6 +15,7 @@ type Position = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'K' | 'DST'
 type PlannerLeague = 'home' | 'bestball'
 type BoardMode = 'home' | 'bestball'
 type BestBallView = 'players' | 'stacks'
+type StackBuild = 'small' | 'full'
 
 type DraftPlayer = {
   id: string
@@ -121,6 +122,31 @@ function moveId(ids: string[], playerId: string, direction: -1 | 1) {
   return next
 }
 
+function getStackTeams(players: DraftPlayer[]) {
+  return Array.from(new Set(players.map(player => player.team).filter(Boolean)))
+    .filter(team => {
+      const teamPlayers = players.filter(player => player.team === team)
+      return teamPlayers.some(player => player.position === 'QB')
+        && teamPlayers.some(player => ['WR', 'TE'].includes(player.position))
+    })
+    .sort((a, b) => {
+      const bestA = Math.min(...players.filter(player => player.team === a).map(player => player.rank || 9999))
+      const bestB = Math.min(...players.filter(player => player.team === b).map(player => player.rank || 9999))
+      return bestA - bestB
+    })
+}
+
+function getStackPieces(players: DraftPlayer[], team: string, build: StackBuild) {
+  if (team === 'ALL') return []
+  const teamPlayers = players.filter(player => player.team === team)
+  const qb = [...teamPlayers].filter(player => player.position === 'QB').sort((a, b) => a.rank - b.rank)[0]
+  const passCatchers = [...teamPlayers]
+    .filter(player => ['WR', 'TE'].includes(player.position))
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, build === 'full' ? 2 : 1)
+  return [qb, ...passCatchers].filter((player): player is DraftPlayer => Boolean(player))
+}
+
 export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
@@ -137,6 +163,9 @@ export default function FantasyToolScreen() {
   const [plannerTeams, setPlannerTeams] = useState('12')
   const [plannerSlot, setPlannerSlot] = useState('6')
   const [plannerTaken, setPlannerTaken] = useState<string[]>([])
+  const [plannerStackTeam, setPlannerStackTeam] = useState('ALL')
+  const [plannerStackBuild, setPlannerStackBuild] = useState<StackBuild>('small')
+  const [bestBallStackTeam, setBestBallStackTeam] = useState('ALL')
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -188,6 +217,8 @@ export default function FantasyToolScreen() {
         if (parsed?.teams) setPlannerTeams(String(parsed.teams))
         if (parsed?.slot) setPlannerSlot(String(parsed.slot))
         if (Array.isArray(parsed?.taken)) setPlannerTaken(parsed.taken)
+        if (typeof parsed?.stackTeam === 'string') setPlannerStackTeam(parsed.stackTeam)
+        if (parsed?.stackBuild === 'small' || parsed?.stackBuild === 'full') setPlannerStackBuild(parsed.stackBuild)
       })
       .catch(() => {})
   }, [])
@@ -247,19 +278,36 @@ export default function FantasyToolScreen() {
   const plannerTeamsNum = Math.max(8, Math.min(14, Number(plannerTeams) || 12))
   const plannerSlotNum = Math.max(1, Math.min(plannerTeamsNum, Number(plannerSlot) || 1))
   const plannerRounds = plannerLeague === 'bestball' ? 18 : 16
+  const plannerSourcePlayers = plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
+  const plannerStackTeams = useMemo(() => getStackTeams(plannerSourcePlayers), [plannerSourcePlayers])
+  const plannerStackPieces = useMemo(
+    () => getStackPieces(plannerSourcePlayers, plannerStackTeam, plannerStackBuild),
+    [plannerSourcePlayers, plannerStackBuild, plannerStackTeam],
+  )
+  const bestBallStackTeams = useMemo(() => getStackTeams(orderedBestBallPlayers), [orderedBestBallPlayers])
+  const plannerTakenPlayers = useMemo(() => {
+    const byId = new Map(plannerSourcePlayers.map(player => [player.id, player]))
+    return plannerTaken.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
+  }, [plannerSourcePlayers, plannerTaken])
   const plannerPath = useMemo(() => {
-    const sourcePlayers = (plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers)
     const taken = new Set(plannerTaken)
     const used = new Set<string>()
     const counts: Record<string, number> = {}
     const targets = PLANNER_TARGETS[plannerLeague]
+    const stackTargets = plannerStackPieces.filter(player => !taken.has(player.id))
 
     return Array.from({ length: plannerRounds }, (_, index) => {
       const round = index + 1
       const pick = snakePick(round, plannerTeamsNum, plannerSlotNum)
-      const candidates = sourcePlayers.filter(player => !taken.has(player.id) && !used.has(player.id))
+      const candidates = plannerSourcePlayers.filter(player => !taken.has(player.id) && !used.has(player.id))
       const nearPick = candidates.filter(player => (player.rank || 9999) >= Math.max(1, pick - 10))
-      const preferred = nearPick.find(player => positionNeed(player.position, counts, targets) > 0)
+      const stackPick = stackTargets.find(player => {
+        if (used.has(player.id)) return false
+        const rank = player.rank || 9999
+        return rank <= pick + 30 || round >= 10
+      })
+      const preferred = stackPick
+        || nearPick.find(player => positionNeed(player.position, counts, targets) > 0)
         || candidates.find(player => positionNeed(player.position, counts, targets) > 0)
         || nearPick[0]
         || candidates[0]
@@ -272,7 +320,7 @@ export default function FantasyToolScreen() {
 
       return { round, pick, player: preferred }
     })
-  }, [orderedBestBallPlayers, orderedHomePlayers, plannerLeague, plannerRounds, plannerSlotNum, plannerTaken, plannerTeamsNum])
+  }, [plannerLeague, plannerRounds, plannerSlotNum, plannerSourcePlayers, plannerStackPieces, plannerTaken, plannerTeamsNum])
   const plannerCounts = useMemo(() => {
     return plannerPath.reduce<Record<string, number>>((counts, item) => {
       if (item.player?.position) counts[item.player.position] = (counts[item.player.position] || 0) + 1
@@ -286,8 +334,16 @@ export default function FantasyToolScreen() {
       teams: plannerTeams,
       slot: plannerSlot,
       taken: plannerTaken,
+      stackTeam: plannerStackTeam,
+      stackBuild: plannerStackBuild,
     })).catch(() => {})
-  }, [plannerLeague, plannerSlot, plannerTaken, plannerTeams])
+  }, [plannerLeague, plannerSlot, plannerStackBuild, plannerStackTeam, plannerTaken, plannerTeams])
+
+  useEffect(() => {
+    if (plannerStackTeam !== 'ALL' && !plannerStackTeams.includes(plannerStackTeam)) {
+      setPlannerStackTeam('ALL')
+    }
+  }, [plannerStackTeam, plannerStackTeams])
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
@@ -367,6 +423,8 @@ export default function FantasyToolScreen() {
       teams: plannerTeams,
       slot: plannerSlot,
       taken: nextTaken,
+      stackTeam: plannerStackTeam,
+      stackBuild: plannerStackBuild,
     }))
   }
 
@@ -380,6 +438,12 @@ export default function FantasyToolScreen() {
   async function clearPlannerTaken() {
     setPlannerTaken([])
     await savePlannerState([])
+  }
+
+  async function removePlannerTaken(playerId: string) {
+    const next = plannerTaken.filter(id => id !== playerId)
+    setPlannerTaken(next)
+    await savePlannerState(next)
   }
 
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
@@ -531,6 +595,40 @@ export default function FantasyToolScreen() {
               </View>
             </View>
 
+            <View style={styles.plannerStackBlock}>
+              <TeamDropdown
+                label="Stack Team"
+                value={plannerStackTeam}
+                teams={plannerStackTeams}
+                onChange={team => {
+                  setPlannerStackTeam(team)
+                  setPlannerTaken([])
+                }}
+              />
+              <View style={styles.stackBuildRow}>
+                {([
+                  { key: 'small', label: 'QB + 1' },
+                  { key: 'full', label: 'QB + 2' },
+                ] as Array<{ key: StackBuild; label: string }>).map(item => (
+                  <Pressable key={item.key} onPress={() => setPlannerStackBuild(item.key)} style={[styles.stackBuildButton, plannerStackBuild === item.key && styles.stackBuildButtonActive]}>
+                    <AppText style={[styles.stackBuildText, plannerStackBuild === item.key && styles.stackBuildTextActive]}>{item.label}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {plannerStackPieces.length ? (
+              <View style={styles.stackPlan}>
+                <AppText variant="eyebrow">{plannerStackTeam} Stack Plan</AppText>
+                {plannerStackPieces.map(player => (
+                  <View key={player.id} style={styles.stackPlanRow}>
+                    <AppText style={styles.stackPlanName}>{player.name}</AppText>
+                    <AppText style={styles.stackPlanMeta}>{player.position} · #{player.rank}</AppText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
             <View style={styles.plannerSummary}>
               {Object.entries(PLANNER_TARGETS[plannerLeague]).map(([pos, target]) => (
                 <View key={pos} style={styles.plannerSummaryItem}>
@@ -548,6 +646,18 @@ export default function FantasyToolScreen() {
                 <AppText style={styles.clearButtonText}>Open Board</AppText>
               </Pressable>
             </View>
+            {plannerTakenPlayers.length ? (
+              <View style={styles.takenList}>
+                <AppText variant="eyebrow">Taken</AppText>
+                <View style={styles.takenChipRow}>
+                  {plannerTakenPlayers.slice(0, 8).map(player => (
+                    <Pressable key={player.id} onPress={() => removePlannerTaken(player.id)} style={styles.takenChip}>
+                      <AppText style={styles.takenChipText}>{player.name}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </Card>
 
           <View style={styles.playerList}>
@@ -602,7 +712,13 @@ export default function FantasyToolScreen() {
           </Card>
 
           {mode === 'bestball' && bestBallView === 'stacks' ? (
-            <StackBoard players={orderedBestBallPlayers} onPressPlayer={setProfilePlayer} />
+            <StackBoard
+              players={orderedBestBallPlayers}
+              selectedTeam={bestBallStackTeam}
+              teams={bestBallStackTeams}
+              onSelectTeam={setBestBallStackTeam}
+              onPressPlayer={setProfilePlayer}
+            />
           ) : (
             <>
               <TextInput
@@ -735,9 +851,62 @@ function PlayerRow({
   )
 }
 
-function StackBoard({ players, onPressPlayer }: { players: DraftPlayer[]; onPressPlayer: (name: string) => void }) {
+function TeamDropdown({
+  label,
+  value,
+  teams,
+  onChange,
+}: {
+  label: string
+  value: string
+  teams: string[]
+  onChange: (team: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const options = ['ALL', ...teams]
+
+  return (
+    <View style={styles.dropdownWrap}>
+      <AppText variant="eyebrow">{label}</AppText>
+      <Pressable onPress={() => setOpen(current => !current)} style={styles.dropdownButton}>
+        <AppText style={styles.dropdownText}>{value === 'ALL' ? 'Best available stack' : value}</AppText>
+        <AppText style={styles.dropdownChevron}>{open ? '↑' : '↓'}</AppText>
+      </Pressable>
+      {open ? (
+        <View style={styles.dropdownMenu}>
+          {options.map(team => (
+            <Pressable key={team} onPress={() => {
+              onChange(team)
+              setOpen(false)
+            }} style={[styles.dropdownOption, value === team && styles.dropdownOptionActive]}>
+              <AppText style={[styles.dropdownOptionText, value === team && styles.dropdownOptionTextActive]}>
+                {team === 'ALL' ? 'Best available stack' : team}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function StackBoard({
+  players,
+  selectedTeam,
+  teams,
+  onSelectTeam,
+  onPressPlayer,
+}: {
+  players: DraftPlayer[]
+  selectedTeam: string
+  teams: string[]
+  onSelectTeam: (team: string) => void
+  onPressPlayer: (name: string) => void
+}) {
+  const visiblePlayers = selectedTeam === 'ALL' ? players : players.filter(player => player.team === selectedTeam)
   const stacks = players
     .filter(player => player.position === 'QB')
+    .filter(player => selectedTeam === 'ALL' || player.team === selectedTeam)
     .slice(0, 18)
     .map(qb => {
       const partners = players
@@ -749,9 +918,27 @@ function StackBoard({ players, onPressPlayer }: { players: DraftPlayer[]; onPres
     .filter(stack => stack.partners.length)
     .sort((a, b) => b.score - a.score)
     .slice(0, 12)
+  const selectedTeamPlayers = selectedTeam === 'ALL'
+    ? null
+    : {
+        quarterbacks: visiblePlayers.filter(player => player.position === 'QB').sort((a, b) => a.rank - b.rank),
+        passCatchers: visiblePlayers.filter(player => ['WR', 'TE'].includes(player.position)).sort((a, b) => a.rank - b.rank),
+        backs: visiblePlayers.filter(player => player.position === 'RB').sort((a, b) => a.rank - b.rank),
+      }
 
   return (
     <View style={styles.playerList}>
+      <Card style={styles.stackFilterCard}>
+        <TeamDropdown label="Team Stack" value={selectedTeam} teams={teams} onChange={onSelectTeam} />
+      </Card>
+      {selectedTeamPlayers ? (
+        <Card style={styles.stackCard}>
+          <AppText variant="eyebrow">{selectedTeam} Stack Board</AppText>
+          <StackSection title="QB" players={selectedTeamPlayers.quarterbacks} onPressPlayer={onPressPlayer} />
+          <StackSection title="WR / TE" players={selectedTeamPlayers.passCatchers} onPressPlayer={onPressPlayer} />
+          <StackSection title="RB Adds" players={selectedTeamPlayers.backs} onPressPlayer={onPressPlayer} />
+        </Card>
+      ) : null}
       {stacks.map(stack => (
         <Card key={stack.qb.id} style={styles.stackCard}>
           <View style={styles.stackHead}>
@@ -775,6 +962,32 @@ function StackBoard({ players, onPressPlayer }: { players: DraftPlayer[]; onPres
             ))}
           </View>
         </Card>
+      ))}
+    </View>
+  )
+}
+
+function StackSection({
+  title,
+  players,
+  onPressPlayer,
+}: {
+  title: string
+  players: DraftPlayer[]
+  onPressPlayer: (name: string) => void
+}) {
+  if (!players.length) return null
+  return (
+    <View style={styles.stackSection}>
+      <AppText style={styles.stackSectionTitle}>{title}</AppText>
+      {players.slice(0, 8).map(player => (
+        <Pressable key={player.id} onPress={() => onPressPlayer(player.name)} style={styles.stackPartner}>
+          <View style={styles.stackPartnerMain}>
+            <AppText style={styles.stackPartnerName}>{player.name}</AppText>
+            <AppText variant="muted" style={styles.stackPartnerMeta}>#{player.rank} · {roundLabel(player.rank)}</AppText>
+          </View>
+          <AppText style={styles.positionBox}>{player.position}</AppText>
+        </Pressable>
       ))}
     </View>
   )
@@ -896,6 +1109,16 @@ const styles = StyleSheet.create({
   plannerToggleTextActive: { color: colors.gold },
   plannerInputs: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md },
   plannerInputBlock: { flex: 1, gap: spacing.xs },
+  plannerStackBlock: { gap: spacing.md, marginBottom: spacing.md },
+  stackBuildRow: { flexDirection: 'row', gap: spacing.sm },
+  stackBuildButton: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
+  stackBuildButtonActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
+  stackBuildText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
+  stackBuildTextActive: { color: colors.gold },
+  stackPlan: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.bgCardAlt },
+  stackPlanRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  stackPlanName: { flex: 1, color: colors.textPrimary, fontSize: 13, fontWeight: '900' },
+  stackPlanMeta: { color: colors.gold, fontSize: 11, fontWeight: '900' },
   plannerSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   plannerSummaryItem: { minWidth: 58, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
   plannerSummaryPos: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
@@ -907,6 +1130,10 @@ const styles = StyleSheet.create({
   plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   plannerTakenButton: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   plannerTakenText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  takenList: { gap: spacing.sm, marginTop: spacing.md },
+  takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
+  takenChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   leagueList: { gap: spacing.md, marginBottom: spacing.md },
   leagueCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md },
   leagueCardActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.12)' },
@@ -959,9 +1186,21 @@ const styles = StyleSheet.create({
   moveText: { color: colors.textSecondary, fontSize: 16, fontWeight: '900' },
   hideButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   hideText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  dropdownWrap: { gap: spacing.xs },
+  dropdownButton: { minHeight: 44, borderWidth: 1, borderColor: colors.borderActive, borderRadius: 8, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, backgroundColor: colors.bgCard },
+  dropdownText: { flex: 1, color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
+  dropdownChevron: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
+  dropdownMenu: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.bgCardAlt },
+  dropdownOption: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  dropdownOptionActive: { backgroundColor: 'rgba(198,145,50,.14)' },
+  dropdownOptionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
+  dropdownOptionTextActive: { color: colors.gold },
+  stackFilterCard: { padding: spacing.md },
   stackCard: { gap: spacing.md },
   stackHead: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start' },
   stackTitle: { color: colors.textPrimary, fontSize: 22, lineHeight: 26, fontWeight: '900', marginTop: 4 },
+  stackSection: { gap: spacing.sm, paddingTop: spacing.sm },
+  stackSectionTitle: { color: colors.gold, fontSize: 12, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
   stackPartnerList: { gap: spacing.sm },
   stackPartner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   stackPartnerMain: { flex: 1, minWidth: 0 },

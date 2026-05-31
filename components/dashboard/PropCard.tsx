@@ -1009,23 +1009,23 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 70,
+    minHeight: 56,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   cell: {
-    width: 82,
+    width: 78,
     color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '900',
-    paddingVertical: spacing.sm,
-    paddingRight: spacing.md,
+    fontSize: 12,
+    fontWeight: '800',
+    paddingRight: spacing.sm,
   },
   playerCell: {
-    width: 170,
+    width: 132,
   },
   playerName: {
     color: colors.gold,
+    fontSize: 12,
     textTransform: 'uppercase',
   },
   best: {

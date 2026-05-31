@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -17,6 +17,11 @@ import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
 type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd'
+type ToolTile = {
+  key: SheetKey | 'fantasy'
+  label: string
+  sport: 'MLB' | 'NFL'
+}
 type ToolMode = 'sheets' | 'calculators' | 'factors'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 type FactorSport = 'MLB' | 'NFL'
@@ -39,6 +44,19 @@ const SHEETS: Array<{
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
+]
+
+const TOOL_TILES: ToolTile[] = [
+  { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
+  { key: 'hr', label: 'HR Targets', sport: 'MLB' },
+  { key: 'tb', label: 'Total Bases', sport: 'MLB' },
+  { key: 'k', label: 'Safe Alt K', sport: 'MLB' },
+  { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
+  { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
+  { key: 'lines', label: 'Game Lines', sport: 'MLB' },
+  { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
+  { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
+  { key: 'fantasy', label: 'Fantasy Hub', sport: 'NFL' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -903,6 +921,63 @@ function buildRows(
     .slice(0, 30)
 }
 
+function buildShareText(
+  sheet: { label: string },
+  activeKey: SheetKey,
+  rows: SheetRow[],
+  bvpRows: BvpRow[],
+  tdRows: TdStreakRow[],
+  qbTdRows: TdStreakRow[],
+) {
+  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const header = [`KINGFISH BETS`, sheet.label.toUpperCase(), date]
+
+  if (activeKey === 'bvp' && bvpRows.length) {
+    return [
+      ...header,
+      '',
+      'BATTER | VS PITCHER | AB | AVG | HR | RBI | OPS',
+      ...bvpRows.slice(0, 12).map(row => `${row.player} | ${row.pitcher} | ${row.ab} | ${row.avg} | ${row.hr} | ${row.rbi} | ${row.ops}`),
+      '',
+      'kingfishbets.com',
+    ].join('\n')
+  }
+
+  if (activeKey === 'td' && tdRows.length) {
+    return [
+      ...header,
+      '',
+      'PLAYER | TEAM | POS | STREAK',
+      ...tdRows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.position} | ${row.streak_games} games`),
+      '',
+      'kingfishbets.com',
+    ].join('\n')
+  }
+
+  if (activeKey === 'qbtd' && qbTdRows.length) {
+    return [
+      ...header,
+      '',
+      'QB | TEAM | 2+ TD GAMES | STREAK',
+      ...qbTdRows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.two_td_games || 0}/${row.games || 0} | ${row.streak_games}`),
+      '',
+      'kingfishbets.com',
+    ].join('\n')
+  }
+
+  const cleanRows = rows.filter(row => !row.divider).slice(0, 12)
+  if (!cleanRows.length) return ''
+
+  return [
+    ...header,
+    '',
+    'PLAYER | MATCHUP | LINE | ODDS | EDGE',
+    ...cleanRows.map(row => `${row.player} | ${row.matchup} | ${row.pickLabel || `Over ${row.line}`} | ${row.odds ? fmtOdds(row.odds) : '-'} ${row.book || ''} | ${row.edge.label}`),
+    '',
+    'kingfishbets.com',
+  ].join('\n')
+}
+
 function buildHotHitterRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
@@ -1336,6 +1411,15 @@ export default function CheatSheetsScreen() {
   const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
   const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
   const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
+  const shareText = useMemo(
+    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows),
+    [activeKey, activeSheet, bvpRows, qbTdRows, rows, tdStreakRows],
+  )
+
+  async function shareSheet() {
+    if (!shareText) return
+    await Share.share({ message: shareText })
+  }
 
   function openPlayerProfile(player: string, row?: SheetRow) {
     setSelectedPlayer(player)
@@ -1628,15 +1712,23 @@ export default function CheatSheetsScreen() {
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>
-            {SHEETS.map((sheet) => (
+            {TOOL_TILES.map((sheet) => (
               <Pressable
                 key={sheet.key}
-                onPress={() => setSelectedKey(sheet.key)}
+                onPress={() => {
+                  if (sheet.key === 'fantasy') {
+                    router.push('/fantasy' as any)
+                    return
+                  }
+                  setSelectedKey(sheet.key)
+                }}
                 style={styles.sheetTile}
               >
-                <AppText variant="eyebrow">// {sheet.type === 'td' ? 'NFL' : 'MLB'}</AppText>
-                <AppText style={styles.sheetTileTitle}>{sheet.label}</AppText>
-                <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{sheet.desc}</AppText>
+                <AppText variant="eyebrow">// {sheet.sport}</AppText>
+                <View style={styles.sheetTileCenter}>
+                  <AppText style={styles.sheetTileTitle}>{sheet.label}</AppText>
+                </View>
+                <AppText style={styles.sheetTileOpen}>Open</AppText>
               </Pressable>
             ))}
           </View>
@@ -1661,12 +1753,17 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              {!isTdSheet ? (
-                <AppText style={styles.reportDate}>
-                  {formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
-                </AppText>
+              {shareText ? (
+                <Pressable onPress={shareSheet} style={styles.shareButton}>
+                  <AppText style={styles.shareButtonText}>Copy</AppText>
+                </Pressable>
               ) : null}
             </View>
+            {!isTdSheet ? (
+              <AppText style={styles.reportDate}>
+                {formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
+              </AppText>
+            ) : null}
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
           {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading) && (
@@ -1971,7 +2068,7 @@ const styles = StyleSheet.create({
   },
   sheetTile: {
     width: '47%',
-    minHeight: 154,
+    minHeight: 126,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
@@ -1983,9 +2080,11 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
     backgroundColor: 'rgba(198,145,50,.14)',
   },
-  sheetTileTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 20, lineHeight: 24 },
+  sheetTileCenter: { flex: 1, justifyContent: 'center' },
+  sheetTileTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 20, lineHeight: 23 },
   sheetTileTitleActive: { color: colors.gold },
-  sheetTileCopy: { marginTop: spacing.sm, fontSize: 13, lineHeight: 18 },
+  sheetTileCopy: { marginTop: spacing.sm, fontSize: 12, lineHeight: 16 },
+  sheetTileOpen: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   calcTile: { minHeight: 134 },
   inputGrid: {
     flexDirection: 'row',
@@ -2134,10 +2233,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgCardAlt,
   },
   backButtonText: { color: colors.gold, fontWeight: '900' },
-  reportTitleRow: { gap: spacing.sm },
-  reportTitleWrap: { flex: 1 },
+  reportTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  reportTitleWrap: { flex: 1, minWidth: 0 },
   reportTitle: { marginTop: 4, fontSize: 28, lineHeight: 31, fontWeight: '900' },
-  reportDate: { color: colors.textSecondary, fontWeight: '900', lineHeight: 19 },
+  reportDate: { color: colors.textSecondary, fontWeight: '900', lineHeight: 18, fontSize: 12, marginTop: spacing.sm },
+  shareButton: { borderWidth: 1, borderColor: 'rgba(198,145,50,.38)', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7, marginTop: 2 },
+  shareButtonText: { color: colors.gold, fontSize: 10, fontWeight: '900' },
   reportCopy: { marginTop: spacing.sm, marginBottom: spacing.md },
   loading: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   errorText: { color: colors.red, marginTop: spacing.sm },
