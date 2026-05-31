@@ -374,8 +374,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
             <AppText style={styles.gameTitle}>{selectedGameLabel}</AppText>
             {selectedGameForHeader ? <AppText variant="mono">{fmtTime(selectedGameForHeader.commence_time)}</AppText> : null}
           </View>
-          <SortControls sortKey={sortKey} onSort={toggleSort} />
-          <TableHeader />
+          <TableHeader sortKey={sortKey} onSort={toggleSort} />
           {allRows.map((row, index) => (
             <PlayerPropRow
               key={`${row.player}-${row.line}-${index}`}
@@ -416,29 +415,34 @@ function MarketButton({ active, label, onPress }: { active: boolean; label: stri
   )
 }
 
-function SortControls({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: SortKey) => void }) {
+function SortHeader({
+  label,
+  sortKey,
+  target,
+  onSort,
+  style,
+}: {
+  label: string
+  sortKey: SortKey
+  target: SortKey
+  onSort: (key: SortKey) => void
+  style?: any
+}) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRail}>
-      {[
-        { key: 'edge' as SortKey, label: 'Edge' },
-        { key: 'l10' as SortKey, label: 'L10' },
-        { key: 'l5' as SortKey, label: 'L5' },
-      ].map((item) => (
-        <Pressable key={item.key} onPress={() => onSort(item.key)} style={[styles.sortChip, sortKey === item.key && styles.sortChipActive]}>
-          <AppText style={[styles.sortChipText, sortKey === item.key && styles.sortChipTextActive]}>{item.label}</AppText>
-        </Pressable>
-      ))}
-    </ScrollView>
+    <Pressable onPress={() => onSort(target)} style={[styles.compactCell, style]}>
+      <AppText variant="eyebrow" style={[styles.headerText, sortKey === target && styles.headerTextActive]}>{label}</AppText>
+    </Pressable>
   )
 }
 
-function TableHeader() {
+function TableHeader({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: SortKey) => void }) {
   return (
     <View style={styles.compactHeader}>
-      <AppText variant="eyebrow" style={[styles.compactCell, styles.playerColumn]}>Player</AppText>
-      <AppText variant="eyebrow" style={styles.compactCell}>Line</AppText>
-      <AppText variant="eyebrow" style={styles.compactCell}>L10</AppText>
-      <AppText variant="eyebrow" style={[styles.compactCell, styles.edgeColumn]}>Edge</AppText>
+      <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} style={styles.playerColumn} />
+      <SortHeader label="Line" target="line" sortKey={sortKey} onSort={onSort} />
+      <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} />
+      <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} />
+      <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} style={styles.edgeColumn} />
     </View>
   )
 }
@@ -475,6 +479,10 @@ function PlayerPropRow({
       </View>
       <View style={styles.compactCell}>
         <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
+        <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, statField, row.line, 5)}</AppText>
+      </View>
+      <View style={styles.compactCell}>
+        <AppText style={[styles.statValue, { color: statColor(l5, row.line) }]}>{fmtRate(l5)}</AppText>
         <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, statField, row.line, 5)}</AppText>
       </View>
       <View style={[styles.compactCell, styles.edgeColumn]}>
@@ -579,32 +587,10 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontWeight: '900',
   },
-  sortedCell: {
+  headerText: {
     color: colors.gold,
   },
-  sortRail: {
-    gap: spacing.sm,
-    paddingRight: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  sortChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    backgroundColor: colors.bgCard,
-  },
-  sortChipActive: {
-    borderColor: colors.gold,
-    backgroundColor: 'rgba(198,145,50,.16)',
-  },
-  sortChipText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  sortChipTextActive: {
+  headerTextActive: {
     color: colors.gold,
   },
   compactHeader: {
@@ -621,7 +607,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   compactCell: {
-    width: 72,
+    width: 58,
     paddingRight: spacing.sm,
   },
   playerColumn: {
@@ -629,7 +615,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   edgeColumn: {
-    width: 70,
+    width: 62,
     alignItems: 'flex-end',
     paddingRight: 0,
   },
