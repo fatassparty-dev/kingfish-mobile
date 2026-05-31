@@ -58,7 +58,7 @@ export default function PrivacyScreen() {
     <Screen>
       <AppText variant="eyebrow">// Legal</AppText>
       <AppText variant="title" style={styles.title}>Privacy Policy</AppText>
-      <AppText variant="muted" style={styles.updated}>Last updated: May 6, 2026</AppText>
+      <AppText variant="muted" style={styles.updated}>Last updated: May 30, 2026</AppText>
 
       <View style={styles.sections}>
         {sections.map((section) => (
