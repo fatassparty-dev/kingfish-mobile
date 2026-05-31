@@ -81,21 +81,33 @@ The goal is to keep seasonal sports content, weekly NFL updates, and admin launc
 - `preview` for internal simulator/device testing
 - `production` for App Store and Google Play builds
 
-Do not run production submission until Apple Developer, Google Play, RevenueCat, and store metadata are ready.
+Do not run production submission until Apple Developer, RevenueCat Apple products, App Store Connect metadata, screenshots, and review notes are ready. Google Play can follow later.
 
 ## App Store Prep Checklist
 
 Before the first real store build, confirm:
 
 - Apple Developer organization enrollment is approved.
-- Google Play Console account is ready.
-- RevenueCat has Apple and Google products attached to the KingFish Bets Pro entitlement.
+- RevenueCat has Apple products attached to the KingFish Bets Pro entitlement.
 - The mobile env values are set for Supabase, the KingFish API base URL, and RevenueCat public SDK keys.
 - The App Store app record uses bundle ID `com.kingfishbets.app`.
-- The Google Play app uses package name `com.kingfishbets.app`.
 - Terms, Privacy, Refund, Help, and support links are live on `kingfishbets.com`.
-- Screenshots show Dashboard, Player Props, Cheat Sheets, Ask KingFish, Account, and support/legal account links.
+- Screenshots show Dashboard, Game Lines, Player Props, Tools/Cheat Sheets, Fantasy Hub, Ask KingFish, Account, Paywall, and support/legal account links.
 - Export compliance can answer that the app does not use non-exempt encryption beyond standard platform HTTPS/security.
+
+## Tomorrow Test Pass
+
+Use this focused pass before submitting a build:
+
+- Sign up, sign in, sign out, reset password, and confirm auth screens link to Terms, Privacy, and support.
+- Account: edit profile, restore purchases, open legal/support links, and confirm Delete Account is visible.
+- Paywall: product copy, Terms/Privacy/Refund links, Restore Purchase, monthly/yearly plan selection, and Apple subscription management link.
+- Dashboard: sport selector, season-watch states, Game Lines, Player Props, player profile modal, and paywall behavior for locked premium areas.
+- Tools: Cheat Sheets, calculators, Game Factors, and Fantasy Hub.
+- Fantasy Hub: Home League, Best Ball, Draft Planner, Sleeper/Roster Watch, hide/taken actions, and player profile modal.
+- Ask KingFish: free limit messaging, premium messaging, and support/legal paths.
+- Help, Terms, Privacy, and any Refund link opened from the app.
+- Offline/error feel: API errors should read as temporary unavailable states, not broken screens.
 
 ## npm Cache Permission Fix
 
