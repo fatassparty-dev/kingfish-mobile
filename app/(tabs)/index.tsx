@@ -1248,7 +1248,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {view !== 'props' && (
+      {view !== 'props' && !isSelectedSportActive && (
         <Card>
           <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
           <AppText variant="title" style={styles.cardTitle}>
@@ -1274,26 +1274,6 @@ export default function DashboardScreen() {
 
       {isSelectedSportActive && view === 'league' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">
-              {sport === 'MLB'
-                ? isMlbRaceScope
-                  ? mlbScheduleQuery.data?.seasonPhase === 'postseason'
-                    ? 'MLB Playoff View: postseason teams and series context when playoff series are active'
-                    : 'MLB Playoff Race: division leaders, wild-card teams, and chase teams by league'
-                  : 'Current MLB division standings with record, games back, winning percentage, and recent form'
-                : isPlayoffLeagueScope
-                  ? `${sport} Playoff View: remaining teams, series score, and season form by conference`
-                  : isWnbaRaceScope
-                    ? 'WNBA Playoff View: current top-eight race using team record and recent form'
-                  : (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff'
-                    ? `${sport} Season View: broader team-form context separate from the posted playoff slate`
-                    : sport === 'WNBA'
-                      ? 'WNBA Season View: full team context with current record, previous record, and scoring form'
-                    : `${sport} team record and recent-form context`}
-            </AppText>
-          </View>
-
           {sport === 'MLB' ? (
             <>
               {(mlbScheduleQuery.isLoading || mlbL10Query.isLoading) && (
@@ -1531,9 +1511,6 @@ export default function DashboardScreen() {
 
       {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && canViewMatchups && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">Game matchup context using posted lines and team form</AppText>
-          </View>
           {lineQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -1753,10 +1730,6 @@ export default function DashboardScreen() {
 
       {isSelectedSportActive && sport === 'NFL' && view === 'matchups' && canViewMatchups && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">Free weekly matchup cards from posted NFL game lines</AppText>
-          </View>
-
           {nflMatchupsQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -2004,13 +1977,6 @@ export default function DashboardScreen() {
 
       {canFetchLines && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">
-              {sport === 'KBO' && kboTeams.length
-                ? `${kboTeams.length} team records loaded`
-                : 'Best price highlighted in gold'}
-            </AppText>
-          </View>
           {lineQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />

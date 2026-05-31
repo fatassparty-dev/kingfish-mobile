@@ -34,6 +34,7 @@ type LeanResult = {
   price?: number
   book?: string
   type?: string
+  team?: string
 }
 
 function getMarket(bookmakers: Bookmaker[], key: string): Market | undefined {
@@ -138,6 +139,7 @@ function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game): LeanResult
     detail: `Books lean this side across ${top.books} prices. Best number shown.`,
     price: best?.price,
     book: best?.book,
+    team: top.name,
   }
 }
 
@@ -196,6 +198,7 @@ function mlbMoneylineLean(
     price: best.price,
     book: best.book,
     type: mlScoreType(diff),
+    team: homeLean ? game.home_team : game.away_team,
   }
 }
 
@@ -350,6 +353,7 @@ function teamFormMoneylineLean(
     price: awayLean ? awayMoneyline.price : homeMoneyline.price,
     book: awayLean ? awayMoneyline.book : homeMoneyline.book,
     type: mlScoreType(diff),
+    team: awayLean ? game.away_team : game.home_team,
   }
 }
 
@@ -478,6 +482,7 @@ function nflMoneylineLean(
     price: best.price,
     book: best.book,
     type: mlScoreType(diff),
+    team: homeLean ? game.home_team : game.away_team,
   }
 }
 
@@ -548,6 +553,7 @@ function soccerMoneylineLean(
     price: best?.price,
     book: best?.book,
     type: isDrawWatch ? 'Draw Lean' : Math.abs(diff) >= 10 ? 'Strong Lean' : 'Lean',
+    team: isDrawWatch ? undefined : diff > 0 ? game.home_team : game.away_team,
   }
 }
 
@@ -683,6 +689,9 @@ export function GameLineCard({
   const bttsLean = sport === 'SOCCER' ? soccerBttsLean(awayBest, drawBest, homeBest, bttsYes, bttsNo, soccerContext) : null
   const moneylineLeanLabel = moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
   const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
+  const hideAwayMoneyline = moneylineLean?.team === game.away_team
+  const hideHomeMoneyline = moneylineLean?.team === game.home_team
+  const totalLeanSide = totalLean?.label.startsWith('Over') ? 'over' : totalLean?.label.startsWith('Under') ? 'under' : null
 
   return (
     <Card>
@@ -709,13 +718,13 @@ export function GameLineCard({
       )}
 
       {moneylineLean && <LeanBox label={moneylineLeanLabel} lean={moneylineLean} />}
-      <TeamRow team={game.away_team} line={awayBest} />
+      {!hideAwayMoneyline && <TeamRow team={game.away_team} line={awayBest} />}
       {drawBest && <TeamRow team="Draw" line={drawBest} />}
-      <TeamRow team={game.home_team} line={homeBest} />
+      {!hideHomeMoneyline && <TeamRow team={game.home_team} line={homeBest} />}
 
       {(awaySpread || homeSpread) && (
         <View style={styles.marketBox}>
-          <AppText variant="eyebrow">// Spread / Run Line</AppText>
+          <AppText variant="eyebrow">// Spread</AppText>
           <MarketRow team={game.away_team} line={awaySpread} />
           <MarketRow team={game.home_team} line={homeSpread} />
         </View>
@@ -726,14 +735,14 @@ export function GameLineCard({
           <AppText variant="eyebrow">// Total</AppText>
           {totalLean && <LeanBox label={totalLeanLabel} lean={totalLean} compact />}
           <View style={styles.totalRow}>
-            {over && (
+            {over && totalLeanSide !== 'over' && (
               <AppText style={styles.totalText}>
-                O {over.point} {fmtOdds(over.price)}
+                O {over.point} <AppText style={styles.totalPrice}>{fmtOdds(over.price)}</AppText>
               </AppText>
             )}
-            {under && (
+            {under && totalLeanSide !== 'under' && (
               <AppText style={styles.totalText}>
-                U {under.point} {fmtOdds(under.price)}
+                U {under.point} <AppText style={styles.totalPrice}>{fmtOdds(under.price)}</AppText>
               </AppText>
             )}
           </View>
@@ -777,7 +786,7 @@ function TeamRow({ team, line }: { team: string; line: { price: number; book: st
     <View style={styles.teamRow}>
       <View style={styles.teamNameWrap}>
         <AppText style={styles.teamName}>{team}</AppText>
-        {line?.book && <AppText variant="mono">{line.book}</AppText>}
+        {line && <AppText variant="mono">ML</AppText>}
       </View>
       <View style={styles.oddsBadge}>
         <AppText style={styles.oddsText}>{line ? fmtOdds(line.price) : '-'}</AppText>
@@ -795,11 +804,9 @@ function MarketRow({ team, line }: { team: string; line: { price: number; point?
           <AppText style={styles.marketTeam}>{team}</AppText>
           {point ? <AppText style={styles.marketPoint}>{point}</AppText> : null}
         </View>
-        <View style={styles.marketBookLine}>
-          {line?.book && <AppText variant="mono">{line.book}</AppText>}
-          <AppText style={styles.marketPrice}>{line ? fmtOdds(line.price) : '-'}</AppText>
-        </View>
+        <AppText variant="mono">RL</AppText>
       </View>
+      <AppText style={styles.marketPrice}>{line ? fmtOdds(line.price) : '-'}</AppText>
     </View>
   )
 }
@@ -953,6 +960,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   marketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
     marginTop: 8,
   },
   marketTeamLine: {
@@ -971,12 +982,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
-  marketBookLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 3,
-  },
   marketPrice: {
     color: colors.gold,
     fontSize: 14,
@@ -991,5 +996,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '800',
+  },
+  totalPrice: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
   },
 })
