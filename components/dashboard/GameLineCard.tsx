@@ -192,7 +192,7 @@ function mlbMoneylineLean(
   const best = homeLean ? homeMoneyline : awayMoneyline
   return {
     label: homeLean ? game.home_team : game.away_team,
-    detail: `KF ML score ${score}-${otherScore} from record, recent form, probable starter, home/away, and market price.${diff >= 4 ? '' : ' Tight edge, so shop the moneyline before making a call.'}`,
+    detail: `KF ML score ${score}-${otherScore}. Model edge favors the posted side${diff >= 4 ? '.' : ', but the hook is thin.'}`,
     price: best.price,
     book: best.book,
     type: mlScoreType(diff),
@@ -293,7 +293,7 @@ function mlbTotalLean(
     .sort((a, b) => b.price - a.price)[0]
   return {
     label: Math.abs(diff) >= 0.35 ? `${leanOver ? 'Over' : 'Under'} ${over.point}` : `Near ${over.point}`,
-    detail: `${projection.toFixed(1)} projected from recent game totals and probable starter ERA.`,
+    detail: `KF total read ${projection.toFixed(1)} against ${over.point}.`,
     price: best?.price,
     book: best?.book,
     type: Math.abs(diff) >= 1 ? 'Strong Total Lean' : Math.abs(diff) >= 0.35 ? 'Total Lean' : 'Total Watch',
@@ -343,9 +343,7 @@ function teamFormMoneylineLean(
   const diff = Math.abs(awayScore - homeScore)
   const score = Math.round(awayLean ? awayScore : homeScore)
   const otherScore = Math.round(awayLean ? homeScore : awayScore)
-  const detail = sport === 'NHL'
-    ? `KF ML score ${score}-${otherScore} from moneyline, points pace, recent form, goal edge, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`
-    : `KF ML score ${score}-${otherScore} from moneyline, recent scoring margin, record, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`
+  const detail = `KF ML score ${score}-${otherScore}. Model edge favors the posted side${diff < 4 ? ', but the hook is thin.' : '.'}`
   return {
     label: awayLean ? game.away_team : game.home_team,
     detail,
@@ -406,8 +404,8 @@ function teamFormTotalLean(
     return {
       label: `${side} ${postedTotal}`,
       detail: formProjection
-        ? `${formProjection.toFixed(1)} estimated from recent team scoring.`
-        : `${avgTotal.toFixed(1)} estimated from available total markets.`,
+        ? `KF total read ${formProjection.toFixed(1)} against ${postedTotal}.`
+        : `${avgTotal.toFixed(1)} market range.`,
       price: best?.price,
       book: best?.book,
       type: 'Total Watch',
@@ -443,8 +441,8 @@ function teamFormTotalLean(
   return {
     label: `${overLean ? 'Over' : 'Under'} ${postedTotal}`,
     detail: formProjection
-      ? `${estimate.toFixed(1)} estimated from recent scoring and market total.`
-      : `${estimate.toFixed(1)} estimated from consensus total and O/U pricing.`,
+      ? `KF total read ${estimate.toFixed(1)} against ${postedTotal}.`
+      : `${estimate.toFixed(1)} market range.`,
     price: overLean ? bestOver.price : bestUnder.price,
     book: overLean ? bestOver.book : bestUnder.book,
     type: Math.abs(diff) >= strongThreshold ? 'Strong Total Lean' : Math.abs(diff) >= leanThreshold ? 'Total Lean' : 'Total Watch',
@@ -476,7 +474,7 @@ function nflMoneylineLean(
   const best = homeLean ? homeMoneyline : awayMoneyline
   return {
     label: homeLean ? game.home_team : game.away_team,
-    detail: `KF ML score ${score}-${otherScore} from moneyline, team power, and home/away context.${diff < 4 ? ' Tight edge, so shop the price.' : ''}`,
+    detail: `KF ML score ${score}-${otherScore}. Model edge favors the posted side${diff < 4 ? ', but the hook is thin.' : '.'}`,
     price: best.price,
     book: best.book,
     type: mlScoreType(diff),
@@ -572,7 +570,7 @@ function soccerTotalLean(
   const best = leanOver ? bestOver : bestUnder
   return {
     label: Math.abs(diff) >= 0.25 ? `${leanOver ? 'Over' : 'Under'} ${postedTotal}` : `Near ${postedTotal}`,
-    detail: `${projection.toFixed(1)} projected from goals for/against rates.`,
+    detail: `KF total read ${projection.toFixed(1)} against ${postedTotal}.`,
     price: best?.price,
     book: best?.book,
     type: Math.abs(diff) >= 0.6 ? 'Strong Total Lean' : Math.abs(diff) >= 0.25 ? 'Total Lean' : 'Total Watch',
@@ -606,8 +604,8 @@ function soccerBttsLean(
   return {
     label: `BTTS: ${isYes ? 'Yes' : 'No'}`,
     detail: isYes
-      ? 'BTTS profile clears scoring, market, or defensive pressure filters.'
-      : 'BTTS profile does not clear scoring, market, or defensive pressure filters.',
+      ? 'KF matchup read clears the BTTS line.'
+      : 'KF matchup read does not clear the BTTS line.',
     price: best?.price,
     book: best?.book,
     type: 'BTTS Lean',
