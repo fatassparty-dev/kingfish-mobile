@@ -13,6 +13,8 @@ import { colors, spacing } from '@/lib/theme'
 type FantasyMode = 'home' | 'bestball' | 'planner' | 'sleeper'
 type Position = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'K' | 'DST'
 type PlannerLeague = 'home' | 'bestball'
+type BoardMode = 'home' | 'bestball'
+type BestBallView = 'players' | 'stacks'
 
 type DraftPlayer = {
   id: string
@@ -69,18 +71,13 @@ type FantasyPayload = {
 
 const STORAGE_KEY = 'kingfish_sleeper_connect_v1'
 const HIDDEN_STORAGE_KEY = 'kingfish_fantasy_hidden_v1'
+const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v1'
+const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
 const PLANNER_TARGETS: Record<PlannerLeague, Record<string, number>> = {
   home: { QB: 2, RB: 5, WR: 6, TE: 2, K: 1, DST: 1 },
   bestball: { QB: 3, RB: 7, WR: 8, TE: 3 },
-}
-
-function freshness(value?: string | null) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
 function roundLabel(rank: number) {
@@ -99,6 +96,31 @@ function positionNeed(position: string, counts: Record<string, number>, targets:
   return target - (counts[position] || 0)
 }
 
+function applySavedOrder(players: DraftPlayer[], orderedIds: string[]) {
+  if (!orderedIds.length) return players
+  const byId = new Map(players.map(player => [player.id, player]))
+  const used = new Set<string>()
+  const ordered = orderedIds
+    .map(id => byId.get(id))
+    .filter((player): player is DraftPlayer => {
+      if (!player || used.has(player.id)) return false
+      used.add(player.id)
+      return true
+    })
+  return [...ordered, ...players.filter(player => !used.has(player.id))]
+}
+
+function moveId(ids: string[], playerId: string, direction: -1 | 1) {
+  const index = ids.indexOf(playerId)
+  if (index < 0) return ids
+  const target = index + direction
+  if (target < 0 || target >= ids.length) return ids
+  const next = [...ids]
+  const [item] = next.splice(index, 1)
+  next.splice(target, 0, item)
+  return next
+}
+
 export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
@@ -106,7 +128,11 @@ export default function FantasyToolScreen() {
   const [sleeperUsername, setSleeperUsername] = useState('')
   const [activeSleeper, setActiveSleeper] = useState<{ username: string; leagueId?: string; rosterId?: string } | null>(null)
   const [profilePlayer, setProfilePlayer] = useState<string | null>(null)
-  const [hiddenIds, setHiddenIds] = useState<Record<'home' | 'bestball', string[]>>({ home: [], bestball: [] })
+  const [hiddenIds, setHiddenIds] = useState<Record<BoardMode, string[]>>({ home: [], bestball: [] })
+  const [boardOrder, setBoardOrder] = useState<Record<BoardMode, string[]>>({ home: [], bestball: [] })
+  const [savedBoardOrder, setSavedBoardOrder] = useState<Record<BoardMode, string[]>>({ home: [], bestball: [] })
+  const [boardMessage, setBoardMessage] = useState('')
+  const [bestBallView, setBestBallView] = useState<BestBallView>('players')
   const [plannerLeague, setPlannerLeague] = useState<PlannerLeague>('home')
   const [plannerTeams, setPlannerTeams] = useState('12')
   const [plannerSlot, setPlannerSlot] = useState('6')
@@ -138,6 +164,34 @@ export default function FantasyToolScreen() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    AsyncStorage.getItem(BOARD_ORDER_STORAGE_KEY)
+      .then(value => {
+        if (!value) return
+        const parsed = JSON.parse(value)
+        const next = {
+          home: Array.isArray(parsed?.home) ? parsed.home : [],
+          bestball: Array.isArray(parsed?.bestball) ? parsed.bestball : [],
+        }
+        setBoardOrder(next)
+        setSavedBoardOrder(next)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    AsyncStorage.getItem(PLANNER_STORAGE_KEY)
+      .then(value => {
+        if (!value) return
+        const parsed = JSON.parse(value)
+        if (parsed?.league === 'home' || parsed?.league === 'bestball') setPlannerLeague(parsed.league)
+        if (parsed?.teams) setPlannerTeams(String(parsed.teams))
+        if (parsed?.slot) setPlannerSlot(String(parsed.slot))
+        if (Array.isArray(parsed?.taken)) setPlannerTaken(parsed.taken)
+      })
+      .catch(() => {})
+  }, [])
+
   const fantasyQuery = useQuery({
     queryKey: ['fantasy-hub-mobile', activeSleeper?.username, activeSleeper?.leagueId, activeSleeper?.rosterId],
     queryFn: () => {
@@ -152,12 +206,32 @@ export default function FantasyToolScreen() {
 
   const players = fantasyQuery.data?.players || []
   const bestBallPlayers = fantasyQuery.data?.bestBallPlayers || []
+  const orderedHomePlayers = useMemo(() => applySavedOrder(players, boardOrder.home), [boardOrder.home, players])
+  const orderedBestBallPlayers = useMemo(
+    () => applySavedOrder(bestBallPlayers.filter(player => player.position !== 'K' && player.position !== 'DST'), boardOrder.bestball),
+    [bestBallPlayers, boardOrder.bestball],
+  )
+  useEffect(() => {
+    if (!players.length && !bestBallPlayers.length) return
+    const defaultOrder = {
+      home: players.map(player => player.id),
+      bestball: bestBallPlayers.filter(player => player.position !== 'K' && player.position !== 'DST').map(player => player.id),
+    }
+    setBoardOrder(current => ({
+      home: current.home.length ? current.home : defaultOrder.home,
+      bestball: current.bestball.length ? current.bestball : defaultOrder.bestball,
+    }))
+    setSavedBoardOrder(current => ({
+      home: current.home.length ? current.home : defaultOrder.home,
+      bestball: current.bestball.length ? current.bestball : defaultOrder.bestball,
+    }))
+  }, [bestBallPlayers, players])
+
   const boardPlayers = useMemo(() => {
-    const sourcePlayers = mode === 'bestball' ? bestBallPlayers : players
+    const sourcePlayers = mode === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
     const hidden = new Set(mode === 'bestball' ? hiddenIds.bestball : hiddenIds.home)
     return sourcePlayers
       .filter(player => !hidden.has(player.id))
-      .filter(player => mode !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
       .filter(player => position === 'ALL' || (position === 'FLEX' ? FLEX.has(player.position) : player.position === position))
       .filter(player => {
         const needle = search.trim().toLowerCase()
@@ -165,16 +239,16 @@ export default function FantasyToolScreen() {
         return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle)
       })
       .slice(0, 80)
-  }, [bestBallPlayers, hiddenIds.bestball, hiddenIds.home, mode, players, position, search])
+  }, [hiddenIds.bestball, hiddenIds.home, mode, orderedBestBallPlayers, orderedHomePlayers, position, search])
 
   const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
+  const activeBoardMode: BoardMode = mode === 'bestball' ? 'bestball' : 'home'
+  const boardDirty = (mode === 'home' || mode === 'bestball') && boardOrder[activeBoardMode].join('|') !== savedBoardOrder[activeBoardMode].join('|')
   const plannerTeamsNum = Math.max(8, Math.min(14, Number(plannerTeams) || 12))
   const plannerSlotNum = Math.max(1, Math.min(plannerTeamsNum, Number(plannerSlot) || 1))
   const plannerRounds = plannerLeague === 'bestball' ? 18 : 16
   const plannerPath = useMemo(() => {
-    const sourcePlayers = (plannerLeague === 'bestball' ? bestBallPlayers : players)
-      .filter(player => plannerLeague !== 'bestball' || (player.position !== 'K' && player.position !== 'DST'))
-      .sort((a, b) => (a.rank || 9999) - (b.rank || 9999))
+    const sourcePlayers = (plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers)
     const taken = new Set(plannerTaken)
     const used = new Set<string>()
     const counts: Record<string, number> = {}
@@ -198,7 +272,22 @@ export default function FantasyToolScreen() {
 
       return { round, pick, player: preferred }
     })
-  }, [bestBallPlayers, plannerLeague, plannerRounds, plannerSlotNum, plannerTaken, plannerTeamsNum, players])
+  }, [orderedBestBallPlayers, orderedHomePlayers, plannerLeague, plannerRounds, plannerSlotNum, plannerTaken, plannerTeamsNum])
+  const plannerCounts = useMemo(() => {
+    return plannerPath.reduce<Record<string, number>>((counts, item) => {
+      if (item.player?.position) counts[item.player.position] = (counts[item.player.position] || 0) + 1
+      return counts
+    }, {})
+  }, [plannerPath])
+
+  useEffect(() => {
+    AsyncStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify({
+      league: plannerLeague,
+      teams: plannerTeams,
+      slot: plannerSlot,
+      taken: plannerTaken,
+    })).catch(() => {})
+  }, [plannerLeague, plannerSlot, plannerTaken, plannerTeams])
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
@@ -239,15 +328,63 @@ export default function FantasyToolScreen() {
     await AsyncStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next))
   }
 
-  function markPlannerTaken(playerId?: string) {
+  function moveBoardPlayer(playerId: string, direction: -1 | 1) {
+    if (mode !== 'home' && mode !== 'bestball') return
+    const sourcePlayers = mode === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
+    const completeOrder = boardOrder[mode].length ? boardOrder[mode] : sourcePlayers.map(player => player.id)
+    setBoardMessage('')
+    setBoardOrder(current => ({
+      ...current,
+      [mode]: moveId(completeOrder, playerId, direction),
+    }))
+  }
+
+  async function saveBoard() {
+    if (mode !== 'home' && mode !== 'bestball') return
+    const next = { ...savedBoardOrder, [mode]: boardOrder[mode] }
+    setSavedBoardOrder(next)
+    await AsyncStorage.setItem(BOARD_ORDER_STORAGE_KEY, JSON.stringify(next))
+    setBoardMessage('Board saved.')
+  }
+
+  async function resetBoardOrder() {
+    if (mode !== 'home' && mode !== 'bestball') return
+    const sourcePlayers = mode === 'bestball'
+      ? bestBallPlayers.filter(player => player.position !== 'K' && player.position !== 'DST')
+      : players
+    const nextOrder = sourcePlayers.map(player => player.id)
+    const next = { ...boardOrder, [mode]: nextOrder }
+    const nextSaved = { ...savedBoardOrder, [mode]: nextOrder }
+    setBoardOrder(next)
+    setSavedBoardOrder(nextSaved)
+    setBoardMessage('Board reset.')
+    await AsyncStorage.setItem(BOARD_ORDER_STORAGE_KEY, JSON.stringify(nextSaved))
+  }
+
+  async function savePlannerState(nextTaken = plannerTaken) {
+    await AsyncStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify({
+      league: plannerLeague,
+      teams: plannerTeams,
+      slot: plannerSlot,
+      taken: nextTaken,
+    }))
+  }
+
+  async function markPlannerTaken(playerId?: string) {
     if (!playerId) return
-    setPlannerTaken(current => Array.from(new Set([...current, playerId])))
+    const next = Array.from(new Set([...plannerTaken, playerId]))
+    setPlannerTaken(next)
+    await savePlannerState(next)
+  }
+
+  async function clearPlannerTaken() {
+    setPlannerTaken([])
+    await savePlannerState([])
   }
 
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
-  const statsFreshness = freshness(fantasyQuery.data?.generated_at)
 
   return (
     <Screen>
@@ -329,9 +466,7 @@ export default function FantasyToolScreen() {
             <Card style={styles.rosterCard}>
               <AppText variant="eyebrow">// {selectedSleeper.league.name}</AppText>
               <AppText style={styles.cardTitle}>Roster Watch</AppText>
-              <AppText variant="muted" style={styles.cardCopy}>
-                {statsFreshness ? `Week ${selectedSleeper.week} · ${statsFreshness}` : `Week ${selectedSleeper.week}`}
-              </AppText>
+              <AppText variant="muted" style={styles.cardCopy}>Week {selectedSleeper.week}</AppText>
               <View style={styles.playerList}>
                 {rosterPlayers.map(player => (
                   <PlayerRow
@@ -356,7 +491,7 @@ export default function FantasyToolScreen() {
           <Card style={styles.metaCard}>
             <AppText variant="eyebrow">// Draft Planner</AppText>
             <AppText style={styles.cardTitle}>Draft Path</AppText>
-            <AppText variant="muted" style={styles.cardCopy}>Build from the right board and adjust as players go.</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>Uses your saved Home or Best Ball board order.</AppText>
 
             <View style={styles.plannerToggleRow}>
               {(['home', 'bestball'] as PlannerLeague[]).map(item => (
@@ -396,11 +531,23 @@ export default function FantasyToolScreen() {
               </View>
             </View>
 
-            {plannerTaken.length ? (
-              <Pressable onPress={() => setPlannerTaken([])} style={styles.clearButton}>
+            <View style={styles.plannerSummary}>
+              {Object.entries(PLANNER_TARGETS[plannerLeague]).map(([pos, target]) => (
+                <View key={pos} style={styles.plannerSummaryItem}>
+                  <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
+                  <AppText style={styles.plannerSummaryCount}>{plannerCounts[pos] || 0}/{target}</AppText>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.boardButtonRow}>
+              <Pressable onPress={clearPlannerTaken} disabled={!plannerTaken.length} style={[styles.clearButton, !plannerTaken.length && styles.disabledButton]}>
                 <AppText style={styles.clearButtonText}>Clear Taken</AppText>
               </Pressable>
-            ) : null}
+              <Pressable onPress={() => setMode(plannerLeague)} style={styles.clearButton}>
+                <AppText style={styles.clearButtonText}>Open Board</AppText>
+              </Pressable>
+            </View>
           </Card>
 
           <View style={styles.playerList}>
@@ -421,50 +568,81 @@ export default function FantasyToolScreen() {
           <Card style={styles.metaCard}>
             <AppText variant="eyebrow">// Draft Board</AppText>
             <AppText style={styles.cardTitle}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>
+              Move players into your order, then save the board for draft day.
+            </AppText>
+            {mode === 'bestball' ? (
+              <View style={styles.boardToggleRow}>
+                {([
+                  { key: 'players', label: 'Players' },
+                  { key: 'stacks', label: 'Stacks' },
+                ] as Array<{ key: BestBallView; label: string }>).map(item => (
+                  <Pressable key={item.key} onPress={() => setBestBallView(item.key)} style={[styles.boardToggle, bestBallView === item.key && styles.boardToggleActive]}>
+                    <AppText style={[styles.boardToggleText, bestBallView === item.key && styles.boardToggleTextActive]}>{item.label}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <View style={styles.metaActions}>
-              {statsFreshness ? <AppText variant="muted" style={styles.cardCopy}>{statsFreshness}</AppText> : <View />}
+              <View style={styles.boardButtonRow}>
+                <Pressable onPress={saveBoard} disabled={!boardDirty} style={[styles.clearButton, !boardDirty && styles.disabledButton]}>
+                  <AppText style={styles.clearButtonText}>Save Board</AppText>
+                </Pressable>
+                <Pressable onPress={resetBoardOrder} style={styles.clearButton}>
+                  <AppText style={styles.clearButtonText}>Reset</AppText>
+                </Pressable>
+              </View>
               {activeHiddenCount ? (
                 <Pressable onPress={resetHiddenPlayers} style={styles.clearButton}>
                   <AppText style={styles.clearButtonText}>Show {activeHiddenCount}</AppText>
                 </Pressable>
               ) : null}
             </View>
+            {boardMessage ? <AppText style={styles.savedMessage}>{boardMessage}</AppText> : null}
           </Card>
 
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search player or team"
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-          />
-
-          <View style={styles.positionGrid}>
-            {POSITIONS.filter(pos => mode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
-              <Pressable key={pos} onPress={() => setPosition(pos)} style={[styles.positionButton, position === pos && styles.positionButtonActive]}>
-                <AppText style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</AppText>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.playerList}>
-            {boardPlayers.map(player => (
-              <PlayerRow
-                key={player.id}
-                name={player.name}
-                team={player.team}
-                position={player.position}
-                grade={player.grade}
-                fpts={player.fpts}
-                volume={player.volume}
-                risk={player.risk}
-                rank={player.rank}
-                rankLabel={`${roundLabel(player.rank)} · ${player.adp ? player.adp.toFixed(1) : 'NR'}`}
-                onPress={() => setProfilePlayer(player.name)}
-                onHide={() => hidePlayer(player.id)}
+          {mode === 'bestball' && bestBallView === 'stacks' ? (
+            <StackBoard players={orderedBestBallPlayers} onPressPlayer={setProfilePlayer} />
+          ) : (
+            <>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search player or team"
+                placeholderTextColor={colors.textMuted}
+                style={styles.searchInput}
               />
-            ))}
-          </View>
+
+              <View style={styles.positionGrid}>
+                {POSITIONS.filter(pos => mode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
+                  <Pressable key={pos} onPress={() => setPosition(pos)} style={[styles.positionButton, position === pos && styles.positionButtonActive]}>
+                    <AppText style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.playerList}>
+                {boardPlayers.map(player => (
+                  <PlayerRow
+                    key={player.id}
+                    name={player.name}
+                    team={player.team}
+                    position={player.position}
+                    grade={player.grade}
+                    fpts={player.fpts}
+                    volume={player.volume}
+                    risk={player.risk}
+                    rank={player.rank}
+                    rankLabel={`${roundLabel(player.rank)} · ${player.adp ? player.adp.toFixed(1) : 'NR'}`}
+                    onPress={() => setProfilePlayer(player.name)}
+                    onHide={() => hidePlayer(player.id)}
+                    onMoveUp={() => moveBoardPlayer(player.id, -1)}
+                    onMoveDown={() => moveBoardPlayer(player.id, 1)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </>
       )}
 
@@ -486,6 +664,8 @@ function PlayerRow({
   starter,
   onPress,
   onHide,
+  onMoveUp,
+  onMoveDown,
 }: {
   name: string
   team: string
@@ -499,6 +679,8 @@ function PlayerRow({
   starter?: boolean
   onPress: () => void
   onHide?: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }) {
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
@@ -520,6 +702,26 @@ function PlayerRow({
       </View>
       <View style={styles.rowActions}>
         <AppText style={styles.grade}>{grade || '-'}</AppText>
+        {onMoveUp || onMoveDown ? (
+          <View style={styles.moveRow}>
+            {onMoveUp ? (
+              <Pressable onPress={event => {
+                event.stopPropagation()
+                onMoveUp()
+              }} style={styles.moveButton}>
+                <AppText style={styles.moveText}>↑</AppText>
+              </Pressable>
+            ) : null}
+            {onMoveDown ? (
+              <Pressable onPress={event => {
+                event.stopPropagation()
+                onMoveDown()
+              }} style={styles.moveButton}>
+                <AppText style={styles.moveText}>↓</AppText>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
         {onHide ? (
           <Pressable onPress={event => {
             event.stopPropagation()
@@ -530,6 +732,51 @@ function PlayerRow({
         ) : null}
       </View>
     </Pressable>
+  )
+}
+
+function StackBoard({ players, onPressPlayer }: { players: DraftPlayer[]; onPressPlayer: (name: string) => void }) {
+  const stacks = players
+    .filter(player => player.position === 'QB')
+    .slice(0, 18)
+    .map(qb => {
+      const partners = players
+        .filter(player => player.team === qb.team && ['WR', 'TE', 'RB'].includes(player.position) && player.id !== qb.id)
+        .slice(0, 4)
+      const score = partners.reduce((total, player) => total + Math.max(0, 220 - (player.rank || 220)), Math.max(0, 220 - (qb.rank || 220)))
+      return { qb, partners, score }
+    })
+    .filter(stack => stack.partners.length)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12)
+
+  return (
+    <View style={styles.playerList}>
+      {stacks.map(stack => (
+        <Card key={stack.qb.id} style={styles.stackCard}>
+          <View style={styles.stackHead}>
+            <View>
+              <AppText variant="eyebrow">{stack.qb.team} Stack</AppText>
+              <Pressable onPress={() => onPressPlayer(stack.qb.name)}>
+                <AppText style={styles.stackTitle}>{stack.qb.name}</AppText>
+              </Pressable>
+            </View>
+            <AppText style={styles.positionBox}>QB</AppText>
+          </View>
+          <View style={styles.stackPartnerList}>
+            {stack.partners.map(player => (
+              <Pressable key={player.id} onPress={() => onPressPlayer(player.name)} style={styles.stackPartner}>
+                <View style={styles.stackPartnerMain}>
+                  <AppText style={styles.stackPartnerName}>{player.name}</AppText>
+                  <AppText variant="muted" style={styles.stackPartnerMeta}>#{player.rank} · {roundLabel(player.rank)}</AppText>
+                </View>
+                <AppText style={styles.positionBox}>{player.position}</AppText>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+      ))}
+    </View>
   )
 }
 
@@ -608,7 +855,13 @@ const styles = StyleSheet.create({
   loading: { gap: spacing.md, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
   cardTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
   cardCopy: { marginTop: spacing.sm, lineHeight: 20 },
-  metaActions: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md },
+  metaActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.md },
+  boardButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  boardToggleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  boardToggle: { flex: 1, minHeight: 42, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
+  boardToggleActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
+  boardToggleText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
+  boardToggleTextActive: { color: colors.gold },
   clearButton: {
     borderWidth: 1,
     borderColor: 'rgba(198,145,50,.32)',
@@ -616,7 +869,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  disabledButton: { opacity: 0.45 },
   clearButtonText: { color: colors.gold, fontSize: 11, fontWeight: '900' },
+  savedMessage: { color: colors.green, fontSize: 12, fontWeight: '800', marginTop: spacing.sm },
   connectCard: { marginBottom: spacing.md },
   inputRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   input: {
@@ -641,6 +896,10 @@ const styles = StyleSheet.create({
   plannerToggleTextActive: { color: colors.gold },
   plannerInputs: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md },
   plannerInputBlock: { flex: 1, gap: spacing.xs },
+  plannerSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  plannerSummaryItem: { minWidth: 58, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
+  plannerSummaryPos: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
+  plannerSummaryCount: { color: colors.textPrimary, fontSize: 14, fontWeight: '900', marginTop: 2 },
   plannerPickCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md },
   plannerPickHead: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.md },
   plannerRound: { color: colors.gold, fontSize: 14, fontWeight: '900' },
@@ -695,6 +954,17 @@ const styles = StyleSheet.create({
   starterTag: { color: colors.green, borderWidth: 1, borderColor: 'rgba(34,197,94,.35)', borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: 3, fontSize: 10, fontWeight: '900' },
   rowActions: { alignItems: 'flex-end', gap: spacing.md },
   grade: { minWidth: 42, textAlign: 'right', color: colors.gold, fontSize: 24, fontWeight: '900' },
+  moveRow: { flexDirection: 'row', gap: spacing.xs },
+  moveButton: { width: 34, height: 34, borderWidth: 1, borderColor: colors.borderActive, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCard },
+  moveText: { color: colors.textSecondary, fontSize: 16, fontWeight: '900' },
   hideButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   hideText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  stackCard: { gap: spacing.md },
+  stackHead: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start' },
+  stackTitle: { color: colors.textPrimary, fontSize: 22, lineHeight: 26, fontWeight: '900', marginTop: 4 },
+  stackPartnerList: { gap: spacing.sm },
+  stackPartner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
+  stackPartnerMain: { flex: 1, minWidth: 0 },
+  stackPartnerName: { color: colors.textPrimary, fontSize: 16, fontWeight: '900' },
+  stackPartnerMeta: { marginTop: 2, fontSize: 11 },
 })

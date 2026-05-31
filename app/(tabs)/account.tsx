@@ -355,7 +355,7 @@ export default function AccountScreen() {
           to use KingFish on your computer.
         </AppText>
         <View style={styles.supportLinks}>
-          <AppText style={styles.supportLink} onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+          <AppText style={styles.supportLink} onPress={() => router.push('/support')}>
             Contact Support
           </AppText>
           <AppText style={styles.supportLink} onPress={() => router.push('/terms')}>

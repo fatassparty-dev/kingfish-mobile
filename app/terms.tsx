@@ -1,4 +1,4 @@
-import { Linking, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -13,11 +13,11 @@ const sections = [
   },
   {
     title: '2. Description of Service',
-    body: 'KingFish Bets provides sports analytics, betting research tools, odds comparison, market context, AI-assisted analysis, and picks for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, or operate as a sportsbook.',
+    body: 'KingFish Bets provides sports analytics, betting research tools, odds comparison, market context, and AI-assisted analysis for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, or operate as a sportsbook.',
   },
   {
     title: '3. Not a Gambling Service',
-    body: 'All picks, analysis, odds data, Edge Scores, cheat sheets, AI responses, and other content are research signals only. They do not constitute financial, legal, gambling, or investment advice. Past performance does not guarantee future results. You are solely responsible for your own decisions.',
+    body: 'All analysis, odds data, Edge Scores, cheat sheets, AI responses, and other content are research signals only. They do not constitute financial, legal, gambling, or investment advice. Past performance does not guarantee future results. You are solely responsible for your own decisions.',
   },
   {
     title: '4. Eligibility',
@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: '6. Subscription and Payments',
-    body: 'Premium subscriptions may be purchased through KingFishBets.com or, where available, through in-app purchase. Mobile subscriptions, in-app purchases, cancellations, renewals, and mobile refund requests are handled through your App Store or Google Play account and are subject to the applicable store policies. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
+    body: 'Premium subscriptions in the mobile app may be purchased through in-app purchase. Subscriptions, cancellations, renewals, and mobile refund requests are handled through your App Store account and are subject to Apple policies. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
   },
   {
     title: '7. Mobile App License',
@@ -89,7 +89,7 @@ export default function TermsScreen() {
 
       <Button variant="secondary" onPress={() => router.push('/privacy')}>Privacy Policy</Button>
       <View style={styles.gap} />
-      <Button variant="outline" onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>Contact Support</Button>
+      <Button variant="outline" onPress={() => router.push('/support')}>Contact Support</Button>
       <View style={styles.gap} />
       <Button variant="outline" onPress={() => router.back()}>Back</Button>
     </Screen>

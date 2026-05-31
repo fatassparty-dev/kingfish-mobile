@@ -301,81 +301,81 @@ const SPORTS: Array<{
     flag: 'dashboard_mlb',
     visibilityFlag: 'dashboard_tab_mlb',
     status: 'Live',
-    description: 'Track live MLB lines, player props, weather, stat trends, and cheat-sheet support in one place.',
+    description: 'MLB lines, props, weather, trends, and stat sheets.',
     inactiveTitle: 'MLB Lines Unavailable',
-    inactiveDescription: 'No MLB markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
+    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
   },
   {
     key: 'NFL',
     flag: 'nfl_props',
     visibilityFlag: 'dashboard_tab_nfl',
     status: 'Offseason',
-    description: 'NFL is year-round in KingFish. Game lines appear when books post regular-season markets, with player props and deeper research built around the NFL Command Center.',
+    description: 'NFL lines, matchups, props, and fantasy tools.',
     inactiveTitle: 'NFL Not In Season',
-    inactiveDescription: 'NFL lives year-round in KingFish. Use the Command Center for fantasy tools, draft research, injuries, futures, and offseason notes while regular-season markets are off the board.',
+    inactiveDescription: 'Fantasy, draft research, injuries, futures, and offseason notes.',
   },
   {
     key: 'NBA',
     flag: 'dashboard_nba',
     visibilityFlag: 'dashboard_tab_nba',
     status: 'Live',
-    description: 'Compare live NBA lines, player props, recent form, hit rates, and Edge Scores by matchup.',
+    description: 'NBA lines, props, recent form, and Edge.',
     inactiveTitle: 'NBA Lines Unavailable',
-    inactiveDescription: 'No NBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
+    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
   },
   {
     key: 'NHL',
     flag: 'dashboard_nhl',
     visibilityFlag: 'dashboard_tab_nhl',
     status: 'Live',
-    description: 'Track NHL lines, player props, shot volume, scoring trends, and Edge Scores in one board.',
+    description: 'NHL lines, props, shot volume, and scoring trends.',
     inactiveTitle: 'NHL Lines Unavailable',
-    inactiveDescription: 'No NHL markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
+    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
   },
   {
     key: 'WNBA',
     flag: 'dashboard_wnba',
     visibilityFlag: 'dashboard_tab_wnba',
     status: 'Live',
-    description: 'Follow WNBA lines and player props with recent stat trends, hit rates, and best available odds.',
+    description: 'WNBA lines, props, recent form, and hit rates.',
     inactiveTitle: 'WNBA Lines Unavailable',
-    inactiveDescription: 'No WNBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
+    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
   },
   {
     key: 'KBO',
     flag: 'dashboard_kbo',
     visibilityFlag: 'dashboard_tab_kbo',
     status: 'Live',
-    description: 'Follow KBO game lines and market movement from supported books.',
+    description: 'KBO lines, market movement, and team context.',
     inactiveTitle: 'KBO Lines Unavailable',
-    inactiveDescription: 'No KBO markets are posted right now. When books post the next slate, KingFish will show game lines.',
+    inactiveDescription: 'Game lines appear when the next slate is active.',
   },
   {
     key: 'NCAAB',
     flag: 'dashboard_ncaab',
     visibilityFlag: 'dashboard_tab_ncaab',
     status: 'Offseason',
-    description: 'College basketball will focus on team stats, team trends, points for, points against, and matchup context.',
+    description: 'College basketball lines, team trends, and matchups.',
     inactiveTitle: 'College Basketball Not In Season',
-    inactiveDescription: 'College basketball game lines and matchup context return when the season is active and sportsbooks have posted markets.',
+    inactiveDescription: 'Game lines and matchup context return in season.',
   },
   {
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
     visibilityFlag: 'dashboard_tab_ncaaf',
     status: 'Offseason',
-    description: 'College football will focus on game lines, team stats, matchup grades, and team leans instead of player props.',
+    description: 'College football lines, team stats, and matchups.',
     inactiveTitle: 'College Football Not In Season',
-    inactiveDescription: 'College football game lines, market leans, and matchup context return when the season is active and sportsbooks have posted markets.',
+    inactiveDescription: 'Game lines and matchup context return in season.',
   },
   {
     key: 'SOCCER',
     flag: 'dashboard_soccer',
     visibilityFlag: 'dashboard_tab_soccer',
     status: 'Offseason',
-    description: 'Follow soccer game lines for supported leagues when US sportsbooks post them.',
+    description: 'Soccer lines, league context, and team form.',
     inactiveTitle: 'Soccer Markets Unavailable',
-    inactiveDescription: 'Supported soccer game lines appear when US sportsbooks have active markets for the selected leagues.',
+    inactiveDescription: 'Game lines appear when league markets are active.',
   },
 ]
 
@@ -1046,9 +1046,7 @@ export default function DashboardScreen() {
       <View style={styles.boardIntro}>
         <AppText variant="eyebrow">// Live Board</AppText>
         <AppText variant="title" style={styles.title}>Dashboard</AppText>
-        <AppText variant="muted" style={styles.copy}>
-        Live odds, props, weather, and betting intelligence across the sports KingFish supports.
-        </AppText>
+        <AppText variant="muted" style={styles.copy}>Live boards by sport.</AppText>
       </View>
 
       <View style={styles.row}>
@@ -1218,16 +1216,16 @@ export default function DashboardScreen() {
             ? (view === 'league' ? 'League View' : view === 'matchups' ? 'Game Matchups' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
             : selectedSport.inactiveTitle}
         </AppText>
-        <AppText variant="muted">
-          {isSelectedSportActive && sport === 'SOCCER'
-            ? `${selectedSoccerLeague.label} game lines and team context when supported markets are available.`
+          <AppText variant="muted">
+            {isSelectedSportActive && sport === 'SOCCER'
+            ? `${selectedSoccerLeague.label} lines and team context.`
             : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
         </AppText>
         {!isSelectedSportActive && (
           <View style={styles.roadmapBox}>
             <AppText variant="eyebrow">// Season Watch</AppText>
             <AppText variant="muted" style={styles.roadmapText}>
-              Check back here when supported markets are available.
+              Check back when markets are active.
             </AppText>
           </View>
         )}
@@ -1736,7 +1734,7 @@ export default function DashboardScreen() {
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">NFL matchup context appears after sportsbooks post the next slate.</AppText>
+              <AppText variant="muted">Matchups appear when the next slate is active.</AppText>
             </Card>
           )}
 
@@ -1782,8 +1780,8 @@ export default function DashboardScreen() {
                   { label: 'Depth', value: homeDepth.length ? homeDepth.join(' · ') : '-' },
                 ]
                 const note = favorite === 'Pending'
-                  ? 'Schedule is loaded. Market context appears here when sportsbooks post moneyline, spread, or total prices.'
-                  : `${favorite} is the current market favorite (${marketDetail}). Use the Game Lines tab to compare that edge against the best available price.`
+                  ? 'Market pending.'
+                  : `Market favorite: ${favorite} (${marketDetail}).`
 
                 return (
                   <Card key={game.id}>
@@ -1968,8 +1966,8 @@ export default function DashboardScreen() {
           <View style={styles.dataNote}>
             <AppText variant="mono">
               {sport === 'KBO' && kboTeams.length
-                ? `Live KBO lines with ${kboTeams.length} team records loaded for context`
-                : 'Live lines refresh throughout the day · best available odds are highlighted in gold'}
+                ? `${kboTeams.length} team records loaded`
+                : 'Best price highlighted in gold'}
             </AppText>
           </View>
           {lineQuery.isLoading && (
@@ -2127,7 +2125,7 @@ export default function DashboardScreen() {
             <Card>
               <AppText variant="eyebrow">// Team Stats</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Team Stats Yet</AppText>
-              <AppText variant="muted">KBO team context will appear when standings are available.</AppText>
+              <AppText variant="muted">Team context appears when standings are available.</AppText>
             </Card>
           )}
 
@@ -2178,7 +2176,7 @@ export default function DashboardScreen() {
           <Card>
             <AppText variant="eyebrow">// Player Props</AppText>
             <AppText variant="muted">
-              {sport} player props will appear here when supported books post regular-season markets.
+              {sport} props appear when markets are active.
             </AppText>
           </Card>
         </View>
@@ -2187,7 +2185,7 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'matchups' && sport === 'NCAAF' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Cached matchup context from the latest NCAAF odds board</AppText>
+            <AppText variant="mono">Latest NCAAF matchup context</AppText>
           </View>
 
           {ncaafMatchupsQuery.isLoading && (
@@ -2208,9 +2206,7 @@ export default function DashboardScreen() {
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">
-                NCAAF matchup context appears after sportsbooks post the next slate. Use League View for 2025 team baselines until Week 1 markets arrive.
-              </AppText>
+              <AppText variant="muted">Matchups appear when the next slate is active.</AppText>
             </Card>
           )}
 
@@ -2255,7 +2251,7 @@ export default function DashboardScreen() {
                       ? `${homeShort} carries a 2025 AP Top 25 baseline at #${homeRank}.`
                       : 'No 2025 AP Top 25 baseline is available for either team.'
                 const note = favorite === 'Pending'
-                  ? `${baselineDetail} Market context appears when sportsbooks post the Week 1 board.`
+                  ? baselineDetail
                   : baselineLeader
                     ? `${baselineDetail} ${favorite} is the market favorite (${marketDetail}); compare that price against the ${baselineLeader} baseline before treating it as an edge.`
                     : `${baselineDetail} ${favorite} is the market favorite (${marketDetail}); use the Game Lines tab to compare books.`
@@ -2301,7 +2297,7 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'matchups' && sport === 'NCAAB' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Cached matchup context from the latest NCAAB odds board</AppText>
+            <AppText variant="mono">Latest NCAAB matchup context</AppText>
           </View>
 
           {ncaabMatchupsQuery.isLoading && (
@@ -2322,7 +2318,7 @@ export default function DashboardScreen() {
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">NCAAB matchup context appears after sportsbooks post the next slate or when the selected conference has a posted game.</AppText>
+              <AppText variant="muted">Matchups appear when the next slate is active.</AppText>
             </Card>
           )}
 
@@ -2363,10 +2359,7 @@ export default function DashboardScreen() {
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Team Stats</AppText>
-            <AppText variant="muted">
-              College sports will focus on team stats and matchup context, including points for,
-              points against, pace, form, and team trends.
-            </AppText>
+            <AppText variant="muted">Team stats and matchup context.</AppText>
           </Card>
         </View>
       )}
@@ -2396,7 +2389,7 @@ export default function DashboardScreen() {
               <AppText variant="eyebrow">// Team Info</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Team Table Yet</AppText>
               <AppText variant="muted">
-                Team records and goal context will appear here when standings are available for {selectedSoccerLeague.label}.
+                Team records and goal context appear here for {selectedSoccerLeague.label}.
               </AppText>
             </Card>
           )}
@@ -2441,7 +2434,7 @@ export default function DashboardScreen() {
         <Card>
           <AppText variant="eyebrow">// More Research</AppText>
           <AppText variant="muted" style={styles.roadmapText}>
-            Go deeper with futures, injuries, fantasy context, depth charts, and team research in the NFL Command Center.
+            Futures, injuries, fantasy, depth charts, and team research.
           </AppText>
           <View style={styles.upgradeAction}>
             <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>

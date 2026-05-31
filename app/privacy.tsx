@@ -1,4 +1,4 @@
-import { Linking, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -71,7 +71,7 @@ export default function PrivacyScreen() {
 
       <Button variant="secondary" onPress={() => router.push('/terms')}>Terms of Service</Button>
       <View style={styles.gap} />
-      <Button variant="outline" onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>Contact Support</Button>
+      <Button variant="outline" onPress={() => router.push('/support')}>Contact Support</Button>
       <View style={styles.gap} />
       <Button variant="outline" onPress={() => router.back()}>Back</Button>
     </Screen>

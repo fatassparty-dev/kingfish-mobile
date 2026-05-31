@@ -17,6 +17,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const PUBLIC_ROUTES = new Set(['help', 'privacy', 'support', 'terms'])
 
 function isInvalidRefreshToken(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')
@@ -109,7 +110,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (loading) return
 
     const inAuthGroup = segments[0] === '(auth)'
-    if (!session && !inAuthGroup) {
+    const isPublicRoute = PUBLIC_ROUTES.has(String(segments[0] || ''))
+    if (!session && !inAuthGroup && !isPublicRoute) {
       router.replace('/sign-in')
     } else if (session && inAuthGroup) {
       router.replace('/home')

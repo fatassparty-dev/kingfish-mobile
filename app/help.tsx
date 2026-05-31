@@ -180,7 +180,7 @@ export default function HelpScreen() {
                 For account help or anything that looks off, send support a note from inside the app.
               </AppText>
               <View style={styles.buttonGap}>
-                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+                <Button variant="secondary" onPress={() => router.push('/support')}>
                   Contact Support
                 </Button>
               </View>
@@ -197,7 +197,7 @@ export default function HelpScreen() {
                 Problem gambling helpline: 1-800-522-4700
               </AppText>
               <View style={styles.buttonGap}>
-                <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+                <Button variant="secondary" onPress={() => router.push('/support')}>
                   Contact Support
                 </Button>
               </View>

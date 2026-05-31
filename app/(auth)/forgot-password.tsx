@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
-import { Link } from 'expo-router'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen() {
             <AppText style={styles.link}>Back to sign in</AppText>
           </Pressable>
         </Link>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.support_email)}>
+        <Pressable onPress={() => router.push('/support')}>
           <AppText style={styles.supportLink}>Contact support</AppText>
         </Pressable>
       </View>

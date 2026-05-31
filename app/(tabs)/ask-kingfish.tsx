@@ -28,7 +28,7 @@ const FREE_DAILY_LIMIT = 3
 
 const STARTERS = [
   'Who has the best hit prop today?',
-  'Any HR picks worth a look?',
+  'Any HR props worth a look?',
   'What are the strongest looks today?',
 ]
 

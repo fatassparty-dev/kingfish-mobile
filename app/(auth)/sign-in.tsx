@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Image, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -80,7 +80,7 @@ export default function SignInScreen() {
         <Pressable onPress={() => router.push('/privacy')}>
           <AppText style={styles.legalLink}>Privacy</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL('mailto:support@kingfishbets.com')}>
+        <Pressable onPress={() => router.push('/support')}>
           <AppText style={styles.legalLink}>Support</AppText>
         </Pressable>
       </View>
