@@ -1091,10 +1091,10 @@ export default function DashboardScreen() {
       <View style={styles.boardIntro}>
         <AppText variant="eyebrow">// Live Board</AppText>
         <AppText variant="title" style={styles.title}>Dashboard</AppText>
-        <AppText variant="muted" style={styles.copy}>Live boards by sport.</AppText>
+        {view !== 'props' && <AppText variant="muted" style={styles.copy}>Live boards by sport.</AppText>}
       </View>
 
-      <View style={styles.row}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {visibleSports.map((item) => (
           <Pressable
             key={item.key}
@@ -1112,7 +1112,7 @@ export default function DashboardScreen() {
             </View>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       <View style={styles.segment}>
         {dashboardViews.map((item) => (
@@ -1254,27 +1254,29 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      <Card>
-        <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
-        <AppText variant="title" style={styles.cardTitle}>
-          {isSelectedSportActive
-            ? (view === 'league' ? 'League View' : view === 'matchups' ? 'Game Matchups' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
-            : selectedSport.inactiveTitle}
-        </AppText>
-          <AppText variant="muted">
-            {isSelectedSportActive && sport === 'SOCCER'
-            ? `${selectedSoccerLeague.label} lines and team context.`
-            : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
-        </AppText>
-        {!isSelectedSportActive && (
-          <View style={styles.roadmapBox}>
-            <AppText variant="eyebrow">// Season Watch</AppText>
-            <AppText variant="muted" style={styles.roadmapText}>
-              Check back when markets are active.
-            </AppText>
-          </View>
-        )}
-    </Card>
+      {view !== 'props' && (
+        <Card>
+          <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
+          <AppText variant="title" style={styles.cardTitle}>
+            {isSelectedSportActive
+              ? (view === 'league' ? 'League View' : view === 'matchups' ? 'Game Matchups' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
+              : selectedSport.inactiveTitle}
+          </AppText>
+            <AppText variant="muted">
+              {isSelectedSportActive && sport === 'SOCCER'
+              ? `${selectedSoccerLeague.label} lines and team context.`
+              : isSelectedSportActive ? selectedSport.description : selectedSport.inactiveDescription}
+          </AppText>
+          {!isSelectedSportActive && (
+            <View style={styles.roadmapBox}>
+              <AppText variant="eyebrow">// Season Watch</AppText>
+              <AppText variant="muted" style={styles.roadmapText}>
+                Check back when markets are active.
+              </AppText>
+            </View>
+          )}
+        </Card>
+      )}
 
       {isSelectedSportActive && view === 'league' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') && (
         <View style={styles.liveSection}>
@@ -2129,13 +2131,6 @@ export default function DashboardScreen() {
 
       {canFetchProps && (
         <View style={styles.liveSection}>
-          <View style={styles.dataNote}>
-            <AppText variant="mono">
-              {sport === 'MLB'
-                ? 'Live props with player trends, hit rates, best odds, and Edge Scores'
-                : 'Player props with recent form, hit rates, best odds, and Edge Scores'}
-            </AppText>
-          </View>
           {propsQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -2521,7 +2516,7 @@ function DateDivider({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   boardIntro: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   title: {
     marginTop: 8,
@@ -2532,8 +2527,8 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: spacing.lg,
     marginBottom: spacing.lg,
   },
   pill: {

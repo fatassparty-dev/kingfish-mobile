@@ -68,21 +68,6 @@ interface PlayerRow {
 type SortKey = 'player' | 'line' | 'season' | 'l20' | 'l10' | 'l5' | 'l20hit' | 'l10hit' | 'l5hit' | 'best' | 'book' | 'edge'
 type SortDir = 'asc' | 'desc'
 
-const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
-  { key: 'player', label: 'Player' },
-  { key: 'line', label: 'Line' },
-  { key: 'season', label: 'Season' },
-  { key: 'l20', label: 'L20' },
-  { key: 'l10', label: 'L10' },
-  { key: 'l5', label: 'L5' },
-  { key: 'l20hit', label: 'L20 Hit' },
-  { key: 'l10hit', label: 'L10 Hit' },
-  { key: 'l5hit', label: 'L5 Hit' },
-  { key: 'best', label: 'Best' },
-  { key: 'book', label: 'Book' },
-  { key: 'edge', label: 'Edge' },
-]
-
 const MLB_STATS_BATCH_SIZE = 90
 
 function chunkPlayers(players: LineupPlayer[]) {
@@ -125,10 +110,11 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, odds?:
   const safeLine = Math.max(line || 0, 0.5)
   const composite = (season / safeLine) * 0.5 + ((l10 || season) / safeLine) * 0.3 + ((l5 || season) / safeLine) * 0.2
   const implied = odds && odds > 0 ? 100 / (odds + 100) : odds ? Math.abs(odds) / (Math.abs(odds) + 100) : 0.5
-  const score = Math.round(Math.max(0, Math.min(100, ((composite - 0.65) / 0.85) * 75 + (implied <= 0.52 ? 20 : implied <= 0.6 ? 12 : implied <= 0.7 ? 6 : 0))))
-  if (composite >= 1.4 && implied < 0.65) return { label: 'Strong', color: colors.gold, score }
-  if (composite >= 1.2) return { label: 'Lean', color: colors.green, score }
-  if (composite >= 0.82) return { label: 'Neutral', color: colors.textSecondary, score }
+  const oddsBonus = implied <= 0.52 ? 18 : implied <= 0.6 ? 11 : implied <= 0.7 ? 5 : 0
+  const score = Math.round(Math.max(0, Math.min(100, ((composite - 0.7) / 1.55) * 82 + oddsBonus)))
+  if (score >= 80) return { label: 'Strong', color: colors.gold, score }
+  if (score >= 55) return { label: 'Lean', color: colors.green, score }
+  if (score >= 35) return { label: 'Neutral', color: colors.textSecondary, score }
   return { label: 'Fade', color: colors.red, score }
 }
 
@@ -322,7 +308,6 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
 
   const lineupMap = lineupsQuery.data?.players || {}
   const stats = statsQuery.data || {}
-  const visiblePlayerCount = filteredGames.reduce((total, game) => total + buildRows(game, marketKey, lineupMap, stats, search).length, 0)
 
   return (
     <View style={styles.wrap}>
@@ -345,18 +330,8 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
           onSubmitEditing={() => Keyboard.dismiss()}
           style={styles.search}
         />
-        <Pressable onPress={() => Keyboard.dismiss()} style={styles.doneButton}>
-          <AppText style={styles.doneText}>Done</AppText>
-        </Pressable>
       </View>
-      <View style={styles.searchMeta}>
-        <AppText variant="mono">
-          {search ? `${visiblePlayerCount} matching player${visiblePlayerCount === 1 ? '' : 's'}` : `${visiblePlayerCount} players loaded`}
-        </AppText>
-        {search ? (
-          <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear</AppText>
-        ) : null}
-      </View>
+      {search ? <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear search</AppText> : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
         <Pressable
           onPress={() => setSelectedGame('all')}
@@ -402,8 +377,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
               {[
                 { key: 'edge' as SortKey, label: 'Edge' },
                 { key: 'l10' as SortKey, label: 'L10' },
-                { key: 'l5hit' as SortKey, label: 'L5 Hit' },
-                { key: 'best' as SortKey, label: 'Best' },
+                { key: 'l5' as SortKey, label: 'L5' },
               ].map((item) => (
                 <Pressable key={item.key} onPress={() => toggleSort(item.key)} style={[styles.sortChip, sortKey === item.key && styles.sortChipActive]}>
                   <AppText style={[styles.sortChipText, sortKey === item.key && styles.sortChipTextActive]}>
@@ -412,6 +386,12 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
                 </Pressable>
               ))}
             </ScrollView>
+            <View style={styles.compactHeader}>
+              <AppText variant="eyebrow" style={[styles.compactCell, styles.playerColumn]}>Player</AppText>
+              <AppText variant="eyebrow" style={styles.compactCell}>Line</AppText>
+              <AppText variant="eyebrow" style={styles.compactCell}>L10</AppText>
+              <AppText variant="eyebrow" style={[styles.compactCell, styles.edgeColumn]}>Edge</AppText>
+            </View>
             {rows.map((row) => {
               const season = row.stats?.[`season_${market.statField}`] || 0
               const l10 = row.stats?.[`l10_${market.statField}`] || 0
@@ -430,23 +410,23 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
                   }}
                   style={styles.playerRow}
                 >
-                  <View style={styles.playerMain}>
+                  <View style={[styles.compactCell, styles.playerColumn]}>
                     <AppText style={styles.playerName} numberOfLines={2}>{row.player}</AppText>
-                    <AppText variant="mono" style={styles.propLine}>Over {row.line || '-'} {market.label}</AppText>
-                    <View style={styles.statRail}>
-                      <MiniStat label="SZN" value={fmtRate(season)} color={statColor(season, row.line)} />
-                      <MiniStat label="L10" value={fmtRate(l10)} color={statColor(l10, row.line)} />
-                      <MiniStat label="L5" value={fmtRate(l5)} color={statColor(l5, row.line)} />
-                      <MiniStat label="HIT" value={hitRate(row.stats, market.statField, row.line, 5)} color={colors.textPrimary} />
-                    </View>
+                    <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
+                      {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
+                    </AppText>
                   </View>
-                  <View style={styles.priceRail}>
+                  <View style={styles.compactCell}>
+                    <AppText style={styles.lineValue}>{row.line || '-'}</AppText>
+                    <AppText variant="mono" style={styles.marketName} numberOfLines={1}>{market.label}</AppText>
+                  </View>
+                  <View style={styles.compactCell}>
+                    <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
+                    <AppText variant="mono" style={styles.marketName}>{hitRate(row.stats, market.statField, row.line, 5)}</AppText>
+                  </View>
+                  <View style={[styles.compactCell, styles.edgeColumn]}>
                     <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
                     <AppText style={[styles.edgeLabel, { color: edge.color }]}>{edge.label}</AppText>
-                    <AppText style={styles.best}>{row.bestOdds ? fmtOdds(row.bestOdds) : '-'}</AppText>
-                    <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-                      {row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : '-'}
-                    </AppText>
                   </View>
                 </Pressable>
               )
@@ -472,19 +452,6 @@ function MarketButton({ active, label, onPress }: { active: boolean; label: stri
     <AppText onPress={onPress} style={[styles.marketButton, active && styles.marketButtonActive, active && styles.marketButtonTextActive]}>
       {label}
     </AppText>
-  )
-}
-
-function StatCell({ value, color }: { value: string; color: string }) {
-  return <AppText style={[styles.cell, { color }]}>{value}</AppText>
-}
-
-function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={styles.miniStat}>
-      <AppText variant="mono" style={styles.miniStatLabel}>{label}</AppText>
-      <AppText style={[styles.miniStatValue, { color }]}>{value}</AppText>
-    </View>
   )
 }
 
@@ -515,7 +482,6 @@ const styles = StyleSheet.create({
   },
   searchRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
     alignItems: 'center',
   },
   search: {
@@ -528,26 +494,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingHorizontal: 14,
     fontSize: 15,
-  },
-  doneButton: {
-    minHeight: 50,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(198,145,50,.35)',
-    borderRadius: 10,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: 'rgba(198,145,50,.1)',
-  },
-  doneText: {
-    color: colors.gold,
-    fontWeight: '900',
-  },
-  searchMeta: {
-    minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
   },
   gameFilterRow: {
     gap: spacing.sm,
@@ -597,38 +543,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textTransform: 'uppercase',
   },
-  tableHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: spacing.sm,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  cell: {
-    width: 78,
-    color: colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '800',
-    paddingRight: spacing.sm,
-  },
-  playerCell: {
-    width: 118,
-  },
   playerName: {
-    fontSize: 12,
+    fontSize: 14,
     textTransform: 'uppercase',
     color: colors.gold,
+    fontWeight: '900',
   },
   sortedCell: {
-    color: colors.gold,
-  },
-  best: {
     color: colors.gold,
   },
   sortRail: {
@@ -656,52 +577,48 @@ const styles = StyleSheet.create({
   sortChipTextActive: {
     color: colors.gold,
   },
+  compactHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
+  },
   playerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingVertical: spacing.md,
   },
-  playerMain: {
+  compactCell: {
+    width: 72,
+    paddingRight: spacing.sm,
+  },
+  playerColumn: {
     flex: 1,
     minWidth: 0,
   },
-  propLine: {
-    marginTop: 4,
-    color: colors.textSecondary,
+  edgeColumn: {
+    width: 70,
+    alignItems: 'flex-end',
+    paddingRight: 0,
   },
-  statRail: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  miniStat: {
-    minWidth: 54,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    backgroundColor: colors.bgCard,
-  },
-  miniStatLabel: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  miniStatValue: {
-    marginTop: 2,
-    fontSize: 13,
+  lineValue: {
+    color: colors.textPrimary,
+    fontSize: 16,
     fontWeight: '900',
   },
-  priceRail: {
-    width: 88,
-    alignItems: 'flex-end',
+  statValue: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  marketName: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 10,
   },
   edgeScore: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
   },
   edgeLabel: {
@@ -712,6 +629,5 @@ const styles = StyleSheet.create({
   bookName: {
     marginTop: 4,
     color: colors.textSecondary,
-    textAlign: 'right',
   },
 })
