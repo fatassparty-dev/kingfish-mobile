@@ -759,6 +759,15 @@ function soccerPower(team: SoccerTeamInfo | undefined) {
   return 35 + (ppg * 12) + (gdPerGame * 8) + (scoringRate * 3) - (againstRate * 2) + tableBonus
 }
 
+function findSoccerTeam(teams: SoccerTeamInfo[] = [], teamName: string) {
+  const normalized = normalizeTeamKey(teamName)
+  const lastWord = normalizeTeamKey(teamName.split(' ').pop() || teamName)
+  return teams.find((team) => {
+    const candidates = [team.team, team.shortName].map((value) => normalizeTeamKey(value || ''))
+    return candidates.some((candidate) => candidate && (candidate === normalized || normalized.includes(candidate) || candidate.includes(lastWord)))
+  })
+}
+
 function bestMoneylineFor(game: Game, side: 'away' | 'home' | 'draw') {
   const target = side === 'away' ? game.away_team : side === 'home' ? game.home_team : 'Draw'
   const options: Array<{ book: string; price: number }> = []
@@ -964,7 +973,7 @@ export default function DashboardScreen() {
   const soccerTeamQuery = useQuery({
     queryKey: ['soccer-team-info', soccerLeague],
     queryFn: () => kingfishFetch<{ teams: SoccerTeamInfo[]; updated_at?: string | null }>(`/api/soccer-team-info?league=${soccerLeague}`),
-    enabled: isSelectedSportActive && sport === 'SOCCER' && view === 'league',
+    enabled: isSelectedSportActive && sport === 'SOCCER' && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 24 * 60 * 60 * 1000,
   })
   const kboTeamQuery = useQuery({
@@ -2077,6 +2086,10 @@ export default function DashboardScreen() {
                   nflContext={sport === 'NFL' ? {
                     teamAbbrMap: NFL_TEAM_ABBR,
                     teamStatsMap: nflTeamStatsMap(nflCommandQuery.data),
+                  } : undefined}
+                  soccerContext={sport === 'SOCCER' ? {
+                    awayInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.away_team),
+                    homeInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.home_team),
                   } : undefined}
                   showNeutralTotalWatch={sport !== 'NFL'}
                 />

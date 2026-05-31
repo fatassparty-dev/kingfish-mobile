@@ -210,10 +210,21 @@ interface FactorRow {
   venue: string
   environment: string
   weather: string
+  official: string
   score: number
   lean: string
   tone: string
   tags: string[]
+}
+
+type FactorOfficial = {
+  name?: string
+  role?: string
+  impact?: 'boost' | 'suppress' | 'neutral' | string
+}
+
+type MLBL10Payload = {
+  teamL10Map?: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }>
 }
 
 interface TdStreakRow {
@@ -429,13 +440,69 @@ function weatherFactor(weather: any, sport: FactorSport) {
   return { delta, label: label || 'Weather neutral', tags: tags.length ? tags : ['Weather neutral'] }
 }
 
+function officialFactor(sport: FactorSport, official?: FactorOfficial) {
+  if (official?.name) {
+    const delta = official.impact === 'boost' ? 5 : official.impact === 'suppress' ? -5 : 0
+    return {
+      delta,
+      label: official.name,
+      tag: official.role ? `${official.role}: ${official.name}` : official.name,
+    }
+  }
+
+  return {
+    delta: 0,
+    label: sport === 'MLB' ? 'Umpire pending' : 'Ref crew pending',
+    tag: sport === 'MLB' ? 'Umpire pending' : 'Ref crew pending',
+  }
+}
+
+function gameContextFactor(game: Game, sport: FactorSport) {
+  if (sport !== 'MLB') return { delta: 0, tags: [] as string[] }
+
+  let delta = 0
+  const tags: string[] = []
+  const status = `${(game as any).status || ''} ${(game as any).statusReason || ''}`.toLowerCase()
+
+  if (String((game as any).dayNight || '').toLowerCase() === 'day') {
+    delta -= 2
+    tags.push('Day game')
+  }
+
+  if ((game as any).doubleHeader && (game as any).doubleHeader !== 'N') {
+    delta -= 3
+    tags.push('Doubleheader risk')
+  }
+
+  if ((game as any).gameNumber && Number((game as any).gameNumber) > 1) {
+    tags.push(`Game ${(game as any).gameNumber}`)
+  }
+
+  if (status.includes('delay') || status.includes('postpon') || status.includes('suspend')) {
+    delta -= 7
+    tags.push('Delay risk')
+  }
+
+  if ((game as any).neutralSite) {
+    delta -= 2
+    tags.push('Neutral site')
+  }
+
+  return { delta, tags }
+}
+
 function factorTone(score: number) {
   if (score >= 72) return { tone: colors.green, lean: 'Boost' }
   if (score <= 43) return { tone: colors.red, lean: 'Suppress' }
   return { tone: colors.gold, lean: 'Watch' }
 }
 
-function buildFactorRows(games: Game[] = [], weatherData: Record<string, any> = {}, sport: FactorSport) {
+function buildFactorRows(
+  games: Game[] = [],
+  weatherData: Record<string, any> = {},
+  sport: FactorSport,
+  officialData: Record<string, FactorOfficial> = {},
+) {
   return games
     .filter((game) => new Date(game.commence_time).getTime() > Date.now() - 3 * 60 * 60 * 1000)
     .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
@@ -443,7 +510,9 @@ function buildFactorRows(games: Game[] = [], weatherData: Record<string, any> = 
       const id = game.id || game.game_id || `${game.away_team}-${game.home_team}`
       const baseline = factorBaseline(game.home_team, sport)
       const weather = weatherFactor(weatherData[id], sport)
-      const score = Math.max(1, Math.min(100, Math.round(baseline.score + weather.delta)))
+      const official = officialFactor(sport, officialData[id])
+      const context = gameContextFactor(game, sport)
+      const score = Math.max(1, Math.min(100, Math.round(baseline.score + weather.delta + official.delta + context.delta)))
       const tone = factorTone(score)
       return {
         id,
@@ -452,10 +521,11 @@ function buildFactorRows(games: Game[] = [], weatherData: Record<string, any> = 
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
         environment: baseline.environment,
         weather: weather.label,
+        official: official.label,
         score,
         lean: tone.lean,
         tone: tone.tone,
-        tags: [baseline.market, ...weather.tags],
+        tags: [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags],
       }
     })
 }
@@ -1263,8 +1333,17 @@ export default function CheatSheetsScreen() {
       pitcherMap?: Record<string, string>
       pitcherNameMap?: Record<string, string>
       pitcherIdNameMap?: Record<string, string>
+      pitcherEraMap?: Record<string, number>
+      teamRecords?: Record<string, { wins: number; losses: number; pct: number }>
     }>('/api/mlb-schedule'),
-    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits'),
+    enabled: canLoadMlbSheetData && (activeKey === 'bvp' || activeKey === 'hits' || activeKey === 'lines'),
+    staleTime: activeKey === 'lines' ? 5 * 60 * 1000 : 60 * 60 * 1000,
+  })
+
+  const mlbL10Query = useQuery({
+    queryKey: ['mlb-team-l10-cheat-sheets'],
+    queryFn: () => kingfishFetch<MLBL10Payload>('/api/mlb-team-l10'),
+    enabled: canLoadMlbSheetData && activeKey === 'lines',
     staleTime: 60 * 60 * 1000,
   })
 
@@ -1403,6 +1482,18 @@ export default function CheatSheetsScreen() {
     staleTime: 60 * 60 * 1000,
   })
 
+  const factorOfficialQuery = useQuery({
+    queryKey: ['mobile-game-factors-officials', factorGames.map((game: Game) => game.id || game.game_id).join(',')],
+    queryFn: () =>
+      kingfishFetch<Record<string, FactorOfficial>>('/api/mlb-officials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ games: factorGames }),
+      }),
+    enabled: canLoadFactors && factorSport === 'MLB' && factorGames.length > 0,
+    staleTime: 60 * 60 * 1000,
+  })
+
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
     ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups)
     : []
@@ -1410,7 +1501,9 @@ export default function CheatSheetsScreen() {
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
   const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
   const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
-  const factorRows = toolMode === 'factors' ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport) : []
+  const factorRows = toolMode === 'factors'
+    ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport, factorOfficialQuery.data)
+    : []
   const shareText = useMemo(
     () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows),
     [activeKey, activeSheet, bvpRows, qbTdRows, rows, tdStreakRows],
@@ -1628,6 +1721,7 @@ export default function CheatSheetsScreen() {
                 <View style={styles.factorMetaGrid}>
                   <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
                   <FactorMeta label="Weather" value={row.weather} />
+                  {factorSport === 'MLB' && <FactorMeta label="Umpire" value={row.official} />}
                 </View>
                 <View style={styles.factorTags}>
                   {row.tags.map((tag) => (
@@ -1846,7 +1940,14 @@ export default function CheatSheetsScreen() {
                 <GameLineCard
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
+                  sport="MLB"
                   weather={weatherQuery.data?.[game.id || game.game_id || '']}
+                  mlbContext={{
+                    teamAbbrMap: TEAM_NAME_TO_ABBR,
+                    records: scheduleQuery.data?.teamRecords,
+                    l10Map: mlbL10Query.data?.teamL10Map,
+                    pitcherEraMap: scheduleQuery.data?.pitcherEraMap,
+                  }}
                 />
               ))}
             </View>

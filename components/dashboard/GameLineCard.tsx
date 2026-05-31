@@ -23,6 +23,11 @@ type NflLineContext = {
   teamStatsMap?: Record<string, { powerScore?: number }>
 }
 
+type SoccerLineContext = {
+  awayInfo?: Record<string, any>
+  homeInfo?: Record<string, any>
+}
+
 type LeanResult = {
   label: string
   detail: string
@@ -478,6 +483,137 @@ function nflMoneylineLean(
   }
 }
 
+function soccerPlayed(team: Record<string, any> | undefined) {
+  return Number(team?.played || 0)
+}
+
+function soccerPointsPerGame(team: Record<string, any> | undefined) {
+  const played = soccerPlayed(team)
+  return played ? Number(team?.points || 0) / played : 0
+}
+
+function soccerDrawRate(team: Record<string, any> | undefined) {
+  const played = soccerPlayed(team)
+  return played ? Number(team?.drawn || 0) / played : 0
+}
+
+function soccerRecentDraws(team: Record<string, any> | undefined) {
+  return String(team?.form || '').toUpperCase().split('').filter((result) => result === 'D').length
+}
+
+function soccerGoalsForPerGame(team: Record<string, any> | undefined) {
+  const played = soccerPlayed(team)
+  return played ? Number(team?.goalsFor || 0) / played : 0
+}
+
+function soccerPowerScore(team: Record<string, any> | undefined) {
+  if (!team?.played) return 50
+  const played = Number(team.played || 1)
+  const ppg = soccerPointsPerGame(team)
+  const gdPerGame = Number(team.goalDifference || 0) / played
+  const scoringRate = soccerGoalsForPerGame(team)
+  const againstRate = Number(team.goalsAgainst || 0) / played
+  const tableBonus = Math.max(0, 22 - Number(team.position || 20)) * 1.1
+  return 35 + (ppg * 12) + (gdPerGame * 8) + (scoringRate * 3) - (againstRate * 2) + tableBonus
+}
+
+function soccerMoneylineLean(
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  drawMoneyline: { book: string; price: number } | null,
+  context?: SoccerLineContext,
+): LeanResult | null {
+  const awayInfo = context?.awayInfo
+  const homeInfo = context?.homeInfo
+  if (!awayInfo || !homeInfo) return null
+  const awayPower = soccerPowerScore(awayInfo)
+  const homePower = soccerPowerScore(homeInfo) + 3
+  const diff = homePower - awayPower
+  const ppgGap = Math.abs(soccerPointsPerGame(homeInfo) - soccerPointsPerGame(awayInfo))
+  const drawProfile =
+    (soccerRecentDraws(awayInfo) > 0 && soccerRecentDraws(homeInfo) > 0) ||
+    (soccerDrawRate(awayInfo) >= 0.24 && soccerDrawRate(homeInfo) >= 0.24) ||
+    ((soccerDrawRate(awayInfo) + soccerDrawRate(homeInfo)) / 2 >= 0.28)
+  const isDrawWatch = (Math.abs(diff) < 5 || ppgGap <= 0.15) && drawProfile
+  const stronger = diff > 0 ? homeInfo : awayInfo
+  const weaker = diff > 0 ? awayInfo : homeInfo
+  const side = isDrawWatch ? 'Draw' : String(stronger.shortName || stronger.team || (diff > 0 ? game.home_team : game.away_team))
+  const best = isDrawWatch ? drawMoneyline : diff > 0 ? homeMoneyline : awayMoneyline
+  const ppgEdge = (soccerPointsPerGame(stronger) - soccerPointsPerGame(weaker)).toFixed(2)
+  const gdEdge = Number(stronger.goalDifference || 0) - Number(weaker.goalDifference || 0)
+  return {
+    label: side,
+    detail: isDrawWatch
+      ? `${ppgGap.toFixed(2)} points/game gap with a draw profile on both sides.`
+      : `${ppgEdge} points/game edge and ${gdEdge >= 0 ? '+' : ''}${gdEdge} goal-difference edge.`,
+    price: best?.price,
+    book: best?.book,
+    type: isDrawWatch ? 'Draw Lean' : Math.abs(diff) >= 10 ? 'Strong Lean' : 'Lean',
+  }
+}
+
+function soccerTotalLean(
+  postedTotal: number | undefined,
+  bestOver: { book: string; price: number } | null,
+  bestUnder: { book: string; price: number } | null,
+  context?: SoccerLineContext,
+): LeanResult | null {
+  const awayInfo = context?.awayInfo
+  const homeInfo = context?.homeInfo
+  if (!soccerPlayed(awayInfo) || !soccerPlayed(homeInfo) || !postedTotal) return null
+  const awayAttack = Number(awayInfo?.goalsFor || 0) / Number(awayInfo?.played || 1)
+  const awayConcede = Number(awayInfo?.goalsAgainst || 0) / Number(awayInfo?.played || 1)
+  const homeAttack = Number(homeInfo?.goalsFor || 0) / Number(homeInfo?.played || 1)
+  const homeConcede = Number(homeInfo?.goalsAgainst || 0) / Number(homeInfo?.played || 1)
+  const projection = Math.max(1.2, Math.min(4.8, ((awayAttack + homeConcede) / 2) + ((homeAttack + awayConcede) / 2)))
+  const diff = projection - postedTotal
+  const leanOver = diff >= 0
+  const best = leanOver ? bestOver : bestUnder
+  return {
+    label: Math.abs(diff) >= 0.25 ? `${leanOver ? 'Over' : 'Under'} ${postedTotal}` : `Near ${postedTotal}`,
+    detail: `${projection.toFixed(1)} projected from goals for/against rates.`,
+    price: best?.price,
+    book: best?.book,
+    type: Math.abs(diff) >= 0.6 ? 'Strong Total Lean' : Math.abs(diff) >= 0.25 ? 'Total Lean' : 'Total Watch',
+  }
+}
+
+function soccerBttsLean(
+  bestAwayMoneyline: { book: string; price: number } | null,
+  bestDrawMoneyline: { book: string; price: number } | null,
+  bestHomeMoneyline: { book: string; price: number } | null,
+  bestYes: { book: string; price: number } | null,
+  bestNo: { book: string; price: number } | null,
+  context?: SoccerLineContext,
+): LeanResult | null {
+  const awayInfo = context?.awayInfo
+  const homeInfo = context?.homeInfo
+  if (!soccerPlayed(awayInfo) || !soccerPlayed(homeInfo)) return null
+  const awayScoring = soccerGoalsForPerGame(awayInfo)
+  const homeScoring = soccerGoalsForPerGame(homeInfo)
+  const awayConceding = Number(awayInfo?.goalsAgainst || 0) / Number(awayInfo?.played || 1)
+  const homeConceding = Number(homeInfo?.goalsAgainst || 0) / Number(homeInfo?.played || 1)
+  const allMoneylinePlus = Boolean(bestAwayMoneyline && bestDrawMoneyline && bestHomeMoneyline) &&
+    [bestAwayMoneyline, bestDrawMoneyline, bestHomeMoneyline].every((line) => Number(line?.price) > 0)
+  const combinedScoring = awayScoring + homeScoring
+  const isYes = awayScoring >= 1 && homeScoring >= 1 && (
+    (allMoneylinePlus && combinedScoring >= 2.3) ||
+    combinedScoring >= 2.9 ||
+    (combinedScoring >= 2.5 && awayConceding >= 1.4 && homeConceding >= 1.4)
+  )
+  const best = isYes ? bestYes : bestNo
+  return {
+    label: `BTTS: ${isYes ? 'Yes' : 'No'}`,
+    detail: isYes
+      ? 'BTTS profile clears scoring, market, or defensive pressure filters.'
+      : 'BTTS profile does not clear scoring, market, or defensive pressure filters.',
+    price: best?.price,
+    book: best?.book,
+    type: 'BTTS Lean',
+  }
+}
+
 function bestSpread(bookmakers: Bookmaker[], team: string) {
   let best: { price: number; point?: number; book: string } | null = null
 
@@ -507,6 +643,7 @@ export function GameLineCard({
   mlbContext,
   teamFormContext,
   nflContext,
+  soccerContext,
 }: {
   game: Game
   weather?: WeatherInfo
@@ -515,6 +652,7 @@ export function GameLineCard({
   mlbContext?: MlbLineContext
   teamFormContext?: TeamFormLineContext
   nflContext?: NflLineContext
+  soccerContext?: SoccerLineContext
 }) {
   const bookmakers = supportedBookmakers(game.bookmakers)
   const totalMarket = getMarket(bookmakers, 'totals')
@@ -532,14 +670,19 @@ export function GameLineCard({
     ? mlbMoneylineLean(game, awayBest, homeBest, mlbContext)
     : sport === 'NFL'
       ? nflMoneylineLean(game, awayBest, homeBest, nflContext)
+    : sport === 'SOCCER'
+      ? soccerMoneylineLean(game, awayBest, homeBest, drawBest, soccerContext)
     : usesTeamFormLean
       ? teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext)
     : consensusMoneylineLean(bookmakers, game)
   const totalLean = sport === 'MLB'
     ? mlbTotalLean(game, over, under, bookmakers, mlbContext)
+    : sport === 'SOCCER'
+      ? soccerTotalLean(over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), soccerContext)
     : usesTeamFormLean
       ? teamFormTotalLean(sport, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), teamFormContext)
     : consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
+  const bttsLean = sport === 'SOCCER' ? soccerBttsLean(awayBest, drawBest, homeBest, bttsYes, bttsNo, soccerContext) : null
   const moneylineLeanLabel = moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
   const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
 
@@ -602,6 +745,7 @@ export function GameLineCard({
       {(bttsYes || bttsNo) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Both Teams To Score</AppText>
+          {bttsLean && <LeanBox label={`KingFish ${bttsLean.type}`} lean={bttsLean} compact />}
           <View style={styles.totalRow}>
             {bttsYes && <AppText style={styles.totalText}>Yes {fmtOdds(bttsYes.price)}</AppText>}
             {bttsNo && <AppText style={styles.totalText}>No {fmtOdds(bttsNo.price)}</AppText>}
