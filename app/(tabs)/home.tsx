@@ -84,7 +84,7 @@ export default function HomeScreen() {
             />
             <HomeAction
               label="Tools"
-              body="Cheat sheets, calculators, and game factors."
+              body="Cheat sheets, NFL Fantasy Hub, calculators, and game factors."
               onPress={() => router.push('/cheat-sheets')}
             />
             <HomeAction
