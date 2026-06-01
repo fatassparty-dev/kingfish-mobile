@@ -152,14 +152,14 @@ const NFL_MARKET_GROUPS: Array<{ key: NflMarketGroup; label: string }> = [
   { key: 'passing', label: 'Passing' },
   { key: 'rushing', label: 'Rushing' },
   { key: 'receiving', label: 'Receiving' },
-  { key: 'touchdowns', label: 'TDs' },
+  { key: 'touchdowns', label: 'TD Props' },
   { key: 'kicking', label: 'Kicking' },
   { key: 'defense', label: 'Defense' },
 ]
 
 const NFL_MARKET_GROUP_BY_BASE: Record<string, NflMarketGroup> = {
   player_pass_yds: 'passing',
-  player_pass_tds: 'passing',
+  player_pass_tds: 'touchdowns',
   player_pass_attempts: 'passing',
   player_pass_completions: 'passing',
   player_pass_interceptions: 'passing',
@@ -189,6 +189,7 @@ const NFL_MARKET_GROUP_BY_BASE: Record<string, NflMarketGroup> = {
 }
 
 const NFL_TD_MARKETS = new Set(['player_anytime_td', 'player_1st_td', 'player_last_td', 'player_tds_over'])
+const NFL_TOUCHDOWN_MARKET_ORDER = ['player_pass_tds', 'player_anytime_td', 'player_tds_over', 'player_1st_td', 'player_last_td']
 
 interface FlattenedProp {
   game: Game
@@ -233,10 +234,10 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
   player_receptions: 'receptions_per_game',
   player_reception_yds: 'receiving_yards_per_game',
   player_reception_tds: 'receiving_tds_per_game',
-  player_anytime_td: 'total_tds_per_game',
-  player_tds_over: 'total_tds_per_game',
-  player_1st_td: 'total_tds_per_game',
-  player_last_td: 'total_tds_per_game',
+  player_anytime_td: 'rush_reception_tds_per_game',
+  player_tds_over: 'rush_reception_tds_per_game',
+  player_1st_td: 'rush_reception_tds_per_game',
+  player_last_td: 'rush_reception_tds_per_game',
   player_field_goals: 'field_goals_made_per_game',
   player_kicking_points: 'kicking_points_per_game',
   player_pats: 'extra_points_made_per_game',
@@ -265,6 +266,15 @@ function nflMarketGroup(marketKey: string) {
 function standardMarketLabel(marketKey: string) {
   const label = marketLabel(marketKey)
   return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
+}
+
+function sortNflVisibleMarkets(markets: string[], group: NflMarketGroup) {
+  if (group !== 'touchdowns') return markets
+  return [...markets].sort((a, b) => {
+    const aIndex = NFL_TOUCHDOWN_MARKET_ORDER.indexOf(baseMarketKey(a))
+    const bIndex = NFL_TOUCHDOWN_MARKET_ORDER.indexOf(baseMarketKey(b))
+    return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex)
+  })
 }
 
 function compactPropLabel(marketKey: string, sport: Sport) {
@@ -595,7 +605,10 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
     : availableNflGroups[0]?.key || nflGroup
   const visibleMarkets = useMemo(() => {
     if (sport !== 'NFL') return markets
-    return markets.filter((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === activeNflGroup)
+    return sortNflVisibleMarkets(
+      markets.filter((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === activeNflGroup),
+      activeNflGroup,
+    )
   }, [markets, activeNflGroup, sport])
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
   const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
@@ -679,18 +692,21 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   return (
     <View style={styles.list}>
       {sport === 'NFL' ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
             {availableNflGroups.map((group) => (
               <Pressable
                 key={group.key}
                 onPress={() => setNflGroup(group.key)}
-                style={[styles.marketButton, styles.nflMarketButton, activeNflGroup === group.key && styles.marketButtonActive]}
+                style={[styles.marketButton, styles.nflMarketButton, styles.groupMarketButton, activeNflGroup === group.key && styles.groupMarketButtonActive]}
               >
-                <AppText style={[styles.marketText, activeNflGroup === group.key && styles.marketTextActive]}>
+                <AppText style={[styles.marketText, activeNflGroup === group.key && styles.groupMarketTextActive]}>
                   {group.label}
                 </AppText>
               </Pressable>
             ))}
+          </ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
             {visibleMarkets.map((marketKey) => (
               <Pressable
                 key={marketKey}
@@ -702,7 +718,8 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
                 </AppText>
               </Pressable>
             ))}
-        </ScrollView>
+          </ScrollView>
+        </>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
           {visibleMarkets.map((marketKey) => (
@@ -1221,6 +1238,13 @@ const styles = StyleSheet.create({
   nflMarketButton: {
     minWidth: 86,
   },
+  groupMarketButton: {
+    backgroundColor: colors.bgCard,
+  },
+  groupMarketButtonActive: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(198,145,50,.16)',
+  },
   marketButtonActive: {
     borderColor: colors.gold,
     backgroundColor: colors.gold,
@@ -1233,6 +1257,9 @@ const styles = StyleSheet.create({
   },
   marketTextActive: {
     color: colors.bgPrimary,
+  },
+  groupMarketTextActive: {
+    color: colors.gold,
   },
   variantRow: {
     flexDirection: 'row',
