@@ -157,23 +157,9 @@ export default function AccountScreen() {
     setRestoring(false)
   }
 
-  function openPlanManagement() {
-    const platform = profile?.subscription_platform
-    const primaryUrl =
-      platform === 'android'
-        ? 'https://play.google.com/store/account/subscriptions'
-        : platform === 'ios'
-          ? 'itms-apps://apps.apple.com/account/subscriptions'
-          : mobileConfig.links.pricing
-    const fallbackUrl =
-      platform === 'android'
-        ? 'https://play.google.com/store/account/subscriptions'
-        : platform === 'ios'
-          ? 'https://apps.apple.com/account/subscriptions'
-          : mobileConfig.links.home
-
-    Linking.openURL(primaryUrl).catch(() => {
-      Linking.openURL(fallbackUrl).catch(() => {})
+  function openAppleSubscriptionManagement() {
+    Linking.openURL('itms-apps://apps.apple.com/account/subscriptions').catch(() => {
+      Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {})
     })
   }
 
@@ -347,8 +333,8 @@ export default function AccountScreen() {
           Manage or cancel your plan through the store used at checkout. Canceling turns off renewal, and Pro access continues until the current billing period ends.
         </AppText>
         <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={openPlanManagement}>
-            Manage Plan
+          <Button variant="secondary" onPress={openAppleSubscriptionManagement}>
+            Manage Apple Subscription
           </Button>
         </View>
         <View style={styles.buttonGap} />
