@@ -45,22 +45,6 @@ export default function RefundScreen() {
         </Card>
 
         <Card>
-          <AppText style={styles.sectionTitle}>Google Play Purchases</AppText>
-          <AppText variant="muted" style={styles.body}>
-            Google Play handles billing, cancellation, and refund requests for subscriptions purchased through Google Play.
-          </AppText>
-          <View style={styles.cardAction}>
-            <Button variant="secondary" onPress={() => openUrl('https://play.google.com/store/account/subscriptions')}>
-              Manage Google Play
-            </Button>
-          </View>
-          <View style={styles.gap} />
-          <Button variant="outline" onPress={() => openUrl('https://support.google.com/googleplay/answer/15574908')}>
-            Google Play Refund Help
-          </Button>
-        </Card>
-
-        <Card>
           <AppText style={styles.sectionTitle}>Website Purchases</AppText>
           <AppText variant="muted" style={styles.body}>
             If you subscribed through KingFishBets.com, manage billing on the website or contact support and we will help you find the right account path.

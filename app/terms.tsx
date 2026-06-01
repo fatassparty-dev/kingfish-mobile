@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: '6. Subscription and Payments',
-    body: 'Premium subscriptions in the mobile app may be purchased through in-app purchase. Subscriptions, cancellations, renewals, and mobile refund requests are handled through your App Store or Google Play account and are subject to the store policies. Canceling turns off renewal, and access continues until the current billing period ends. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
+    body: 'Premium subscriptions in the iOS app may be purchased through Apple in-app purchase. Subscriptions, cancellations, renewals, and mobile refund requests are handled through your App Store account and are subject to Apple policies. Canceling turns off renewal, and access continues until the current billing period ends. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
   },
   {
     title: '7. Mobile App License',
