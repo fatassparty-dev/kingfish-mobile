@@ -267,6 +267,22 @@ function standardMarketLabel(marketKey: string) {
   return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
 }
 
+function compactPropLabel(marketKey: string, sport: Sport) {
+  const base = baseMarketKey(marketKey)
+  if (sport === 'NFL') {
+    if (base === 'player_anytime_td') return 'TD'
+    if (base === 'player_tds_over') return 'TDs'
+    if (base === 'player_1st_td') return '1st TD'
+    if (base === 'player_last_td') return 'Last TD'
+    return standardMarketLabel(base)
+      .replace(/\bYards\b/g, 'Yds')
+      .replace(/\bAttempts\b/g, 'Att')
+      .replace(/\bCompletions\b/g, 'Comp')
+      .replace(/\bInterceptions\b/g, 'INT')
+  }
+  return marketLabel(marketKey)
+}
+
 const NFL_MARKET_LABELS: Record<string, string> = {
   player_assists: 'Tackle Assists',
   player_assists_alternate: 'Alt Tackle Assists',
@@ -643,8 +659,8 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
     return [...gameProps].sort((a, b) => {
       const aStats = statsByPlayer[normalizeName(a.outcome.description || '')]
       const bStats = statsByPlayer[normalizeName(b.outcome.description || '')]
-      const aValue = sortValue(a, aStats, sortKey, sport)
-      const bValue = sortValue(b, bStats, sortKey, sport)
+      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable)
+      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable)
       const direction = sortDir === 'asc' ? 1 : -1
 
       if (typeof aValue === 'string' || typeof bValue === 'string') {
@@ -656,34 +672,46 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
 
   return (
     <View style={styles.list}>
-      {sport === 'NFL' && (
+      {sport === 'NFL' ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
             {availableNflGroups.map((group) => (
               <Pressable
                 key={group.key}
                 onPress={() => setNflGroup(group.key)}
-                style={[styles.marketButton, activeNflGroup === group.key && styles.marketButtonActive]}
+                style={[styles.marketButton, styles.nflMarketButton, activeNflGroup === group.key && styles.marketButtonActive]}
               >
                 <AppText style={[styles.marketText, activeNflGroup === group.key && styles.marketTextActive]}>
                   {group.label}
                 </AppText>
               </Pressable>
             ))}
+            {visibleMarkets.map((marketKey) => (
+              <Pressable
+                key={marketKey}
+                onPress={() => setActiveMarket(marketKey)}
+                style={[styles.marketButton, styles.nflMarketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
+              >
+                <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
+                  {standardMarketLabel(marketKey)}
+                </AppText>
+              </Pressable>
+            ))}
+        </ScrollView>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
+          {visibleMarkets.map((marketKey) => (
+            <Pressable
+              key={marketKey}
+              onPress={() => setActiveMarket(marketKey)}
+              style={[styles.marketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
+            >
+              <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
+                {standardMarketLabel(marketKey)}
+              </AppText>
+            </Pressable>
+          ))}
         </ScrollView>
       )}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
-        {visibleMarkets.map((marketKey) => (
-          <Pressable
-            key={marketKey}
-            onPress={() => setActiveMarket(marketKey)}
-            style={[styles.marketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
-          >
-            <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
-              {standardMarketLabel(marketKey)}
-            </AppText>
-          </Pressable>
-        ))}
-      </ScrollView>
       {sport === 'NFL' && selectedAltMarket && (
         <View style={styles.variantRow}>
           <Pressable
@@ -860,7 +888,7 @@ const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
-function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport) {
+function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
@@ -875,8 +903,8 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   if (key === 'line') return line
   if (key === 'odds') return prop.outcome.price || 0
   if (key === 'season') return season
-  if (key === 'l10') return sport === 'NFL' ? l10Rate ?? -1 : l10
-  if (key === 'l5') return sport === 'NFL' ? l5Rate ?? -1 : l5
+  if (key === 'l10') return sport === 'NFL' && landscape ? l10Rate ?? -1 : l10
+  if (key === 'l5') return sport === 'NFL' && landscape ? l5Rate ?? -1 : l5
   return edge.score
 }
 
@@ -903,7 +931,7 @@ function PropTableRow({
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
   const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
-  const playerLine = `${line || '-'} ${marketLabel(prop.market.key)}  ${fmtOdds(prop.outcome.price)}`
+  const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
 
   return (
     <View style={styles.tableRow}>
@@ -930,13 +958,13 @@ function PropTableRow({
       ) : null}
       <StatTableCell value={fmtStat(season)} color={statColor(season, line)} landscape={landscape} />
       <StatTableCell
-        value={sport === 'NFL' ? hitCountLabel(l10Values, line) : fmtStat(l10)}
-        color={sport === 'NFL' ? hitRateColor(hitRate(l10Values, line)) : statColor(l10, line)}
+        value={sport === 'NFL' && landscape ? hitCountLabel(l10Values, line) : fmtStat(l10)}
+        color={sport === 'NFL' && landscape ? hitRateColor(hitRate(l10Values, line)) : statColor(l10, line)}
         landscape={landscape}
       />
       <StatTableCell
-        value={sport === 'NFL' ? hitCountLabel(l5Values, line) : fmtStat(l5)}
-        color={sport === 'NFL' ? hitRateColor(hitRate(l5Values, line)) : statColor(l5, line)}
+        value={sport === 'NFL' && landscape ? hitCountLabel(l5Values, line) : fmtStat(l5)}
+        color={sport === 'NFL' && landscape ? hitRateColor(hitRate(l5Values, line)) : statColor(l5, line)}
         landscape={landscape}
       />
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
@@ -1181,6 +1209,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgCardAlt,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
+  },
+  nflMarketButton: {
+    minWidth: 86,
   },
   marketButtonActive: {
     borderColor: colors.gold,
