@@ -378,7 +378,13 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
   const propFocus = buildPropFocus(sport, query.data, marketContext)
 
   return (
-    <Modal visible={!!playerName} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={!!playerName}
+      animationType="slide"
+      transparent
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+      onRequestClose={onClose}
+    >
       <View style={[styles.overlay, isLandscape && styles.overlayLandscape]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, isLandscape && styles.sheetLandscape]}>
@@ -417,7 +423,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
               </Card>
             )}
 
-            {formNote && (
+            {formNote && !isLandscape && (
               <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// Recent Form</AppText>
                 <AppText style={styles.formNote}>{formNote}</AppText>
@@ -541,7 +547,13 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             <Button variant="secondary" onPress={onClose}>Close</Button>
           </ScrollView>
         </View>
-        <Modal visible={shareCardOpen && !!propFocus && !!query.data && !!playerName} animationType="fade" transparent onRequestClose={() => setShareCardOpen(false)}>
+        <Modal
+          visible={shareCardOpen && !!propFocus && !!query.data && !!playerName}
+          animationType="fade"
+          transparent
+          supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+          onRequestClose={() => setShareCardOpen(false)}
+        >
           <View style={styles.sharePreviewOverlay}>
             <ShareCard
               playerName={playerName || ''}
