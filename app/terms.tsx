@@ -44,23 +44,27 @@ const sections = [
     body: 'KingFish Bets content, analysis, algorithms, and design are the property of KingFish Bets and may not be reproduced or redistributed without written permission.',
   },
   {
-    title: '10. Disclaimer of Warranties',
+    title: '10. League and Trademark Disclaimer',
+    body: 'KingFish Bets is not affiliated with, endorsed by, sponsored by, or officially connected to any professional or collegiate sports league, team, sportsbook, media company, or governing body. League, team, player, event, and sportsbook names may be used only to identify games, markets, statistics, odds, news, or research context. All trademarks belong to their respective owners.',
+  },
+  {
+    title: '11. Disclaimer of Warranties',
     body: 'The Service is provided as is. Odds, stats, injuries, weather, schedules, lineups, AI responses, and other data may be delayed, incomplete, unavailable, or incorrect. Sportsbook lines can change quickly and may differ by state, account, market, promotion, or sportsbook.',
   },
   {
-    title: '11. AI and Automated Analysis',
+    title: '12. AI and Automated Analysis',
     body: 'Ask KingFish and other automated tools may generate analysis using available data, historical context, and user prompts. AI-generated responses may contain errors or omissions and should not be treated as instructions to wager.',
   },
   {
-    title: '12. Limitation of Liability',
+    title: '13. Limitation of Liability',
     body: 'KingFish Bets shall not be liable for indirect, incidental, special, or consequential damages arising from your use of the Service, including gambling losses incurred based on information provided by the Service.',
   },
   {
-    title: '13. Responsible Gambling',
+    title: '14. Responsible Gambling',
     body: 'If you or someone you know has a gambling problem, call the National Problem Gambling Helpline at 1-800-522-4700.',
   },
   {
-    title: '14. Changes to Terms',
+    title: '15. Changes to Terms',
     body: 'We may modify these terms from time to time. Continued use of the Service after changes constitutes acceptance of the new terms.',
   },
 ]
