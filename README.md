@@ -109,6 +109,22 @@ Use this focused pass before submitting a build:
 - Help, Terms, Privacy, and any Refund link opened from the app.
 - Offline/error feel: API errors should read as temporary unavailable states, not broken screens.
 
+## Next Chat Handoff
+
+Current mobile polish should continue from this exact list, without starting a new broad sweep:
+
+- Dashboard player props: keep the portrait view compact, but do not remove real betting info for space. Odds, averages, hit rates, and edge context matter.
+- Landscape player props: use the fuller table shape for MLB, NFL, and WNBA. Target column order is Player, Line, Odds, AVG, L5 AVG, L10 AVG, L5 Hit, L10 Hit, Edge. Odds do not need sorting; the other columns should sort.
+- NFL player props: separate Passing TD from Anytime TD. Passing TD averages should not be labeled as Anytime TD. Both markets should be independently selectable.
+- NFL portrait player props: match MLB styling, but show L5 and L10 as averages in portrait. Keep hit-rate counts for landscape.
+- NFL player prop profiles: keep sports betting and fantasy separate. Do not show fantasy-football wording in prop profiles.
+- MLB player props: change any `SZN` header to `AVG`. Remove sportsbook names from compact preview rows if they clip; sportsbook detail can live in the player profile.
+- WNBA player props: confirm All Games behavior matches MLB.
+- Tools: Cheat Sheets should be the first thing users see. The third tab should be More. Put Fantasy Hub and Game Factors inside More as simple link cards.
+- Fantasy Draft Planner: stack team dropdown should show full team names where space allows, not just abbreviations.
+
+Do not turn this into another page-by-page polish pass unless Brian asks for it.
+
 ## npm Cache Permission Fix
 
 If npm says your cache has root-owned files, run the command npm suggests:
