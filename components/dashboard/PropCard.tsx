@@ -757,7 +757,11 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
                   >
                     <AppText
                       variant="eyebrow"
-                      style={[styles.headerText, sortKey === header.key && styles.headerTextActive]}
+                      style={[
+                        styles.headerText,
+                        landscapeTable && styles.landscapeHeaderText,
+                        sortKey === header.key && styles.headerTextActive,
+                      ]}
                     >
                       {header.label}
                     </AppText>
@@ -807,10 +811,10 @@ const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'line', label: 'Line' },
   { key: 'odds', label: 'Odds' },
   { key: 'season', label: 'AVG' },
-  { key: 'l10', label: 'L10' },
-  { key: 'l10hit', label: 'L10 Hit' },
   { key: 'l5', label: 'L5' },
+  { key: 'l10', label: 'L10' },
   { key: 'l5hit', label: 'L5 Hit' },
+  { key: 'l10hit', label: 'L10 Hit' },
   { key: 'edge', label: 'Edge' },
 ]
 
@@ -860,24 +864,22 @@ function PropTableRow({
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
   const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
   const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
+  const openProfile = () => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
+    marketKey: prop.market.key,
+    marketLabel: marketLabel(prop.market.key),
+    commonLine: line,
+  })
 
   return (
-    <View style={styles.tableRow}>
-      <Pressable
-        onPress={() => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
-          marketKey: prop.market.key,
-          marketLabel: marketLabel(prop.market.key),
-          commonLine: line,
-        })}
-        style={[styles.cell, landscape && styles.landscapeCell, styles.playerCell, landscape && styles.landscapePlayerCell]}
-      >
+    <Pressable onPress={openProfile} style={styles.tableRow}>
+      <View style={[styles.cell, landscape && styles.landscapeCell, styles.playerCell, landscape && styles.landscapePlayerCell]}>
         <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
           {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
         <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
           {landscape ? marketLabel(prop.market.key) : playerLine}
         </AppText>
-      </Pressable>
+      </View>
       {landscape ? (
         <>
           <StatTableCell value={line ? String(line) : '-'} color={colors.textPrimary} landscape />
@@ -885,26 +887,26 @@ function PropTableRow({
         </>
       ) : null}
       <StatTableCell value={fmtStat(season)} color={statColor(season, line)} landscape={landscape} />
+      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} landscape={landscape} />
       <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} landscape={landscape} />
       {landscape ? (
-        <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
-      ) : null}
-      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} landscape={landscape} />
-      {landscape ? (
         <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
+      ) : null}
+      {landscape ? (
+        <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
       ) : null}
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>
       </View>
-    </View>
+    </Pressable>
   )
 }
 
 function StatTableCell({ value, color, landscape = false }: { value: string; color: string; landscape?: boolean }) {
   return (
     <View style={[styles.cell, landscape && styles.landscapeCell]}>
-      <AppText style={[styles.statCellValue, { color }]} numberOfLines={1}>{value}</AppText>
+      <AppText style={[styles.statCellValue, landscape && styles.landscapeStatCellValue, { color }]} numberOfLines={1}>{value}</AppText>
     </View>
   )
 }
@@ -1055,7 +1057,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   landscapeTable: {
-    minWidth: 920,
+    width: '100%',
   },
   cell: {
     width: 54,
@@ -1064,7 +1066,7 @@ const styles = StyleSheet.create({
     paddingRight: 5,
   },
   landscapeCell: {
-    width: 78,
+    width: 64,
   },
   playerCell: {
     flex: 1.65,
@@ -1072,7 +1074,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   landscapePlayerCell: {
-    flex: 2.2,
+    flex: 1.9,
   },
   playerName: {
     color: colors.gold,
@@ -1093,12 +1095,16 @@ const styles = StyleSheet.create({
     paddingRight: 0,
   },
   landscapeEdgeCell: {
-    width: 82,
+    width: 60,
   },
   headerText: {
     color: colors.gold,
     fontSize: 11,
     letterSpacing: 3,
+  },
+  landscapeHeaderText: {
+    fontSize: 10,
+    letterSpacing: 1.5,
   },
   headerTextActive: {
     color: colors.gold,
@@ -1107,6 +1113,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '900',
+  },
+  landscapeStatCellValue: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   edgeScore: {
     fontSize: 21,
