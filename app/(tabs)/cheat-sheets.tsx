@@ -1750,9 +1750,12 @@ export default function CheatSheetsScreen() {
         </>
       ) : toolMode === 'factors' ? (
         <>
-          <Pressable onPress={() => setToolMode('more')} style={styles.backLink}>
-            <AppText style={styles.featureToolArrow}>More</AppText>
-          </Pressable>
+          <View style={styles.sectionEyebrowRow}>
+            <AppText variant="eyebrow">// Game Factors</AppText>
+            <AppText variant="muted" style={styles.sectionDescription}>
+              Factoring stadium, weather, and matchup context into a scoring volume grade.
+            </AppText>
+          </View>
 
           {!isPremium ? premiumToolsCard : (
             <>
@@ -2250,11 +2253,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  backLink: {
+  sectionEyebrowRow: {
     alignSelf: 'flex-start',
     minHeight: 32,
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  sectionDescription: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
   },
   sheetTile: {
     width: '47%',
