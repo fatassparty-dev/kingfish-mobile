@@ -199,7 +199,7 @@ interface FlattenedProp {
 
 type PlayerBookData = Record<string, { over?: number; point?: number }>
 
-type SortKey = 'player' | 'season' | 'l10' | 'l5' | 'edge'
+type SortKey = 'player' | 'line' | 'odds' | 'season' | 'l10' | 'l5' | 'edge'
 type SortDir = 'asc' | 'desc'
 
 const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
@@ -549,7 +549,8 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
 
 export function PropsList({ games, sport, limit, initialStats }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any> }) {
   const { width, height } = useWindowDimensions()
-  const compactTable = sport === 'NFL' && width > height
+  const landscapeTable = width > height
+  const compactTable = sport === 'NFL' && landscapeTable
   const availableMarketKeys = useMemo(() => availableMarkets(games, sport), [games, sport])
   const markets = useMemo(() => {
     if (availableMarketKeys.length || sport !== 'NFL') return availableMarketKeys
@@ -787,30 +788,44 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
             <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
           </View>
           <View>
-            <View style={styles.tableHeader}>
-              {TABLE_HEADERS.map((header) => (
-                <Pressable key={header.label} onPress={() => toggleSort(header.key)} style={[styles.cell, header.key === 'player' && styles.playerCell, header.key === 'edge' && styles.edgeCell]}>
-                  <AppText
-                    variant="eyebrow"
-                    style={[styles.headerText, sortKey === header.key && styles.headerTextActive]}
+            <View style={landscapeTable && styles.landscapeTable}>
+              <View style={styles.tableHeader}>
+                {(landscapeTable ? LANDSCAPE_TABLE_HEADERS : PORTRAIT_TABLE_HEADERS).map((header) => (
+                  <Pressable
+                    key={header.label}
+                    onPress={() => toggleSort(header.key)}
+                    style={[
+                      styles.cell,
+                      landscapeTable && styles.landscapeCell,
+                      header.key === 'player' && styles.playerCell,
+                      header.key === 'player' && landscapeTable && styles.landscapePlayerCell,
+                      header.key === 'edge' && styles.edgeCell,
+                      header.key === 'edge' && landscapeTable && styles.landscapeEdgeCell,
+                    ]}
                   >
-                    {header.label}
-                  </AppText>
-                </Pressable>
+                    <AppText
+                      variant="eyebrow"
+                      style={[styles.headerText, sortKey === header.key && styles.headerTextActive]}
+                    >
+                      {header.label}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+              {sortProps(gameProps).map((prop) => (
+                <PropTableRow
+                  key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
+                  prop={prop}
+                  stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
+                  sport={sport}
+                  landscape={landscapeTable}
+                  onSelectPlayer={(playerName, context) => {
+                    setSelectedPlayer(playerName)
+                    setSelectedMarketContext(context)
+                  }}
+                />
               ))}
             </View>
-            {sortProps(gameProps).map((prop) => (
-              <PropTableRow
-                key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
-                prop={prop}
-                stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
-                sport={sport}
-                onSelectPlayer={(playerName, context) => {
-                  setSelectedPlayer(playerName)
-                  setSelectedMarketContext(context)
-                }}
-              />
-            ))}
           </View>
         </View>
       ))}
@@ -827,9 +842,19 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   )
 }
 
-const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
+const PORTRAIT_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'player', label: 'Player' },
-  { key: 'season', label: 'SZN' },
+  { key: 'season', label: 'AVG' },
+  { key: 'l10', label: 'L10' },
+  { key: 'l5', label: 'L5' },
+  { key: 'edge', label: 'Edge' },
+]
+
+const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
+  { key: 'player', label: 'Player' },
+  { key: 'line', label: 'Line' },
+  { key: 'odds', label: 'Odds' },
+  { key: 'season', label: 'AVG' },
   { key: 'l10', label: 'L10' },
   { key: 'l5', label: 'L5' },
   { key: 'edge', label: 'Edge' },
@@ -847,6 +872,8 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
 
   if (key === 'player') return prop.outcome.description || ''
+  if (key === 'line') return line
+  if (key === 'odds') return prop.outcome.price || 0
   if (key === 'season') return season
   if (key === 'l10') return sport === 'NFL' ? l10Rate ?? -1 : l10
   if (key === 'l5') return sport === 'NFL' ? l5Rate ?? -1 : l5
@@ -857,11 +884,13 @@ function PropTableRow({
   prop,
   stats,
   sport,
+  landscape,
   onSelectPlayer,
 }: {
   prop: FlattenedProp
   stats?: Record<string, any>
   sport: Sport
+  landscape: boolean
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
@@ -874,6 +903,7 @@ function PropTableRow({
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
   const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
+  const playerLine = `${line || '-'} ${marketLabel(prop.market.key)}  ${fmtOdds(prop.outcome.price)}`
 
   return (
     <View style={styles.tableRow}>
@@ -883,25 +913,33 @@ function PropTableRow({
           marketLabel: marketLabel(prop.market.key),
           commonLine: line,
         })}
-        style={[styles.cell, styles.playerCell]}
+        style={[styles.cell, landscape && styles.landscapeCell, styles.playerCell, landscape && styles.landscapePlayerCell]}
       >
         <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
-          {displayPlayerName(prop.outcome.description)}
+          {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
         <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
-          {line || '-'} {marketLabel(prop.market.key)}  {fmtOdds(prop.outcome.price)} {prop.book}
+          {landscape ? marketLabel(prop.market.key) : playerLine}
         </AppText>
       </Pressable>
-      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} />
+      {landscape ? (
+        <>
+          <StatTableCell value={line ? String(line) : '-'} color={colors.textPrimary} landscape />
+          <StatTableCell value={fmtOdds(prop.outcome.price)} color={colors.gold} landscape />
+        </>
+      ) : null}
+      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} landscape={landscape} />
       <StatTableCell
         value={sport === 'NFL' ? hitCountLabel(l10Values, line) : fmtStat(l10)}
         color={sport === 'NFL' ? hitRateColor(hitRate(l10Values, line)) : statColor(l10, line)}
+        landscape={landscape}
       />
       <StatTableCell
         value={sport === 'NFL' ? hitCountLabel(l5Values, line) : fmtStat(l5)}
         color={sport === 'NFL' ? hitRateColor(hitRate(l5Values, line)) : statColor(l5, line)}
+        landscape={landscape}
       />
-      <View style={[styles.cell, styles.edgeCell]}>
+      <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>
       </View>
@@ -909,9 +947,9 @@ function PropTableRow({
   )
 }
 
-function StatTableCell({ value, color }: { value: string; color: string }) {
+function StatTableCell({ value, color, landscape = false }: { value: string; color: string; landscape?: boolean }) {
   return (
-    <View style={styles.cell}>
+    <View style={[styles.cell, landscape && styles.landscapeCell]}>
       <AppText style={[styles.statCellValue, { color }]} numberOfLines={1}>{value}</AppText>
     </View>
   )
@@ -1062,16 +1100,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  landscapeTable: {
+    minWidth: 700,
+  },
   cell: {
     width: 54,
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingRight: 5,
   },
+  landscapeCell: {
+    width: 72,
+  },
   playerCell: {
     flex: 1.65,
     minWidth: 0,
     paddingRight: spacing.sm,
+  },
+  landscapePlayerCell: {
+    flex: 1.9,
   },
   playerName: {
     color: colors.gold,
@@ -1090,6 +1137,9 @@ const styles = StyleSheet.create({
     width: 58,
     alignItems: 'flex-end',
     paddingRight: 0,
+  },
+  landscapeEdgeCell: {
+    width: 76,
   },
   headerText: {
     color: colors.gold,

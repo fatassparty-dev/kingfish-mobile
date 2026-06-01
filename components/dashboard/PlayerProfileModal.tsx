@@ -71,7 +71,7 @@ function buildFormNote(sport: PlayerProfileModalProps['sport'], data?: PlayerPro
         : sport === 'nba' || sport === 'wnba'
           ? { season: stats.season_pts, l5: stats.l5_pts, label: 'points' }
           : sport === 'nfl'
-            ? { season: stats.fantasy_points_ppr_per_game, l5: stats.fantasy_points_ppr_per_game, label: 'fantasy points' }
+            ? { season: stats.fantasy_points_ppr_per_game, l5: stats.fantasy_points_ppr_per_game, label: 'production' }
           : sport === 'nhl'
             ? { season: stats.season_pts, l5: stats.l5_pts, label: 'points' }
             : null
@@ -89,13 +89,6 @@ function formatGameDate(game: RawGame) {
   const date = new Date(raw)
   if (!Number.isFinite(date.getTime())) return String(raw)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function formatStatsFreshness(value?: string | null) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return `Player stats updated ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
 function formatOpponent(game: RawGame) {
@@ -381,8 +374,6 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
   })
   const formNote = buildFormNote(sport, query.data)
   const propFocus = buildPropFocus(sport, query.data, marketContext)
-  const statsFreshness = formatStatsFreshness(query.data?.statsUpdatedAt)
-  const hasNflDataStatus = Boolean(query.data?.oddsStatus || statsFreshness)
 
   return (
     <Modal visible={!!playerName} animationType="slide" transparent onRequestClose={onClose}>
@@ -430,14 +421,6 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
                 <AppText style={styles.formNote}>{formNote}</AppText>
               </Card>
             )}
-
-            {sport === 'nfl' && query.data && !isFantasyProfile && hasNflDataStatus ? (
-              <Card>
-                <AppText variant="eyebrow">// Data Status</AppText>
-                {query.data.oddsStatus ? <AppText style={styles.formNote}>{query.data.oddsStatus}</AppText> : null}
-                {statsFreshness ? <AppText variant="muted" style={styles.statusText}>{statsFreshness}</AppText> : null}
-              </Card>
-            ) : null}
 
             {sport === 'nfl' && query.data?.depthRole ? (
               <Card>
