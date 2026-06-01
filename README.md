@@ -51,7 +51,9 @@ Keep these rules in place:
 - Do not remove or flatten custom branded identity pieces without approval. Intentional KingFish visuals are not generic AI tells.
 - Do not name third-party data providers in public mobile copy unless there is a legal or product reason, such as asking the user to connect an outside fantasy account.
 - It is okay to say "KingFish data" when describing KingFish dashboards, tools, cheat sheets, or Ask KingFish context. Do not use that language when it would imply an outside ranking, ADP list, or vendor feed originated with KingFish.
-- Run `npm run typecheck` before packaging an App Store or Google Play build.
+- Run `npm run typecheck` before packaging an App Store build.
+- For iOS billing surfaces, keep the language Apple-specific: Manage Apple Subscription, App Store refund policy, and cancellation at the end of the current billing period.
+- Edge color language is intentional: Strong is green, Lean is gold, Neutral is muted, Fade is red.
 
 ## Server-Driven Update Map
 
@@ -79,9 +81,9 @@ The goal is to keep seasonal sports content, weekly NFL updates, and admin launc
 
 - `development` for a dev-client build when we need native-device debugging
 - `preview` for internal simulator/device testing
-- `production` for App Store and Google Play builds
+- `production` for App Store builds
 
-Do not run production submission until Apple Developer, RevenueCat Apple products, App Store Connect metadata, screenshots, and review notes are ready. Google Play can follow later.
+Do not run production submission until Apple Developer, RevenueCat Apple products, App Store Connect metadata, screenshots, and review notes are ready. Keep Google Play language out of the iOS app unless Android becomes an active release target.
 
 ## App Store Prep Checklist
 
@@ -109,19 +111,20 @@ Use this focused pass before submitting a build:
 - Help, Terms, Privacy, and any Refund link opened from the app.
 - Offline/error feel: API errors should read as temporary unavailable states, not broken screens.
 
-## Next Chat Handoff
+## Current Polish Lessons
 
-Current mobile polish should continue from this exact list, without starting a new broad sweep:
+Use these as guardrails when matching mobile on web or when touching nearby mobile screens:
 
-- Dashboard player props: keep the portrait view compact, but do not remove real betting info for space. Odds, averages, hit rates, and edge context matter.
-- Landscape player props: use the fuller table shape for MLB, NFL, and WNBA. Target column order is Player, Line, Odds, AVG, L5 AVG, L10 AVG, L5 Hit, L10 Hit, Edge. Odds do not need sorting; the other columns should sort.
-- NFL player props: navigation should match MLB with one horizontal rail of actual prop markets, not category rows. Pass TDs uses passing TD stats. Anytime/1st/last/TDs Over use rush + receiving TD stats, excluding passing TDs.
-- NFL portrait player props: match MLB styling, but show L5 and L10 as averages in portrait. Keep hit-rate counts for landscape.
-- NFL player prop profiles: keep sports betting and fantasy separate. Do not show fantasy-football wording in prop profiles.
-- MLB player props: change any `SZN` header to `AVG`. Remove sportsbook names from compact preview rows if they clip; sportsbook detail can live in the player profile.
-- WNBA player props: confirm All Games behavior matches MLB.
-- Tools: Cheat Sheets should be the first thing users see. The third tab should be More. Put Fantasy Hub and Game Factors inside More as simple link cards.
-- Fantasy Draft Planner: stack team dropdown should show full team names where space allows, not just abbreviations.
+- Mobile Tools uses three tabs: Cheat Sheets, Calculators, and Pro Tools. Pro Tools contains Fantasy Hub and Game Factors.
+- Cheat Sheet tiles should stay clean and intentional: compact two-column cards, sport eyebrow, strong title, subtle gold top accent, no repeated descriptions.
+- The current sheet set includes MLB sheets plus NFL TD Streaks, NFL QB 2+ TD Streaks, and QB 200+ Yard Games.
+- Game Factors should explain itself as a scoring-volume grade built from stadium, weather, and matchup context. Avoid customer-facing terms such as "setup" when "volume" or "grade" is clearer.
+- Hide neutral Game Factors tags. Keep useful tags such as HR Props, Power-Friendly, Cold Suppress, Rain/Wind Risk, Totals/Passing, and similar signals.
+- Player prop landscape columns should be Player, Line, Odds, AVG, L5, L10, L5 Hit, L10 Hit, Edge.
+- Player profiles can use landscape, but fantasy profiles should not show gambling-style Recent Form. Use News when available instead.
+- Fantasy Draft Planner player actions should read Available until tapped; tapping marks the player taken and rebuilds/collapses the path around them.
+- Account support actions should be obvious: Help Guide and Contact Support as full-width buttons, with Terms, Privacy, and Refund Policy as compact legal links.
+- iOS billing should show Manage Apple Subscription and Refund Policy. Do not send users to Pricing when they are trying to manage a plan.
 
 Do not turn this into another page-by-page polish pass unless Brian asks for it.
 
