@@ -1939,29 +1939,19 @@ export default function CheatSheetsScreen() {
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>
-            {TOOL_TILES.map((sheet) => {
-              const sheetMeta = SHEETS.find((item) => item.key === sheet.key)
-              return (
-                <Pressable
-                  key={sheet.key}
-                  onPress={() => {
-                    setSelectedKey(sheet.key)
-                  }}
-                  style={styles.sheetPickerTile}
-                >
-                  <View style={styles.sheetPickerTop}>
-                    <AppText style={styles.sheetSportLabel}>{sheet.sport}</AppText>
-                    <AppText style={styles.sheetOpenLabel}>Open</AppText>
-                  </View>
-                  <AppText style={styles.sheetPickerTitle}>{sheet.label}</AppText>
-                  {sheetMeta?.desc ? (
-                    <AppText variant="muted" style={styles.sheetPickerCopy} numberOfLines={2}>
-                      {sheetMeta.desc}
-                    </AppText>
-                  ) : null}
-                </Pressable>
-              )
-            })}
+            {TOOL_TILES.map((sheet) => (
+              <Pressable
+                key={sheet.key}
+                onPress={() => {
+                  setSelectedKey(sheet.key)
+                }}
+                style={styles.sheetPickerTile}
+              >
+                <View style={styles.sheetPickerAccent} />
+                <AppText style={styles.sheetSportLabel}>{sheet.sport}</AppText>
+                <AppText style={styles.sheetPickerTitle} numberOfLines={2}>{sheet.label}</AppText>
+              </Pressable>
+            ))}
           </View>
         </>
       ) : (
@@ -2395,19 +2385,23 @@ const styles = StyleSheet.create({
   sheetTileCopy: { marginTop: spacing.sm, fontSize: 12, lineHeight: 16 },
   sheetPickerTile: {
     width: '47%',
-    minHeight: 152,
+    minHeight: 104,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.bgCardAlt,
     padding: spacing.md,
+    overflow: 'hidden',
+    position: 'relative',
     justifyContent: 'space-between',
   },
-  sheetPickerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
+  sheetPickerAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(198,145,50,.7)',
   },
   sheetSportLabel: {
     color: colors.gold,
@@ -2415,23 +2409,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2,
   },
-  sheetOpenLabel: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
   sheetPickerTitle: {
-    marginTop: spacing.lg,
     color: colors.textPrimary,
     fontSize: 19,
     lineHeight: 22,
     fontWeight: '900',
-  },
-  sheetPickerCopy: {
-    marginTop: spacing.sm,
-    fontSize: 11,
-    lineHeight: 15,
   },
   calcTile: { minHeight: 134 },
   inputGrid: {
