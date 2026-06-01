@@ -490,6 +490,10 @@ function gameContextFactor(game: Game, sport: FactorSport) {
   return { delta, tags }
 }
 
+function isNeutralFactorText(value?: string) {
+  return /\bneutral\b/i.test(String(value || ''))
+}
+
 function factorTone(score: number) {
   if (score >= 72) return { tone: colors.green, lean: 'Boost' }
   if (score <= 43) return { tone: colors.red, lean: 'Suppress' }
@@ -513,18 +517,21 @@ function buildFactorRows(
       const context = gameContextFactor(game, sport)
       const score = Math.max(1, Math.min(100, Math.round(baseline.score + weather.delta + official.delta + context.delta)))
       const tone = factorTone(score)
+      const tags = [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags]
+        .filter(Boolean)
+        .filter((tag) => !isNeutralFactorText(tag))
       return {
         id,
         matchup: `${game.away_team} @ ${game.home_team}`,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
-        environment: baseline.environment,
+        environment: isNeutralFactorText(baseline.environment) ? '' : baseline.environment,
         weather: weather.label,
         official: official.label,
         score,
         lean: tone.lean,
         tone: tone.tone,
-        tags: [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags].filter(Boolean),
+        tags,
       }
     })
 }
@@ -1742,13 +1749,15 @@ export default function CheatSheetsScreen() {
                       {row.weather ? <FactorMeta label="Weather" value={row.weather} /> : null}
                       {factorSport === 'MLB' && row.official ? <FactorMeta label="Umpire" value={row.official} /> : null}
                     </View>
-                    <View style={styles.factorTags}>
-                      {row.tags.map((tag) => (
-                        <View key={tag} style={styles.factorTag}>
-                          <AppText style={styles.factorTagText}>{tag}</AppText>
-                        </View>
-                      ))}
-                    </View>
+                    {row.tags.length ? (
+                      <View style={styles.factorTags}>
+                        {row.tags.map((tag) => (
+                          <View key={tag} style={styles.factorTag}>
+                            <AppText style={styles.factorTagText}>{tag}</AppText>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
                   </Card>
                 ))}
               </View>
