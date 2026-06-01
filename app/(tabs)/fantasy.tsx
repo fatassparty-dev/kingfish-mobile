@@ -80,6 +80,46 @@ const PLANNER_TARGETS: Record<PlannerLeague, Record<string, number>> = {
   home: { QB: 2, RB: 5, WR: 6, TE: 2, K: 1, DST: 1 },
   bestball: { QB: 3, RB: 7, WR: 8, TE: 3 },
 }
+const NFL_TEAM_NAMES: Record<string, string> = {
+  ARI: 'Arizona Cardinals',
+  ATL: 'Atlanta Falcons',
+  BAL: 'Baltimore Ravens',
+  BUF: 'Buffalo Bills',
+  CAR: 'Carolina Panthers',
+  CHI: 'Chicago Bears',
+  CIN: 'Cincinnati Bengals',
+  CLE: 'Cleveland Browns',
+  DAL: 'Dallas Cowboys',
+  DEN: 'Denver Broncos',
+  DET: 'Detroit Lions',
+  GB: 'Green Bay Packers',
+  HOU: 'Houston Texans',
+  IND: 'Indianapolis Colts',
+  JAC: 'Jacksonville Jaguars',
+  JAX: 'Jacksonville Jaguars',
+  KC: 'Kansas City Chiefs',
+  LAC: 'Los Angeles Chargers',
+  LAR: 'Los Angeles Rams',
+  LV: 'Las Vegas Raiders',
+  MIA: 'Miami Dolphins',
+  MIN: 'Minnesota Vikings',
+  NE: 'New England Patriots',
+  NO: 'New Orleans Saints',
+  NYG: 'New York Giants',
+  NYJ: 'New York Jets',
+  PHI: 'Philadelphia Eagles',
+  PIT: 'Pittsburgh Steelers',
+  SEA: 'Seattle Seahawks',
+  SF: 'San Francisco 49ers',
+  TB: 'Tampa Bay Buccaneers',
+  TEN: 'Tennessee Titans',
+  WAS: 'Washington Commanders',
+  WSH: 'Washington Commanders',
+}
+
+function teamDisplayName(team: string) {
+  return team === 'ALL' ? 'Best available stack' : NFL_TEAM_NAMES[team] || team
+}
 
 function roundLabel(rank: number) {
   return rank > 0 ? `R${Math.ceil(rank / 12)}` : 'NR'
@@ -619,7 +659,7 @@ export default function FantasyToolScreen() {
 
             {plannerStackPieces.length ? (
               <View style={styles.stackPlan}>
-                <AppText variant="eyebrow">{plannerStackTeam} Stack Plan</AppText>
+                <AppText variant="eyebrow">{teamDisplayName(plannerStackTeam)} Stack Plan</AppText>
                 {plannerStackPieces.map(player => (
                   <View key={player.id} style={styles.stackPlanRow}>
                     <AppText style={styles.stackPlanName}>{player.name}</AppText>
@@ -869,7 +909,7 @@ function TeamDropdown({
     <View style={styles.dropdownWrap}>
       <AppText variant="eyebrow">{label}</AppText>
       <Pressable onPress={() => setOpen(current => !current)} style={styles.dropdownButton}>
-        <AppText style={styles.dropdownText}>{value === 'ALL' ? 'Best available stack' : value}</AppText>
+        <AppText style={styles.dropdownText}>{teamDisplayName(value)}</AppText>
         <AppText style={styles.dropdownChevron}>{open ? '↑' : '↓'}</AppText>
       </Pressable>
       {open ? (
@@ -880,7 +920,7 @@ function TeamDropdown({
               setOpen(false)
             }} style={[styles.dropdownOption, value === team && styles.dropdownOptionActive]}>
               <AppText style={[styles.dropdownOptionText, value === team && styles.dropdownOptionTextActive]}>
-                {team === 'ALL' ? 'Best available stack' : team}
+                {teamDisplayName(team)}
               </AppText>
             </Pressable>
           ))}
@@ -933,7 +973,7 @@ function StackBoard({
       </Card>
       {selectedTeamPlayers ? (
         <Card style={styles.stackCard}>
-          <AppText variant="eyebrow">{selectedTeam} Stack Board</AppText>
+          <AppText variant="eyebrow">{teamDisplayName(selectedTeam)} Stack Board</AppText>
           <StackSection title="QB" players={selectedTeamPlayers.quarterbacks} onPressPlayer={onPressPlayer} />
           <StackSection title="WR / TE" players={selectedTeamPlayers.passCatchers} onPressPlayer={onPressPlayer} />
           <StackSection title="RB Adds" players={selectedTeamPlayers.backs} onPressPlayer={onPressPlayer} />
@@ -943,7 +983,7 @@ function StackBoard({
         <Card key={stack.qb.id} style={styles.stackCard}>
           <View style={styles.stackHead}>
             <View>
-              <AppText variant="eyebrow">{stack.qb.team} Stack</AppText>
+              <AppText variant="eyebrow">{teamDisplayName(stack.qb.team)} Stack</AppText>
               <Pressable onPress={() => onPressPlayer(stack.qb.name)}>
                 <AppText style={styles.stackTitle}>{stack.qb.name}</AppText>
               </Pressable>

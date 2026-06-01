@@ -18,7 +18,7 @@ import type { Game, WeatherInfo } from '@/types'
 
 type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd'
 type ToolTile = {
-  key: SheetKey | 'fantasy'
+  key: SheetKey
   label: string
   sport: 'MLB' | 'NFL'
 }
@@ -56,7 +56,6 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
-  { key: 'fantasy', label: 'Fantasy Hub', sport: 'NFL' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -145,7 +144,7 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
-  { key: 'factors', label: 'Game Factors' },
+  { key: 'factors', label: 'More' },
 ]
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
@@ -1627,23 +1626,27 @@ export default function CheatSheetsScreen() {
     ]
   }, [calcInputs, calculatorKey])
 
+  const premiumToolsCard = (
+    <Card>
+      <AppText variant="eyebrow">// Premium</AppText>
+      <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
+      <AppText variant="muted" style={styles.cardCopy}>
+        Cheat Sheets, player props, Edge Scores, calculators, and unlimited Ask KingFish access are part of KingFish Bets Pro.
+      </AppText>
+      {mobileConfig.flags.mobile_paywall ? (
+        <View style={styles.action}>
+          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+        </View>
+      ) : null}
+    </Card>
+  )
+
   return (
     <Screen>
       <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
         Cheat sheets, calculators, and game factors in one clean workspace.
       </AppText>
-
-      <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
-        <View style={styles.featureToolCopy}>
-          <AppText variant="eyebrow">// Football Draft Room</AppText>
-          <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
-          <AppText variant="muted" style={styles.featureToolText}>
-            Quick draft boards, best ball targets, and team tracking.
-          </AppText>
-        </View>
-        <AppText style={styles.featureToolArrow}>Open</AppText>
-      </Pressable>
 
       <View style={styles.segmentRow}>
         {TOOL_MODES.map((mode) => (
@@ -1660,79 +1663,80 @@ export default function CheatSheetsScreen() {
         ))}
       </View>
 
-      {!isPremium ? (
-        <Card>
-          <AppText variant="eyebrow">// Premium</AppText>
-          <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
-          <AppText variant="muted" style={styles.cardCopy}>
-            Cheat Sheets, player props, Edge Scores, calculators, and unlimited Ask KingFish access are part of KingFish Bets Pro.
-          </AppText>
-          {mobileConfig.flags.mobile_paywall ? (
-            <View style={styles.action}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-            </View>
-          ) : null}
-        </Card>
-      ) : toolMode === 'factors' ? (
+      {toolMode === 'factors' ? (
         <>
-          <View style={styles.factorToggle}>
-            {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
-              <Pressable
-                key={item}
-                onPress={() => setFactorSport(item)}
-                style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
-              >
-                <AppText style={[styles.segmentText, factorSport === item && styles.segmentTextActive]}>{item}</AppText>
-              </Pressable>
-            ))}
-          </View>
-
-          {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.gold} />
-              <AppText variant="muted">Loading game factors...</AppText>
+          <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// Football Draft Room</AppText>
+              <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
             </View>
-          )}
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
 
-          {!factorGamesQuery.isLoading && factorRows.length === 0 && (
-            <Card>
-              <AppText variant="eyebrow">// Game Factors</AppText>
-              <AppText style={styles.cardTitle}>No Games Posted</AppText>
-              <AppText variant="muted" style={styles.cardCopy}>
-                {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : 'NFL factors will populate when game markets post.'}
-              </AppText>
-            </Card>
-          )}
+          {!isPremium ? premiumToolsCard : (
+            <>
+              <View style={styles.factorToggle}>
+                {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
+                  <Pressable
+                    key={item}
+                    onPress={() => setFactorSport(item)}
+                    style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
+                  >
+                    <AppText style={[styles.segmentText, factorSport === item && styles.segmentTextActive]}>{item}</AppText>
+                  </Pressable>
+                ))}
+              </View>
 
-          <View style={styles.factorRows}>
-            {factorRows.map((row) => (
-              <Card key={row.id} style={styles.factorCard}>
-                <View style={styles.factorHeader}>
-                  <View style={styles.factorTitleWrap}>
-                    <AppText style={styles.compactPlayer} numberOfLines={1}>{row.matchup}</AppText>
-                    <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
-                  </View>
-                  <View style={styles.factorScore}>
-                    <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
-                    <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
-                  </View>
+              {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
+                <View style={styles.loading}>
+                  <ActivityIndicator color={colors.gold} />
+                  <AppText variant="muted">Loading game factors...</AppText>
                 </View>
-                <View style={styles.factorMetaGrid}>
-                  <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
-                  <FactorMeta label="Weather" value={row.weather} />
-                  {factorSport === 'MLB' && <FactorMeta label="Umpire" value={row.official} />}
-                </View>
-                <View style={styles.factorTags}>
-                  {row.tags.map((tag) => (
-                    <View key={tag} style={styles.factorTag}>
-                      <AppText style={styles.factorTagText}>{tag}</AppText>
+              )}
+
+              {!factorGamesQuery.isLoading && factorRows.length === 0 && (
+                <Card>
+                  <AppText variant="eyebrow">// Game Factors</AppText>
+                  <AppText style={styles.cardTitle}>No Games Posted</AppText>
+                  <AppText variant="muted" style={styles.cardCopy}>
+                    {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : 'NFL factors will populate when game markets post.'}
+                  </AppText>
+                </Card>
+              )}
+
+              <View style={styles.factorRows}>
+                {factorRows.map((row) => (
+                  <Card key={row.id} style={styles.factorCard}>
+                    <View style={styles.factorHeader}>
+                      <View style={styles.factorTitleWrap}>
+                        <AppText style={styles.compactPlayer} numberOfLines={1}>{row.matchup}</AppText>
+                        <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
+                      </View>
+                      <View style={styles.factorScore}>
+                        <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
+                        <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
+                      </View>
                     </View>
-                  ))}
-                </View>
-              </Card>
-            ))}
-          </View>
+                    <View style={styles.factorMetaGrid}>
+                      <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
+                      <FactorMeta label="Weather" value={row.weather} />
+                      {factorSport === 'MLB' && <FactorMeta label="Umpire" value={row.official} />}
+                    </View>
+                    <View style={styles.factorTags}>
+                      {row.tags.map((tag) => (
+                        <View key={tag} style={styles.factorTag}>
+                          <AppText style={styles.factorTagText}>{tag}</AppText>
+                        </View>
+                      ))}
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            </>
+          )}
         </>
+      ) : !isPremium ? (
+        premiumToolsCard
       ) : toolMode === 'calculators' ? (
         <>
           <View style={styles.sheetGrid}>
@@ -1809,10 +1813,6 @@ export default function CheatSheetsScreen() {
               <Pressable
                 key={sheet.key}
                 onPress={() => {
-                  if (sheet.key === 'fantasy') {
-                    router.push('/fantasy' as any)
-                    return
-                  }
                   setSelectedKey(sheet.key)
                 }}
                 style={styles.sheetTile}

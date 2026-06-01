@@ -7,7 +7,7 @@ import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { kingfishFetch } from '@/lib/api'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
-import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
+import { PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game } from '@/types'
 
@@ -457,7 +457,7 @@ function TableHeader({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: Sort
   return (
     <View style={styles.compactHeader}>
       <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} style={styles.playerColumn} />
-      <SortHeader label="SZN" target="season" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
+      <SortHeader label="AVG" target="season" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} style={styles.edgeColumn} />
@@ -490,7 +490,7 @@ function PlayerPropRow({
           {displayPlayerName(row.player)}
         </AppText>
         <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-          {row.line || '-'} {marketLabel}  {row.bestOdds ? `${fmtOdds(row.bestOdds)} ${row.bestBook ? BOOK_DISPLAY_NAMES[row.bestBook] || row.bestBook : ''}` : '-'}
+          {row.line || '-'} {marketLabel} {row.bestOdds ? fmtOdds(row.bestOdds) : '-'}
         </AppText>
       </View>
       <View style={[styles.compactCell, styles.statColumn]}>

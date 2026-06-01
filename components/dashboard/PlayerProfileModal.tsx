@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -362,6 +362,8 @@ function compactShareText(value: string, maxLength: number) {
 
 export function PlayerProfileModal({ playerName, sport, marketContext, context = 'props', onClose }: PlayerProfileModalProps) {
   const [shareCardOpen, setShareCardOpen] = useState(false)
+  const { width, height } = useWindowDimensions()
+  const isLandscape = width > height
   const isFantasyProfile = context === 'fantasy'
   const query = useQuery({
     queryKey: ['player-profile', sport, playerName, context],
@@ -377,13 +379,13 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
 
   return (
     <Modal visible={!!playerName} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isLandscape && styles.overlayLandscape]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.header}>
+        <View style={[styles.sheet, isLandscape && styles.sheetLandscape]}>
+          <View style={[styles.header, isLandscape && styles.headerLandscape]}>
             <View style={styles.headerText}>
               <AppText variant="eyebrow">// Player Profile</AppText>
-              <AppText variant="title" style={styles.name}>{playerName}</AppText>
+              <AppText variant="title" style={[styles.name, isLandscape && styles.nameLandscape]}>{playerName}</AppText>
               <View style={styles.metaRow}>
                 {query.data?.team ? <Badge label={query.data.team} /> : null}
                 {query.data?.position ? <Badge label={query.data.position} muted /> : null}
@@ -403,11 +405,11 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.body, isLandscape && styles.bodyLandscape]} showsVerticalScrollIndicator={false}>
             {query.isLoading && <AppText variant="muted">Loading player profile...</AppText>}
 
             {query.isError && (
-              <Card>
+              <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// Error</AppText>
                 <AppText variant="muted" style={styles.error}>
                   {query.error instanceof Error ? query.error.message : 'Failed to load player profile.'}
@@ -416,14 +418,14 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             )}
 
             {formNote && (
-              <Card>
+              <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// Recent Form</AppText>
                 <AppText style={styles.formNote}>{formNote}</AppText>
               </Card>
             )}
 
             {sport === 'nfl' && query.data?.depthRole ? (
-              <Card>
+              <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// Depth Chart Role</AppText>
                 <View style={styles.roleGrid}>
                   {[
@@ -442,7 +444,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             ) : null}
 
             {propFocus && !isFantasyProfile && (
-              <Card>
+              <Card style={isLandscape && styles.landscapePanel}>
                 <View style={styles.focusHeader}>
                   <View style={styles.focusTitleWrap}>
                     <AppText variant="eyebrow">// Prop Focus</AppText>
@@ -471,7 +473,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             )}
 
             {query.data?.statDisplay?.length ? (
-              <View>
+              <View style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow" style={styles.sectionLabel}>// Averages</AppText>
                 <View style={styles.statGrid}>
                   {query.data.statDisplay.map((stat) => (
@@ -485,7 +487,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             ) : null}
 
             {recentGames(query.data).length ? (
-              <View>
+              <View style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow" style={styles.sectionLabel}>// Last 10 Games</AppText>
                 <View style={styles.recentList}>
                   {recentGames(query.data).map((game, index) => (
@@ -512,7 +514,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             ) : null}
 
             {!isFantasyProfile ? (
-              <View>
+              <View style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow" style={styles.sectionLabel}>// Today's Props</AppText>
                 {query.data?.props?.length ? (
                   <View style={styles.propsList}>
@@ -675,6 +677,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(8,9,14,.82)',
   },
+  overlayLandscape: {
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -687,12 +693,22 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
   },
+  sheetLandscape: {
+    alignSelf: 'center',
+    width: '94%',
+    maxWidth: 980,
+    maxHeight: '92%',
+    borderRadius: 18,
+  },
   header: {
     flexDirection: 'row',
     gap: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     padding: spacing.lg,
+  },
+  headerLandscape: {
+    paddingVertical: spacing.md,
   },
   headerText: {
     flex: 1,
@@ -701,6 +717,10 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 32,
     marginTop: 8,
+  },
+  nameLandscape: {
+    fontSize: 24,
+    lineHeight: 27,
   },
   metaRow: {
     flexDirection: 'row',
@@ -741,6 +761,16 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  bodyLandscape: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    columnGap: spacing.lg,
+    rowGap: spacing.lg,
+  },
+  landscapePanel: {
+    width: '48%',
   },
   error: {
     color: colors.red,

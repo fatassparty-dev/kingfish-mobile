@@ -199,7 +199,7 @@ interface FlattenedProp {
 
 type PlayerBookData = Record<string, { over?: number; point?: number }>
 
-type SortKey = 'player' | 'line' | 'odds' | 'season' | 'l10' | 'l5' | 'edge'
+type SortKey = 'player' | 'line' | 'odds' | 'season' | 'l10' | 'l10hit' | 'l5' | 'l5hit' | 'edge'
 type SortDir = 'asc' | 'desc'
 
 const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
@@ -890,7 +890,9 @@ const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'odds', label: 'Odds' },
   { key: 'season', label: 'AVG' },
   { key: 'l10', label: 'L10' },
+  { key: 'l10hit', label: 'L10 Hit' },
   { key: 'l5', label: 'L5' },
+  { key: 'l5hit', label: 'L5 Hit' },
   { key: 'edge', label: 'Edge' },
 ]
 
@@ -909,8 +911,10 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   if (key === 'line') return line
   if (key === 'odds') return prop.outcome.price || 0
   if (key === 'season') return season
-  if (key === 'l10') return sport === 'NFL' && landscape ? l10Rate ?? -1 : l10
-  if (key === 'l5') return sport === 'NFL' && landscape ? l5Rate ?? -1 : l5
+  if (key === 'l10') return l10
+  if (key === 'l10hit') return l10Rate ?? -1
+  if (key === 'l5') return l5
+  if (key === 'l5hit') return l5Rate ?? -1
   return edge.score
 }
 
@@ -963,16 +967,14 @@ function PropTableRow({
         </>
       ) : null}
       <StatTableCell value={fmtStat(season)} color={statColor(season, line)} landscape={landscape} />
-      <StatTableCell
-        value={sport === 'NFL' && landscape ? hitCountLabel(l10Values, line) : fmtStat(l10)}
-        color={sport === 'NFL' && landscape ? hitRateColor(hitRate(l10Values, line)) : statColor(l10, line)}
-        landscape={landscape}
-      />
-      <StatTableCell
-        value={sport === 'NFL' && landscape ? hitCountLabel(l5Values, line) : fmtStat(l5)}
-        color={sport === 'NFL' && landscape ? hitRateColor(hitRate(l5Values, line)) : statColor(l5, line)}
-        landscape={landscape}
-      />
+      <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} landscape={landscape} />
+      {landscape ? (
+        <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
+      ) : null}
+      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} landscape={landscape} />
+      {landscape ? (
+        <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
+      ) : null}
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>
@@ -1135,7 +1137,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   landscapeTable: {
-    minWidth: 700,
+    minWidth: 920,
   },
   cell: {
     width: 54,
@@ -1144,7 +1146,7 @@ const styles = StyleSheet.create({
     paddingRight: 5,
   },
   landscapeCell: {
-    width: 72,
+    width: 78,
   },
   playerCell: {
     flex: 1.65,
@@ -1152,7 +1154,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   landscapePlayerCell: {
-    flex: 1.9,
+    flex: 2.2,
   },
   playerName: {
     color: colors.gold,
@@ -1173,7 +1175,7 @@ const styles = StyleSheet.create({
     paddingRight: 0,
   },
   landscapeEdgeCell: {
-    width: 76,
+    width: 82,
   },
   headerText: {
     color: colors.gold,
