@@ -703,6 +703,16 @@ function formLabel(team: any, sport: Sport) {
   return `${Number(team.l10For || 0).toFixed(1)} PF / ${Number(team.l10Against || 0).toFixed(1)} PA`
 }
 
+function recentPointsFor(team: any) {
+  if (!team) return '-'
+  return Number(team.l10For || 0).toFixed(1)
+}
+
+function recentPointsAgainst(team: any) {
+  if (!team) return '-'
+  return Number(team.l10Against || 0).toFixed(1)
+}
+
 function mlbAbbr(teamName: string) {
   return MLB_TEAM_NAME_TO_ABBR[teamName] || teamName.split(' ').pop()?.slice(0, 3).toUpperCase() || teamName
 }
@@ -1449,27 +1459,42 @@ export default function DashboardScreen() {
                       series.teams.filter((team) => team.alive !== false).map((team) => {
                         const form = findTeamForm(teamFormQuery.data?.teams, team.teamName) || findTeamForm(teamFormQuery.data?.teams, team.teamAbbr)
                         return (
-                          <View key={`${conference.name}-${series.status}-${team.teamAbbr}`} style={styles.playoffTeamRow}>
-                            <View style={styles.teamInfoRank}>
-                              <AppText style={styles.teamInfoRankText}>{team.teamAbbr}</AppText>
+                          <View key={`${conference.name}-${series.status}-${team.teamAbbr}`} style={styles.playoffSeriesTeamRow}>
+                            <View style={styles.playoffTeamHeader}>
+                              <View style={styles.teamInfoRank}>
+                                <AppText style={styles.teamInfoRankText}>{team.teamAbbr}</AppText>
+                              </View>
+                              <View style={styles.teamInfoBody}>
+                                <AppText style={styles.teamInfoName}>{team.teamName}</AppText>
+                                <AppText variant="muted" style={styles.teamInfoMeta}>{series.status}</AppText>
+                              </View>
                             </View>
-                            <View style={styles.teamInfoBody}>
-                              <AppText style={styles.teamInfoName}>{team.teamName}</AppText>
-                              <AppText variant="muted" style={styles.teamInfoMeta}>{series.status}</AppText>
-                              <View style={styles.teamInfoStats}>
-                                <View style={styles.teamInfoStat}>
-                                  <AppText variant="mono">Record</AppText>
-                                  <AppText style={styles.teamInfoValue}>{team.record || teamRecordLabel(form, sport)}</AppText>
-                                </View>
-                                <View style={styles.teamInfoStat}>
-                                  <AppText variant="mono">Series W</AppText>
-                                  <AppText style={styles.teamInfoValue}>{team.seriesWins}</AppText>
-                                </View>
+                            <View style={[styles.teamInfoStats, styles.playoffTeamStats]}>
+                              <View style={styles.teamInfoStat}>
+                                <AppText variant="mono">Record</AppText>
+                                <AppText style={[styles.teamInfoValue, styles.playoffTeamInfoValue]}>{team.record || teamRecordLabel(form, sport)}</AppText>
+                              </View>
+                              <View style={styles.teamInfoStat}>
+                                <AppText variant="mono">Series W</AppText>
+                                <AppText style={[styles.teamInfoValue, styles.playoffTeamInfoValue]}>{team.seriesWins}</AppText>
+                              </View>
+                              {sport === 'NBA' ? (
+                                <>
+                                  <View style={styles.teamInfoStat}>
+                                    <AppText variant="mono">Recent PF</AppText>
+                                    <AppText style={[styles.teamInfoValue, styles.playoffTeamInfoValue]}>{recentPointsFor(form)}</AppText>
+                                  </View>
+                                  <View style={styles.teamInfoStat}>
+                                    <AppText variant="mono">Recent PA</AppText>
+                                    <AppText style={[styles.teamInfoValue, styles.playoffTeamInfoValue]}>{recentPointsAgainst(form)}</AppText>
+                                  </View>
+                                </>
+                              ) : (
                                 <View style={styles.teamInfoStat}>
                                   <AppText variant="mono">Recent</AppText>
-                                  <AppText style={styles.teamInfoValue}>{formLabel(form, sport)}</AppText>
+                                  <AppText style={[styles.teamInfoValue, styles.playoffTeamInfoValue]}>{formLabel(form, sport)}</AppText>
                                 </View>
-                              </View>
+                              )}
                             </View>
                           </View>
                         )
@@ -2889,6 +2914,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  playoffSeriesTeamRow: {
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  playoffTeamHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   teamInfoRank: {
     width: 38,
     height: 38,
@@ -2932,6 +2968,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
+  playoffTeamStats: {
+    marginTop: 0,
+  },
   teamInfoStat: {
     flex: 1,
     borderWidth: 1,
@@ -2944,6 +2983,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '900',
     marginTop: 6,
+  },
+  playoffTeamInfoValue: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   miniMeta: {
     marginTop: 6,
