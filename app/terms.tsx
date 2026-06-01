@@ -13,7 +13,7 @@ const sections = [
   },
   {
     title: '2. Description of Service',
-    body: 'KingFish Bets provides sports analytics, betting research tools, odds comparison, market context, and AI-assisted analysis for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, or operate as a sportsbook.',
+    body: 'KingFish Bets provides sports analytics, betting research tools, odds comparison, market context, and AI-assisted analysis for informational and entertainment purposes only. We do not accept wagers, facilitate gambling transactions, operate as a sportsbook, or support offshore sportsbook pricing.',
   },
   {
     title: '3. Not a Gambling Service',
@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: '6. Subscription and Payments',
-    body: 'Premium subscriptions in the mobile app may be purchased through in-app purchase. Subscriptions, cancellations, renewals, and mobile refund requests are handled through your App Store account and are subject to Apple policies. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
+    body: 'Premium subscriptions in the mobile app may be purchased through in-app purchase. Subscriptions, cancellations, renewals, and mobile refund requests are handled through your App Store or Google Play account and are subject to the store policies. Canceling turns off renewal, and access continues until the current billing period ends. Subscription terms, trial eligibility, renewal pricing, and billing timing are shown before purchase.',
   },
   {
     title: '7. Mobile App License',
@@ -70,7 +70,7 @@ export default function TermsScreen() {
     <Screen>
       <AppText variant="eyebrow">// Legal</AppText>
       <AppText variant="title" style={styles.title}>Terms of Service</AppText>
-      <AppText variant="muted" style={styles.updated}>Last updated: May 30, 2026</AppText>
+      <AppText variant="muted" style={styles.updated}>Last updated: June 1, 2026</AppText>
 
       <Card style={styles.notice}>
         <AppText variant="muted">
@@ -88,6 +88,8 @@ export default function TermsScreen() {
       </View>
 
       <Button variant="secondary" onPress={() => router.push('/privacy')}>Privacy Policy</Button>
+      <View style={styles.gap} />
+      <Button variant="outline" onPress={() => router.push('/refund')}>Refund Policy</Button>
       <View style={styles.gap} />
       <Button variant="outline" onPress={() => router.push('/support')}>Contact Support</Button>
       <View style={styles.gap} />

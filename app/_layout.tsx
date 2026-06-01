@@ -24,6 +24,7 @@ function RootLayout() {
           <Stack.Screen name="help" />
           <Stack.Screen name="terms" />
           <Stack.Screen name="privacy" />
+          <Stack.Screen name="refund" />
           <Stack.Screen name="support" />
           <Stack.Screen name="modals/paywall" options={{ presentation: 'modal' }} />
         </Stack>

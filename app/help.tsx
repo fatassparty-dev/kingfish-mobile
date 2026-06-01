@@ -26,6 +26,10 @@ const tools = [
     body: 'Shows moneylines and totals from supported US sportsbooks. The best available price is highlighted so you can compare books quickly.',
   },
   {
+    title: 'Supported Sportsbooks',
+    body: 'KingFish pricing comes from supported regulated U.S. sportsbooks, including DraftKings, FanDuel, BetMGM, Caesars, BetRivers, ESPN BET, Fanatics, Hard Rock Bet, bet365, SuperBook, PointsBet, BetPARX, Unibet, WynnBET, and Barstool where available. KingFish does not support offshore sportsbooks.',
+  },
+  {
     title: 'Player Props',
     body: 'Choose a prop category, then compare the line, season average, recent averages, hit rates, best odds, sportsbook, and Edge.',
   },
@@ -204,6 +208,21 @@ export default function HelpScreen() {
               <View style={styles.buttonGap}>
                 <Button variant="secondary" onPress={() => router.push('/support')}>
                   Contact Support
+                </Button>
+              </View>
+            </Card>
+          </View>
+
+          <View style={styles.section}>
+            <AppText variant="eyebrow">Billing</AppText>
+            <Card>
+              <AppText style={styles.cardTitle}>Plans & Refunds</AppText>
+              <AppText variant="muted" style={styles.cardBody}>
+                Manage or cancel your plan from Account. Canceling turns off renewal, and access continues until the current billing period ends. Refund requests are handled by the store used at checkout.
+              </AppText>
+              <View style={styles.buttonGap}>
+                <Button variant="secondary" onPress={() => router.push('/refund')}>
+                  Refund Policy
                 </Button>
               </View>
             </Card>

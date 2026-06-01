@@ -157,6 +157,26 @@ export default function AccountScreen() {
     setRestoring(false)
   }
 
+  function openPlanManagement() {
+    const platform = profile?.subscription_platform
+    const primaryUrl =
+      platform === 'android'
+        ? 'https://play.google.com/store/account/subscriptions'
+        : platform === 'ios'
+          ? 'itms-apps://apps.apple.com/account/subscriptions'
+          : mobileConfig.links.pricing
+    const fallbackUrl =
+      platform === 'android'
+        ? 'https://play.google.com/store/account/subscriptions'
+        : platform === 'ios'
+          ? 'https://apps.apple.com/account/subscriptions'
+          : mobileConfig.links.home
+
+    Linking.openURL(primaryUrl).catch(() => {
+      Linking.openURL(fallbackUrl).catch(() => {})
+    })
+  }
+
   function confirmClearChatHistory() {
     Alert.alert(
       'Clear Chat History',
@@ -318,6 +338,25 @@ export default function AccountScreen() {
         </View>
       </Card>
 
+      <View style={styles.sectionGap} />
+
+      <Card>
+        <AppText variant="eyebrow">// Plan Management</AppText>
+        <AppText style={styles.webTitle}>Billing</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Manage or cancel your plan through the store used at checkout. Canceling turns off renewal, and Pro access continues until the current billing period ends.
+        </AppText>
+        <View style={styles.cardAction}>
+          <Button variant="secondary" onPress={openPlanManagement}>
+            Manage Plan
+          </Button>
+        </View>
+        <View style={styles.buttonGap} />
+        <Button variant="outline" onPress={() => router.push('/refund')}>
+          Refund Policy
+        </Button>
+      </Card>
+
       {mobileConfig.app_notice ? (
         <>
           <View style={styles.sectionGap} />
@@ -362,6 +401,9 @@ export default function AccountScreen() {
           </AppText>
           <AppText style={styles.supportLink} onPress={() => router.push('/privacy')}>
             Privacy
+          </AppText>
+          <AppText style={styles.supportLink} onPress={() => router.push('/refund')}>
+            Refund Policy
           </AppText>
         </View>
       </Card>
