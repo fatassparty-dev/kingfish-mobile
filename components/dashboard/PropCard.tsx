@@ -146,50 +146,7 @@ const NFL_MARKETS = [
   'player_tackles_assists_alternate',
 ]
 
-type NflMarketGroup = 'passing' | 'rushing' | 'receiving' | 'touchdowns' | 'kicking' | 'defense'
-
-const NFL_MARKET_GROUPS: Array<{ key: NflMarketGroup; label: string }> = [
-  { key: 'passing', label: 'Passing' },
-  { key: 'rushing', label: 'Rushing' },
-  { key: 'receiving', label: 'Receiving' },
-  { key: 'touchdowns', label: 'TD Props' },
-  { key: 'kicking', label: 'Kicking' },
-  { key: 'defense', label: 'Defense' },
-]
-
-const NFL_MARKET_GROUP_BY_BASE: Record<string, NflMarketGroup> = {
-  player_pass_yds: 'passing',
-  player_pass_tds: 'touchdowns',
-  player_pass_attempts: 'passing',
-  player_pass_completions: 'passing',
-  player_pass_interceptions: 'passing',
-  player_pass_rush_yds: 'rushing',
-  player_pass_rush_reception_yds: 'rushing',
-  player_pass_rush_reception_tds: 'rushing',
-  player_rush_yds: 'rushing',
-  player_rush_attempts: 'rushing',
-  player_rush_tds: 'rushing',
-  player_rush_reception_yds: 'rushing',
-  player_rush_reception_tds: 'rushing',
-  player_receptions: 'receiving',
-  player_reception_yds: 'receiving',
-  player_reception_tds: 'receiving',
-  player_tds_over: 'touchdowns',
-  player_1st_td: 'touchdowns',
-  player_anytime_td: 'touchdowns',
-  player_last_td: 'touchdowns',
-  player_field_goals: 'kicking',
-  player_kicking_points: 'kicking',
-  player_pats: 'kicking',
-  player_assists: 'defense',
-  player_defensive_interceptions: 'defense',
-  player_sacks: 'defense',
-  player_solo_tackles: 'defense',
-  player_tackles_assists: 'defense',
-}
-
 const NFL_TD_MARKETS = new Set(['player_anytime_td', 'player_1st_td', 'player_last_td', 'player_tds_over'])
-const NFL_TOUCHDOWN_MARKET_ORDER = ['player_pass_tds', 'player_anytime_td', 'player_tds_over', 'player_1st_td', 'player_last_td']
 
 interface FlattenedProp {
   game: Game
@@ -259,22 +216,9 @@ function isNflTouchdownMarket(marketKey: string) {
   return NFL_TD_MARKETS.has(baseMarketKey(marketKey))
 }
 
-function nflMarketGroup(marketKey: string) {
-  return NFL_MARKET_GROUP_BY_BASE[baseMarketKey(marketKey)] || 'passing'
-}
-
 function standardMarketLabel(marketKey: string) {
   const label = marketLabel(marketKey)
   return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
-}
-
-function sortNflVisibleMarkets(markets: string[], group: NflMarketGroup) {
-  if (group !== 'touchdowns') return markets
-  return [...markets].sort((a, b) => {
-    const aIndex = NFL_TOUCHDOWN_MARKET_ORDER.indexOf(baseMarketKey(a))
-    const bIndex = NFL_TOUCHDOWN_MARKET_ORDER.indexOf(baseMarketKey(b))
-    return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex)
-  })
 }
 
 function compactPropLabel(marketKey: string, sport: Sport) {
@@ -587,7 +531,6 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
     return NFL_MARKETS.filter((marketKey) => !isAlternateMarket(marketKey))
   }, [availableMarketKeys, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
-  const [nflGroup, setNflGroup] = useState<NflMarketGroup>('passing')
   const [sortKey, setSortKey] = useState<SortKey>('edge')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
@@ -595,21 +538,10 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   const [selectedGame, setSelectedGame] = useState('all')
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const availableNflGroups = useMemo(() => (
-    NFL_MARKET_GROUPS.filter((group) =>
-      markets.some((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === group.key)
-    )
-  ), [markets])
-  const activeNflGroup = availableNflGroups.some((group) => group.key === nflGroup)
-    ? nflGroup
-    : availableNflGroups[0]?.key || nflGroup
   const visibleMarkets = useMemo(() => {
     if (sport !== 'NFL') return markets
-    return sortNflVisibleMarkets(
-      markets.filter((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === activeNflGroup),
-      activeNflGroup,
-    )
-  }, [markets, activeNflGroup, sport])
+    return markets.filter((marketKey) => !isAlternateMarket(marketKey))
+  }, [markets, sport])
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
   const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
   const selectedAltMarket = sport === 'NFL' && availableMarketKeys.length
@@ -691,50 +623,19 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
 
   return (
     <View style={styles.list}>
-      {sport === 'NFL' ? (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
-            {availableNflGroups.map((group) => (
-              <Pressable
-                key={group.key}
-                onPress={() => setNflGroup(group.key)}
-                style={[styles.marketButton, styles.nflMarketButton, styles.groupMarketButton, activeNflGroup === group.key && styles.groupMarketButtonActive]}
-              >
-                <AppText style={[styles.marketText, activeNflGroup === group.key && styles.groupMarketTextActive]}>
-                  {group.label}
-                </AppText>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
-            {visibleMarkets.map((marketKey) => (
-              <Pressable
-                key={marketKey}
-                onPress={() => setActiveMarket(marketKey)}
-                style={[styles.marketButton, styles.nflMarketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
-              >
-                <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
-                  {standardMarketLabel(marketKey)}
-                </AppText>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
-          {visibleMarkets.map((marketKey) => (
-            <Pressable
-              key={marketKey}
-              onPress={() => setActiveMarket(marketKey)}
-              style={[styles.marketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
-            >
-              <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
-                {standardMarketLabel(marketKey)}
-              </AppText>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
+        {visibleMarkets.map((marketKey) => (
+          <Pressable
+            key={marketKey}
+            onPress={() => setActiveMarket(marketKey)}
+            style={[styles.marketButton, sport === 'NFL' && styles.nflMarketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
+          >
+            <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
+              {standardMarketLabel(marketKey)}
+            </AppText>
+          </Pressable>
+        ))}
+      </ScrollView>
       {sport === 'NFL' && selectedAltMarket && (
         <View style={styles.variantRow}>
           <Pressable
@@ -1238,13 +1139,6 @@ const styles = StyleSheet.create({
   nflMarketButton: {
     minWidth: 86,
   },
-  groupMarketButton: {
-    backgroundColor: colors.bgCard,
-  },
-  groupMarketButtonActive: {
-    borderColor: colors.gold,
-    backgroundColor: 'rgba(198,145,50,.16)',
-  },
   marketButtonActive: {
     borderColor: colors.gold,
     backgroundColor: colors.gold,
@@ -1257,9 +1151,6 @@ const styles = StyleSheet.create({
   },
   marketTextActive: {
     color: colors.bgPrimary,
-  },
-  groupMarketTextActive: {
-    color: colors.gold,
   },
   variantRow: {
     flexDirection: 'row',

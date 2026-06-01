@@ -115,7 +115,7 @@ Current mobile polish should continue from this exact list, without starting a n
 
 - Dashboard player props: keep the portrait view compact, but do not remove real betting info for space. Odds, averages, hit rates, and edge context matter.
 - Landscape player props: use the fuller table shape for MLB, NFL, and WNBA. Target column order is Player, Line, Odds, AVG, L5 AVG, L10 AVG, L5 Hit, L10 Hit, Edge. Odds do not need sorting; the other columns should sort.
-- NFL player props: separate Passing TD from Anytime TD. The TD Props group should show Pass TDs and Anytime TD as separate selectable market buttons. Pass TDs uses passing TD stats. Anytime/1st/last/TDs Over use rush + receiving TD stats, excluding passing TDs.
+- NFL player props: navigation should match MLB with one horizontal rail of actual prop markets, not category rows. Pass TDs uses passing TD stats. Anytime/1st/last/TDs Over use rush + receiving TD stats, excluding passing TDs.
 - NFL portrait player props: match MLB styling, but show L5 and L10 as averages in portrait. Keep hit-rate counts for landscape.
 - NFL player prop profiles: keep sports betting and fantasy separate. Do not show fantasy-football wording in prop profiles.
 - MLB player props: change any `SZN` header to `AVG`. Remove sportsbook names from compact preview rows if they clip; sportsbook detail can live in the player profile.
