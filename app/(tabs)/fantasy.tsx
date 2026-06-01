@@ -191,6 +191,7 @@ export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [sleeperUsername, setSleeperUsername] = useState('')
   const [activeSleeper, setActiveSleeper] = useState<{ username: string; leagueId?: string; rosterId?: string } | null>(null)
   const [profilePlayer, setProfilePlayer] = useState<string | null>(null)
@@ -759,20 +760,33 @@ export default function FantasyToolScreen() {
           ) : (
             <>
               <View style={styles.positionGrid}>
-                <TextInput
-                  value={search}
-                  onChangeText={setSearch}
-                  placeholder="Search"
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                  style={styles.searchFilterInput}
-                />
+                <Pressable
+                  onPress={() => setSearchOpen(open => !open)}
+                  style={[styles.positionButton, (searchOpen || !!search) && styles.positionButtonActive]}
+                >
+                  <AppText style={[styles.positionText, (searchOpen || !!search) && styles.positionTextActive]}>Search</AppText>
+                </Pressable>
                 {POSITIONS.filter(pos => mode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
                   <Pressable key={pos} onPress={() => setPosition(pos)} style={[styles.positionButton, position === pos && styles.positionButtonActive]}>
                     <AppText style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</AppText>
                   </Pressable>
                 ))}
               </View>
+
+              {searchOpen ? (
+                <View style={styles.searchRow}>
+                  <TextInput
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder="Search player or team"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    style={styles.searchInput}
+                  />
+                  {search ? <AppText onPress={() => setSearch('')} style={styles.clearText}>Clear</AppText> : null}
+                </View>
+              ) : null}
 
               <View style={styles.playerList}>
                 {boardPlayers.map(player => (
@@ -1179,18 +1193,31 @@ const styles = StyleSheet.create({
   leagueMeta: { marginTop: 4, fontSize: 12 },
   rosterCard: { marginTop: spacing.md },
   metaCard: { marginBottom: spacing.md },
-  searchFilterInput: {
-    minWidth: 76,
-    minHeight: 38,
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 46,
     borderWidth: 1,
     borderColor: colors.borderActive,
     borderRadius: 8,
+    backgroundColor: colors.bgCard,
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
   },
-  positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+  clearText: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '800',
+    paddingHorizontal: spacing.sm,
+  },
+  positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   positionButton: { minWidth: 54, minHeight: 38, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
   positionButtonActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.13)' },
   positionText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
