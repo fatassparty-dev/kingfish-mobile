@@ -56,6 +56,15 @@ export interface PlayerProfileMarketContext {
   marketKey: string
   marketLabel: string
   commonLine: number
+  vsStarter?: {
+    pitcherName?: string
+    avg?: string
+    ab?: number
+    hits?: number
+    hr?: number
+    rbi?: number
+    ops?: string
+  } | null
 }
 
 interface PlayerProfileModalProps {
@@ -515,6 +524,30 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
               </Card>
             )}
 
+            {sport === 'mlb' && marketContext?.vsStarter ? (
+              <Card style={isLandscape && styles.landscapePanel}>
+                <AppText variant="eyebrow">// VS SP</AppText>
+                <AppText style={styles.vsStarterTitle}>
+                  {marketContext.vsStarter.pitcherName || 'Probable starter'}
+                </AppText>
+                <View style={styles.vsStarterGrid}>
+                  {[
+                    ['AVG', marketContext.vsStarter.avg || '-'],
+                    ['AB', String(marketContext.vsStarter.ab || 0)],
+                    ['H', String(marketContext.vsStarter.hits || 0)],
+                    ['HR', String(marketContext.vsStarter.hr || 0)],
+                    ['RBI', String(marketContext.vsStarter.rbi || 0)],
+                    ['OPS', marketContext.vsStarter.ops || '-'],
+                  ].map(([label, value]) => (
+                    <View key={label} style={styles.vsStarterStat}>
+                      <AppText variant="mono">{label}</AppText>
+                      <AppText style={styles.vsStarterValue}>{value}</AppText>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
+
             {query.data?.statDisplay?.length ? (
               <View style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow" style={styles.sectionLabel}>// Averages</AppText>
@@ -881,6 +914,36 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  vsStarterTitle: {
+    marginTop: spacing.sm,
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  vsStarterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  vsStarterStat: {
+    minWidth: 78,
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCard,
+    padding: spacing.md,
+  },
+  vsStarterValue: {
+    marginTop: 5,
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
   },
   focusHeader: {
     flexDirection: 'row',

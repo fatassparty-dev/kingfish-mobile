@@ -34,6 +34,19 @@ const PITCHER_MARKETS = [
 
 const ALL_MARKETS = [...BATTER_MARKETS, ...PITCHER_MARKETS]
 
+const TEAM_NAME_TO_ABBR: Record<string, string> = {
+  'New York Yankees': 'NYY', 'Boston Red Sox': 'BOS', 'Toronto Blue Jays': 'TOR',
+  'Baltimore Orioles': 'BAL', 'Tampa Bay Rays': 'TB', 'Chicago White Sox': 'CWS',
+  'Cleveland Guardians': 'CLE', 'Detroit Tigers': 'DET', 'Kansas City Royals': 'KC',
+  'Minnesota Twins': 'MIN', 'Houston Astros': 'HOU', 'Los Angeles Angels': 'LAA',
+  'Oakland Athletics': 'OAK', 'Athletics': 'OAK', 'Seattle Mariners': 'SEA', 'Texas Rangers': 'TEX',
+  'Atlanta Braves': 'ATL', 'Miami Marlins': 'MIA', 'New York Mets': 'NYM',
+  'Philadelphia Phillies': 'PHI', 'Washington Nationals': 'WAS', 'Chicago Cubs': 'CHC',
+  'Cincinnati Reds': 'CIN', 'Milwaukee Brewers': 'MIL', 'Pittsburgh Pirates': 'PIT',
+  'St. Louis Cardinals': 'STL', 'Los Angeles Dodgers': 'LAD', 'San Diego Padres': 'SD',
+  'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
+}
+
 const STAT_TO_RAW: Record<string, string> = {
   hits_per_game: 'hits',
   hr_per_game: 'hr',
@@ -55,6 +68,7 @@ const STAT_TO_RAW: Record<string, string> = {
 interface LineupPlayer {
   id: number
   name: string
+  team?: string
 }
 
 interface PlayerRow {
@@ -63,9 +77,25 @@ interface PlayerRow {
   bestOdds?: number
   bestBook?: string
   stats?: Record<string, any>
+  vsStarter?: {
+    pitcherName?: string
+    avg?: string
+    ab?: number
+    hits?: number
+    hr?: number
+    rbi?: number
+    ops?: string
+  } | null
 }
 
-type SortKey = 'player' | 'line' | 'season' | 'l20' | 'l10' | 'l5' | 'l20hit' | 'l10hit' | 'l5hit' | 'best' | 'book' | 'edge'
+interface BvpMatchup {
+  gameId: string
+  batterID: string
+  pitcherID: string
+  pitcherName?: string
+}
+
+type SortKey = 'player' | 'line' | 'season' | 'l20' | 'l10' | 'l5' | 'l20hit' | 'l10hit' | 'l5hit' | 'best' | 'book' | 'edge' | 'vsp'
 type SortDir = 'asc' | 'desc'
 
 const MLB_STATS_BATCH_SIZE = 90
@@ -147,6 +177,12 @@ function fmtRate(value: number | undefined) {
   return value ? value.toFixed(1) : '-'
 }
 
+function formatVsStarter(vsStarter?: PlayerRow['vsStarter']) {
+  if (!vsStarter) return '-'
+  if (!vsStarter.ab) return 'First'
+  return `${vsStarter.avg || '-'} (${vsStarter.ab})`
+}
+
 function displayPlayerName(name: string) {
   const parts = name.trim().split(/\s+/)
   if (parts.length < 2) return name
@@ -154,6 +190,10 @@ function displayPlayerName(name: string) {
   const suffix = suffixes.has(parts[parts.length - 1]) ? ` ${parts.pop()}` : ''
   const last = parts.slice(1).join(' ')
   return `${parts[0][0]}. ${last}${suffix}`
+}
+
+function teamAbbr(name?: string) {
+  return TEAM_NAME_TO_ABBR[name || ''] || name || ''
 }
 
 function findLineupPlayer(lineupMap: Record<string, LineupPlayer>, playerName?: string) {
@@ -169,7 +209,15 @@ function findLineupPlayer(lineupMap: Record<string, LineupPlayer>, playerName?: 
   })?.[1]
 }
 
-function buildRows(game: Game, marketKey: string, lineupMap: Record<string, LineupPlayer>, stats: Record<number, any>, search: string): PlayerRow[] {
+function buildRows(
+  game: Game,
+  marketKey: string,
+  lineupMap: Record<string, LineupPlayer>,
+  stats: Record<number, any>,
+  search: string,
+  bvpStats: Record<string, any> = {},
+  bvpByGameBatter: Map<string, BvpMatchup> = new Map(),
+): PlayerRow[] {
   const playerMap: Record<string, Record<string, { over?: number; point?: number }>> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
@@ -195,12 +243,25 @@ function buildRows(game: Game, marketKey: string, lineupMap: Record<string, Line
       const line = getDisplayLine(bookData, PROP_BOOK_KEYS)
       const best = getBestOverAtLine(bookData, PROP_BOOK_KEYS, line)
       const lineup = findLineupPlayer(lineupMap, player)
+      const bvpMeta = lineup ? bvpByGameBatter.get(`${gameId(game)}_${lineup.id}`) : undefined
+      const bvp = bvpMeta ? bvpStats[`${bvpMeta.batterID}_${bvpMeta.pitcherID}`] : null
       return {
         player,
         line,
         bestOdds: best?.odds,
         bestBook: best?.book,
         stats: lineup ? stats[lineup.id] : undefined,
+        vsStarter: bvpMeta
+          ? {
+            pitcherName: bvpMeta.pitcherName,
+            avg: bvp?.avg,
+            ab: Number(bvp?.ab || 0),
+            hits: Number(bvp?.hits || 0),
+            hr: Number(bvp?.hr || 0),
+            rbi: Number(bvp?.rbi || 0),
+            ops: bvp?.ops,
+          }
+          : null,
       }
     })
     .filter((row) => row.line || row.bestOdds)
@@ -215,6 +276,60 @@ function upcomingGames(games: Game[]) {
 
 function gameId(game: Game) {
   return String(game.game_id || game.id || `${game.away_team}-${game.home_team}-${game.commence_time}`)
+}
+
+function batterOutcomes(game: Game) {
+  const outcomes: Array<{ player: string }> = []
+  const seen = new Set<string>()
+
+  game.bookmakers?.forEach((bookmaker) => {
+    bookmaker.markets?.forEach((market) => {
+      if (!market.key || market.key.startsWith('pitcher_')) return
+      market.outcomes?.forEach((outcome) => {
+        if (!outcome.description) return
+        const key = normalizeName(outcome.description)
+        if (seen.has(key)) return
+        seen.add(key)
+        outcomes.push({ player: outcome.description })
+      })
+    })
+  })
+
+  return outcomes
+}
+
+function buildBvpMatchups(
+  games: Game[],
+  lineupMap: Record<string, LineupPlayer>,
+  pitcherMap: Record<string, string> = {},
+  pitcherNameMap: Record<string, string> = {},
+) {
+  const seen = new Set<string>()
+  const matchups: BvpMatchup[] = []
+
+  games.forEach((game) => {
+    const awayAbbr = teamAbbr(game.away_team)
+    const homeAbbr = teamAbbr(game.home_team)
+    const awayPitcherId = pitcherMap[awayAbbr]
+    const homePitcherId = pitcherMap[homeAbbr]
+    const awayPitcherName = pitcherNameMap[awayAbbr] || 'Probable starter'
+    const homePitcherName = pitcherNameMap[homeAbbr] || 'Probable starter'
+
+    batterOutcomes(game).forEach((outcome) => {
+      const lineup = findLineupPlayer(lineupMap, outcome.player)
+      if (!lineup?.id) return
+      const batterTeam = teamAbbr(lineup.team)
+      const pitcherID = batterTeam === awayAbbr ? homePitcherId : batterTeam === homeAbbr ? awayPitcherId : ''
+      const pitcherName = batterTeam === awayAbbr ? homePitcherName : batterTeam === homeAbbr ? awayPitcherName : ''
+      if (!pitcherID) return
+      const key = `${gameId(game)}_${lineup.id}_${pitcherID}`
+      if (seen.has(key)) return
+      seen.add(key)
+      matchups.push({ gameId: gameId(game), batterID: String(lineup.id), pitcherID, pitcherName })
+    })
+  })
+
+  return matchups
 }
 
 export function MLBPropsTable({ games }: { games: Game[] }) {
@@ -267,6 +382,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
     if (key === 'l5hit') return hitRateValue(row.stats, market.statField, row.line, 5)
     if (key === 'best') return row.bestOdds || -100000
     if (key === 'book') return row.bestBook || ''
+    if (key === 'vsp') return row.vsStarter?.ab ? Number(String(row.vsStarter.avg || '0').replace(/^\./, '0.')) || 0 : -1
     return edge.score
   }
 
@@ -321,12 +437,48 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
     staleTime: 12 * 60 * 60 * 1000,
   })
 
+  const scheduleQuery = useQuery({
+    queryKey: ['mlb-schedule-props-table'],
+    queryFn: () => kingfishFetch<{
+      pitcherMap?: Record<string, string>
+      pitcherNameMap?: Record<string, string>
+    }>('/api/mlb-schedule'),
+    enabled: !!lineupsQuery.data && !market.isPitcher,
+    staleTime: 60 * 60 * 1000,
+  })
+
+  const bvpMatchups = useMemo(
+    () => buildBvpMatchups(
+      filteredGames,
+      lineupsQuery.data?.players || {},
+      scheduleQuery.data?.pitcherMap,
+      scheduleQuery.data?.pitcherNameMap,
+    ),
+    [filteredGames, lineupsQuery.data?.players, scheduleQuery.data?.pitcherMap, scheduleQuery.data?.pitcherNameMap],
+  )
+
+  const bvpQuery = useQuery({
+    queryKey: ['mlb-props-table-bvp', bvpMatchups.map((matchup) => `${matchup.batterID}_${matchup.pitcherID}`).join(',')],
+    queryFn: () =>
+      kingfishFetch<{ bvp: Record<string, any> }>('/api/mlb-bvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchups: bvpMatchups.map(({ batterID, pitcherID }) => ({ batterID, pitcherID })) }),
+      }),
+    enabled: !!lineupsQuery.data && !market.isPitcher && bvpMatchups.length > 0,
+    staleTime: 12 * 60 * 60 * 1000,
+  })
+
   const lineupMap = lineupsQuery.data?.players || {}
   const stats = statsQuery.data || {}
+  const bvpByGameBatter = useMemo(
+    () => new Map(bvpMatchups.map((matchup) => [`${matchup.gameId}_${matchup.batterID}`, matchup])),
+    [bvpMatchups],
+  )
   const selectedGameLabel = selectedGameForHeader
     ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
     : 'All Games'
-  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search)))
+  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bvpQuery.data?.bvp, bvpByGameBatter)))
 
   return (
     <View style={styles.wrap}>
@@ -409,6 +561,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
                   marketKey,
                   marketLabel: market.label,
                   commonLine: row.line,
+                  vsStarter: row.vsStarter,
                 })
               }}
             />
@@ -464,7 +617,7 @@ function TableHeader({ sortKey, onSort, landscape }: { sortKey: SortKey; onSort:
       <View style={styles.compactHeader}>
         <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapePlayerColumn} />
         <SortHeader label="Line" target="line" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
-        <SortHeader label="Odds" target="best" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="VS SP" target="vsp" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="AVG" target="season" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
@@ -515,11 +668,11 @@ function PlayerPropRow({
           {landscape ? row.player : displayPlayerName(row.player)}
         </AppText>
         <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-          {landscape ? marketLabel : `${row.line || '-'} ${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}`}
+          {landscape ? `${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}` : `${row.line || '-'} ${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}`}
         </AppText>
       </View>
       {landscape ? <TableCell value={row.line ? String(row.line) : '-'} color={colors.textPrimary} /> : null}
-      {landscape ? <TableCell value={row.bestOdds ? fmtOdds(row.bestOdds) : '-'} color={colors.gold} /> : null}
+      {landscape ? <TableCell value={formatVsStarter(row.vsStarter)} color={row.vsStarter?.ab ? colors.textPrimary : colors.textMuted} /> : null}
       <TableCell value={fmtRate(season)} color={statColor(season, row.line)} landscape={landscape} />
       <TableCell value={fmtRate(l5)} color={statColor(l5, row.line)} landscape={landscape} />
       <TableCell value={fmtRate(l10)} color={statColor(l10, row.line)} landscape={landscape} />
