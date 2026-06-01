@@ -85,6 +85,31 @@ const NFL_TEAM_NAME_TO_ABBR: Record<string, string> = {
   'Tennessee Titans': 'TEN', 'Washington Commanders': 'WAS',
 }
 
+const TEAM_NAME_TO_SHORT: Record<string, string> = {
+  'Arizona Diamondbacks': 'Arizona', 'Atlanta Braves': 'Atlanta', 'Baltimore Orioles': 'Baltimore',
+  'Boston Red Sox': 'Boston', 'Chicago Cubs': 'Chicago Cubs', 'Chicago White Sox': 'White Sox',
+  'Cincinnati Reds': 'Cincinnati', 'Cleveland Guardians': 'Cleveland', 'Colorado Rockies': 'Colorado',
+  'Detroit Tigers': 'Detroit', 'Houston Astros': 'Houston', 'Kansas City Royals': 'Kansas City',
+  'Los Angeles Angels': 'LA Angels', 'Los Angeles Dodgers': 'LA Dodgers', 'Miami Marlins': 'Miami',
+  'Milwaukee Brewers': 'Milwaukee', 'Minnesota Twins': 'Minnesota', 'New York Mets': 'NY Mets',
+  'New York Yankees': 'NY Yankees', 'Oakland Athletics': 'Athletics', 'Athletics': 'Athletics',
+  'Philadelphia Phillies': 'Philadelphia', 'Pittsburgh Pirates': 'Pittsburgh', 'San Diego Padres': 'San Diego',
+  'San Francisco Giants': 'San Francisco', 'Seattle Mariners': 'Seattle', 'St. Louis Cardinals': 'St. Louis',
+  'Tampa Bay Rays': 'Tampa Bay', 'Texas Rangers': 'Texas', 'Toronto Blue Jays': 'Toronto',
+  'Washington Nationals': 'Washington',
+  'Arizona Cardinals': 'Arizona', 'Atlanta Falcons': 'Atlanta', 'Baltimore Ravens': 'Baltimore',
+  'Buffalo Bills': 'Buffalo', 'Carolina Panthers': 'Carolina', 'Chicago Bears': 'Chicago',
+  'Cincinnati Bengals': 'Cincinnati', 'Cleveland Browns': 'Cleveland', 'Dallas Cowboys': 'Dallas',
+  'Denver Broncos': 'Denver', 'Detroit Lions': 'Detroit', 'Green Bay Packers': 'Green Bay',
+  'Houston Texans': 'Houston', 'Indianapolis Colts': 'Indianapolis', 'Jacksonville Jaguars': 'Jacksonville',
+  'Kansas City Chiefs': 'Kansas City', 'Las Vegas Raiders': 'Las Vegas', 'Los Angeles Chargers': 'LA Chargers',
+  'Los Angeles Rams': 'LA Rams', 'Miami Dolphins': 'Miami', 'Minnesota Vikings': 'Minnesota',
+  'New England Patriots': 'New England', 'New Orleans Saints': 'New Orleans', 'New York Giants': 'NY Giants',
+  'New York Jets': 'NY Jets', 'Philadelphia Eagles': 'Philadelphia', 'Pittsburgh Steelers': 'Pittsburgh',
+  'San Francisco 49ers': 'San Francisco', 'Seattle Seahawks': 'Seattle', 'Tampa Bay Buccaneers': 'Tampa Bay',
+  'Tennessee Titans': 'Tennessee', 'Washington Commanders': 'Washington',
+}
+
 const MLB_FACTOR_BASELINES: Record<string, { venue: string; score: number; environment: string; market: string }> = {
   'Colorado Rockies': { venue: 'Coors Field', score: 92, environment: 'Elite hitter park', market: 'Totals / HR props' },
   'Cincinnati Reds': { venue: 'Great American Ball Park', score: 84, environment: 'Power-friendly', market: 'HR props' },
@@ -509,11 +534,11 @@ function isNeutralFactorText(value?: string) {
   return /\bneutral\b/i.test(String(value || ''))
 }
 
-function factorTeamAbbr(team: string, sport: FactorSport) {
-  const map = sport === 'MLB' ? TEAM_NAME_TO_ABBR : NFL_TEAM_NAME_TO_ABBR
-  if (map[team]) return map[team]
+function factorTeamDisplay(team: string) {
+  if (TEAM_NAME_TO_SHORT[team]) return TEAM_NAME_TO_SHORT[team]
   const words = team.split(' ').filter(Boolean)
-  return words.length ? words[words.length - 1] : team
+  if (words.length <= 2) return team
+  return words.slice(0, -1).join(' ')
 }
 
 function factorTone(score: number) {
@@ -546,11 +571,11 @@ function buildFactorRows(
       const tags = [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags]
         .filter(Boolean)
         .filter((tag) => !isNeutralFactorText(tag))
-      const awayAbbr = factorTeamAbbr(game.away_team, sport)
-      const homeAbbr = factorTeamAbbr(game.home_team, sport)
+      const awayName = factorTeamDisplay(game.away_team)
+      const homeName = factorTeamDisplay(game.home_team)
       return {
         id,
-        matchup: `${awayAbbr} @ ${homeAbbr}`,
+        matchup: `${awayName} @ ${homeName}`,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
         scoreLabel: factorScoreLabel(sport),
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
