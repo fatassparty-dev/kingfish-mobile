@@ -258,8 +258,8 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, hitVal
   const priceScore = implied <= 0.52 ? 20 : implied <= 0.58 ? 15 : implied <= 0.65 ? 9 : implied <= 0.72 ? 4 : 0
   const score = Math.round(avgScore + hitScore + priceScore)
 
-  if (score >= 78) return { label: `Strong ${score}`, color: colors.gold, score }
-  if (score >= 64) return { label: `Lean ${score}`, color: colors.green, score }
+  if (score >= 78) return { label: `Strong ${score}`, color: colors.green, score }
+  if (score >= 64) return { label: `Lean ${score}`, color: colors.gold, score }
   if (score >= 45) return { label: `Neutral ${score}`, color: colors.textSecondary, score }
   return { label: `Fade ${score}`, color: colors.red, score }
 }
@@ -274,8 +274,8 @@ function webEdgeLabel(line: number, season: number, l10: number, l5: number) {
   const formRatio = seasonRatio * 0.30 + l10Ratio * 0.25 + l5Ratio * 0.45
   const score = Math.round(Math.max(0, Math.min(100, ((formRatio - 0.70) / 0.70) * 85)))
 
-  if (score >= 75) return { label: `Strong ${score}`, color: colors.gold, score }
-  if (score >= 62) return { label: `Lean ${score}`, color: colors.green, score }
+  if (score >= 75) return { label: `Strong ${score}`, color: colors.green, score }
+  if (score >= 62) return { label: `Lean ${score}`, color: colors.gold, score }
   if (score >= 45) return { label: `Neutral ${score}`, color: colors.textSecondary, score }
   return { label: `Fade ${score}`, color: colors.red, score }
 }
@@ -821,9 +821,9 @@ function buildHitFadeRows(
         underMarket * 12
       )
       const overEdge = hitScore >= 78
-        ? { label: `Strong ${hitScore}`, color: colors.gold, score: hitScore }
+        ? { label: `Strong ${hitScore}`, color: colors.green, score: hitScore }
         : hitScore >= 64
-          ? { label: `Lean ${hitScore}`, color: colors.green, score: hitScore }
+          ? { label: `Lean ${hitScore}`, color: colors.gold, score: hitScore }
           : hitScore >= 48
             ? { label: `Neutral ${hitScore}`, color: colors.textSecondary, score: hitScore }
             : { label: `Fade ${hitScore}`, color: colors.red, score: hitScore }
@@ -965,7 +965,7 @@ function buildRows(
         ? {
             score: boostedScore,
             label: boostedScore >= 78 ? `Strong ${boostedScore}` : boostedScore >= 64 ? `Lean ${boostedScore}` : boostedScore >= 45 ? `Neutral ${boostedScore}` : `Fade ${boostedScore}`,
-            color: boostedScore >= 78 ? colors.gold : boostedScore >= 64 ? colors.green : boostedScore >= 45 ? colors.textSecondary : colors.red,
+            color: boostedScore >= 78 ? colors.green : boostedScore >= 64 ? colors.gold : boostedScore >= 45 ? colors.textSecondary : colors.red,
           }
         : edge
 
@@ -1126,9 +1126,9 @@ function buildHrRows(
         Math.min(marketChance / 0.12, 1.4) * 18
       )
       const edge = score >= 72
-        ? { label: `Strong ${score}`, color: colors.gold, score }
+        ? { label: `Strong ${score}`, color: colors.green, score }
         : score >= 58
-          ? { label: `Lean ${score}`, color: colors.green, score }
+          ? { label: `Lean ${score}`, color: colors.gold, score }
           : score >= 42
             ? { label: `Neutral ${score}`, color: colors.textSecondary, score }
             : { label: `Fade ${score}`, color: colors.red, score }
@@ -1197,9 +1197,9 @@ function buildTotalBaseRows(
         impliedProbability(outcome.overOdds || 0) * 16
       )
       const edge = score >= 76
-        ? { label: `Strong ${score}`, color: colors.gold, score }
+        ? { label: `Strong ${score}`, color: colors.green, score }
         : score >= 62
-          ? { label: `Lean ${score}`, color: colors.green, score }
+          ? { label: `Lean ${score}`, color: colors.gold, score }
           : score >= 45
             ? { label: `Watch ${score}`, color: colors.textSecondary, score }
             : { label: `Pass ${score}`, color: colors.red, score }

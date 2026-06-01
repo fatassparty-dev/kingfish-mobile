@@ -30,6 +30,10 @@ const tools = [
     body: 'Choose a prop category, then compare the line, season average, recent averages, hit rates, best odds, sportsbook, and Edge.',
   },
   {
+    title: 'Landscape Dashboard',
+    body: 'Want to see more on the Dashboard? Turn your phone sideways in Player Props to view Line, Odds, AVG, L5, L10, L5 Hit, L10 Hit, and Edge in one wider table.',
+  },
+  {
     title: 'Player Profiles',
     body: 'Tap a player name to see today\'s markets, season form, recent game logs, and the props KingFish found for that player.',
   },
@@ -135,8 +139,8 @@ export default function HelpScreen() {
                 Edge is a 0-100 KingFish research signal. It is not a guarantee. It helps you find props where the stats, recent form, hit rate, and price line up better than average.
               </AppText>
               <View style={styles.edgeScale}>
-                <Scale label="78+" value="Strong" color={colors.gold} />
-                <Scale label="64-77" value="Lean" color={colors.green} />
+                <Scale label="78+" value="Strong" color={colors.green} />
+                <Scale label="64-77" value="Lean" color={colors.gold} />
                 <Scale label="45-63" value="Neutral" color={colors.textSecondary} />
                 <Scale label="0-44" value="Fade" color={colors.red} />
               </View>
