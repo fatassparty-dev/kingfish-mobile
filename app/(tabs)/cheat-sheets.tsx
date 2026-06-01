@@ -16,7 +16,7 @@ import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'futures'
+type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
 type ToolTile = {
   key: SheetKey
   label: string
@@ -30,7 +30,7 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'td' | 'futures'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'td'
   market?: string
   statField?: string
   trend?: boolean
@@ -44,7 +44,7 @@ const SHEETS: Array<{
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
-  { key: 'futures', label: 'NFL Futures', desc: 'Super Bowl, conference, division, and win total prices.', type: 'futures' },
+  { key: 'qb200', label: 'QB 200+ Yard Games', desc: 'Quarterbacks clearing 200 passing yards by recent form and season rate.', type: 'td' },
 ]
 
 const TOOL_TILES: ToolTile[] = [
@@ -57,7 +57,7 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
-  { key: 'futures', label: 'NFL Futures', sport: 'NFL' },
+  { key: 'qb200', label: 'QB 200+ Yards', sport: 'NFL' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -268,26 +268,6 @@ type MLBL10Payload = {
   teamL10Map?: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }>
 }
 
-type NflFuturesEntry = {
-  team?: string
-  name?: string
-  odds: number
-}
-
-type NflFuturesWinTeam = {
-  team: string
-  lines: { line: number; over: number; under: number }[]
-}
-
-type NflFuturesData = {
-  season?: string
-  snapshot?: string
-  superBowl?: NflFuturesEntry[]
-  conference?: Record<string, NflFuturesEntry[]>
-  division?: { division: string; entries: NflFuturesEntry[] }[]
-  wins?: NflFuturesWinTeam[]
-}
-
 interface TdStreakRow {
   player: string
   team: string
@@ -296,6 +276,38 @@ interface TdStreakRow {
   two_td_games?: number
   games?: number
   two_td_rate?: string
+}
+
+interface NflFantasyPlayer {
+  player_name: string
+  team: string
+  position: string
+  games?: number
+  passing_yards_per_game?: number
+  raw_games?: Array<{
+    label?: string
+    passing_yards?: number
+    passing_attempts?: number
+  }>
+}
+
+interface NflFantasySummary {
+  latest_season?: number
+  players?: NflFantasyPlayer[]
+}
+
+interface QbYardsRow {
+  player: string
+  team: string
+  games: number
+  hitGames: number
+  hitRate: string
+  l5Hits: number
+  l10Hits: number
+  l5Avg: number
+  l10Avg: number
+  seasonAvg: number
+  streak_games: number
 }
 
 function getStat(stats: Record<string, any> | undefined, field: string, prefix: 'season' | 'l10' | 'l5') {
@@ -649,6 +661,45 @@ function parseQbTdCsv(csv: string): TdStreakRow[] {
     })
     .filter((row) => row.player && row.team && row.position && row.streak_games >= 2)
     .sort((a, b) => b.streak_games - a.streak_games || (b.two_td_games || 0) - (a.two_td_games || 0) || a.player.localeCompare(b.player))
+}
+
+function buildQb200Rows(data?: NflFantasySummary): QbYardsRow[] {
+  return (data?.players || [])
+    .filter((player) => player.position === 'QB' && Array.isArray(player.raw_games) && player.raw_games.length >= 5)
+    .map((player) => {
+      const games = (player.raw_games || [])
+        .filter((game) => Number(game.passing_attempts || 0) > 0 || Number(game.passing_yards || 0) > 0)
+      const hits = games.filter((game) => Number(game.passing_yards || 0) >= 200)
+      const l5 = games.slice(0, 5)
+      const l10 = games.slice(0, 10)
+      let streak = 0
+      for (const game of games) {
+        if (Number(game.passing_yards || 0) < 200) break
+        streak += 1
+      }
+
+      return {
+        player: player.player_name,
+        team: player.team,
+        games: games.length,
+        hitGames: hits.length,
+        hitRate: `${hits.length}/${games.length}`,
+        l5Hits: l5.filter((game) => Number(game.passing_yards || 0) >= 200).length,
+        l10Hits: l10.filter((game) => Number(game.passing_yards || 0) >= 200).length,
+        l5Avg: l5.length ? l5.reduce((sum, game) => sum + Number(game.passing_yards || 0), 0) / l5.length : 0,
+        l10Avg: l10.length ? l10.reduce((sum, game) => sum + Number(game.passing_yards || 0), 0) / l10.length : 0,
+        seasonAvg: Number(player.passing_yards_per_game || 0),
+        streak_games: streak,
+      }
+    })
+    .filter((row) => row.games >= 5 && row.hitGames > 0)
+    .sort((a, b) =>
+      b.streak_games - a.streak_games ||
+      b.l10Hits - a.l10Hits ||
+      b.l5Avg - a.l5Avg ||
+      b.seasonAvg - a.seasonAvg ||
+      a.player.localeCompare(b.player)
+    )
 }
 
 function fmtMoney(value: number) {
@@ -1080,7 +1131,7 @@ function buildShareText(
   bvpRows: BvpRow[],
   tdRows: TdStreakRow[],
   qbTdRows: TdStreakRow[],
-  futures?: NflFuturesData,
+  qb200Rows: QbYardsRow[],
 ) {
   const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const header = [`KINGFISH BETS`, sheet.label.toUpperCase(), date]
@@ -1118,12 +1169,12 @@ function buildShareText(
     ].join('\n')
   }
 
-  if (activeKey === 'futures' && futures?.superBowl?.length) {
+  if (activeKey === 'qb200' && qb200Rows.length) {
     return [
       ...header,
       '',
-      'SUPER BOWL FUTURES',
-      ...futures.superBowl.slice(0, 12).map(row => `${row.team || row.name} | ${fmtOdds(row.odds)}`),
+      'QB | TEAM | 200+ RATE | L5 | L10 | STREAK',
+      ...qb200Rows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.hitRate} | ${row.l5Hits}/5 | ${row.l10Hits}/10 | ${row.streak_games}`),
       '',
       'kingfishbets.com',
     ].join('\n')
@@ -1405,8 +1456,7 @@ export default function CheatSheetsScreen() {
   const hasOpenSheet = selectedKey !== null
   const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet
   const isTdSheet = activeSheet.type === 'td'
-  const isFuturesSheet = activeSheet.type === 'futures'
-  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isFuturesSheet
+  const canLoadMlbSheetData = canLoadData && !isTdSheet
   const canLoadFactors = isPremium && toolMode === 'factors'
 
   const sheetQuery = useQuery({
@@ -1449,7 +1499,7 @@ export default function CheatSheetsScreen() {
       if (!response.ok) throw new Error(`Request failed: ${response.status}`)
       return parseTdStreakCsv(await response.text())
     },
-    enabled: canLoadData && isTdSheet,
+    enabled: canLoadData && activeKey === 'td',
     staleTime: 24 * 60 * 60 * 1000,
   })
 
@@ -1464,10 +1514,10 @@ export default function CheatSheetsScreen() {
     staleTime: 24 * 60 * 60 * 1000,
   })
 
-  const nflFuturesQuery = useQuery({
-    queryKey: ['nfl-futures-2026'],
-    queryFn: () => kingfishFetch<NflFuturesData>('/data/nfl/futures-2026.json'),
-    enabled: canLoadData && isFuturesSheet,
+  const nflFantasyQuery = useQuery({
+    queryKey: ['nfl-player-fantasy-summary-qb200'],
+    queryFn: () => kingfishFetch<NflFantasySummary>('/data/nfl/player-fantasy-summary.json'),
+    enabled: canLoadData && activeKey === 'qb200',
     staleTime: 24 * 60 * 60 * 1000,
   })
 
@@ -1603,13 +1653,13 @@ export default function CheatSheetsScreen() {
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
   const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
   const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
-  const nflFutures = activeKey === 'futures' ? nflFuturesQuery.data : undefined
+  const qb200Rows = activeKey === 'qb200' ? buildQb200Rows(nflFantasyQuery.data) : []
   const factorRows = toolMode === 'factors'
     ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport, factorOfficialQuery.data)
     : []
   const shareText = useMemo(
-    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, nflFutures),
-    [activeKey, activeSheet, bvpRows, nflFutures, qbTdRows, rows, tdStreakRows],
+    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows),
+    [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows],
   )
 
   async function shareSheet() {
@@ -1980,24 +2030,21 @@ export default function CheatSheetsScreen() {
                 </Pressable>
               ) : null}
             </View>
-            {!isTdSheet && !isFuturesSheet ? (
+            {!isTdSheet ? (
               <AppText style={styles.reportDate}>
                 {formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
               </AppText>
             ) : null}
-            {isFuturesSheet && nflFutures ? (
-              <AppText style={styles.reportDate}>{nflFutures.season} · {nflFutures.snapshot}</AppText>
-            ) : null}
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFuturesQuery.isLoading) && (
+          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
             </View>
           )}
 
-          {(sheetQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFuturesQuery.isError) && (
+          {(sheetQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFantasyQuery.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
@@ -2007,9 +2054,9 @@ export default function CheatSheetsScreen() {
                     ? tdStreaksQuery.error.message
                   : qbTdStreaksQuery.error instanceof Error
                     ? qbTdStreaksQuery.error.message
-                    : nflFuturesQuery.error instanceof Error
-                      ? nflFuturesQuery.error.message
-                      : 'Could not load this sheet.'}
+                  : nflFantasyQuery.error instanceof Error
+                    ? nflFantasyQuery.error.message
+                    : 'Could not load this sheet.'}
               </AppText>
             </Card>
           )}
@@ -2067,6 +2114,33 @@ export default function CheatSheetsScreen() {
             </>
           )}
 
+          {activeKey === 'qb200' && qb200Rows.length > 0 && (
+            <>
+              <View style={styles.reportRows}>
+                {qb200Rows.slice(0, 30).map((row, index) => (
+                  <View key={`${row.player}-${row.team}-${index}`} style={styles.reportRow}>
+                    <View style={styles.rankBadge}>
+                      <AppText style={styles.rankText}>{index + 1}</AppText>
+                    </View>
+                    <View style={styles.rowMain}>
+                      <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                      <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                        {row.team} · 200+ in {row.hitRate} · L5 {row.l5Hits}/5 · L10 {row.l10Hits}/10
+                      </AppText>
+                    </View>
+                    <View style={styles.rowNumbers}>
+                      <AppText style={styles.compactEdgeLarge}>{row.streak_games}</AppText>
+                      <AppText style={styles.compactOdds}>streak</AppText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <AppText variant="muted" style={styles.cardCopy}>
+                Passing yards only. Ranks quarterbacks by active 200+ yard streak, recent hit rate, and recent yardage form.
+              </AppText>
+            </>
+          )}
+
           {activeKey === 'lines' && (
             <View style={styles.linePreview}>
               {sheetGames.slice(0, 3).map((game) => (
@@ -2084,54 +2158,6 @@ export default function CheatSheetsScreen() {
                 />
               ))}
             </View>
-          )}
-
-          {activeKey === 'futures' && nflFutures && (
-            <>
-              <View style={styles.futuresSection}>
-                <AppText variant="eyebrow">Super Bowl</AppText>
-                <View style={styles.reportRows}>
-                  {(nflFutures.superBowl || []).slice(0, 12).map((row, index) => (
-                    <View key={`sb-${row.team || row.name}-${index}`} style={styles.reportRow}>
-                      <View style={styles.rankBadge}>
-                        <AppText style={styles.rankText}>{index + 1}</AppText>
-                      </View>
-                      <View style={styles.rowMain}>
-                        <AppText style={styles.compactPlayer}>{row.team || row.name}</AppText>
-                        <AppText variant="mono" style={styles.compactMeta}>Super Bowl price</AppText>
-                      </View>
-                      <View style={styles.rowNumbers}>
-                        <AppText style={styles.compactOdds}>{fmtOdds(row.odds)}</AppText>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.futuresSection}>
-                <AppText variant="eyebrow">Division Markets</AppText>
-                <View style={styles.reportRows}>
-                  {(nflFutures.division || []).slice(0, 8).map((division) => {
-                    const favorite = division.entries?.[0]
-                    return (
-                      <View key={division.division} style={styles.reportRow}>
-                        <View style={styles.rowMain}>
-                          <AppText style={styles.compactPlayer}>{division.division}</AppText>
-                          <AppText variant="mono" style={styles.compactMeta}>
-                            {(division.entries || []).slice(0, 4).map((entry) => `${entry.team} ${fmtOdds(entry.odds)}`).join(' · ')}
-                          </AppText>
-                        </View>
-                        {favorite ? (
-                          <View style={styles.rowNumbers}>
-                            <AppText style={styles.compactOdds}>{favorite.team}</AppText>
-                          </View>
-                        ) : null}
-                      </View>
-                    )
-                  })}
-                </View>
-              </View>
-            </>
           )}
 
           {activeKey === 'bvp' && bvpRows.length > 0 && (
@@ -2162,7 +2188,7 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'futures' && rows.length > 0 && (
+          {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && rows.length > 0 && (
             <View style={styles.reportRows}>
               {(activeKey === 'hits' ? rows : rows.slice(0, 10)).map((row, index) => row.divider ? (
                 <View key={`divider-${row.label}-${index}`} style={styles.reportDivider}>
@@ -2217,13 +2243,13 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey === 'futures' && !nflFuturesQuery.isLoading && !nflFuturesQuery.isError && !nflFutures?.superBowl?.length && (
+          {activeKey === 'qb200' && !nflFantasyQuery.isLoading && !nflFantasyQuery.isError && qb200Rows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
-              No NFL futures board is available yet.
+              No NFL QB 200+ yard rows are available yet.
             </AppText>
           )}
 
-          {activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'futures' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
@@ -2585,9 +2611,6 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   errorText: { color: colors.red, marginTop: spacing.sm },
   linePreview: { gap: spacing.md, marginTop: spacing.md },
-  futuresSection: {
-    marginTop: spacing.md,
-  },
   reportRows: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm },
   reportRow: {
     flexDirection: 'row',
