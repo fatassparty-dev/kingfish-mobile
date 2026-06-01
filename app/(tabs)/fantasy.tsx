@@ -1077,8 +1077,8 @@ function PlannerPickCard({
             <Pressable onPress={event => {
               event.stopPropagation()
               onTaken()
-            }} style={styles.plannerTakenButton}>
-              <AppText style={styles.plannerTakenText}>Taken</AppText>
+            }} style={styles.plannerAvailableButton}>
+              <AppText style={styles.plannerAvailableText}>Available</AppText>
             </Pressable>
           </View>
         </>
@@ -1180,8 +1180,8 @@ const styles = StyleSheet.create({
   plannerRound: { color: colors.gold, fontSize: 14, fontWeight: '900' },
   plannerPick: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
   plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  plannerTakenButton: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  plannerTakenText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  plannerAvailableButton: { borderWidth: 1, borderColor: 'rgba(34,197,94,.45)', borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(34,197,94,.08)' },
+  plannerAvailableText: { color: colors.green, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
