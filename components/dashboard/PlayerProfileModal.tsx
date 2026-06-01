@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -442,14 +442,26 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
                 <AppText variant="eyebrow">// News</AppText>
                 <View style={styles.newsList}>
                   {query.data.news.slice(0, 2).map((item, index) => (
-                    <View key={`${item.headline}-${index}`} style={styles.newsItem}>
+                    <Pressable
+                      key={`${item.headline}-${index}`}
+                      onPress={() => {
+                        if (item.url) Linking.openURL(item.url).catch(() => {})
+                      }}
+                      disabled={!item.url}
+                      style={styles.newsItem}
+                    >
                       <AppText style={styles.newsHeadline}>{item.headline}</AppText>
                       {item.description ? (
-                        <AppText variant="muted" style={styles.newsDescription} numberOfLines={2}>
+                        <AppText variant="muted" style={styles.newsDescription}>
                           {item.description}
                         </AppText>
                       ) : null}
-                    </View>
+                      {item.source || item.published ? (
+                        <AppText variant="mono" style={styles.newsMeta}>
+                          {[item.source, item.published ? new Date(item.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null].filter(Boolean).join(' · ')}
+                        </AppText>
+                      ) : null}
+                    </Pressable>
                   ))}
                 </View>
               </Card>
@@ -836,6 +848,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 13,
     lineHeight: 18,
+  },
+  newsMeta: {
+    marginTop: spacing.sm,
+    color: colors.gold,
+    fontSize: 10,
   },
   statusText: {
     marginTop: spacing.sm,
