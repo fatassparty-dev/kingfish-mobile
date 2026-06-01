@@ -180,7 +180,9 @@ function fmtRate(value: number | undefined) {
 function formatVsStarter(vsStarter?: PlayerRow['vsStarter']) {
   if (!vsStarter) return '-'
   if (!vsStarter.ab) return 'First'
-  return `${vsStarter.avg || '-'} (${vsStarter.ab})`
+  const avg = Number(String(vsStarter.avg || '').replace(/^\./, '0.'))
+  const avgLabel = Number.isFinite(avg) ? avg.toFixed(2) : vsStarter.avg || '-'
+  return `${avgLabel} (${vsStarter.ab})`
 }
 
 function displayPlayerName(name: string) {
