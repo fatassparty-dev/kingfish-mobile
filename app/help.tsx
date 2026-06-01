@@ -13,7 +13,7 @@ const quickStart = [
   'Choose Game Lines for team markets or Player Props for player markets.',
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
-  'Open Tools when you want cheat sheets, calculators, or More.',
+  'Open Tools when you want cheat sheets, calculators, or Pro Tools.',
 ]
 
 const tools = [
@@ -38,8 +38,8 @@ const tools = [
     body: 'Tap a player name to see today\'s markets, season form, recent game logs, and the props KingFish found for that player.',
   },
   {
-    title: 'More',
-    body: 'Find Fantasy Hub and game factors inside the More tab in Tools.',
+    title: 'Pro Tools',
+    body: 'Find Fantasy Hub and Game Factors inside the Pro Tools tab in Tools.',
   },
   {
     title: 'Fantasy Hub',
@@ -77,6 +77,7 @@ const cheatSheets = [
   { title: 'Game Lines & Edge', body: 'A game-level view of odds, totals, and context such as MLB weather.' },
   { title: 'NFL TD Streaks', body: 'Regular-season touchdown scoring streaks by player for quick NFL scoring-form research.' },
   { title: 'NFL QB 2+ TD Streaks', body: 'Quarterbacks on recent streaks of 2+ passing touchdown games.' },
+  { title: 'QB 200+ Yard Games', body: 'Quarterbacks clearing 200 passing yards, ranked by active streak, L5 and L10 hit rate, and recent yardage form.' },
 ]
 
 const sportNotes = [

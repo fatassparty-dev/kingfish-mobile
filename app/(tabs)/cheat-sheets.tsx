@@ -185,7 +185,7 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
-  { key: 'more', label: 'More' },
+  { key: 'more', label: 'Pro Tools' },
 ]
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
