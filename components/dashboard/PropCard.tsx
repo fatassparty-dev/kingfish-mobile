@@ -199,7 +199,7 @@ interface FlattenedProp {
 
 type PlayerBookData = Record<string, { over?: number; point?: number }>
 
-type SortKey = 'player' | 'line' | 'season' | 'l10' | 'l5' | 'l10hit' | 'best' | 'book' | 'edge'
+type SortKey = 'player' | 'season' | 'l10' | 'l5' | 'edge'
 type SortDir = 'asc' | 'desc'
 
 const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
@@ -358,8 +358,8 @@ function edgeLabel(
   const trendScore = l5 >= l10 && l10 >= season * 0.92 ? 8 : l5 >= l10 ? 4 : 0
   const score = Math.round(avgScore + l10Score + l5Score + priceScore + trendScore)
 
-  if (score >= 75) return { label: `Strong ${score}`, color: colors.gold, score }
-  if (score >= 62) return { label: `Lean ${score}`, color: colors.green, score }
+  if (score >= 75) return { label: `Strong ${score}`, color: colors.green, score }
+  if (score >= 62) return { label: `Lean ${score}`, color: colors.gold, score }
   if (score >= 45) return { label: `Neutral ${score}`, color: colors.textSecondary, score }
   return { label: `Fade ${score}`, color: colors.red, score }
 }
@@ -378,8 +378,8 @@ function nflEdgeLabel(line: number, stat: number, odds: number | undefined, mark
     const priceBoost = odds && odds > 0 ? Math.min(22, odds / 35) : 0
     const tdScore = Math.max(0, Math.min(70, (stat / 0.75) * 70))
     const score = Math.round(tdScore + priceBoost)
-    if (score >= 78) return { label: 'Strong', color: colors.gold, score }
-    if (score >= 62) return { label: 'Lean', color: colors.green, score }
+    if (score >= 78) return { label: 'Strong', color: colors.green, score }
+    if (score >= 62) return { label: 'Lean', color: colors.gold, score }
     if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
     return { label: 'Fade', color: colors.red, score }
   }
@@ -388,8 +388,8 @@ function nflEdgeLabel(line: number, stat: number, odds: number | undefined, mark
   const ratio = lowerIsBetter ? safeLine / Math.max(stat, 0.1) : stat / safeLine
   const pricePenalty = odds && implied(odds) > 0.68 ? 10 : odds && implied(odds) > 0.6 ? 5 : 0
   const score = Math.round(Math.max(0, Math.min(100, ((ratio - 0.72) / 0.58) * 82 + 14 - pricePenalty)))
-  if (score >= 78) return { label: 'Strong', color: colors.gold, score }
-  if (score >= 62) return { label: 'Lean', color: colors.green, score }
+  if (score >= 78) return { label: 'Strong', color: colors.green, score }
+  if (score >= 62) return { label: 'Lean', color: colors.gold, score }
   if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
   return { label: 'Fade', color: colors.red, score }
 }
@@ -403,6 +403,17 @@ function statColor(value: number, line: number) {
 
 function fmtStat(value: number) {
   return value ? value.toFixed(1) : '-'
+}
+
+function displayPlayerName(name?: string) {
+  const clean = String(name || '').trim()
+  const pieces = clean.split(/\s+/).filter(Boolean)
+  if (pieces.length < 2) return clean
+  const suffixes = new Set(['jr.', 'sr.', 'ii', 'iii', 'iv', 'v'])
+  const last = suffixes.has(pieces[pieces.length - 1].toLowerCase()) && pieces.length > 2
+    ? `${pieces[pieces.length - 2]} ${pieces[pieces.length - 1]}`
+    : pieces[pieces.length - 1]
+  return `${pieces[0][0]}. ${last}`
 }
 
 function sportParam(sport: Sport): 'nba' | 'nfl' | 'nhl' | 'wnba' {
@@ -526,6 +537,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const availableNflGroups = useMemo(() => (
     NFL_MARKET_GROUPS.filter((group) =>
       markets.some((marketKey) => !isAlternateMarket(marketKey) && nflMarketGroup(marketKey) === group.key)
@@ -596,7 +608,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
       setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'))
     } else {
       setSortKey(nextKey)
-      setSortDir(nextKey === 'player' || nextKey === 'book' ? 'asc' : 'desc')
+      setSortDir(nextKey === 'player' ? 'asc' : 'desc')
     }
   }
 
@@ -617,23 +629,22 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
 
   return (
     <View style={styles.list}>
-      <AppText variant="eyebrow">Prop Type</AppText>
       {sport === 'NFL' && (
-        <View style={styles.marketGroupGrid}>
-          {availableNflGroups.map((group) => (
-            <Pressable
-              key={group.key}
-              onPress={() => setNflGroup(group.key)}
-              style={[styles.marketGroupButton, activeNflGroup === group.key && styles.marketGroupButtonActive]}
-            >
-              <AppText style={[styles.marketGroupText, activeNflGroup === group.key && styles.marketGroupTextActive]}>
-                {group.label}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
+            {availableNflGroups.map((group) => (
+              <Pressable
+                key={group.key}
+                onPress={() => setNflGroup(group.key)}
+                style={[styles.marketButton, activeNflGroup === group.key && styles.marketButtonActive]}
+              >
+                <AppText style={[styles.marketText, activeNflGroup === group.key && styles.marketTextActive]}>
+                  {group.label}
+                </AppText>
+              </Pressable>
+            ))}
+        </ScrollView>
       )}
-      <View style={styles.marketGrid}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
         {visibleMarkets.map((marketKey) => (
           <Pressable
             key={marketKey}
@@ -645,7 +656,7 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
             </AppText>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
       {sport === 'NFL' && selectedAltMarket && (
         <View style={styles.variantRow}>
           <Pressable
@@ -668,16 +679,35 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
       )}
 
       <View style={styles.filterStack}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search player..."
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.search}
-        />
+        {(searchOpen || search) && (
+          <View style={styles.searchRow}>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search player..."
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.search}
+            />
+            <Pressable
+              onPress={() => {
+                setSearchOpen(false)
+                Keyboard.dismiss()
+              }}
+              style={styles.doneButton}
+            >
+              <AppText style={styles.doneButtonText}>Done</AppText>
+            </Pressable>
+          </View>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
+          <Pressable
+            onPress={() => setSearchOpen(true)}
+            style={[styles.gameFilterButton, searchOpen && styles.gameFilterButtonActive]}
+          >
+            <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
+          </Pressable>
           <Pressable
             onPress={() => setSelectedGame('all')}
             style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
@@ -699,11 +729,6 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
             )
           })}
         </ScrollView>
-        {search ? (
-          <Pressable onPress={() => { setSearch(''); Keyboard.dismiss() }} style={styles.clearButton}>
-            <AppText style={styles.clearButtonText}>Clear Search</AppText>
-          </Pressable>
-        ) : null}
       </View>
 
       {statsQuery.isLoading && !initialStats && (
@@ -735,40 +760,32 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
             </AppText>
             <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View>
-              <View style={styles.tableHeader}>
-                {(sport === 'NFL' ? NFL_TABLE_HEADERS : TABLE_HEADERS).map((header) => (
-                  <Pressable key={header.label} onPress={() => header.key !== 'risk' && toggleSort(header.key)}>
-                    <AppText
-                      variant="eyebrow"
-                      style={[
-                        styles.cell,
-                        compactTable && styles.cellCompact,
-                        header.key === 'player' && styles.playerCell,
-                        compactTable && header.key === 'player' && styles.playerCellCompact,
-                      ]}
-                    >
-                      {header.label}{sortKey === header.key ? (sortDir === 'desc' ? ' v' : ' ^') : ''}
-                    </AppText>
-                  </Pressable>
-                ))}
-              </View>
-              {sortProps(gameProps).map((prop) => (
-                <PropTableRow
-                  key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
-                  prop={prop}
-                  stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
-                  sport={sport}
-                  onSelectPlayer={(playerName, context) => {
-                    setSelectedPlayer(playerName)
-                    setSelectedMarketContext(context)
-                  }}
-                  compact={compactTable}
-                />
+          <View>
+            <View style={styles.tableHeader}>
+              {TABLE_HEADERS.map((header) => (
+                <Pressable key={header.label} onPress={() => toggleSort(header.key)} style={[styles.cell, header.key === 'player' && styles.playerCell, header.key === 'edge' && styles.edgeCell]}>
+                  <AppText
+                    variant="eyebrow"
+                    style={[styles.headerText, sortKey === header.key && styles.headerTextActive]}
+                  >
+                    {header.label}
+                  </AppText>
+                </Pressable>
               ))}
             </View>
-          </ScrollView>
+            {sortProps(gameProps).map((prop) => (
+              <PropTableRow
+                key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
+                prop={prop}
+                stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
+                sport={sport}
+                onSelectPlayer={(playerName, context) => {
+                  setSelectedPlayer(playerName)
+                  setSelectedMarketContext(context)
+                }}
+              />
+            ))}
+          </View>
         </View>
       ))}
       <PlayerProfileModal
@@ -786,23 +803,9 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
 
 const TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'player', label: 'Player' },
-  { key: 'line', label: 'Line' },
-  { key: 'season', label: 'Avg' },
+  { key: 'season', label: 'SZN' },
   { key: 'l10', label: 'L10' },
   { key: 'l5', label: 'L5' },
-  { key: 'l10hit', label: 'L10 Hit' },
-  { key: 'best', label: 'Best' },
-  { key: 'book', label: 'Book' },
-  { key: 'edge', label: 'Edge' },
-]
-
-const NFL_TABLE_HEADERS: Array<{ key: SortKey | 'risk'; label: string }> = [
-  { key: 'player', label: 'Player' },
-  { key: 'line', label: 'Line' },
-  { key: 'season', label: 'Avg' },
-  { key: 'risk', label: 'Risk' },
-  { key: 'best', label: 'Best' },
-  { key: 'book', label: 'Book' },
   { key: 'edge', label: 'Edge' },
 ]
 
@@ -811,19 +814,14 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
-  const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
 
   if (key === 'player') return prop.outcome.description || ''
-  if (key === 'line') return line
   if (key === 'season') return season
   if (key === 'l10') return l10
   if (key === 'l5') return l5
-  if (key === 'l10hit') return l10Hit ?? -1
-  if (key === 'best') return prop.outcome.price
-  if (key === 'book') return prop.book
   return edge.score
 }
 
@@ -832,56 +830,55 @@ function PropTableRow({
   stats,
   sport,
   onSelectPlayer,
-  compact,
 }: {
   prop: FlattenedProp
   stats?: Record<string, any>
   sport: Sport
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
-  compact?: boolean
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
-  const l10Hit = hitRate(recentValues(stats, prop.market.key, 10), line)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
+  const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
 
   return (
-    <View style={[styles.tableRow, compact && styles.tableRowCompact]}>
-      <AppText
+    <View style={styles.tableRow}>
+      <Pressable
         onPress={() => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
           marketKey: prop.market.key,
           marketLabel: marketLabel(prop.market.key),
           commonLine: line,
         })}
-        style={[styles.cell, compact && styles.cellCompact, styles.playerCell, compact && styles.playerCellCompact, styles.playerName]}
-        numberOfLines={compact ? 1 : 2}
+        style={[styles.cell, styles.playerCell]}
       >
-        {prop.outcome.description}
-      </AppText>
-      <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{line || '-'}</AppText>
-      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} compact={compact} />
-      {sport === 'NFL' ? (
-        <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{stats?.risk?.label || '-'}</AppText>
-      ) : (
-        <>
-          <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} compact={compact} />
-          <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} compact={compact} />
-          <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{hitRateLabel(l10Hit)}</AppText>
-        </>
-      )}
-      <AppText style={[styles.cell, compact && styles.cellCompact, styles.best]} numberOfLines={1}>{fmtOdds(prop.outcome.price)}</AppText>
-      <AppText style={[styles.cell, compact && styles.cellCompact]} numberOfLines={1}>{prop.book}</AppText>
-      <AppText style={[styles.cell, compact && styles.cellCompact, { color: edge.color }]} numberOfLines={1}>{edge.label}</AppText>
+        <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+          {displayPlayerName(prop.outcome.description)}
+        </AppText>
+        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
+          {line || '-'} {marketLabel(prop.market.key)}  {fmtOdds(prop.outcome.price)} {prop.book}
+        </AppText>
+      </Pressable>
+      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} />
+      <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} />
+      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} />
+      <View style={[styles.cell, styles.edgeCell]}>
+        <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
+        <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>
+      </View>
     </View>
   )
 }
 
-function StatTableCell({ value, color, compact }: { value: string; color: string; compact?: boolean }) {
-  return <AppText style={[styles.cell, compact && styles.cellCompact, { color }]} numberOfLines={1}>{value}</AppText>
+function StatTableCell({ value, color }: { value: string; color: string }) {
+  return (
+    <View style={styles.cell}>
+      <AppText style={[styles.statCellValue, { color }]} numberOfLines={1}>{value}</AppText>
+    </View>
+  )
 }
 
 export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<string, any> }) {
@@ -1020,96 +1017,87 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingBottom: spacing.sm,
+    paddingBottom: 8,
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 56,
+    minHeight: 74,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  tableRowCompact: {
-    minHeight: 46,
-  },
   cell: {
-    width: 78,
-    color: colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '800',
-    paddingRight: spacing.sm,
-  },
-  cellCompact: {
-    width: 62,
-    fontSize: 10,
-    paddingRight: 6,
+    width: 54,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingRight: 5,
   },
   playerCell: {
-    width: 132,
-  },
-  playerCellCompact: {
-    width: 112,
+    flex: 1.65,
+    minWidth: 0,
+    paddingRight: spacing.sm,
   },
   playerName: {
     color: colors.gold,
-    fontSize: 12,
-    textTransform: 'uppercase',
-  },
-  best: {
-    color: colors.gold,
-  },
-  marketGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    backgroundColor: colors.bgCard,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: spacing.sm,
-  },
-  marketGroupGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    backgroundColor: colors.bgCardAlt,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: spacing.sm,
-  },
-  marketGroupButton: {
-    minWidth: '30%',
-    flexGrow: 1,
-    justifyContent: 'center',
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 9,
-  },
-  marketGroupButtonActive: {
-    backgroundColor: colors.bgCard,
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  marketGroupText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 17,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
-  marketGroupTextActive: {
-    color: colors.textPrimary,
+  playerSubline: {
+    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  edgeCell: {
+    width: 58,
+    alignItems: 'flex-end',
+    paddingRight: 0,
+  },
+  headerText: {
+    color: colors.gold,
+    fontSize: 11,
+    letterSpacing: 3,
+  },
+  headerTextActive: {
+    color: colors.gold,
+  },
+  statCellValue: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  edgeScore: {
+    fontSize: 21,
+    lineHeight: 24,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  edgeLabel: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 14,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  marketRail: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingRight: spacing.md,
   },
   marketButton: {
-    minWidth: '30%',
-    flexGrow: 1,
+    minWidth: 106,
     justifyContent: 'center',
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   marketButtonActive: {
+    borderColor: colors.gold,
     backgroundColor: colors.gold,
   },
   marketText: {
@@ -1151,7 +1139,13 @@ const styles = StyleSheet.create({
   filterStack: {
     gap: spacing.sm,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   search: {
+    flex: 1,
     minHeight: 46,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1161,6 +1155,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontSize: 14,
     fontWeight: '700',
+  },
+  doneButton: {
+    minHeight: 46,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: 10,
+    backgroundColor: 'rgba(198,145,50,.12)',
+    paddingHorizontal: spacing.md,
+  },
+  doneButtonText: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '900',
   },
   gameFilterRow: {
     gap: spacing.sm,
@@ -1185,19 +1193,6 @@ const styles = StyleSheet.create({
   },
   gameFilterTextActive: {
     color: colors.bgPrimary,
-  },
-  clearButton: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  clearButtonText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '900',
   },
   statsRow: {
     flexDirection: 'row',
