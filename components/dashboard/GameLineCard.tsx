@@ -150,11 +150,11 @@ function mlScoreType(diff: number) {
 }
 
 function moneylineScoreDetail(score: number, otherScore: number) {
-  return `KingFish ML score ${score}-${otherScore}.`
+  return `KingFish edge grade ${score}-${otherScore}.`
 }
 
 function totalReadDetail(read: number | string, postedTotal: number | string) {
-  return `KingFish total read ${read} against ${postedTotal}.`
+  return `KingFish total read ${read} vs ${postedTotal}.`
 }
 
 function mlbTeamScore(
