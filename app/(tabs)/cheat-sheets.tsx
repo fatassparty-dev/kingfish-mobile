@@ -1790,7 +1790,7 @@ export default function CheatSheetsScreen() {
                   <Card key={row.id} style={styles.factorCard}>
                     <View style={styles.factorHeader}>
                       <View style={styles.factorTitleWrap}>
-                        <AppText style={styles.compactPlayer} numberOfLines={1}>{row.matchup}</AppText>
+                        <AppText style={styles.factorMatchup}>{row.matchup}</AppText>
                         <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
                       </View>
                       <View style={styles.factorScore}>
@@ -2347,6 +2347,12 @@ const styles = StyleSheet.create({
   factorTitleWrap: {
     flex: 1,
     minWidth: 0,
+  },
+  factorMatchup: {
+    color: colors.textPrimary,
+    fontSize: 21,
+    lineHeight: 24,
+    fontWeight: '900',
   },
   factorScore: {
     alignItems: 'flex-end',
