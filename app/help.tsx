@@ -81,16 +81,16 @@ const cheatSheets = [
 
 const sportNotes = [
   {
-    title: 'MLB',
-    body: 'MLB leads the app with live game lines, player props, player stats, weather, profiles, and stat sheets.',
+    title: 'Player Prop Sports',
+    body: 'MLB, NBA, WNBA, NHL, and NFL include supported player props, player stats, profiles, game lines, and matchup boards when markets are available.',
   },
   {
-    title: 'NBA, NHL, WNBA, KBO',
-    body: 'These sports use the same live-board style when markets are available, with supported props and stats shown directly in the dashboard.',
+    title: 'Team Market Sports',
+    body: 'College, KBO, and Soccer focus on team markets, league boards, game lines, and matchup context. Player props are not offered for these sports right now.',
   },
   {
-    title: 'NFL and College',
-    body: 'NFL on mobile features League View, Game Lines, Game Matchups, Fantasy Hub, stat sheets, and props as markets open. College boards focus on team stats and matchup context where player prop betting is restricted.',
+    title: 'Stat Sheets',
+    body: 'MLB and NFL also include dedicated stat sheets for faster research on popular player markets and scoring trends.',
   },
 ]
 
@@ -162,7 +162,7 @@ export default function HelpScreen() {
           </View>
 
           <View style={styles.section}>
-            <AppText variant="eyebrow">Sports Roadmap</AppText>
+            <AppText variant="eyebrow">Sports Coverage</AppText>
             {sportNotes.map((item) => <HelpCard key={item.title} title={item.title} body={item.body} />)}
           </View>
 
