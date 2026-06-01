@@ -446,7 +446,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
               </Card>
             )}
 
-            {isFantasyProfile && query.data?.news?.length ? (
+            {query.data?.news?.length ? (
               <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// News</AppText>
                 <View style={styles.newsList}>
