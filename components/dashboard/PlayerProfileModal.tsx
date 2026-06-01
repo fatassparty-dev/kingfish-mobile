@@ -27,6 +27,13 @@ interface PlayerProfileResponse {
   statDisplay: Array<{ label: string; value: string }>
   statsUpdatedAt?: string | null
   oddsStatus?: string | null
+  news?: Array<{
+    headline: string
+    description?: string | null
+    published?: string | null
+    url?: string | null
+    source?: string | null
+  }>
   props: Array<{
     marketKey: string
     market: string
@@ -423,12 +430,30 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
               </Card>
             )}
 
-            {formNote && !isLandscape && (
+            {formNote && !isLandscape && !isFantasyProfile && (
               <Card style={isLandscape && styles.landscapePanel}>
                 <AppText variant="eyebrow">// Recent Form</AppText>
                 <AppText style={styles.formNote}>{formNote}</AppText>
               </Card>
             )}
+
+            {isFantasyProfile && query.data?.news?.length ? (
+              <Card style={isLandscape && styles.landscapePanel}>
+                <AppText variant="eyebrow">// News</AppText>
+                <View style={styles.newsList}>
+                  {query.data.news.slice(0, 2).map((item, index) => (
+                    <View key={`${item.headline}-${index}`} style={styles.newsItem}>
+                      <AppText style={styles.newsHeadline}>{item.headline}</AppText>
+                      {item.description ? (
+                        <AppText variant="muted" style={styles.newsDescription} numberOfLines={2}>
+                          {item.description}
+                        </AppText>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
 
             {sport === 'nfl' && query.data?.depthRole ? (
               <Card style={isLandscape && styles.landscapePanel}>
@@ -791,6 +816,26 @@ const styles = StyleSheet.create({
   formNote: {
     marginTop: spacing.sm,
     lineHeight: 22,
+  },
+  newsList: {
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  newsItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.md,
+  },
+  newsHeadline: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  newsDescription: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
   },
   statusText: {
     marginTop: spacing.sm,
