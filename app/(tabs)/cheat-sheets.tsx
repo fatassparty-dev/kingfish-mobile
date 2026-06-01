@@ -395,8 +395,8 @@ function factorBaseline(homeTeam: string, sport: FactorSport) {
   return baseline || {
     venue: sport === 'MLB' ? 'Home ballpark' : 'Home stadium',
     score: 55,
-    environment: 'Neutral baseline',
-    market: 'Neutral setup',
+    environment: '',
+    market: '',
   }
 }
 
@@ -436,7 +436,7 @@ function weatherFactor(weather: any, sport: FactorSport) {
   const tempText = temp === null ? '' : `${temp}F`
   const rainText = precip >= 25 ? `, ${precip}% rain` : ''
   const label = [cleanSkyLabel(weather.sky), tempText, weather.windStr].filter(Boolean).join(' · ') + rainText
-  return { delta, label: label || 'Weather neutral', tags: tags.length ? tags : ['Weather neutral'] }
+  return { delta, label: label || '', tags }
 }
 
 function officialFactor(_sport: FactorSport, official?: FactorOfficial) {
@@ -1749,9 +1749,9 @@ export default function CheatSheetsScreen() {
                       {row.weather ? <FactorMeta label="Weather" value={row.weather} /> : null}
                       {factorSport === 'MLB' && row.official ? <FactorMeta label="Umpire" value={row.official} /> : null}
                     </View>
-                    {row.tags.length ? (
+                    {row.tags.filter((tag) => !isNeutralFactorText(tag)).length ? (
                       <View style={styles.factorTags}>
-                        {row.tags.map((tag) => (
+                        {row.tags.filter((tag) => !isNeutralFactorText(tag)).map((tag) => (
                           <View key={tag} style={styles.factorTag}>
                             <AppText style={styles.factorTagText}>{tag}</AppText>
                           </View>
@@ -2111,11 +2111,12 @@ function BvpMetric({ label, value, tone }: { label: string; value: string; tone?
 }
 
 function FactorMeta({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  const cleanSub = isNeutralFactorText(sub) ? '' : sub
   return (
     <View style={styles.factorMeta}>
       <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
       <AppText style={styles.factorMetaValue}>{value}</AppText>
-      {sub ? <AppText variant="muted" style={styles.factorMetaSub}>{sub}</AppText> : null}
+      {cleanSub ? <AppText variant="muted" style={styles.factorMetaSub}>{cleanSub}</AppText> : null}
     </View>
   )
 }
