@@ -31,7 +31,7 @@ Inside KingFish:
 - Ask KingFish analyst with live KingFish context
 - Account settings, profile editing, purchase restore, support, and legal access
 
-KingFish does not accept wagers. KingFish is a 17+ analytics and information platform where permitted by law. All tools, stats, research signals, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
+KingFish does not accept wagers. KingFish is an 18+ analytics and information platform where permitted by law. All tools, stats, research signals, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
 
 ## Keywords
 
@@ -80,11 +80,11 @@ The app does not sell personal data. Payment details for iOS in-app purchases ar
 
 ## Age / Responsible Use Notes
 
-Use 17+ positioning wherever the store asks for age context, unless Apple or a specific jurisdiction requires a higher age.
+Use 18+ positioning wherever the store asks for age context, unless Apple or a specific jurisdiction requires a higher age.
 
 Suggested wording:
 
-KingFish Bets is for users 17 and older where permitted by law. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-522-4700.
+KingFish Bets is for users 18 and older where permitted by law. KingFish does not accept wagers. Tools and analysis are informational only. Problem gambling helpline: 1-800-522-4700.
 
 ## Family Sharing
 

@@ -21,7 +21,7 @@ const sections = [
   },
   {
     title: '4. Eligibility',
-    body: 'KingFish Bets is intended for users 17 years of age or older where permitted by law. You must also meet any higher age requirement that applies in your jurisdiction.',
+    body: 'KingFish Bets is intended for users 18 years of age or older where permitted by law. You must also meet any higher age requirement that applies in your jurisdiction.',
   },
   {
     title: '5. User Accounts',

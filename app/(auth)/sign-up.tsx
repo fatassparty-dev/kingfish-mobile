@@ -77,7 +77,7 @@ export default function SignUpScreen() {
       <AppText variant="eyebrow">// Join KingFish</AppText>
       <AppText variant="title" style={styles.title}>Create Account</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Create one account for the web app and mobile app. KingFish is a 17+ analytics platform where permitted by law. We do not accept wagers.
+        Create one account for the web app and mobile app. KingFish is an 18+ analytics platform where permitted by law. We do not accept wagers.
       </AppText>
 
       <Card>

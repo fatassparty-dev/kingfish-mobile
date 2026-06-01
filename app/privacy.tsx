@@ -45,7 +45,7 @@ const sections = [
   },
   {
     title: "10. Children's Privacy",
-    body: 'KingFish Bets is intended for users 17 years of age or older where permitted by law. We do not knowingly collect personal information from users under 17.',
+    body: 'KingFish Bets is intended for users 18 years of age or older where permitted by law. We do not knowingly collect personal information from users under 18.',
   },
   {
     title: '11. Changes to This Policy',
