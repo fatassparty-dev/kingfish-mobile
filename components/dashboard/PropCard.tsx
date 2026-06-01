@@ -293,6 +293,18 @@ function getStat(stats: Record<string, any> | undefined, marketKey: string, pref
   return stats[`${prefix}_${statKey}`] || 0
 }
 
+function rawKeysForStatKey(statKey: string) {
+  const rawMap: Record<string, string[]> = {
+    pass_rush_yards_per_game: ['passing_yards', 'rushing_yards'],
+    pass_rush_reception_yards_per_game: ['passing_yards', 'rushing_yards', 'receiving_yards'],
+    pass_rush_reception_tds_per_game: ['passing_tds', 'rushing_tds', 'receiving_tds'],
+    rush_reception_yards_per_game: ['rushing_yards', 'receiving_yards'],
+    rush_reception_tds_per_game: ['rushing_tds', 'receiving_tds'],
+  }
+  if (rawMap[statKey]) return rawMap[statKey]
+  return [statKey.replace(/_per_game$/, '')]
+}
+
 function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value))
 }
@@ -305,7 +317,9 @@ function recentValues(stats: Record<string, any> | undefined, marketKey: string,
   if (!statKey) return []
 
   if (Array.isArray(stats.raw_games)) {
-    const keys = Array.isArray(statKey) ? statKey : [statKey]
+    const keys = Array.isArray(statKey)
+      ? statKey.flatMap((key) => rawKeysForStatKey(key))
+      : rawKeysForStatKey(statKey)
     return stats.raw_games.slice(0, count).map((game: Record<string, any>) =>
       keys.reduce((total, key) => total + (Number(game[key]) || 0), 0)
     )
@@ -334,6 +348,18 @@ function hitRate(values: number[], line: number) {
 function hitRateLabel(rate: number | null) {
   if (rate === null) return '-'
   return `${Math.round(rate * 100)}%`
+}
+
+function hitCountLabel(values: number[], line: number) {
+  if (!values.length) return '-'
+  return `${values.filter((value) => value > line).length}/${values.length}`
+}
+
+function hitRateColor(rate: number | null) {
+  if (rate === null) return colors.textMuted
+  if (rate >= 0.6) return colors.green
+  if (rate >= 0.5) return colors.gold
+  return colors.red
 }
 
 function edgeLabel(
@@ -814,14 +840,16 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
+  const l10Rate = hitRate(recentValues(stats, prop.market.key, 10), line)
+  const l5Rate = hitRate(recentValues(stats, prop.market.key, 5), line)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
 
   if (key === 'player') return prop.outcome.description || ''
   if (key === 'season') return season
-  if (key === 'l10') return l10
-  if (key === 'l5') return l5
+  if (key === 'l10') return sport === 'NFL' ? l10Rate ?? -1 : l10
+  if (key === 'l5') return sport === 'NFL' ? l5Rate ?? -1 : l5
   return edge.score
 }
 
@@ -840,6 +868,8 @@ function PropTableRow({
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
+  const l10Values = recentValues(stats, prop.market.key, 10)
+  const l5Values = recentValues(stats, prop.market.key, 5)
   const edge = sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
     : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
@@ -863,8 +893,14 @@ function PropTableRow({
         </AppText>
       </Pressable>
       <StatTableCell value={fmtStat(season)} color={statColor(season, line)} />
-      <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} />
-      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} />
+      <StatTableCell
+        value={sport === 'NFL' ? hitCountLabel(l10Values, line) : fmtStat(l10)}
+        color={sport === 'NFL' ? hitRateColor(hitRate(l10Values, line)) : statColor(l10, line)}
+      />
+      <StatTableCell
+        value={sport === 'NFL' ? hitCountLabel(l5Values, line) : fmtStat(l5)}
+        color={sport === 'NFL' ? hitRateColor(hitRate(l5Values, line)) : statColor(l5, line)}
+      />
       <View style={[styles.cell, styles.edgeCell]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>

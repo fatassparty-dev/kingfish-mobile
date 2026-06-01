@@ -1088,7 +1088,7 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sportScroll} contentContainerStyle={styles.row}>
         {visibleSports.map((item) => (
           <Pressable
             key={item.key}
@@ -2487,11 +2487,17 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
     paddingRight: spacing.lg,
     marginBottom: spacing.lg,
   },
+  sportScroll: {
+    flexGrow: 0,
+  },
   pill: {
+    height: 42,
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
