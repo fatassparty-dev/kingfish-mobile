@@ -306,7 +306,11 @@ function getStat(stats: Record<string, any> | undefined, marketKey: string, pref
     return statKey.reduce((total, key) => total + (stats[`${prefix}_${key}`] || 0), 0)
   }
   if (prefix === 'season' && typeof stats[statKey] === 'number') return stats[statKey]
-  return stats[`${prefix}_${statKey}`] || 0
+  if (typeof stats[`${prefix}_${statKey}`] === 'number') return stats[`${prefix}_${statKey}`]
+  const count = prefix === 'l10' ? 10 : 5
+  const recent = recentValues(stats, marketKey, count)
+  if (recent.length) return recent.reduce((total, value) => total + value, 0) / recent.length
+  return 0
 }
 
 function rawKeysForStatKey(statKey: string) {
@@ -611,13 +615,15 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
   )
   const props = allProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
-  const propsByGame = gameOptions
-    .filter((game) => activeGameFilter === 'all' || String(game.game_id || game.id) === activeGameFilter)
-    .map((game) => ({
-      game,
-      props: props.filter((prop) => (prop.game.game_id || prop.game.id) === (game.game_id || game.id)),
-    }))
-    .filter((group) => group.props.length > 0)
+  const propsByGame = activeGameFilter === 'all'
+    ? [{ game: null, props }]
+    : gameOptions
+      .filter((game) => String(game.game_id || game.id) === activeGameFilter)
+      .map((game) => ({
+        game,
+        props: props.filter((prop) => (prop.game.game_id || prop.game.id) === (game.game_id || game.id)),
+      }))
+      .filter((group) => group.props.length > 0)
 
   useEffect(() => {
     const nextMarket = sport === 'NFL' ? visibleMarkets[0] : markets[0]
@@ -808,12 +814,12 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
         </Card>
       ) : null}
       {propsByGame.map(({ game, props: gameProps }) => (
-        <View key={game.game_id || game.id || `${game.away_team}-${game.home_team}`} style={styles.gameBlock}>
+        <View key={game ? game.game_id || game.id || `${game.away_team}-${game.home_team}` : 'all-games'} style={styles.gameBlock}>
           <View style={styles.gameHeader}>
             <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
-              {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
+              {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : 'All Games'}
             </AppText>
-            <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+            {game ? <AppText variant="mono">{fmtTime(game.commence_time)}</AppText> : null}
           </View>
           <View>
             <View style={landscapeTable && styles.landscapeTable}>
