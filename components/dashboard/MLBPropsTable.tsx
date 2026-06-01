@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
@@ -218,6 +218,8 @@ function gameId(game: Game) {
 }
 
 export function MLBPropsTable({ games }: { games: Game[] }) {
+  const { width, height } = useWindowDimensions()
+  const landscapeTable = width > height
   const [marketKey, setMarketKey] = useState('batter_hits')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('edge')
@@ -392,7 +394,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
             <AppText style={styles.gameTitle}>{selectedGameLabel}</AppText>
             {selectedGameForHeader ? <AppText variant="mono">{fmtTime(selectedGameForHeader.commence_time)}</AppText> : null}
           </View>
-          <TableHeader sortKey={sortKey} onSort={toggleSort} />
+          <TableHeader sortKey={sortKey} onSort={toggleSort} landscape={landscapeTable} />
           {allRows.map((row, index) => (
             <PlayerPropRow
               key={`${row.player}-${row.line}-${index}`}
@@ -400,6 +402,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
               marketKey={marketKey}
               marketLabel={market.label}
               statField={market.statField}
+              landscape={landscapeTable}
               onPress={() => {
                 setSelectedPlayer(row.player)
                 setSelectedMarketContext({
@@ -438,22 +441,40 @@ function SortHeader({
   sortKey,
   target,
   onSort,
+  landscape = false,
   style,
 }: {
   label: string
   sortKey: SortKey
   target: SortKey
   onSort: (key: SortKey) => void
+  landscape?: boolean
   style?: any
 }) {
   return (
     <Pressable onPress={() => onSort(target)} style={[styles.compactCell, style]}>
-      <AppText variant="eyebrow" style={[styles.headerText, sortKey === target && styles.headerTextActive]}>{label}</AppText>
+      <AppText variant="eyebrow" style={[styles.headerText, landscape && styles.landscapeHeaderText, sortKey === target && styles.headerTextActive]}>{label}</AppText>
     </Pressable>
   )
 }
 
-function TableHeader({ sortKey, onSort }: { sortKey: SortKey; onSort: (key: SortKey) => void }) {
+function TableHeader({ sortKey, onSort, landscape }: { sortKey: SortKey; onSort: (key: SortKey) => void; landscape: boolean }) {
+  if (landscape) {
+    return (
+      <View style={styles.compactHeader}>
+        <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapePlayerColumn} />
+        <SortHeader label="Line" target="line" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="Odds" target="best" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="AVG" target="season" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="L5 Hit" target="l5hit" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="L10 Hit" target="l10hit" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeEdgeColumn} />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.compactHeader}>
       <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} style={styles.playerColumn} />
@@ -470,43 +491,53 @@ function PlayerPropRow({
   marketKey,
   marketLabel,
   statField,
+  landscape,
   onPress,
 }: {
   row: PlayerRow
   marketKey: string
   marketLabel: string
   statField: string
+  landscape: boolean
   onPress: () => void
 }) {
   const season = row.stats?.[`season_${statField}`] || 0
   const l10 = row.stats?.[`l10_${statField}`] || 0
   const l5 = row.stats?.[`l5_${statField}`] || 0
   const edge = edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+  const l5Hit = hitRate(row.stats, statField, row.line, 5)
+  const l10Hit = hitRate(row.stats, statField, row.line, 10)
 
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
-      <View style={[styles.compactCell, styles.playerColumn]}>
+      <View style={[styles.compactCell, landscape ? styles.landscapePlayerColumn : styles.playerColumn]}>
         <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
-          {displayPlayerName(row.player)}
+          {landscape ? row.player : displayPlayerName(row.player)}
         </AppText>
         <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-          {row.line || '-'} {marketLabel} {row.bestOdds ? fmtOdds(row.bestOdds) : '-'}
+          {landscape ? marketLabel : `${row.line || '-'} ${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}`}
         </AppText>
       </View>
-      <View style={[styles.compactCell, styles.statColumn]}>
-        <AppText style={[styles.statValue, { color: statColor(season, row.line) }]}>{fmtRate(season)}</AppText>
-      </View>
-      <View style={[styles.compactCell, styles.statColumn]}>
-        <AppText style={[styles.statValue, { color: statColor(l10, row.line) }]}>{fmtRate(l10)}</AppText>
-      </View>
-      <View style={[styles.compactCell, styles.statColumn]}>
-        <AppText style={[styles.statValue, { color: statColor(l5, row.line) }]}>{fmtRate(l5)}</AppText>
-      </View>
-      <View style={[styles.compactCell, styles.edgeColumn]}>
+      {landscape ? <TableCell value={row.line ? String(row.line) : '-'} color={colors.textPrimary} /> : null}
+      {landscape ? <TableCell value={row.bestOdds ? fmtOdds(row.bestOdds) : '-'} color={colors.gold} /> : null}
+      <TableCell value={fmtRate(season)} color={statColor(season, row.line)} landscape={landscape} />
+      <TableCell value={fmtRate(l5)} color={statColor(l5, row.line)} landscape={landscape} />
+      <TableCell value={fmtRate(l10)} color={statColor(l10, row.line)} landscape={landscape} />
+      {landscape ? <TableCell value={l5Hit} color={colors.green} /> : null}
+      {landscape ? <TableCell value={l10Hit} color={colors.green} /> : null}
+      <View style={[styles.compactCell, landscape ? styles.landscapeEdgeColumn : styles.edgeColumn]}>
         <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge.color }]}>{edge.label}</AppText>
       </View>
     </Pressable>
+  )
+}
+
+function TableCell({ value, color, landscape = true }: { value: string; color: string; landscape?: boolean }) {
+  return (
+    <View style={[styles.compactCell, landscape ? styles.landscapeStatColumn : styles.statColumn]}>
+      <AppText style={[styles.statValue, landscape && styles.landscapeStatValue, { color }]} numberOfLines={1}>{value}</AppText>
+    </View>
   )
 }
 
@@ -609,6 +640,10 @@ const styles = StyleSheet.create({
   headerText: {
     color: colors.gold,
   },
+  landscapeHeaderText: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+  },
   headerTextActive: {
     color: colors.gold,
   },
@@ -636,14 +671,33 @@ const styles = StyleSheet.create({
   statColumn: {
     alignItems: 'center',
   },
+  landscapeStatColumn: {
+    width: 64,
+    alignItems: 'center',
+    paddingRight: 5,
+  },
   edgeColumn: {
     width: 54,
     alignItems: 'flex-end',
     paddingRight: 0,
   },
+  landscapeEdgeColumn: {
+    width: 60,
+    alignItems: 'flex-end',
+    paddingRight: 0,
+  },
+  landscapePlayerColumn: {
+    flex: 1.9,
+    minWidth: 0,
+    paddingRight: spacing.sm,
+  },
   statValue: {
     fontSize: 16,
     fontWeight: '900',
+  },
+  landscapeStatValue: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   edgeScore: {
     fontSize: 18,
