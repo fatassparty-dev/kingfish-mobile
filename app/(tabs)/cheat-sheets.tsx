@@ -2125,7 +2125,7 @@ export default function CheatSheetsScreen() {
                     <View style={styles.rowMain}>
                       <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
                       <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
-                        {row.team} · 200+ in {row.hitRate} · L5 {row.l5Hits}/5 · L10 {row.l10Hits}/10
+                        {row.team} · 200+ · Last {row.l10Hits}/{Math.min(row.games, 10)}
                       </AppText>
                     </View>
                     <View style={styles.rowNumbers}>
