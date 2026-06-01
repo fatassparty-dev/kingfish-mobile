@@ -22,7 +22,7 @@ type ToolTile = {
   label: string
   sport: 'MLB' | 'NFL'
 }
-type ToolMode = 'sheets' | 'calculators' | 'factors'
+type ToolMode = 'sheets' | 'calculators' | 'more' | 'factors'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 type FactorSport = 'MLB' | 'NFL'
 
@@ -144,7 +144,7 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
-  { key: 'factors', label: 'More' },
+  { key: 'more', label: 'More' },
 ]
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
@@ -412,7 +412,7 @@ function cleanSkyLabel(sky?: string) {
 }
 
 function weatherFactor(weather: any, sport: FactorSport) {
-  if (!weather) return { delta: 0, label: 'Weather pending', tags: ['Weather pending'] }
+  if (!weather) return { delta: 0, label: '', tags: [] }
   if (weather.indoor) return { delta: 6, label: weather.windStr || 'Controlled', tags: ['Controlled conditions'] }
 
   let delta = 0
@@ -439,7 +439,7 @@ function weatherFactor(weather: any, sport: FactorSport) {
   return { delta, label: label || 'Weather neutral', tags: tags.length ? tags : ['Weather neutral'] }
 }
 
-function officialFactor(sport: FactorSport, official?: FactorOfficial) {
+function officialFactor(_sport: FactorSport, official?: FactorOfficial) {
   if (official?.name) {
     const delta = official.impact === 'boost' ? 5 : official.impact === 'suppress' ? -5 : 0
     return {
@@ -451,8 +451,8 @@ function officialFactor(sport: FactorSport, official?: FactorOfficial) {
 
   return {
     delta: 0,
-    label: sport === 'MLB' ? 'Umpire pending' : 'Ref crew pending',
-    tag: sport === 'MLB' ? 'Umpire pending' : 'Ref crew pending',
+    label: '',
+    tag: '',
   }
 }
 
@@ -524,7 +524,7 @@ function buildFactorRows(
         score,
         lean: tone.lean,
         tone: tone.tone,
-        tags: [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags],
+        tags: [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags].filter(Boolean),
       }
     })
 }
@@ -1645,7 +1645,7 @@ export default function CheatSheetsScreen() {
     <Screen>
       <AppText variant="title" style={styles.title}>Tools</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Cheat sheets, calculators, and game factors in one clean workspace.
+        Cheat sheets, calculators, and game factors.
       </AppText>
 
       <View style={styles.segmentRow}>
@@ -1656,14 +1656,14 @@ export default function CheatSheetsScreen() {
               setToolMode(mode.key)
               setSelectedKey(null)
             }}
-            style={[styles.segmentButton, toolMode === mode.key && styles.segmentButtonActive]}
+            style={[styles.segmentButton, (toolMode === mode.key || (mode.key === 'more' && toolMode === 'factors')) && styles.segmentButtonActive]}
           >
-            <AppText style={[styles.segmentText, toolMode === mode.key && styles.segmentTextActive]}>{mode.label}</AppText>
+            <AppText style={[styles.segmentText, (toolMode === mode.key || (mode.key === 'more' && toolMode === 'factors')) && styles.segmentTextActive]}>{mode.label}</AppText>
           </Pressable>
         ))}
       </View>
 
-      {toolMode === 'factors' ? (
+      {toolMode === 'more' ? (
         <>
           <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
             <View style={styles.featureToolCopy}>
@@ -1671,6 +1671,26 @@ export default function CheatSheetsScreen() {
               <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
             </View>
             <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              setToolMode('factors')
+              setSelectedKey(null)
+            }}
+            style={styles.featureTool}
+          >
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// MLB + NFL</AppText>
+              <AppText style={styles.featureToolTitle}>Game Factors</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+        </>
+      ) : toolMode === 'factors' ? (
+        <>
+          <Pressable onPress={() => setToolMode('more')} style={styles.backLink}>
+            <AppText style={styles.featureToolArrow}>More</AppText>
           </Pressable>
 
           {!isPremium ? premiumToolsCard : (
@@ -1719,8 +1739,8 @@ export default function CheatSheetsScreen() {
                     </View>
                     <View style={styles.factorMetaGrid}>
                       <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
-                      <FactorMeta label="Weather" value={row.weather} />
-                      {factorSport === 'MLB' && <FactorMeta label="Umpire" value={row.official} />}
+                      {row.weather ? <FactorMeta label="Weather" value={row.weather} /> : null}
+                      {factorSport === 'MLB' && row.official ? <FactorMeta label="Umpire" value={row.official} /> : null}
                     </View>
                     <View style={styles.factorTags}>
                       {row.tags.map((tag) => (
@@ -2164,6 +2184,12 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 12,
     fontWeight: '900',
+  },
+  backLink: {
+    alignSelf: 'flex-start',
+    minHeight: 32,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   sheetTile: {
     width: '47%',

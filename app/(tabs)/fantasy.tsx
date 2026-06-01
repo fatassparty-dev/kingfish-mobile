@@ -496,7 +496,6 @@ export default function FantasyToolScreen() {
         <AppText style={styles.backText}>Tools</AppText>
       </Pressable>
 
-      <AppText variant="eyebrow">// Fantasy Draft Room</AppText>
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
       <AppText variant="muted" style={styles.copy}>
         Draft boards and team tracking for football season.
@@ -593,8 +592,7 @@ export default function FantasyToolScreen() {
       ) : mode === 'planner' ? (
         <>
           <Card style={styles.metaCard}>
-            <AppText variant="eyebrow">// Draft Planner</AppText>
-            <AppText style={styles.cardTitle}>Draft Path</AppText>
+            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>Draft Path</AppText>
             <AppText variant="muted" style={styles.cardCopy}>Uses your saved Home or Best Ball board order.</AppText>
 
             <View style={styles.plannerToggleRow}>
@@ -716,8 +714,7 @@ export default function FantasyToolScreen() {
       ) : (
         <>
           <Card style={styles.metaCard}>
-            <AppText variant="eyebrow">// Draft Board</AppText>
-            <AppText style={styles.cardTitle}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
+            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
             <AppText variant="muted" style={styles.cardCopy}>
               Move players into your order, then save the board for draft day.
             </AppText>
@@ -761,15 +758,15 @@ export default function FantasyToolScreen() {
             />
           ) : (
             <>
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Search player or team"
-                placeholderTextColor={colors.textMuted}
-                style={styles.searchInput}
-              />
-
               <View style={styles.positionGrid}>
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Search"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  style={styles.searchFilterInput}
+                />
                 {POSITIONS.filter(pos => mode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
                   <Pressable key={pos} onPress={() => setPosition(pos)} style={[styles.positionButton, position === pos && styles.positionButtonActive]}>
                     <AppText style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</AppText>
@@ -1107,6 +1104,7 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.bgPrimary },
   loading: { gap: spacing.md, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
   cardTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
+  cardTitleFirst: { marginTop: 0 },
   cardCopy: { marginTop: spacing.sm, lineHeight: 20 },
   metaActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.md },
   boardButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -1181,16 +1179,16 @@ const styles = StyleSheet.create({
   leagueMeta: { marginTop: 4, fontSize: 12 },
   rosterCard: { marginTop: spacing.md },
   metaCard: { marginBottom: spacing.md },
-  searchInput: {
-    minHeight: 46,
+  searchFilterInput: {
+    minWidth: 76,
+    minHeight: 38,
     borderWidth: 1,
     borderColor: colors.borderActive,
     borderRadius: 8,
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: spacing.md,
+    fontSize: 12,
+    fontWeight: '900',
   },
   positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
   positionButton: { minWidth: 54, minHeight: 38, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
