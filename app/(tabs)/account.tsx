@@ -367,6 +367,10 @@ export default function AccountScreen() {
             Help Guide
           </Button>
         </View>
+        <View style={styles.buttonGap} />
+        <Button variant="secondary" onPress={() => router.push('/support')}>
+          Contact Support
+        </Button>
         <AppText variant="muted" style={styles.websiteNote}>
           Your KingFish account works across web and mobile. Sign in at{' '}
           <AppText
@@ -379,9 +383,6 @@ export default function AccountScreen() {
           to use KingFish on your computer.
         </AppText>
         <View style={styles.supportLinks}>
-          <AppText style={styles.supportLink} onPress={() => router.push('/support')}>
-            Contact Support
-          </AppText>
           <AppText style={styles.supportLink} onPress={() => router.push('/terms')}>
             Terms
           </AppText>
