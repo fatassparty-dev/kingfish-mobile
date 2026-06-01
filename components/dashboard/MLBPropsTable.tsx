@@ -181,8 +181,7 @@ function formatVsStarter(vsStarter?: PlayerRow['vsStarter']) {
   if (!vsStarter) return '-'
   if (!vsStarter.ab) return 'First'
   const avg = Number(String(vsStarter.avg || '').replace(/^\./, '0.'))
-  const avgLabel = Number.isFinite(avg) ? avg.toFixed(2) : vsStarter.avg || '-'
-  return `${avgLabel} (${vsStarter.ab})`
+  return Number.isFinite(avg) ? avg.toFixed(2) : vsStarter.avg || '-'
 }
 
 function displayPlayerName(name: string) {
