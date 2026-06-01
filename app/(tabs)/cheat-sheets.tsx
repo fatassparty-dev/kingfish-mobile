@@ -1846,7 +1846,7 @@ export default function CheatSheetsScreen() {
           <View style={styles.sectionEyebrowRow}>
             <AppText variant="eyebrow">// Game Factors</AppText>
             <AppText variant="muted" style={styles.sectionDescription}>
-              Factoring stadium, weather, and matchup context into a scoring volume grade.
+              Factoring stadium, weather, officials, and matchup context into a scoring volume grade.
             </AppText>
           </View>
 

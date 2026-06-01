@@ -118,7 +118,7 @@ Use these as guardrails when matching mobile on web or when touching nearby mobi
 - Mobile Tools uses three tabs: Cheat Sheets, Calculators, and Pro Tools. Pro Tools contains Fantasy Hub and Game Factors.
 - Cheat Sheet tiles should stay clean and intentional: compact two-column cards, sport eyebrow, strong title, subtle gold top accent, no repeated descriptions.
 - The current sheet set includes MLB sheets plus NFL TD Streaks, NFL QB 2+ TD Streaks, and QB 200+ Yard Games.
-- Game Factors should explain itself as a scoring-volume grade built from stadium, weather, and matchup context. Avoid customer-facing terms such as "setup" when "volume" or "grade" is clearer.
+- Game Factors should explain itself as a scoring-volume grade built from stadium, weather, officials, and matchup context. Avoid customer-facing terms such as "setup" when "volume" or "grade" is clearer.
 - Hide neutral Game Factors tags. Keep useful tags such as HR Props, Power-Friendly, Cold Suppress, Rain/Wind Risk, Totals/Passing, and similar signals.
 - Player prop landscape columns should be Player, Line, Odds, AVG, L5, L10, L5 Hit, L10 Hit, Edge.
 - Player profiles can use landscape, but fantasy profiles should not show gambling-style Recent Form. Use News when available instead.
