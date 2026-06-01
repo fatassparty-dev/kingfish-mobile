@@ -71,6 +71,20 @@ const TEAM_NAME_TO_ABBR: Record<string, string> = {
   'San Francisco Giants': 'SF', 'Colorado Rockies': 'COL', 'Arizona Diamondbacks': 'ARI',
 }
 
+const NFL_TEAM_NAME_TO_ABBR: Record<string, string> = {
+  'Arizona Cardinals': 'ARI', 'Atlanta Falcons': 'ATL', 'Baltimore Ravens': 'BAL',
+  'Buffalo Bills': 'BUF', 'Carolina Panthers': 'CAR', 'Chicago Bears': 'CHI',
+  'Cincinnati Bengals': 'CIN', 'Cleveland Browns': 'CLE', 'Dallas Cowboys': 'DAL',
+  'Denver Broncos': 'DEN', 'Detroit Lions': 'DET', 'Green Bay Packers': 'GB',
+  'Houston Texans': 'HOU', 'Indianapolis Colts': 'IND', 'Jacksonville Jaguars': 'JAX',
+  'Kansas City Chiefs': 'KC', 'Las Vegas Raiders': 'LV', 'Los Angeles Chargers': 'LAC',
+  'Los Angeles Rams': 'LAR', 'Miami Dolphins': 'MIA', 'Minnesota Vikings': 'MIN',
+  'New England Patriots': 'NE', 'New Orleans Saints': 'NO', 'New York Giants': 'NYG',
+  'New York Jets': 'NYJ', 'Philadelphia Eagles': 'PHI', 'Pittsburgh Steelers': 'PIT',
+  'San Francisco 49ers': 'SF', 'Seattle Seahawks': 'SEA', 'Tampa Bay Buccaneers': 'TB',
+  'Tennessee Titans': 'TEN', 'Washington Commanders': 'WAS',
+}
+
 const MLB_FACTOR_BASELINES: Record<string, { venue: string; score: number; environment: string; market: string }> = {
   'Colorado Rockies': { venue: 'Coors Field', score: 92, environment: 'Elite hitter park', market: 'Totals / HR props' },
   'Cincinnati Reds': { venue: 'Great American Ball Park', score: 84, environment: 'Power-friendly', market: 'HR props' },
@@ -206,6 +220,7 @@ interface FactorRow {
   id: string
   matchup: string
   time: string
+  scoreLabel: string
   venue: string
   environment: string
   weather: string
@@ -494,10 +509,21 @@ function isNeutralFactorText(value?: string) {
   return /\bneutral\b/i.test(String(value || ''))
 }
 
+function factorTeamAbbr(team: string, sport: FactorSport) {
+  const map = sport === 'MLB' ? TEAM_NAME_TO_ABBR : NFL_TEAM_NAME_TO_ABBR
+  if (map[team]) return map[team]
+  const words = team.split(' ').filter(Boolean)
+  return words.length ? words[words.length - 1] : team
+}
+
 function factorTone(score: number) {
   if (score >= 72) return { tone: colors.green, lean: 'Boost' }
   if (score <= 43) return { tone: colors.red, lean: 'Suppress' }
   return { tone: colors.gold, lean: 'Watch' }
+}
+
+function factorScoreLabel(sport: FactorSport) {
+  return sport === 'MLB' ? 'Run/HR Volume' : 'Scoring Volume'
 }
 
 function buildFactorRows(
@@ -520,10 +546,13 @@ function buildFactorRows(
       const tags = [baseline.market, baseline.environment, ...weather.tags, official.tag, ...context.tags]
         .filter(Boolean)
         .filter((tag) => !isNeutralFactorText(tag))
+      const awayAbbr = factorTeamAbbr(game.away_team, sport)
+      const homeAbbr = factorTeamAbbr(game.home_team, sport)
       return {
         id,
-        matchup: `${game.away_team} @ ${game.home_team}`,
+        matchup: `${awayAbbr} @ ${homeAbbr}`,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
+        scoreLabel: factorScoreLabel(sport),
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
         environment: isNeutralFactorText(baseline.environment) ? '' : baseline.environment,
         weather: weather.label,
@@ -1740,6 +1769,7 @@ export default function CheatSheetsScreen() {
                         <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
                       </View>
                       <View style={styles.factorScore}>
+                        <AppText style={styles.factorScoreLabel}>{row.scoreLabel}</AppText>
                         <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
                         <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
                       </View>
@@ -2295,7 +2325,13 @@ const styles = StyleSheet.create({
   },
   factorScore: {
     alignItems: 'flex-end',
-    minWidth: 72,
+    minWidth: 112,
+  },
+  factorScoreLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '800',
   },
   factorScoreValue: {
     fontSize: 34,
