@@ -174,7 +174,7 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
   betrivers: 'BetRivers',
   caesars: 'Caesars',
   draftkings: 'DraftKings',
-  espnbet: 'ESPN BET',
+  espnbet: 'theScore Bet',
   fanduel: 'FanDuel',
   fanatics: 'Fanatics',
   hardrockbet: 'Hard Rock Bet',
