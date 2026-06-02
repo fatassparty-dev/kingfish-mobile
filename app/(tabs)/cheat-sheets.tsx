@@ -2001,23 +2001,31 @@ export default function CheatSheetsScreen() {
               )}
 
               {factorView === 'cheat' && factorSport === 'MLB' ? (
-                <View style={styles.factorRows}>
+                <Card style={styles.factorCheatSheet}>
+                  <View style={styles.cheatSheetHeader}>
+                    <AppText variant="mono" style={[styles.cheatSheetHeadCell, styles.cheatSheetGameHead]}>Game</AppText>
+                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>Total</AppText>
+                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>HR</AppText>
+                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>Read</AppText>
+                  </View>
                   {factorCheatRows.map((row) => (
-                    <Card key={row.id} style={styles.factorCard}>
-                      <AppText style={styles.factorMatchup}>{row.matchup}</AppText>
-                      <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
-                      <View style={styles.factorMetaGrid}>
-                        <FactorMeta label="Venue" value={row.venue} />
-                        <FactorMeta label="Weather" value={row.weather} />
+                    <View key={row.id} style={styles.cheatSheetRow}>
+                      <View style={styles.cheatSheetGameCell}>
+                        <AppText style={styles.cheatSheetMatchup}>{row.matchup}</AppText>
+                        <AppText variant="muted" style={styles.cheatSheetMeta}>{row.time}</AppText>
+                        <AppText variant="muted" style={styles.cheatSheetMeta}>{row.venue}</AppText>
+                        <AppText variant="muted" style={styles.cheatSheetWeather}>{row.weather}</AppText>
                       </View>
-                      <View style={styles.cheatMetricGrid}>
-                        <FactorMetric label="Game Total" value={`${row.gameTotalPct > 0 ? '+' : ''}${row.gameTotalPct}%`} tone={factorImpactTone(row.gameTotalPct)} />
-                        <FactorMetric label="HR Impact" value={`${row.hrPct > 0 ? '+' : ''}${row.hrPct}%`} tone={factorImpactTone(row.hrPct)} />
-                        <FactorMetric label="Read" value={row.read} tone={row.tone} />
-                      </View>
-                    </Card>
+                      <AppText style={[styles.cheatSheetMetric, { color: factorImpactTone(row.gameTotalPct) }]}>
+                        {row.gameTotalPct > 0 ? '+' : ''}{row.gameTotalPct}%
+                      </AppText>
+                      <AppText style={[styles.cheatSheetMetric, { color: factorImpactTone(row.hrPct) }]}>
+                        {row.hrPct > 0 ? '+' : ''}{row.hrPct}%
+                      </AppText>
+                      <AppText style={[styles.cheatSheetRead, { color: row.tone }]}>{row.read}</AppText>
+                    </View>
                   ))}
-                </View>
+                </Card>
               ) : (
               <View style={styles.factorRows}>
                 {factorRows.map((row) => (
@@ -2028,7 +2036,7 @@ export default function CheatSheetsScreen() {
                         <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
                       </View>
                       <View style={styles.factorScore}>
-                        <AppText style={styles.factorScoreLabel}>{row.scoreLabel}</AppText>
+                        <AppText style={styles.factorScoreLabel}>Score</AppText>
                         <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
                         <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
                       </View>
@@ -2037,6 +2045,7 @@ export default function CheatSheetsScreen() {
                       <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
                       {row.weather ? <FactorMeta label="Weather" value={row.weather} visual={<FactorWeatherVisual weather={row.weatherRaw} />} /> : null}
                       {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
+                      <FactorMeta label="Market Read" value={row.tags.find((tag) => !isNeutralFactorText(tag)) || 'Watch board'} />
                     </View>
                     {row.tags.filter((tag) => !isNeutralFactorText(tag)).length ? (
                       <View style={styles.factorTags}>
@@ -2698,6 +2707,71 @@ const styles = StyleSheet.create({
   },
   factorViewTextActive: {
     color: colors.textPrimary,
+  },
+  factorCheatSheet: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  cheatSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  cheatSheetHeadCell: {
+    width: 54,
+    color: colors.textMuted,
+    fontSize: 10,
+    textAlign: 'right',
+  },
+  cheatSheetGameHead: {
+    flex: 1,
+    width: undefined,
+    textAlign: 'left',
+  },
+  cheatSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(28,35,56,.75)',
+    paddingVertical: spacing.md,
+  },
+  cheatSheetGameCell: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cheatSheetMatchup: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: '900',
+  },
+  cheatSheetMeta: {
+    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  cheatSheetWeather: {
+    marginTop: 3,
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  cheatSheetMetric: {
+    width: 54,
+    textAlign: 'right',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '900',
+  },
+  cheatSheetRead: {
+    width: 54,
+    textAlign: 'right',
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '900',
   },
   factorRows: {
     gap: spacing.md,
