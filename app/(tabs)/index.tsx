@@ -408,6 +408,13 @@ const SPORTS: Array<{
   },
 ]
 
+function orderedDashboardSports(order: string[] = []) {
+  const rank = new Map(
+    order.map((item, index) => [item === 'Soccer' ? 'SOCCER' : item, index]),
+  )
+  return [...SPORTS].sort((a, b) => (rank.get(a.key) ?? 999) - (rank.get(b.key) ?? 999))
+}
+
 function isCollegeSport(sport: Sport) {
   return sport === 'NCAAB' || sport === 'NCAAF'
 }
@@ -1083,7 +1090,7 @@ export default function DashboardScreen() {
   const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
-  const visibleSports = SPORTS.filter((item) => mobileFlag(item.visibilityFlag, true))
+  const visibleSports = orderedDashboardSports(mobileConfig.dashboard_sport_order).filter((item) => mobileFlag(item.visibilityFlag, true))
   const selectedSport = visibleSports.find((item) => item.key === sport) || visibleSports[0] || SPORTS[0]
   const isSelectedSportActive = mobileFlag(selectedSport.flag, selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => mobileFlag(item.flag, item.status === 'Live')

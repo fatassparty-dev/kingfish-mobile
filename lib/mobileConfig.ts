@@ -19,6 +19,7 @@ export type MobileConfig = {
     title: string
     body: string
   } | null
+  dashboard_sport_order: string[]
   flags: {
     fantasy_hub: boolean
     nfl_props: boolean
@@ -41,6 +42,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     responsible_gaming: 'tel:18005224700',
   },
   app_notice: null,
+  dashboard_sport_order: ['MLB', 'NFL', 'NBA', 'NHL', 'WNBA', 'KBO', 'NCAAB', 'NCAAF', 'Soccer'],
   flags: {
     fantasy_hub: true,
     nfl_props: false,
@@ -119,6 +121,9 @@ export async function fetchMobileConfig() {
         ...DEFAULT_MOBILE_CONFIG.flags,
         ...config.flags,
       },
+      dashboard_sport_order: Array.isArray(config.dashboard_sport_order)
+        ? config.dashboard_sport_order
+        : DEFAULT_MOBILE_CONFIG.dashboard_sport_order,
     }
   } catch {
     return DEFAULT_MOBILE_CONFIG
