@@ -915,6 +915,7 @@ export function GameLineCard({
   ncaafContext,
   soccerContext,
   onPressSoccerTeam,
+  onPressVenue,
   userState,
   sportsbookPreferences,
 }: {
@@ -928,6 +929,7 @@ export function GameLineCard({
   ncaafContext?: NcaafLineContext
   soccerContext?: SoccerLineContext
   onPressSoccerTeam?: (team: string) => void
+  onPressVenue?: (game: Game, weather: WeatherInfo) => void
   userState?: string | null
   sportsbookPreferences?: SportsbookPreferences | null
 }) {
@@ -980,7 +982,15 @@ export function GameLineCard({
       <View style={styles.header}>
         <View style={styles.timeBlock}>
           <AppText variant="eyebrow">// {fmtTime(game.commence_time)}</AppText>
-          {weather && <AppText variant="mono">{weather.park}</AppText>}
+          {weather && (
+            onPressVenue ? (
+              <Pressable onPress={() => onPressVenue(game, weather)} hitSlop={8}>
+                <AppText variant="mono" style={styles.venueLink}>{weather.park}</AppText>
+              </Pressable>
+            ) : (
+              <AppText variant="mono">{weather.park}</AppText>
+            )
+          )}
         </View>
         <AppText variant="mono">{bookmakers.length} books</AppText>
       </View>
@@ -1156,6 +1166,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 4,
+  },
+  venueLink: {
+    color: colors.gold,
   },
   teamRow: {
     flexDirection: 'row',

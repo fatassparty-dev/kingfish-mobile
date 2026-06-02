@@ -102,6 +102,42 @@ type MLBL10Payload = {
   teamL10Map?: Record<string, { wins: number; losses: number; winPct: number; avgTotal: number }>
 }
 
+type BallparkStaticProfile = {
+  venue: string
+  team: string
+  teamName: string
+  teamAbbr: string
+  city: string
+  capacity: string
+  altitudeFt: string
+  roof: string
+  surface: string
+  read: string
+  blurb: string
+}
+
+type BallparkProfilePayload = {
+  profilesByVenue?: Record<string, BallparkStaticProfile>
+  profilesByTeam?: Record<string, BallparkStaticProfile>
+  homeRecords?: Record<string, string>
+}
+
+type DashboardBallparkProfile = {
+  venue: string
+  team: string
+  city?: string
+  homeRecord?: string
+  grade: number
+  market?: string
+  capacity?: string
+  altitudeFt?: string
+  roof?: string
+  surface?: string
+  weather?: string
+  wind?: string
+  blurb: string
+}
+
 type NFLFuturesData = {
   division: Array<{
     division: string
@@ -807,6 +843,53 @@ function mlbAbbr(teamName: string) {
   return MLB_TEAM_NAME_TO_ABBR[teamName] || teamName.split(' ').pop()?.slice(0, 3).toUpperCase() || teamName
 }
 
+function shortSurfaceLabel(surface?: string) {
+  if (!surface) return '-'
+  return surface.replace('Artificial Turf', 'Turf').replace('Natural Grass', 'Grass')
+}
+
+function ballparkGrade(read?: string, windImpact?: WeatherInfo['windImpact']) {
+  const lower = (read || '').toLowerCase()
+  let grade = 55
+  if (lower.includes('elite')) grade = 92
+  else if (lower.includes('hr') || lower.includes('hitter') || lower.includes('power')) grade = 76
+  else if (lower.includes('pitcher') || lower.includes('suppress')) grade = 38
+  else if (lower.includes('stable') || lower.includes('controlled') || lower.includes('roof')) grade = 58
+  if (windImpact === 'boost') grade += 6
+  if (windImpact === 'suppress') grade -= 6
+  return Math.max(1, Math.min(100, grade))
+}
+
+function recordLabel(record?: { wins: number; losses: number }) {
+  return record ? `${record.wins}-${record.losses}` : undefined
+}
+
+function dashboardBallparkProfile(
+  game: Game,
+  weather: WeatherInfo,
+  profiles?: BallparkProfilePayload,
+  schedule?: MLBSchedulePayload,
+): DashboardBallparkProfile {
+  const staticProfile = profiles?.profilesByVenue?.[weather.park] || profiles?.profilesByTeam?.[game.home_team]
+  const teamAbbr = staticProfile?.teamAbbr || mlbAbbr(game.home_team)
+  const weatherText = [weather.sky, typeof weather.tempF === 'number' ? `${weather.tempF}F` : ''].filter(Boolean).join(' · ')
+  return {
+    venue: weather.park,
+    team: staticProfile?.team || game.home_team,
+    city: staticProfile?.city,
+    homeRecord: profiles?.homeRecords?.[teamAbbr] || recordLabel(schedule?.teamRecords?.[teamAbbr]),
+    grade: ballparkGrade(staticProfile?.read, weather.windImpact),
+    market: staticProfile?.read || (weather.windImpact === 'boost' ? 'Carry boost' : weather.windImpact === 'suppress' ? 'Wind suppress' : 'Watch board'),
+    capacity: staticProfile?.capacity,
+    altitudeFt: staticProfile?.altitudeFt,
+    roof: staticProfile?.roof,
+    surface: staticProfile?.surface,
+    weather: weatherText,
+    wind: weather.windStr,
+    blurb: staticProfile?.blurb || `${weather.park} profile context is tied to park shape, roof, surface, weather, and wind before first pitch.`,
+  }
+}
+
 function recordGrade(pct: number) {
   if (pct >= 0.620) return 'A'
   if (pct >= 0.560) return 'B'
@@ -1078,6 +1161,7 @@ export default function DashboardScreen() {
   const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
+  const [selectedBallpark, setSelectedBallpark] = useState<DashboardBallparkProfile | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [selectedSoccerTeam, setSelectedSoccerTeam] = useState<SoccerTeamInfo | null>(null)
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
@@ -1173,6 +1257,12 @@ export default function DashboardScreen() {
       }),
     enabled: sport === 'MLB' && canFetchLines && !!lineQuery.data?.length,
     staleTime: 60 * 60 * 1000,
+  })
+  const ballparkProfileQuery = useQuery({
+    queryKey: ['dashboard-mlb-ballpark-profiles'],
+    queryFn: () => kingfishFetch<BallparkProfilePayload>('/api/mlb-ballpark-profiles'),
+    enabled: sport === 'MLB' && canFetchLines,
+    staleTime: 30 * 60 * 1000,
   })
   const propsQuery = useQuery({
     queryKey: ['player-props', sport],
@@ -2329,6 +2419,7 @@ export default function DashboardScreen() {
                     isTournament: soccerLeague === 'soccer_fifa_world_cup',
                   } : undefined}
                   onPressSoccerTeam={sport === 'SOCCER' ? (team) => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, team)) : undefined}
+                  onPressVenue={sport === 'MLB' ? (cardGame, cardWeather) => setSelectedBallpark(dashboardBallparkProfile(cardGame, cardWeather, ballparkProfileQuery.data, mlbScheduleQuery.data)) : undefined}
                   userState={profile?.state}
                   sportsbookPreferences={profile?.sportsbook_preferences}
                   showNeutralTotalWatch={sport !== 'NFL'}
@@ -2845,6 +2936,50 @@ export default function DashboardScreen() {
         league={soccerLeague}
         onClose={() => setSelectedSoccerTeam(null)}
       />
+      <Modal visible={Boolean(selectedBallpark)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedBallpark(null)}>
+        <Screen scroll={false}>
+          <ScrollView contentContainerStyle={styles.ballparkSheet}>
+            <AppText variant="eyebrow">// Stadium Profile</AppText>
+            <AppText style={styles.ballparkTitle}>{selectedBallpark?.venue}</AppText>
+            <AppText variant="muted" style={styles.ballparkTeam}>{selectedBallpark?.team}</AppText>
+            {selectedBallpark?.city ? <AppText variant="muted" style={styles.ballparkCity}>{selectedBallpark.city}</AppText> : null}
+            <AppText variant="muted" style={styles.ballparkRecord}>Home record: {selectedBallpark?.homeRecord || 'Pending'}</AppText>
+            <View style={styles.ballparkGrid}>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Park Grade</AppText>
+                <AppText style={[styles.ballparkMetricValue, styles.ballparkMetricGold]}>{selectedBallpark?.grade || '-'}</AppText>
+              </View>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Surface</AppText>
+                <AppText style={styles.ballparkMetricValue}>{shortSurfaceLabel(selectedBallpark?.surface)}</AppText>
+              </View>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Market</AppText>
+                <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.market || '-'}</AppText>
+              </View>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Capacity</AppText>
+                <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.capacity || '-'}</AppText>
+              </View>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Altitude</AppText>
+                <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.altitudeFt ? `${selectedBallpark.altitudeFt} ft` : '-'}</AppText>
+              </View>
+              <View style={styles.ballparkMetric}>
+                <AppText variant="mono">Roof</AppText>
+                <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.roof || '-'}</AppText>
+              </View>
+              <View style={[styles.ballparkMetric, styles.ballparkMetricWide]}>
+                <AppText variant="mono">Wind Today</AppText>
+                <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.wind || 'Pending'}</AppText>
+              </View>
+            </View>
+            {selectedBallpark?.weather ? <AppText variant="muted" style={styles.ballparkWeather}>{selectedBallpark.weather}</AppText> : null}
+            <AppText style={styles.ballparkBlurb}>{selectedBallpark?.blurb}</AppText>
+            <Button onPress={() => setSelectedBallpark(null)}>Close</Button>
+          </ScrollView>
+        </Screen>
+      </Modal>
     </Screen>
   )
 }
@@ -3657,5 +3792,68 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 15,
     fontWeight: '900',
+  },
+  ballparkSheet: {
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  ballparkTitle: {
+    color: colors.textPrimary,
+    fontSize: 44,
+    lineHeight: 48,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  ballparkTeam: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  ballparkCity: {
+    marginTop: -spacing.sm,
+    fontSize: 17,
+  },
+  ballparkRecord: {
+    color: colors.gold,
+    fontSize: 16,
+  },
+  ballparkGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  ballparkMetric: {
+    width: '31.5%',
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  ballparkMetricWide: {
+    width: '100%',
+  },
+  ballparkMetricValue: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '900',
+  },
+  ballparkMetricGold: {
+    color: colors.gold,
+    fontSize: 40,
+    lineHeight: 42,
+  },
+  ballparkWeather: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    fontSize: 16,
+  },
+  ballparkBlurb: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 28,
   },
 })

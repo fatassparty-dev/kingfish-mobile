@@ -266,6 +266,7 @@ interface FactorRow {
 }
 
 type StadiumProfile = {
+  sport: FactorSport
   venue: string
   homeTeam: string
   teamLabel?: string
@@ -278,6 +279,9 @@ type StadiumProfile = {
   altitudeFt?: string
   roof?: string
   surface?: string
+  roofStatus?: string
+  windImpact?: string
+  weatherExposure?: string
   weather?: string
   wind?: string
   blurb: string
@@ -301,6 +305,25 @@ type BallparkProfilePayload = {
   profilesByVenue?: Record<string, BallparkStaticProfile>
   profilesByTeam?: Record<string, BallparkStaticProfile>
   homeRecords?: Record<string, string>
+}
+
+type FootballStadiumStaticProfile = {
+  venue: string
+  team: string
+  teamName: string
+  city: string
+  capacity: string
+  altitudeFt: string
+  roofStatus: string
+  surface: string
+  windImpact: string
+  weatherExposure: string
+  blurb: string
+}
+
+type FootballStadiumProfilePayload = {
+  profilesByVenue?: Record<string, FootballStadiumStaticProfile>
+  profilesByTeam?: Record<string, FootballStadiumStaticProfile>
 }
 
 interface FactorCheatRow {
@@ -672,14 +695,46 @@ function factorImpactTone(value: number) {
   return colors.gold
 }
 
-function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayload): StadiumProfile {
-  const baseline = factorBaseline(row.homeTeam, 'MLB')
-  const staticProfile = ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
-  const hasRoofContext = Boolean(staticProfile?.roof && staticProfile.roof !== 'Open Air')
-  const wind = hasRoofContext ? (staticProfile?.roof === 'Fixed Dome' ? 'Controlled' : 'Roof watch') : row.weatherRaw?.windStr || ''
+function stadiumProfileForRow(
+  row: FactorRow,
+  sport: FactorSport,
+  ballparkData?: BallparkProfilePayload,
+  footballData?: FootballStadiumProfilePayload,
+): StadiumProfile {
+  const baseline = factorBaseline(row.homeTeam, sport)
+  const staticProfile = sport === 'MLB'
+    ? ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
+    : footballData?.profilesByTeam?.[row.homeTeam]
+  if (sport === 'NFL') {
+    const nflProfile = staticProfile as FootballStadiumStaticProfile | undefined
+    return {
+      sport,
+      venue: row.venue,
+      homeTeam: row.homeTeam,
+      teamLabel: nflProfile?.team,
+      city: nflProfile?.city,
+      environment: row.environment || baseline.environment,
+      market: baseline.market || row.tags[0] || 'Watch board',
+      score: baseline.score,
+      capacity: nflProfile?.capacity,
+      altitudeFt: nflProfile?.altitudeFt,
+      roof: nflProfile?.roofStatus,
+      roofStatus: nflProfile?.roofStatus,
+      surface: nflProfile?.surface,
+      windImpact: nflProfile?.windImpact,
+      weatherExposure: nflProfile?.weatherExposure,
+      weather: row.weather,
+      wind: row.weatherRaw?.windStr || nflProfile?.windImpact,
+      blurb: nflProfile?.blurb || `${row.venue} matters most through weather, surface, kicking, passing, and total-scoring conditions.`,
+    }
+  }
+
+  const mlbProfile = staticProfile as BallparkStaticProfile | undefined
+  const hasRoofContext = Boolean(mlbProfile?.roof && mlbProfile.roof !== 'Open Air')
+  const wind = hasRoofContext ? (mlbProfile?.roof === 'Fixed Dome' ? 'Controlled' : 'Roof watch') : row.weatherRaw?.windStr || ''
   const sky = cleanSkyLabel(row.weatherRaw?.sky)
   const temp = typeof row.weatherRaw?.tempF === 'number' ? `${row.weatherRaw.tempF}F` : ''
-  const weather = hasRoofContext ? `${staticProfile?.roof} context` : [sky, temp].filter(Boolean).join(' · ')
+  const weather = hasRoofContext ? `${mlbProfile?.roof} context` : [sky, temp].filter(Boolean).join(' · ')
   const blurb = baseline.score >= 72
     ? `${row.venue} generally grades as a hitter-friendly park in KingFish Game Factors. Check wind and temperature before leaning into totals or power props.`
     : baseline.score <= 43
@@ -687,22 +742,47 @@ function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayl
       : `${row.venue} is more context-sensitive than automatic. Weather, wind direction, roof context, and matchup shape do more of the work here.`
 
   return {
+    sport,
     venue: row.venue,
     homeTeam: row.homeTeam,
-    teamLabel: staticProfile?.team,
-    city: staticProfile?.city,
-    homeRecord: staticProfile?.teamAbbr ? ballparkData?.homeRecords?.[staticProfile.teamAbbr] : undefined,
-    environment: staticProfile?.read || row.environment || baseline.environment,
+    teamLabel: mlbProfile?.team,
+    city: mlbProfile?.city,
+    homeRecord: mlbProfile?.teamAbbr ? ballparkData?.homeRecords?.[mlbProfile.teamAbbr] : undefined,
+    environment: mlbProfile?.read || row.environment || baseline.environment,
     market: baseline.market || row.tags[0] || 'Watch board',
     score: baseline.score,
-    capacity: staticProfile?.capacity,
-    altitudeFt: staticProfile?.altitudeFt,
-    roof: staticProfile?.roof,
-    surface: staticProfile?.surface,
+    capacity: mlbProfile?.capacity,
+    altitudeFt: mlbProfile?.altitudeFt,
+    roof: mlbProfile?.roof,
+    surface: mlbProfile?.surface,
     weather,
     wind,
-    blurb: staticProfile?.blurb || blurb,
+    blurb: mlbProfile?.blurb || blurb,
   }
+}
+
+function stadiumProfileForGameLine(
+  game: Game,
+  weather: any,
+  ballparkData?: BallparkProfilePayload,
+): StadiumProfile {
+  const row: FactorRow = {
+    id: game.id || game.game_id || `${game.away_team}-${game.home_team}`,
+    matchup: `${game.away_team} @ ${game.home_team}`,
+    homeTeam: game.home_team,
+    time: game.commence_time,
+    scoreLabel: factorScoreLabel('MLB'),
+    venue: weather?.park || factorBaseline(game.home_team, 'MLB').venue,
+    environment: factorBaseline(game.home_team, 'MLB').environment,
+    weather: weather ? weatherFactor(weather, 'MLB').label : 'Weather pending',
+    weatherRaw: weather,
+    official: 'Umpire pending',
+    score: factorBaseline(game.home_team, 'MLB').score,
+    lean: factorTone(factorBaseline(game.home_team, 'MLB').score).lean,
+    tone: factorTone(factorBaseline(game.home_team, 'MLB').score).tone,
+    tags: [factorBaseline(game.home_team, 'MLB').market],
+  }
+  return stadiumProfileForRow(row, 'MLB', ballparkData)
 }
 
 function buildFactorRows(
@@ -1823,6 +1903,13 @@ export default function CheatSheetsScreen() {
     staleTime: 30 * 60 * 1000,
   })
 
+  const footballStadiumProfileQuery = useQuery({
+    queryKey: ['mobile-nfl-stadium-profiles'],
+    queryFn: () => kingfishFetch<FootballStadiumProfilePayload>('/api/nfl-stadium-profiles'),
+    enabled: canLoadFactors && factorSport === 'NFL',
+    staleTime: 30 * 60 * 1000,
+  })
+
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
     ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups)
     : []
@@ -2127,7 +2214,7 @@ export default function CheatSheetsScreen() {
                         label="Venue"
                         value={row.venue}
                         sub={row.environment}
-                        onPress={factorSport === 'MLB' ? () => setStadiumProfile(stadiumProfileForRow(row, ballparkProfileQuery.data)) : undefined}
+                        onPress={() => setStadiumProfile(stadiumProfileForRow(row, factorSport, ballparkProfileQuery.data, footballStadiumProfileQuery.data))}
                       />
                       <FactorMeta label="Weather" value={row.weather || 'Weather pending'} visual={<FactorWeatherVisual weather={row.weatherRaw} />} />
                       {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
@@ -2389,6 +2476,7 @@ export default function CheatSheetsScreen() {
                     l10Map: mlbL10Query.data?.teamL10Map,
                     pitcherEraMap: scheduleQuery.data?.pitcherEraMap,
                   }}
+                  onPressVenue={(game, weather) => setStadiumProfile(stadiumProfileForGameLine(game, weather, ballparkProfileQuery.data))}
                 />
               ))}
             </View>
@@ -2508,15 +2596,24 @@ export default function CheatSheetsScreen() {
             <AppText style={styles.stadiumTitle}>{stadiumProfile?.venue}</AppText>
             <AppText variant="muted" style={styles.stadiumTeam}>{stadiumProfile?.teamLabel || stadiumProfile?.homeTeam}</AppText>
             {stadiumProfile?.city ? <AppText variant="muted" style={styles.stadiumCity}>{stadiumProfile.city}</AppText> : null}
-            <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
+            {stadiumProfile?.sport === 'MLB' ? (
+              <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
+            ) : null}
             <View style={styles.stadiumGrid}>
-              <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} large />
+              <FactorMetric label={stadiumProfile?.sport === 'NFL' ? 'Stadium Grade' : 'Park Grade'} value={String(stadiumProfile?.score || '-')} tone={colors.gold} large />
               <FactorMetric label="Surface" value={shortSurface(stadiumProfile?.surface)} />
               <FactorMetric label="Market" value={stadiumProfile?.market || '-'} />
               <FactorMetric label="Capacity" value={stadiumProfile?.capacity || '-'} />
               <FactorMetric label="Altitude" value={stadiumProfile?.altitudeFt ? `${stadiumProfile.altitudeFt} ft` : '-'} />
-              <FactorMetric label="Roof" value={stadiumProfile?.roof || '-'} />
-              <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} wide visual={<WindArrow value={stadiumProfile?.wind || ''} />} />
+              <FactorMetric label={stadiumProfile?.sport === 'NFL' ? 'Roof Status' : 'Roof'} value={stadiumProfile?.roofStatus || stadiumProfile?.roof || '-'} />
+              {stadiumProfile?.sport === 'NFL' ? (
+                <>
+                  <FactorMetric label="Wind Impact" value={stadiumProfile?.windImpact || '-'} />
+                  <FactorMetric label="Weather Exposure" value={stadiumProfile?.weatherExposure || '-'} />
+                </>
+              ) : (
+                <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} wide visual={<WindArrow value={stadiumProfile?.wind || ''} />} />
+              )}
             </View>
             {stadiumProfile?.weather ? <AppText variant="muted" style={styles.stadiumWeather}>{stadiumProfile.weather}</AppText> : null}
             <AppText style={styles.stadiumBlurb}>{stadiumProfile?.blurb}</AppText>
