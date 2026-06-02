@@ -68,7 +68,7 @@ export default function HomeScreen() {
             <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
             <View style={styles.brandCopy}>
               <AppText variant="eyebrow">// KingFish Bets</AppText>
-              <AppText variant="title" style={styles.title}>Welcome to the KingFish Bait Shop</AppText>
+              <AppText variant="title" style={styles.title}>Welcome to{'\n'}The KingFish{'\n'}Bait Shop</AppText>
             </View>
           </View>
 
