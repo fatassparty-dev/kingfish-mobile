@@ -2510,14 +2510,13 @@ export default function CheatSheetsScreen() {
             {stadiumProfile?.city ? <AppText variant="muted" style={styles.stadiumCity}>{stadiumProfile.city}</AppText> : null}
             <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
             <View style={styles.stadiumGrid}>
-              <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} />
-              <FactorMetric label="Park Read" value={stadiumProfile?.environment || '-'} />
+              <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} large />
+              <FactorMetric label="Surface" value={shortSurface(stadiumProfile?.surface)} />
               <FactorMetric label="Market" value={stadiumProfile?.market || '-'} />
-              <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} />
               <FactorMetric label="Capacity" value={stadiumProfile?.capacity || '-'} />
               <FactorMetric label="Altitude" value={stadiumProfile?.altitudeFt ? `${stadiumProfile.altitudeFt} ft` : '-'} />
               <FactorMetric label="Roof" value={stadiumProfile?.roof || '-'} />
-              <FactorMetric label="Surface" value={stadiumProfile?.surface || '-'} />
+              <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} wide visual={<WindArrow value={stadiumProfile?.wind || ''} />} />
             </View>
             {stadiumProfile?.weather ? <AppText variant="muted" style={styles.stadiumWeather}>{stadiumProfile.weather}</AppText> : null}
             <AppText style={styles.stadiumBlurb}>{stadiumProfile?.blurb}</AppText>
@@ -2577,11 +2576,44 @@ function FactorMeta({ label, value, sub, visual, onPress }: { label: string; val
   )
 }
 
-function FactorMetric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function shortSurface(surface?: string) {
+  if (!surface) return '-'
+  return surface.replace('Artificial Turf', 'Turf').replace('Natural Grass', 'Grass')
+}
+
+function windDirectionFromLabel(value?: string) {
+  const match = String(value || '').match(/\b(N|NE|E|SE|S|SW|W|NW)\b/)
+  return match?.[1] || ''
+}
+
+function windArrow(direction: string) {
+  const arrows: Record<string, string> = { N: '↑', NE: '↗', E: '→', SE: '↘', S: '↓', SW: '↙', W: '←', NW: '↖' }
+  return arrows[direction] || ''
+}
+
+function WindArrow({ value }: { value: string }) {
+  const direction = windDirectionFromLabel(value)
+  if (!direction) return null
+
   return (
-    <View style={styles.factorMetric}>
+    <View style={styles.windArrowWrap}>
+      <AppText style={styles.windArrowGlyph}>{windArrow(direction)}</AppText>
+      <View style={styles.windArrowTrails}>
+        <View style={styles.windArrowTrail} />
+        <View style={[styles.windArrowTrail, styles.windArrowTrailShort]} />
+      </View>
+    </View>
+  )
+}
+
+function FactorMetric({ label, value, tone, wide = false, large = false, visual }: { label: string; value: string; tone?: string; wide?: boolean; large?: boolean; visual?: ReactNode }) {
+  return (
+    <View style={[styles.factorMetric, wide && styles.factorMetricWide]}>
       <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
-      <AppText style={[styles.factorMetricValue, tone ? { color: tone } : null]}>{value}</AppText>
+      <View style={visual ? styles.factorMetricValueRow : null}>
+        {visual}
+        <AppText style={[styles.factorMetricValue, visual ? styles.factorMetricValueInline : null, large ? styles.factorMetricValueLarge : null, tone ? { color: tone } : null]}>{value}</AppText>
+      </View>
     </View>
   )
 }
@@ -3149,11 +3181,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgCardAlt,
     padding: spacing.md,
   },
+  factorMetricWide: {
+    flexBasis: '100%',
+  },
+  factorMetricValueRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   factorMetricValue: {
     marginTop: 6,
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '900',
+  },
+  factorMetricValueInline: {
+    marginTop: 0,
+  },
+  windArrowWrap: {
+    width: 58,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  windArrowGlyph: {
+    color: colors.gold,
+    fontSize: 30,
+    lineHeight: 32,
+    fontWeight: '900',
+  },
+  windArrowTrails: {
+    marginLeft: -2,
+    gap: 4,
+  },
+  windArrowTrail: {
+    width: 18,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: 'rgba(198,145,50,.5)',
+  },
+  windArrowTrailShort: {
+    width: 11,
+  },
+  factorMetricValueLarge: {
+    fontSize: 32,
+    lineHeight: 34,
   },
   stadiumModal: {
     flex: 1,
