@@ -50,6 +50,10 @@ const tools = [
     body: 'Use Home League, Best Ball, Draft Planner, and Roster Watch for football draft prep and season-long team tracking.',
   },
   {
+    title: 'Ballpark Profiles',
+    body: 'In MLB Game Factors, tap a venue to see the home team, home record when available, capacity, altitude, roof, surface, weather, and the KingFish park read.',
+  },
+  {
     title: 'Ask KingFish',
     body: 'Use the chat when you want the data explained in plain English, want help comparing players, or want a quick read on a betting idea.',
   },
