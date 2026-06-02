@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { ActivityIndicator, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -25,6 +26,7 @@ type ToolTile = {
 type ToolMode = 'sheets' | 'calculators' | 'more' | 'factors'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 type FactorSport = 'MLB' | 'NFL'
+type FactorView = 'board' | 'cheat'
 
 const SHEETS: Array<{
   key: SheetKey
@@ -254,11 +256,24 @@ interface FactorRow {
   venue: string
   environment: string
   weather: string
+  weatherRaw?: any
   official: string
   score: number
   lean: string
   tone: string
   tags: string[]
+}
+
+interface FactorCheatRow {
+  id: string
+  matchup: string
+  time: string
+  venue: string
+  weather: string
+  gameTotalPct: number
+  hrPct: number
+  read: string
+  tone: string
 }
 
 type FactorOfficial = {
@@ -516,6 +531,30 @@ function weatherFactor(weather: any, sport: FactorSport) {
   return { delta, label: label || '', tags }
 }
 
+function weatherTotalAdjustment(weather?: any) {
+  if (!weather || weather.indoor) return 0
+  let adjustment = 0
+  const temp = typeof weather.tempF === 'number' ? weather.tempF : null
+  if (temp !== null && temp >= 80) adjustment += 5
+  if (temp !== null && temp <= 55) adjustment -= 5
+  if (weather.windImpact === 'boost') adjustment += 6
+  if (weather.windImpact === 'suppress') adjustment -= 6
+  if (Number(weather.precipPct || 0) >= 35) adjustment -= 3
+  return adjustment
+}
+
+function weatherHrAdjustment(weather?: any) {
+  if (!weather || weather.indoor) return 0
+  let adjustment = 0
+  const temp = typeof weather.tempF === 'number' ? weather.tempF : null
+  if (temp !== null && temp >= 80) adjustment += 6
+  if (temp !== null && temp <= 55) adjustment -= 7
+  if (weather.windImpact === 'boost') adjustment += 10
+  if (weather.windImpact === 'suppress') adjustment -= 12
+  if (Number(weather.precipPct || 0) >= 35) adjustment -= 3
+  return adjustment
+}
+
 function officialFactor(_sport: FactorSport, official?: FactorOfficial) {
   if (official?.name) {
     const delta = official.impact === 'boost' ? 5 : official.impact === 'suppress' ? -5 : 0
@@ -588,6 +627,12 @@ function factorScoreLabel(sport: FactorSport) {
   return sport === 'MLB' ? 'Run/HR Volume' : 'Scoring Volume'
 }
 
+function factorImpactTone(value: number) {
+  if (value >= 8) return colors.green
+  if (value <= -8) return colors.red
+  return colors.gold
+}
+
 function buildFactorRows(
   games: Game[] = [],
   weatherData: Record<string, any> = {},
@@ -618,6 +663,7 @@ function buildFactorRows(
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
         environment: isNeutralFactorText(baseline.environment) ? '' : baseline.environment,
         weather: weather.label,
+        weatherRaw: weatherData[id],
         official: official.label,
         score,
         lean: tone.lean,
@@ -625,6 +671,44 @@ function buildFactorRows(
         tags,
       }
     })
+}
+
+function buildFactorCheatRows(games: Game[] = [], weatherData: Record<string, any> = {}): FactorCheatRow[] {
+  return games
+    .filter((game) => new Date(game.commence_time).getTime() > Date.now() - 3 * 60 * 60 * 1000)
+    .map((game) => {
+      const id = game.id || game.game_id || `${game.away_team}-${game.home_team}`
+      const baseline = factorBaseline(game.home_team, 'MLB')
+      const weather = weatherData[id]
+      const weatherRead = weatherFactor(weather, 'MLB')
+      const context = gameContextFactor(game, 'MLB')
+      const parkTotal = Math.round((baseline.score - 55) * 0.45)
+      const parkHr = Math.round((baseline.score - 55) * 0.35)
+      const gameTotalPct = Math.max(-30, Math.min(32, Math.round(parkTotal + weatherTotalAdjustment(weather) + context.delta)))
+      const hrPct = Math.max(-35, Math.min(35, Math.round(parkHr + weatherHrAdjustment(weather))))
+      const read = gameTotalPct >= 8
+        ? 'Game total boost'
+        : gameTotalPct <= -8
+          ? 'Game total suppress'
+          : hrPct >= 8
+            ? 'HR weather boost'
+            : hrPct <= -8
+              ? 'HR power suppress'
+              : 'Watch board'
+
+      return {
+        id,
+        matchup: `${factorTeamDisplay(game.away_team)} @ ${factorTeamDisplay(game.home_team)}`,
+        time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
+        venue: weather?.park || baseline.venue,
+        weather: weatherRead.label || 'Weather pending',
+        gameTotalPct,
+        hrPct,
+        read,
+        tone: factorImpactTone(gameTotalPct),
+      }
+    })
+    .sort((a, b) => b.gameTotalPct - a.gameTotalPct || b.hrPct - a.hrPct)
 }
 
 function parseTdStreakCsv(csv: string): TdStreakRow[] {
@@ -1438,6 +1522,7 @@ export default function CheatSheetsScreen() {
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
   const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
+  const [factorView, setFactorView] = useState<FactorView>('board')
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
     unitBankroll: '1000',
     unitPct: '1.5',
@@ -1646,14 +1731,14 @@ export default function CheatSheetsScreen() {
   })
 
   const factorOfficialQuery = useQuery({
-    queryKey: ['mobile-game-factors-officials', factorGames.map((game: Game) => game.id || game.game_id).join(',')],
+    queryKey: ['mobile-game-factors-officials', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
     queryFn: () =>
-      kingfishFetch<Record<string, FactorOfficial>>('/api/mlb-officials', {
+      kingfishFetch<Record<string, FactorOfficial>>(factorSport === 'MLB' ? '/api/mlb-officials' : '/api/nfl-officials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ games: factorGames }),
       }),
-    enabled: canLoadFactors && factorSport === 'MLB' && factorGames.length > 0,
+    enabled: canLoadFactors && factorGames.length > 0,
     staleTime: 60 * 60 * 1000,
   })
 
@@ -1667,6 +1752,9 @@ export default function CheatSheetsScreen() {
   const qb200Rows = activeKey === 'qb200' ? buildQb200Rows(nflFantasyQuery.data) : []
   const factorRows = toolMode === 'factors'
     ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport, factorOfficialQuery.data)
+    : []
+  const factorCheatRows = toolMode === 'factors' && factorSport === 'MLB'
+    ? buildFactorCheatRows(factorGames, factorWeatherQuery.data)
     : []
   const shareText = useMemo(
     () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows),
@@ -1867,13 +1955,33 @@ export default function CheatSheetsScreen() {
                 {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
                   <Pressable
                     key={item}
-                    onPress={() => setFactorSport(item)}
+                    onPress={() => {
+                      setFactorSport(item)
+                      if (item === 'NFL') setFactorView('board')
+                    }}
                     style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
                   >
                     <AppText style={[styles.segmentText, factorSport === item && styles.segmentTextActive]}>{item}</AppText>
                   </Pressable>
                 ))}
               </View>
+
+              {factorSport === 'MLB' ? (
+                <View style={styles.factorViewToggle}>
+                  {([
+                    { key: 'board', label: 'Board' },
+                    { key: 'cheat', label: 'Cheat Sheet' },
+                  ] as Array<{ key: FactorView; label: string }>).map((item) => (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => setFactorView(item.key)}
+                      style={[styles.factorViewButton, factorView === item.key && styles.factorViewButtonActive]}
+                    >
+                      <AppText style={[styles.factorViewText, factorView === item.key && styles.factorViewTextActive]}>{item.label}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
 
               {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
                 <View style={styles.loading}>
@@ -1892,6 +2000,25 @@ export default function CheatSheetsScreen() {
                 </Card>
               )}
 
+              {factorView === 'cheat' && factorSport === 'MLB' ? (
+                <View style={styles.factorRows}>
+                  {factorCheatRows.map((row) => (
+                    <Card key={row.id} style={styles.factorCard}>
+                      <AppText style={styles.factorMatchup}>{row.matchup}</AppText>
+                      <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
+                      <View style={styles.factorMetaGrid}>
+                        <FactorMeta label="Venue" value={row.venue} />
+                        <FactorMeta label="Weather" value={row.weather} />
+                      </View>
+                      <View style={styles.cheatMetricGrid}>
+                        <FactorMetric label="Game Total" value={`${row.gameTotalPct > 0 ? '+' : ''}${row.gameTotalPct}%`} tone={factorImpactTone(row.gameTotalPct)} />
+                        <FactorMetric label="HR Impact" value={`${row.hrPct > 0 ? '+' : ''}${row.hrPct}%`} tone={factorImpactTone(row.hrPct)} />
+                        <FactorMetric label="Read" value={row.read} tone={row.tone} />
+                      </View>
+                    </Card>
+                  ))}
+                </View>
+              ) : (
               <View style={styles.factorRows}>
                 {factorRows.map((row) => (
                   <Card key={row.id} style={styles.factorCard}>
@@ -1908,8 +2035,8 @@ export default function CheatSheetsScreen() {
                     </View>
                     <View style={styles.factorMetaGrid}>
                       <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
-                      {row.weather ? <FactorMeta label="Weather" value={row.weather} /> : null}
-                      {factorSport === 'MLB' && row.official ? <FactorMeta label="Umpire" value={row.official} /> : null}
+                      {row.weather ? <FactorMeta label="Weather" value={row.weather} visual={<FactorWeatherVisual weather={row.weatherRaw} />} /> : null}
+                      {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
                     </View>
                     {row.tags.filter((tag) => !isNeutralFactorText(tag)).length ? (
                       <View style={styles.factorTags}>
@@ -1923,6 +2050,7 @@ export default function CheatSheetsScreen() {
                   </Card>
                 ))}
               </View>
+              )}
             </>
           )}
         </>
@@ -2306,13 +2434,47 @@ function BvpMetric({ label, value, tone }: { label: string; value: string; tone?
   )
 }
 
-function FactorMeta({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function FactorMeta({ label, value, sub, visual }: { label: string; value: string; sub?: string; visual?: ReactNode }) {
   const cleanSub = isNeutralFactorText(sub) ? '' : sub
   return (
     <View style={styles.factorMeta}>
       <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
+      {visual}
       <AppText style={styles.factorMetaValue}>{value}</AppText>
       {cleanSub ? <AppText variant="muted" style={styles.factorMetaSub}>{cleanSub}</AppText> : null}
+    </View>
+  )
+}
+
+function FactorMetric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <View style={styles.factorMetric}>
+      <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
+      <AppText style={[styles.factorMetricValue, tone ? { color: tone } : null]}>{value}</AppText>
+    </View>
+  )
+}
+
+function FactorWeatherVisual({ weather }: { weather?: any }) {
+  const sky = cleanSkyLabel(weather?.sky)
+  const temp = typeof weather?.tempF === 'number' ? `${weather.tempF}F` : ''
+  const wind = weather?.windStr || ''
+  const rain = Number(weather?.precipPct || 0)
+  const skyTone = weather?.indoor
+    ? colors.gold
+    : /rain|storm|drizzle/i.test(sky)
+      ? '#4DB8FF'
+      : /cloud/i.test(sky)
+        ? colors.textSecondary
+        : '#F6D36F'
+  return (
+    <View style={styles.weatherVisual}>
+      <View style={[styles.weatherIcon, { borderColor: skyTone }]}>
+        <AppText style={[styles.weatherIconText, { color: skyTone }]}>{weather?.indoor ? 'RF' : sky ? sky.slice(0, 2).toUpperCase() : 'WX'}</AppText>
+      </View>
+      {temp ? <View style={styles.weatherChip}><AppText style={styles.weatherChipText}>{temp}</AppText></View> : null}
+      {wind ? <View style={[styles.weatherChip, weather?.windImpact === 'suppress' && styles.weatherChipRisk]}><AppText style={styles.weatherChipText}>{wind}</AppText></View> : null}
+      {rain >= 25 ? <View style={[styles.weatherChip, styles.weatherChipRain]}><AppText style={styles.weatherChipText}>{rain}% rain</AppText></View> : null}
     </View>
   )
 }
@@ -2511,6 +2673,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     borderColor: colors.gold,
   },
+  factorViewToggle: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  factorViewButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  factorViewButtonActive: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(198,145,50,.14)',
+  },
+  factorViewText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  factorViewTextActive: {
+    color: colors.textPrimary,
+  },
   factorRows: {
     gap: spacing.md,
   },
@@ -2554,10 +2742,12 @@ const styles = StyleSheet.create({
   },
   factorMetaGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
   },
   factorMeta: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
@@ -2596,6 +2786,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  weatherVisual: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  weatherIcon: {
+    minWidth: 34,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(122,128,153,.08)',
+  },
+  weatherIconText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  weatherChip: {
+    minHeight: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(122,128,153,.22)',
+    backgroundColor: 'rgba(122,128,153,.08)',
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weatherChipRisk: {
+    borderColor: 'rgba(239,68,68,.35)',
+    backgroundColor: 'rgba(239,68,68,.1)',
+  },
+  weatherChipRain: {
+    borderColor: 'rgba(77,184,255,.35)',
+    backgroundColor: 'rgba(77,184,255,.1)',
+  },
+  weatherChipText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  cheatMetricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  factorMetric: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+  },
+  factorMetricValue: {
+    marginTop: 6,
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '900',
   },
   reportHeader: {
     flexDirection: 'row',
