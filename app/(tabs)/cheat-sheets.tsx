@@ -268,12 +268,35 @@ interface FactorRow {
 type StadiumProfile = {
   venue: string
   homeTeam: string
+  teamLabel?: string
+  homeRecord?: string
   environment: string
   market: string
   score: number
+  capacity?: string
+  altitudeFt?: string
+  roof?: string
+  surface?: string
   weather?: string
   wind?: string
   blurb: string
+}
+
+type BallparkStaticProfile = {
+  venue: string
+  team: string
+  teamName: string
+  teamAbbr: string
+  capacity: string
+  altitudeFt: string
+  roof: string
+  surface: string
+}
+
+type BallparkProfilePayload = {
+  profilesByVenue?: Record<string, BallparkStaticProfile>
+  profilesByTeam?: Record<string, BallparkStaticProfile>
+  homeRecords?: Record<string, string>
 }
 
 interface FactorCheatRow {
@@ -516,7 +539,7 @@ function cleanSkyLabel(sky?: string) {
 }
 
 function weatherFactor(weather: any, sport: FactorSport) {
-  if (!weather) return { delta: 0, label: '', tags: [] }
+  if (!weather) return { delta: 0, label: 'Weather pending', tags: [] }
   if (weather.indoor) return { delta: 6, label: weather.windStr || 'Controlled', tags: ['Controlled conditions'] }
 
   let delta = 0
@@ -645,8 +668,9 @@ function factorImpactTone(value: number) {
   return colors.gold
 }
 
-function stadiumProfileForRow(row: FactorRow): StadiumProfile {
+function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayload): StadiumProfile {
   const baseline = factorBaseline(row.homeTeam, 'MLB')
+  const staticProfile = ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
   const wind = row.weatherRaw?.windStr || ''
   const sky = cleanSkyLabel(row.weatherRaw?.sky)
   const temp = typeof row.weatherRaw?.tempF === 'number' ? `${row.weatherRaw.tempF}F` : ''
@@ -660,9 +684,15 @@ function stadiumProfileForRow(row: FactorRow): StadiumProfile {
   return {
     venue: row.venue,
     homeTeam: row.homeTeam,
+    teamLabel: staticProfile?.team,
+    homeRecord: staticProfile?.teamAbbr ? ballparkData?.homeRecords?.[staticProfile.teamAbbr] : undefined,
     environment: row.environment || baseline.environment,
     market: baseline.market || row.tags[0] || 'Watch board',
     score: baseline.score,
+    capacity: staticProfile?.capacity,
+    altitudeFt: staticProfile?.altitudeFt,
+    roof: staticProfile?.roof,
+    surface: staticProfile?.surface,
     weather,
     wind,
     blurb,
@@ -1780,6 +1810,13 @@ export default function CheatSheetsScreen() {
     staleTime: 60 * 60 * 1000,
   })
 
+  const ballparkProfileQuery = useQuery({
+    queryKey: ['mobile-mlb-ballpark-profiles'],
+    queryFn: () => kingfishFetch<BallparkProfilePayload>('/api/mlb-ballpark-profiles'),
+    enabled: canLoadFactors && factorSport === 'MLB',
+    staleTime: 30 * 60 * 1000,
+  })
+
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
     ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups)
     : []
@@ -2084,9 +2121,9 @@ export default function CheatSheetsScreen() {
                         label="Venue"
                         value={row.venue}
                         sub={row.environment}
-                        onPress={factorSport === 'MLB' ? () => setStadiumProfile(stadiumProfileForRow(row)) : undefined}
+                        onPress={factorSport === 'MLB' ? () => setStadiumProfile(stadiumProfileForRow(row, ballparkProfileQuery.data)) : undefined}
                       />
-                      {row.weather ? <FactorMeta label="Weather" value={row.weather} visual={<FactorWeatherVisual weather={row.weatherRaw} />} /> : null}
+                      <FactorMeta label="Weather" value={row.weather || 'Weather pending'} visual={<FactorWeatherVisual weather={row.weatherRaw} />} />
                       {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
                       <FactorMeta label="Market Read" value={row.tags.find((tag) => !isNeutralFactorText(tag)) || 'Watch board'} />
                     </View>
@@ -2463,12 +2500,17 @@ export default function CheatSheetsScreen() {
           <Card style={styles.stadiumCard}>
             <AppText variant="eyebrow">// Stadium Profile</AppText>
             <AppText style={styles.stadiumTitle}>{stadiumProfile?.venue}</AppText>
-            <AppText variant="muted" style={styles.stadiumTeam}>{stadiumProfile?.homeTeam}</AppText>
+            <AppText variant="muted" style={styles.stadiumTeam}>{stadiumProfile?.teamLabel || stadiumProfile?.homeTeam}</AppText>
+            <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
             <View style={styles.stadiumGrid}>
               <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} />
               <FactorMetric label="Park Read" value={stadiumProfile?.environment || '-'} />
               <FactorMetric label="Market" value={stadiumProfile?.market || '-'} />
               <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} />
+              <FactorMetric label="Capacity" value={stadiumProfile?.capacity || '-'} />
+              <FactorMetric label="Altitude" value={stadiumProfile?.altitudeFt ? `${stadiumProfile.altitudeFt} ft` : '-'} />
+              <FactorMetric label="Roof" value={stadiumProfile?.roof || '-'} />
+              <FactorMetric label="Surface" value={stadiumProfile?.surface || '-'} />
             </View>
             {stadiumProfile?.weather ? <AppText variant="muted" style={styles.stadiumWeather}>{stadiumProfile.weather}</AppText> : null}
             <AppText style={styles.stadiumBlurb}>{stadiumProfile?.blurb}</AppText>
@@ -2944,8 +2986,6 @@ const styles = StyleSheet.create({
   },
   factorMetaLink: {
     color: colors.textPrimary,
-    textDecorationLine: 'underline',
-    textDecorationColor: 'rgba(198,145,50,.55)',
   },
   factorMetaSub: {
     marginTop: 4,
@@ -3126,6 +3166,10 @@ const styles = StyleSheet.create({
   },
   stadiumTeam: {
     marginTop: -spacing.sm,
+  },
+  stadiumRecord: {
+    marginTop: -spacing.md,
+    color: colors.gold,
   },
   stadiumGrid: {
     flexDirection: 'row',
