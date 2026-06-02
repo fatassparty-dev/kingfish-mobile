@@ -60,6 +60,8 @@ type FantasyPayload = {
   sleeper?: {
     user?: { user_id: string; username: string; display_name?: string } | null
     leagues?: SleeperLeague[]
+    leaguesTotal?: number
+    leaguesLimit?: number
     selected?: {
       league: SleeperLeague
       roster?: { roster_id: number; starters?: string[]; players?: string[]; settings?: Record<string, number> } | null
@@ -558,6 +560,11 @@ export default function FantasyToolScreen() {
                   <AppText variant="muted" style={styles.leagueMeta}>{league.total_rosters || '-'} teams · {league.status || 'draft'}</AppText>
                 </Pressable>
               ))}
+              {(fantasyQuery.data.sleeper.leaguesTotal || 0) > (fantasyQuery.data.sleeper.leagues?.length || 0) ? (
+                <AppText variant="muted" style={styles.cardCopy}>
+                  Showing the first {fantasyQuery.data.sleeper.leaguesLimit || fantasyQuery.data.sleeper.leagues.length} Sleeper teams.
+                </AppText>
+              ) : null}
             </View>
           ) : activeSleeper?.username ? (
             <Card>
