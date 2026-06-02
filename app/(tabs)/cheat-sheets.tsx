@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -1426,6 +1426,7 @@ function buildStrikeoutRows(
 
 export default function CheatSheetsScreen() {
   const { profile } = useAuth()
+  const { mode } = useLocalSearchParams<{ mode?: string }>()
   const mobileConfig = useMobileConfig()
   const isPremium = profile?.is_premium === true
   const [toolMode, setToolMode] = useState<ToolMode>('sheets')
@@ -1458,6 +1459,13 @@ export default function CheatSheetsScreen() {
   const isTdSheet = activeSheet.type === 'td'
   const canLoadMlbSheetData = canLoadData && !isTdSheet
   const canLoadFactors = isPremium && toolMode === 'factors'
+
+  useEffect(() => {
+    if (mode === 'factors' || mode === 'calculators' || mode === 'sheets' || mode === 'more') {
+      setToolMode(mode)
+      setSelectedKey(null)
+    }
+  }, [mode])
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],

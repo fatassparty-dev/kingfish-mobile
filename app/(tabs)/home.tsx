@@ -68,33 +68,43 @@ export default function HomeScreen() {
             <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
             <View style={styles.brandCopy}>
               <AppText variant="eyebrow">// KingFish Bets</AppText>
-              <AppText variant="title" style={styles.title}>Welcome to the Bait Shop</AppText>
+              <AppText variant="title" style={styles.title}>Welcome to the KingFish Bait Shop</AppText>
             </View>
           </View>
 
           <AppText style={styles.copy}>
-            Live odds, props, sportsbook prices, weather, and KingFish context in one sharp betting research workspace.
+            Find the lines, context, and angles worth checking before you place a bet.
           </AppText>
 
           <View style={styles.actionGrid}>
             <HomeAction
               label="Dashboard"
-              body="Live odds, game lines, player props, and betting intelligence."
+              body="Live lines, props, and market movement."
               onPress={() => router.push('/')}
             />
             <HomeAction
               label="Tools"
-              body="Cheat sheets, NFL Fantasy Hub, calculators, and game factors."
+              body="MLB and NFL cheat sheets plus calculators."
               onPress={() => router.push('/cheat-sheets')}
             />
             <HomeAction
+              label="Fantasy Hub"
+              body="Draft boards, rankings, sleepers, and team tools."
+              onPress={() => router.push('/fantasy' as any)}
+            />
+            <HomeAction
+              label="Game Factors"
+              body="Weather, park, dome, and matchup context."
+              onPress={() => router.push({ pathname: '/cheat-sheets', params: { mode: 'factors' } } as any)}
+            />
+            <HomeAction
               label="Ask KingFish"
-              body="Pressure-test props, parlays, totals, and matchup reads."
+              body="AI analysis connected to KingFish lines, props, and more."
               onPress={() => router.push('/ask-kingfish')}
             />
             <HomeAction
               label="Account"
-              body="Premium status, restore purchases, and support."
+              body="Manage premium access, purchases, and support."
               onPress={() => router.push('/account')}
             />
           </View>
@@ -123,7 +133,7 @@ const styles = StyleSheet.create({
   },
   heroImageWrap: {
     width: '100%',
-    height: 150,
+    height: 132,
     overflow: 'hidden',
   },
   heroImage: {
@@ -149,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,245,198,.72)',
   },
   heroContent: {
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   brandRow: {
     flexDirection: 'row',
@@ -157,8 +167,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   logo: {
-    width: 58,
-    height: 58,
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
   },
   brandCopy: {
@@ -167,39 +177,39 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 6,
-    fontSize: 34,
-    lineHeight: 36,
+    fontSize: 29,
+    lineHeight: 31,
   },
   copy: {
     color: colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 25,
-    marginTop: spacing.lg,
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: spacing.md,
   },
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
   action: {
     width: '48%',
-    minHeight: 118,
+    minHeight: 104,
     borderWidth: 1,
     borderColor: 'rgba(198,145,50,.28)',
     borderRadius: 10,
     backgroundColor: 'rgba(8,9,14,.78)',
-    padding: spacing.md,
+    padding: 10,
   },
   actionLabel: {
     color: colors.gold,
-    fontSize: 20,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 20,
     fontWeight: '900',
   },
   actionBody: {
     marginTop: spacing.sm,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
   },
 })
