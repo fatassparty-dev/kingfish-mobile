@@ -704,7 +704,7 @@ function stadiumProfileForRow(
   const baseline = factorBaseline(row.homeTeam, sport)
   const staticProfile = sport === 'MLB'
     ? ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
-    : footballData?.profilesByTeam?.[row.homeTeam]
+    : footballData?.profilesByVenue?.[row.venue] || footballData?.profilesByTeam?.[row.homeTeam]
   if (sport === 'NFL') {
     const nflProfile = staticProfile as FootballStadiumStaticProfile | undefined
     return {
