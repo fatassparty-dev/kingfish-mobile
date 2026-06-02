@@ -13,7 +13,7 @@ import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
-import { BOOK_DISPLAY_NAMES, OPTIONAL_BOOK_KEYS } from '@/lib/sportsbooks'
+import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
 
 type NotificationPreferenceKey = 'account' | 'betting' | 'offers'
 type NotificationPreferences = Record<NotificationPreferenceKey, boolean>
@@ -73,7 +73,10 @@ export default function AccountScreen() {
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
   const sportsbookPreferences = profile?.sportsbook_preferences || {}
   const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
-  const extraBookCount = selectedExtraBooks.size
+  const disabledBookKeys = new Set(sportsbookPreferences.disabledBookKeys || [])
+  const extraBookCount = SPORTSBOOK_PREFERENCE_OPTIONS.filter((option) =>
+    option.bookKeys.some((key) => isSportsbookVisibleForState({ key }, profile?.state, sportsbookPreferences))
+  ).length
 
   useEffect(() => {
     if (editingProfile) return
@@ -178,20 +181,24 @@ export default function AccountScreen() {
     setSavingSportsbooks(false)
   }
 
-  function toggleExtraBook(key: string) {
-    const next = new Set(selectedExtraBooks)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    void saveSportsbookPreferences({
-      ...sportsbookPreferences,
-      extraBookKeys: Array.from(next),
+  function toggleSportsbookOption(bookKeys: readonly string[]) {
+    const nextExtra = new Set(selectedExtraBooks)
+    const nextDisabled = new Set(disabledBookKeys)
+    const isActive = bookKeys.some((key) => isSportsbookVisibleForState({ key }, profile?.state, sportsbookPreferences))
+    bookKeys.forEach((key) => {
+      if (isActive) {
+        nextExtra.delete(key)
+        nextDisabled.add(key)
+      } else {
+        nextDisabled.delete(key)
+        nextExtra.add(key)
+      }
     })
-  }
-
-  function toggleRegionalOverride(value: boolean) {
     void saveSportsbookPreferences({
       ...sportsbookPreferences,
-      overrideRegional: value,
+      extraBookKeys: Array.from(nextExtra),
+      disabledBookKeys: Array.from(nextDisabled),
+      overrideRegional: false,
     })
   }
 
@@ -377,14 +384,13 @@ export default function AccountScreen() {
           <View style={styles.compactCopy}>
             <AppText style={styles.webTitle}>Book Preferences</AppText>
             <AppText variant="muted" style={styles.websiteNote}>
-              Default books stay clean. Manage extra books and location-based regional books.
+              Choose which sportsbooks KingFish includes when comparing prices.
             </AppText>
           </View>
           <Button variant="secondary" onPress={() => setShowSportsbookManager(true)}>Manage</Button>
         </View>
         <AppText variant="mono" style={styles.preferenceSummary}>
-          {extraBookCount ? `${extraBookCount} extra ${extraBookCount === 1 ? 'book' : 'books'} on` : 'Core books only'}
-          {sportsbookPreferences.overrideRegional ? ' · Regional override on' : ''}
+          {extraBookCount ? `${extraBookCount} ${extraBookCount === 1 ? 'sportsbook' : 'sportsbooks'} on` : 'No sportsbooks selected'}
         </AppText>
         {sportsbookMessage ? <AppText style={styles.noticeText}>{sportsbookMessage}</AppText> : null}
       </Card>
@@ -514,37 +520,25 @@ export default function AccountScreen() {
             <AppText variant="eyebrow">// Sportsbooks</AppText>
             <AppText variant="title" style={styles.modalTitle}>Book Preferences</AppText>
             <AppText variant="muted" style={styles.copy}>
-              Core books are always included. Add extra books when you want them considered in best-price checks.
+              Turn sportsbooks on or off for best-price checks and market comparisons.
             </AppText>
             <View style={styles.notificationList}>
-              <View style={styles.notificationRow}>
-                <View style={styles.notificationCopy}>
-                  <AppText style={styles.notificationTitle}>Include all regional books</AppText>
-                  <AppText variant="muted" style={styles.notificationBody}>
-                    Shows Hard Rock, WynnBET, and SuperBook even when they are outside your saved location.
-                  </AppText>
-                </View>
-                <Switch
-                  value={Boolean(sportsbookPreferences.overrideRegional)}
-                  onValueChange={toggleRegionalOverride}
-                  disabled={savingSportsbooks}
-                  thumbColor={sportsbookPreferences.overrideRegional ? colors.gold : colors.textMuted}
-                  trackColor={{ false: colors.border, true: 'rgba(198,145,50,.35)' }}
-                />
-              </View>
-              {OPTIONAL_BOOK_KEYS.map((key) => (
+              {SPORTSBOOK_PREFERENCE_OPTIONS.map((option) => {
+                const active = option.bookKeys.some((key) => isSportsbookVisibleForState({ key }, profile?.state, sportsbookPreferences))
+                return (
                 <Pressable
-                  key={key}
-                  onPress={() => toggleExtraBook(key)}
-                  style={[styles.bookOption, selectedExtraBooks.has(key) && styles.bookOptionActive]}
+                  key={option.key}
+                  onPress={() => toggleSportsbookOption(option.bookKeys)}
+                  style={[styles.bookOption, active && styles.bookOptionActive]}
                   disabled={savingSportsbooks}
                 >
-                  <AppText style={[styles.bookOptionText, selectedExtraBooks.has(key) && styles.bookOptionTextActive]}>
-                    {BOOK_DISPLAY_NAMES[key] || key}
+                  <AppText style={[styles.bookOptionText, active && styles.bookOptionTextActive]}>
+                    {option.label}
                   </AppText>
-                  <AppText variant="mono">{selectedExtraBooks.has(key) ? 'On' : 'Off'}</AppText>
+                  <AppText variant="mono">{active ? 'On' : 'Off'}</AppText>
                 </Pressable>
-              ))}
+                )
+              })}
             </View>
             {sportsbookMessage ? <AppText style={styles.noticeText}>{sportsbookMessage}</AppText> : null}
             <View style={styles.cardAction}>

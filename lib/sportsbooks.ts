@@ -38,6 +38,7 @@ const HARD_ROCK_STATE_BOOKS: Record<string, string[]> = {
 
 export type SportsbookPreferences = {
   extraBookKeys?: string[]
+  disabledBookKeys?: string[]
   overrideRegional?: boolean
 }
 
@@ -77,12 +78,33 @@ export const BOOK_DISPLAY_NAMES: Record<string, string> = {
   wynnbet: 'WynnBET',
 }
 
+export const SPORTSBOOK_PREFERENCE_OPTIONS = [
+  { key: 'fanduel', label: 'FanDuel', bookKeys: ['fanduel'] },
+  { key: 'draftkings', label: 'DraftKings', bookKeys: ['draftkings'] },
+  { key: 'betmgm', label: 'BetMGM', bookKeys: ['betmgm'] },
+  { key: 'betrivers', label: 'BetRivers', bookKeys: ['betrivers'] },
+  { key: 'williamhill_us', label: 'Caesars', bookKeys: ['williamhill_us'] },
+  { key: 'espnbet', label: 'theScore Bet', bookKeys: ['espnbet'] },
+  { key: 'betparx', label: 'BetPARX', bookKeys: ['betparx'] },
+  { key: 'fanatics', label: 'Fanatics', bookKeys: ['fanatics'] },
+  { key: 'bet365', label: 'bet365', bookKeys: ['bet365'] },
+  { key: 'pointsbetus', label: 'PointsBet', bookKeys: ['pointsbetus'] },
+  { key: 'unibet_us', label: 'Unibet', bookKeys: ['unibet_us'] },
+  { key: 'barstool', label: 'Barstool', bookKeys: ['barstool'] },
+  { key: 'ballybet', label: 'Bally Bet', bookKeys: ['ballybet'] },
+  { key: 'hardrockbet', label: 'Hard Rock Bet', bookKeys: ['hardrockbet', 'hardrockbet_az', 'hardrockbet_fl', 'hardrockbet_oh'] },
+  { key: 'wynnbet', label: 'WynnBET', bookKeys: ['wynnbet'] },
+  { key: 'superbook', label: 'SuperBook', bookKeys: ['superbook'] },
+] as const
+
 export function isSupportedSportsbook(bookmaker: Pick<Bookmaker, 'key'>) {
   return SUPPORTED_BOOK_KEYS.has(bookmaker.key)
 }
 
 export function isSportsbookVisibleForState(bookmaker: Pick<Bookmaker, 'key'>, userState?: string | null, preferences?: SportsbookPreferences | null) {
   if (!isSupportedSportsbook(bookmaker)) return false
+  const disabledBookKeys = new Set(preferences?.disabledBookKeys || [])
+  if (disabledBookKeys.has(bookmaker.key)) return false
   const extraBookKeys = new Set(preferences?.extraBookKeys || [])
   if (CORE_BOOK_KEYS.has(bookmaker.key)) return true
   if (extraBookKeys.has(bookmaker.key)) return true

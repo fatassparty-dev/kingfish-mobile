@@ -15,6 +15,7 @@ export interface UserProfile {
   premium_expires_at?: string | null
   sportsbook_preferences?: {
     extraBookKeys?: string[]
+    disabledBookKeys?: string[]
     overrideRegional?: boolean
   } | null
 }
