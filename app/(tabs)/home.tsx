@@ -99,7 +99,7 @@ export default function HomeScreen() {
             />
             <HomeAction
               label="Ask KingFish"
-              body="AI analysis connected to KingFish lines, props, and more."
+              body="AI sports analysis connected to KingFish lines, props, and more."
               onPress={() => router.push('/ask-kingfish')}
             />
             <HomeAction
