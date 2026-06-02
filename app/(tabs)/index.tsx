@@ -123,6 +123,7 @@ type BallparkProfilePayload = {
 }
 
 type DashboardBallparkProfile = {
+  sport: 'MLB' | 'NFL'
   venue: string
   team: string
   city?: string
@@ -136,6 +137,25 @@ type DashboardBallparkProfile = {
   weather?: string
   wind?: string
   blurb: string
+}
+
+type FootballStadiumStaticProfile = {
+  venue: string
+  team: string
+  teamName: string
+  city: string
+  capacity: string
+  altitudeFt: string
+  roofStatus: string
+  surface: string
+  windImpact: string
+  weatherExposure: string
+  blurb: string
+}
+
+type FootballStadiumProfilePayload = {
+  profilesByVenue?: Record<string, FootballStadiumStaticProfile>
+  profilesByTeam?: Record<string, FootballStadiumStaticProfile>
 }
 
 type NFLFuturesData = {
@@ -874,6 +894,7 @@ function dashboardBallparkProfile(
   const teamAbbr = staticProfile?.teamAbbr || mlbAbbr(game.home_team)
   const weatherText = [weather.sky, typeof weather.tempF === 'number' ? `${weather.tempF}F` : ''].filter(Boolean).join(' · ')
   return {
+    sport: 'MLB',
     venue: weather.park,
     team: staticProfile?.team || game.home_team,
     city: staticProfile?.city,
@@ -887,6 +908,43 @@ function dashboardBallparkProfile(
     weather: weatherText,
     wind: weather.windStr,
     blurb: staticProfile?.blurb || `${weather.park} profile context is tied to park shape, roof, surface, weather, and wind before first pitch.`,
+  }
+}
+
+function dashboardNflStadiumProfile(
+  game: Game,
+  weather: WeatherInfo,
+  profiles?: FootballStadiumProfilePayload,
+): DashboardBallparkProfile {
+  const venue = weather.stadium || weather.park || 'NFL stadium'
+  const staticProfile = profiles?.profilesByVenue?.[venue] || profiles?.profilesByTeam?.[game.home_team]
+  const weatherText = [
+    weather.sky && weather.sky !== 'Forecast pending' ? weather.sky : '',
+    typeof weather.tempF === 'number' ? `${weather.tempF}F` : '',
+  ].filter(Boolean).join(' · ')
+  const grade = staticProfile?.weatherExposure === 'High'
+    ? 42
+    : staticProfile?.weatherExposure === 'Moderate'
+      ? 58
+      : 72
+  return {
+    sport: 'NFL',
+    venue,
+    team: staticProfile?.team || game.home_team,
+    city: staticProfile?.city,
+    grade,
+    market: staticProfile?.windImpact === 'High'
+      ? 'Wind watch'
+      : staticProfile?.weatherExposure === 'High'
+        ? 'Weather watch'
+        : 'Stable setup',
+    capacity: staticProfile?.capacity,
+    altitudeFt: staticProfile?.altitudeFt,
+    roof: staticProfile?.roofStatus,
+    surface: staticProfile?.surface,
+    weather: weatherText || weather.windStr,
+    wind: staticProfile?.windImpact ? `${staticProfile.windImpact} impact` : weather.windStr,
+    blurb: staticProfile?.blurb || `${venue} profile context is tied to surface, roof, weather exposure, crowd environment, and travel before kickoff.`,
   }
 }
 
@@ -1248,20 +1306,26 @@ export default function DashboardScreen() {
     staleTime: 5 * 60 * 1000,
   })
   const weatherQuery = useQuery({
-    queryKey: ['mlb-weather', lineQuery.data?.map((game) => game.id || game.game_id).join(',')],
+    queryKey: ['dashboard-weather', sport, lineQuery.data?.map((game) => game.id || game.game_id).join(',')],
     queryFn: () =>
-      kingfishFetch<Record<string, WeatherInfo>>('/api/mlb-weather', {
+      kingfishFetch<Record<string, WeatherInfo>>(sport === 'NFL' ? '/api/nfl-weather' : '/api/mlb-weather', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ games: lineQuery.data || [] }),
       }),
-    enabled: sport === 'MLB' && canFetchLines && !!lineQuery.data?.length,
+    enabled: (sport === 'MLB' || sport === 'NFL') && canFetchLines && !!lineQuery.data?.length,
     staleTime: 60 * 60 * 1000,
   })
   const ballparkProfileQuery = useQuery({
     queryKey: ['dashboard-mlb-ballpark-profiles'],
     queryFn: () => kingfishFetch<BallparkProfilePayload>('/api/mlb-ballpark-profiles'),
     enabled: sport === 'MLB' && canFetchLines,
+    staleTime: 30 * 60 * 1000,
+  })
+  const footballStadiumProfileQuery = useQuery({
+    queryKey: ['dashboard-nfl-stadium-profiles'],
+    queryFn: () => kingfishFetch<FootballStadiumProfilePayload>('/api/nfl-stadium-profiles'),
+    enabled: sport === 'NFL' && canFetchLines,
     staleTime: 30 * 60 * 1000,
   })
   const propsQuery = useQuery({
@@ -2395,7 +2459,7 @@ export default function DashboardScreen() {
                   key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
                   game={game}
                   sport={sport}
-                  weather={sport === 'MLB' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
+                  weather={sport === 'MLB' || sport === 'NFL' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
                   mlbContext={sport === 'MLB' ? {
                     teamAbbrMap: MLB_TEAM_NAME_TO_ABBR,
                     records: mlbScheduleQuery.data?.teamRecords,
@@ -2419,7 +2483,11 @@ export default function DashboardScreen() {
                     isTournament: soccerLeague === 'soccer_fifa_world_cup',
                   } : undefined}
                   onPressSoccerTeam={sport === 'SOCCER' ? (team) => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, team)) : undefined}
-                  onPressVenue={sport === 'MLB' ? (cardGame, cardWeather) => setSelectedBallpark(dashboardBallparkProfile(cardGame, cardWeather, ballparkProfileQuery.data, mlbScheduleQuery.data)) : undefined}
+                  onPressVenue={sport === 'MLB'
+                    ? (cardGame, cardWeather) => setSelectedBallpark(dashboardBallparkProfile(cardGame, cardWeather, ballparkProfileQuery.data, mlbScheduleQuery.data))
+                    : sport === 'NFL'
+                      ? (cardGame, cardWeather) => setSelectedBallpark(dashboardNflStadiumProfile(cardGame, cardWeather, footballStadiumProfileQuery.data))
+                      : undefined}
                   userState={profile?.state}
                   sportsbookPreferences={profile?.sportsbook_preferences}
                   showNeutralTotalWatch={sport !== 'NFL'}
@@ -2943,10 +3011,12 @@ export default function DashboardScreen() {
             <AppText style={styles.ballparkTitle}>{selectedBallpark?.venue}</AppText>
             <AppText variant="muted" style={styles.ballparkTeam}>{selectedBallpark?.team}</AppText>
             {selectedBallpark?.city ? <AppText variant="muted" style={styles.ballparkCity}>{selectedBallpark.city}</AppText> : null}
-            <AppText variant="muted" style={styles.ballparkRecord}>Home record: {selectedBallpark?.homeRecord || 'Pending'}</AppText>
+            {selectedBallpark?.sport === 'MLB' ? (
+              <AppText variant="muted" style={styles.ballparkRecord}>Home record: {selectedBallpark?.homeRecord || 'Pending'}</AppText>
+            ) : null}
             <View style={styles.ballparkGrid}>
               <View style={styles.ballparkMetric}>
-                <AppText variant="mono">Park Grade</AppText>
+                <AppText variant="mono">{selectedBallpark?.sport === 'NFL' ? 'Stadium Grade' : 'Park Grade'}</AppText>
                 <AppText style={[styles.ballparkMetricValue, styles.ballparkMetricGold]}>{selectedBallpark?.grade || '-'}</AppText>
               </View>
               <View style={styles.ballparkMetric}>
@@ -2966,11 +3036,11 @@ export default function DashboardScreen() {
                 <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.altitudeFt ? `${selectedBallpark.altitudeFt} ft` : '-'}</AppText>
               </View>
               <View style={styles.ballparkMetric}>
-                <AppText variant="mono">Roof</AppText>
+                <AppText variant="mono">{selectedBallpark?.sport === 'NFL' ? 'Roof Status' : 'Roof'}</AppText>
                 <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.roof || '-'}</AppText>
               </View>
               <View style={[styles.ballparkMetric, styles.ballparkMetricWide]}>
-                <AppText variant="mono">Wind Today</AppText>
+                <AppText variant="mono">{selectedBallpark?.sport === 'NFL' ? 'Wind Impact' : 'Wind Today'}</AppText>
                 <AppText style={styles.ballparkMetricValue}>{selectedBallpark?.wind || 'Pending'}</AppText>
               </View>
             </View>

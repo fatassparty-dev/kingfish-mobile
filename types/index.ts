@@ -49,11 +49,13 @@ export interface Game {
 
 export interface WeatherInfo {
   park: string
-  tempF: number
+  stadium?: string
+  tempF: number | null
   windStr: string
   windImpact: 'boost' | 'suppress' | 'neutral'
   precipPct: number
   sky: string
+  indoor?: boolean
 }
 
 export interface ChatMessage {

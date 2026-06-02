@@ -976,30 +976,32 @@ export function GameLineCard({
   const hideHomeMoneyline = moneylineLean?.team === game.home_team
   const totalLeanSide = totalLean?.label.startsWith('Over') ? 'over' : totalLean?.label.startsWith('Under') ? 'under' : null
   const showTournamentFlags = sport === 'SOCCER' && soccerContext?.isTournament
+  const venueName = weather?.park || weather?.stadium
+  const showWeatherPills = Boolean(weather && !(sport === 'NFL' && weather.sky === 'Forecast pending'))
 
   return (
     <Card>
       <View style={styles.header}>
         <View style={styles.timeBlock}>
           <AppText variant="eyebrow">// {fmtTime(game.commence_time)}</AppText>
-          {weather && (
+          {weather && venueName && (
             onPressVenue ? (
               <Pressable onPress={() => onPressVenue(game, weather)} hitSlop={8}>
-                <AppText variant="mono" style={styles.venueLink}>{weather.park}</AppText>
+                <AppText variant="mono" style={styles.venueLink}>{venueName}</AppText>
               </Pressable>
             ) : (
-              <AppText variant="mono">{weather.park}</AppText>
+              <AppText variant="mono">{venueName}</AppText>
             )
           )}
         </View>
         <AppText variant="mono">{bookmakers.length} books</AppText>
       </View>
 
-      {weather && (
+      {showWeatherPills && weather && (
         <View style={styles.weatherRowWrap}>
           <View style={styles.weatherRow}>
             <WeatherPill label={weather.sky} />
-            <WeatherPill label={`${weather.tempF} F`} />
+            {typeof weather.tempF === 'number' ? <WeatherPill label={`${weather.tempF} F`} /> : null}
             <WeatherPill
               label={weather.windStr}
               tone={weather.windImpact === 'boost' ? 'good' : weather.windImpact === 'suppress' ? 'bad' : 'neutral'}
