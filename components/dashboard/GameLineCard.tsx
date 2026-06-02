@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime } from '@/lib/format'
-import { displayBookName, supportedBookmakers } from '@/lib/sportsbooks'
+import { displayBookName, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Bookmaker, Game, Market, Outcome, Sport, WeatherInfo } from '@/types'
 
@@ -916,6 +916,7 @@ export function GameLineCard({
   soccerContext,
   onPressSoccerTeam,
   userState,
+  sportsbookPreferences,
 }: {
   game: Game
   weather?: WeatherInfo
@@ -928,8 +929,9 @@ export function GameLineCard({
   soccerContext?: SoccerLineContext
   onPressSoccerTeam?: (team: string) => void
   userState?: string | null
+  sportsbookPreferences?: SportsbookPreferences | null
 }) {
-  const bookmakers = supportedBookmakers(game.bookmakers, userState)
+  const bookmakers = supportedBookmakers(game.bookmakers, userState, sportsbookPreferences)
   const totalMarket = getMarket(bookmakers, 'totals')
   const over = findOutcome(totalMarket, 'Over')
   const under = findOutcome(totalMarket, 'Under')

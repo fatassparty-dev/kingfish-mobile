@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Alert, Image, Linking, StyleSheet, Switch, TextInput, View } from 'react-native'
+import { Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -13,6 +13,7 @@ import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
+import { BOOK_DISPLAY_NAMES, OPTIONAL_BOOK_KEYS } from '@/lib/sportsbooks'
 
 type NotificationPreferenceKey = 'account' | 'betting' | 'offers'
 type NotificationPreferences = Record<NotificationPreferenceKey, boolean>
@@ -60,6 +61,9 @@ export default function AccountScreen() {
   const [profileMessage, setProfileMessage] = useState('')
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [notificationMessage, setNotificationMessage] = useState('')
+  const [sportsbookMessage, setSportsbookMessage] = useState('')
+  const [savingSportsbooks, setSavingSportsbooks] = useState(false)
+  const [showSportsbookManager, setShowSportsbookManager] = useState(false)
   const isPremium = profile?.is_premium === true
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
@@ -67,6 +71,9 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
+  const sportsbookPreferences = profile?.sportsbook_preferences || {}
+  const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
+  const extraBookCount = selectedExtraBooks.size
 
   useEffect(() => {
     if (editingProfile) return
@@ -148,6 +155,44 @@ export default function AccountScreen() {
     setEditingProfile(false)
     setProfileMessage('Profile updated.')
     setSavingProfile(false)
+  }
+
+  async function saveSportsbookPreferences(nextPreferences: NonNullable<typeof profile>['sportsbook_preferences']) {
+    if (!user?.id) {
+      setSportsbookMessage('Sign in again to update sportsbook settings.')
+      return
+    }
+    setSavingSportsbooks(true)
+    setSportsbookMessage('')
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ sportsbook_preferences: nextPreferences || {} })
+      .eq('user_id', user.id)
+    if (error) {
+      setSportsbookMessage(error.message || 'Sportsbook settings could not be saved.')
+      setSavingSportsbooks(false)
+      return
+    }
+    await refreshProfile()
+    setSportsbookMessage('Sportsbook settings saved.')
+    setSavingSportsbooks(false)
+  }
+
+  function toggleExtraBook(key: string) {
+    const next = new Set(selectedExtraBooks)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    void saveSportsbookPreferences({
+      ...sportsbookPreferences,
+      extraBookKeys: Array.from(next),
+    })
+  }
+
+  function toggleRegionalOverride(value: boolean) {
+    void saveSportsbookPreferences({
+      ...sportsbookPreferences,
+      overrideRegional: value,
+    })
   }
 
   async function handleRestorePurchases() {
@@ -327,6 +372,26 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
+        <AppText variant="eyebrow">// Sportsbooks</AppText>
+        <View style={styles.compactHeader}>
+          <View style={styles.compactCopy}>
+            <AppText style={styles.webTitle}>Book Preferences</AppText>
+            <AppText variant="muted" style={styles.websiteNote}>
+              Default books stay clean. Manage extra books and location-based regional books.
+            </AppText>
+          </View>
+          <Button variant="secondary" onPress={() => setShowSportsbookManager(true)}>Manage</Button>
+        </View>
+        <AppText variant="mono" style={styles.preferenceSummary}>
+          {extraBookCount ? `${extraBookCount} extra ${extraBookCount === 1 ? 'book' : 'books'} on` : 'Core books only'}
+          {sportsbookPreferences.overrideRegional ? ' · Regional override on' : ''}
+        </AppText>
+        {sportsbookMessage ? <AppText style={styles.noticeText}>{sportsbookMessage}</AppText> : null}
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
         <AppText variant="eyebrow">// Plan Management</AppText>
         <AppText style={styles.webTitle}>Billing</AppText>
         <AppText variant="muted" style={styles.copy}>
@@ -443,6 +508,51 @@ export default function AccountScreen() {
           </AppText>
         </View>
       </Card>
+      <Modal visible={showSportsbookManager} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSportsbookManager(false)}>
+        <View style={styles.modalScreen}>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <AppText variant="eyebrow">// Sportsbooks</AppText>
+            <AppText variant="title" style={styles.modalTitle}>Book Preferences</AppText>
+            <AppText variant="muted" style={styles.copy}>
+              Core books are always included. Add extra books when you want them considered in best-price checks.
+            </AppText>
+            <View style={styles.notificationList}>
+              <View style={styles.notificationRow}>
+                <View style={styles.notificationCopy}>
+                  <AppText style={styles.notificationTitle}>Include all regional books</AppText>
+                  <AppText variant="muted" style={styles.notificationBody}>
+                    Shows Hard Rock, WynnBET, and SuperBook even when they are outside your saved location.
+                  </AppText>
+                </View>
+                <Switch
+                  value={Boolean(sportsbookPreferences.overrideRegional)}
+                  onValueChange={toggleRegionalOverride}
+                  disabled={savingSportsbooks}
+                  thumbColor={sportsbookPreferences.overrideRegional ? colors.gold : colors.textMuted}
+                  trackColor={{ false: colors.border, true: 'rgba(198,145,50,.35)' }}
+                />
+              </View>
+              {OPTIONAL_BOOK_KEYS.map((key) => (
+                <Pressable
+                  key={key}
+                  onPress={() => toggleExtraBook(key)}
+                  style={[styles.bookOption, selectedExtraBooks.has(key) && styles.bookOptionActive]}
+                  disabled={savingSportsbooks}
+                >
+                  <AppText style={[styles.bookOptionText, selectedExtraBooks.has(key) && styles.bookOptionTextActive]}>
+                    {BOOK_DISPLAY_NAMES[key] || key}
+                  </AppText>
+                  <AppText variant="mono">{selectedExtraBooks.has(key) ? 'On' : 'Off'}</AppText>
+                </Pressable>
+              ))}
+            </View>
+            {sportsbookMessage ? <AppText style={styles.noticeText}>{sportsbookMessage}</AppText> : null}
+            <View style={styles.cardAction}>
+              <Button onPress={() => setShowSportsbookManager(false)}>Done</Button>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </Screen>
   )
 }
@@ -606,6 +716,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  compactHeader: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  compactCopy: {
+    flex: 1,
+  },
+  preferenceSummary: {
+    marginTop: spacing.md,
+    color: colors.gold,
+  },
+  modalScreen: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
+  modalContent: {
+    padding: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
+  },
+  modalTitle: {
+    marginTop: spacing.sm,
+  },
   inlineLink: {
     color: colors.gold,
     fontSize: 13,
@@ -637,6 +773,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  bookOption: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  bookOptionActive: {
+    borderColor: 'rgba(198,145,50,.55)',
+    backgroundColor: 'rgba(198,145,50,.08)',
+  },
+  bookOptionText: {
+    color: colors.textSecondary,
+    fontWeight: '800',
+  },
+  bookOptionTextActive: {
+    color: colors.textPrimary,
   },
   notificationCopy: {
     flex: 1,

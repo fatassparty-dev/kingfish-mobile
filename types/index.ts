@@ -13,6 +13,10 @@ export interface UserProfile {
   subscription_platform?: 'web' | 'ios' | 'android' | 'manual' | null
   stripe_plan?: 'monthly' | 'annual' | 'lifetime' | string | null
   premium_expires_at?: string | null
+  sportsbook_preferences?: {
+    extraBookKeys?: string[]
+    overrideRegional?: boolean
+  } | null
 }
 
 export interface Outcome {

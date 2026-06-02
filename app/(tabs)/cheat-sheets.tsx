@@ -1808,9 +1808,9 @@ export default function CheatSheetsScreen() {
 
   return (
     <Screen>
-      <AppText variant="title" style={styles.title}>Tools</AppText>
+      <AppText variant="title" style={styles.title}>TackleBox</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Cheat sheets, calculators, and game factors.
+        Tools for checking angles, running numbers, and organizing your betting research.
       </AppText>
 
       <View style={styles.segmentRow}>

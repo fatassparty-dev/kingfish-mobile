@@ -27,7 +27,7 @@ const tools = [
   },
   {
     title: 'Supported Sportsbooks',
-    body: 'KingFish pricing comes from supported regulated U.S. sportsbooks, including DraftKings, FanDuel, BetMGM, Caesars, BetRivers, theScore Bet, Fanatics, bet365, SuperBook, PointsBet, BetPARX, Unibet, WynnBET, Barstool, and Hard Rock Bet where available. KingFish does not support offshore sportsbooks.',
+    body: 'KingFish pricing comes from supported regulated U.S. sportsbooks, including DraftKings, FanDuel, BetMGM, Caesars, BetRivers, and theScore Bet by default. Regional and optional books such as Hard Rock Bet, WynnBET, SuperBook, BetPARX, Fanatics, bet365, PointsBet, Unibet, Bally Bet, and Barstool can appear when available or enabled in Account settings. KingFish does not support offshore sportsbooks.',
   },
   {
     title: 'Player Props',

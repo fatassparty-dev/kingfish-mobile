@@ -2330,6 +2330,7 @@ export default function DashboardScreen() {
                   } : undefined}
                   onPressSoccerTeam={sport === 'SOCCER' ? (team) => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, team)) : undefined}
                   userState={profile?.state}
+                  sportsbookPreferences={profile?.sportsbook_preferences}
                   showNeutralTotalWatch={sport !== 'NFL'}
                 />
               ))}
