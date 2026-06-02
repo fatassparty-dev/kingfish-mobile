@@ -47,7 +47,7 @@ Keep these rules in place:
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - When touching a mobile area, check the related screen, route, or backend link before calling it done whenever a local or deployed view is available.
 - Keep the app clean, crisp, and simple. Think Apple: short copy, obvious actions, restrained controls, and no extra explanation unless it prevents confusion.
-- Avoid AI-looking UI: bubbly pills, decorative badges, generic helper text, and repeated label chips. Prefer boxier labels, table-like clarity, and quiet actions.
+- No AI bubbles. Do not use rounded generic label bubbles, bubbly pills, decorative badges, or repeated helper chips as a shortcut for design. They look generic and lazy in KingFish. Prefer boxier labels, table-like clarity, real icons, and quiet actions.
 - Do not remove or flatten custom branded identity pieces without approval. Intentional KingFish visuals are not generic AI tells.
 - Do not name third-party data providers in public mobile copy unless there is a legal or product reason, such as asking the user to connect an outside fantasy account.
 - It is okay to say "KingFish data" when describing KingFish dashboards, tools, cheat sheets, or Ask KingFish context. Do not use that language when it would imply an outside ranking, ADP list, or vendor feed originated with KingFish.

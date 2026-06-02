@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -251,6 +251,7 @@ interface BvpRow {
 interface FactorRow {
   id: string
   matchup: string
+  homeTeam: string
   time: string
   scoreLabel: string
   venue: string
@@ -262,6 +263,17 @@ interface FactorRow {
   lean: string
   tone: string
   tags: string[]
+}
+
+type StadiumProfile = {
+  venue: string
+  homeTeam: string
+  environment: string
+  market: string
+  score: number
+  weather?: string
+  wind?: string
+  blurb: string
 }
 
 interface FactorCheatRow {
@@ -555,7 +567,7 @@ function weatherHrAdjustment(weather?: any) {
   return adjustment
 }
 
-function officialFactor(_sport: FactorSport, official?: FactorOfficial) {
+function officialFactor(sport: FactorSport, official?: FactorOfficial) {
   if (official?.name) {
     const delta = official.impact === 'boost' ? 5 : official.impact === 'suppress' ? -5 : 0
     return {
@@ -567,7 +579,7 @@ function officialFactor(_sport: FactorSport, official?: FactorOfficial) {
 
   return {
     delta: 0,
-    label: '',
+    label: sport === 'MLB' ? 'Umpire pending' : 'Ref crew pending',
     tag: '',
   }
 }
@@ -633,6 +645,30 @@ function factorImpactTone(value: number) {
   return colors.gold
 }
 
+function stadiumProfileForRow(row: FactorRow): StadiumProfile {
+  const baseline = factorBaseline(row.homeTeam, 'MLB')
+  const wind = row.weatherRaw?.windStr || ''
+  const sky = cleanSkyLabel(row.weatherRaw?.sky)
+  const temp = typeof row.weatherRaw?.tempF === 'number' ? `${row.weatherRaw.tempF}F` : ''
+  const weather = [sky, temp].filter(Boolean).join(' · ')
+  const blurb = baseline.score >= 72
+    ? `${row.venue} generally grades as a hitter-friendly park in KingFish Game Factors. Check wind and temperature before leaning into totals or power props.`
+    : baseline.score <= 43
+      ? `${row.venue} generally plays more pitcher-friendly in KingFish Game Factors. Run environment can still move when weather or lineup context changes.`
+      : `${row.venue} is more context-sensitive than automatic. Weather, wind direction, roof context, and matchup shape do more of the work here.`
+
+  return {
+    venue: row.venue,
+    homeTeam: row.homeTeam,
+    environment: row.environment || baseline.environment,
+    market: baseline.market || row.tags[0] || 'Watch board',
+    score: baseline.score,
+    weather,
+    wind,
+    blurb,
+  }
+}
+
 function buildFactorRows(
   games: Game[] = [],
   weatherData: Record<string, any> = {},
@@ -657,7 +693,8 @@ function buildFactorRows(
       const homeName = factorTeamDisplay(game.home_team)
       return {
         id,
-        matchup: `${awayName} @ ${homeName}`,
+        matchup: `${game.away_team} @ ${game.home_team}`,
+        homeTeam: game.home_team,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
         scoreLabel: factorScoreLabel(sport),
         venue: weatherData[id]?.park || weatherData[id]?.stadium || baseline.venue,
@@ -698,7 +735,7 @@ function buildFactorCheatRows(games: Game[] = [], weatherData: Record<string, an
 
       return {
         id,
-        matchup: `${factorTeamDisplay(game.away_team)} @ ${factorTeamDisplay(game.home_team)}`,
+        matchup: `${game.away_team} @ ${game.home_team}`,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
         venue: weather?.park || baseline.venue,
         weather: weatherRead.label || 'Weather pending',
@@ -1523,6 +1560,7 @@ export default function CheatSheetsScreen() {
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
   const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
   const [factorView, setFactorView] = useState<FactorView>('board')
+  const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
     unitBankroll: '1000',
     unitPct: '1.5',
@@ -2042,7 +2080,12 @@ export default function CheatSheetsScreen() {
                       </View>
                     </View>
                     <View style={styles.factorMetaGrid}>
-                      <FactorMeta label="Venue" value={row.venue} sub={row.environment} />
+                      <FactorMeta
+                        label="Venue"
+                        value={row.venue}
+                        sub={row.environment}
+                        onPress={factorSport === 'MLB' ? () => setStadiumProfile(stadiumProfileForRow(row)) : undefined}
+                      />
                       {row.weather ? <FactorMeta label="Weather" value={row.weather} visual={<FactorWeatherVisual weather={row.weatherRaw} />} /> : null}
                       {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
                       <FactorMeta label="Market Read" value={row.tags.find((tag) => !isNeutralFactorText(tag)) || 'Watch board'} />
@@ -2415,6 +2458,24 @@ export default function CheatSheetsScreen() {
           </Card>
         </>
       )}
+      <Modal visible={Boolean(stadiumProfile)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setStadiumProfile(null)}>
+        <View style={styles.stadiumModal}>
+          <Card style={styles.stadiumCard}>
+            <AppText variant="eyebrow">// Stadium Profile</AppText>
+            <AppText style={styles.stadiumTitle}>{stadiumProfile?.venue}</AppText>
+            <AppText variant="muted" style={styles.stadiumTeam}>{stadiumProfile?.homeTeam}</AppText>
+            <View style={styles.stadiumGrid}>
+              <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} />
+              <FactorMetric label="Park Read" value={stadiumProfile?.environment || '-'} />
+              <FactorMetric label="Market" value={stadiumProfile?.market || '-'} />
+              <FactorMetric label="Wind Today" value={stadiumProfile?.wind || 'Pending'} />
+            </View>
+            {stadiumProfile?.weather ? <AppText variant="muted" style={styles.stadiumWeather}>{stadiumProfile.weather}</AppText> : null}
+            <AppText style={styles.stadiumBlurb}>{stadiumProfile?.blurb}</AppText>
+            <Button onPress={() => setStadiumProfile(null)}>Close</Button>
+          </Card>
+        </View>
+      </Modal>
     </Screen>
   )
 }
@@ -2443,14 +2504,26 @@ function BvpMetric({ label, value, tone }: { label: string; value: string; tone?
   )
 }
 
-function FactorMeta({ label, value, sub, visual }: { label: string; value: string; sub?: string; visual?: ReactNode }) {
+function FactorMeta({ label, value, sub, visual, onPress }: { label: string; value: string; sub?: string; visual?: ReactNode; onPress?: () => void }) {
   const cleanSub = isNeutralFactorText(sub) ? '' : sub
-  return (
-    <View style={styles.factorMeta}>
+  const content = (
+    <>
       <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
       {visual}
-      <AppText style={styles.factorMetaValue}>{value}</AppText>
+      <AppText style={[styles.factorMetaValue, onPress ? styles.factorMetaLink : null]}>{value}</AppText>
       {cleanSub ? <AppText variant="muted" style={styles.factorMetaSub}>{cleanSub}</AppText> : null}
+    </>
+  )
+  if (onPress) {
+    return (
+      <Pressable style={styles.factorMeta} onPress={onPress}>
+        {content}
+      </Pressable>
+    )
+  }
+  return (
+    <View style={styles.factorMeta}>
+      {content}
     </View>
   )
 }
@@ -2466,7 +2539,6 @@ function FactorMetric({ label, value, tone }: { label: string; value: string; to
 
 function FactorWeatherVisual({ weather }: { weather?: any }) {
   const sky = cleanSkyLabel(weather?.sky)
-  const temp = typeof weather?.tempF === 'number' ? `${weather.tempF}F` : ''
   const wind = weather?.windStr || ''
   const rain = Number(weather?.precipPct || 0)
   const skyTone = weather?.indoor
@@ -2479,11 +2551,38 @@ function FactorWeatherVisual({ weather }: { weather?: any }) {
   return (
     <View style={styles.weatherVisual}>
       <View style={[styles.weatherIcon, { borderColor: skyTone }]}>
-        <AppText style={[styles.weatherIconText, { color: skyTone }]}>{weather?.indoor ? 'RF' : sky ? sky.slice(0, 2).toUpperCase() : 'WX'}</AppText>
+        {weather?.indoor ? (
+          <View style={styles.roofIcon}>
+            <View style={styles.roofLine} />
+            <View style={styles.roofLine} />
+            <View style={styles.roofLine} />
+          </View>
+        ) : /rain|storm|drizzle/i.test(sky) ? (
+          <View style={styles.rainIcon}>
+            <View style={styles.cloudShape} />
+            <View style={styles.rainDrops} />
+          </View>
+        ) : /cloud/i.test(sky) ? (
+          <View style={styles.cloudIcon}>
+            <View style={styles.cloudShape} />
+          </View>
+        ) : (
+          <View style={styles.sunIcon} />
+        )}
       </View>
-      {temp ? <View style={styles.weatherChip}><AppText style={styles.weatherChipText}>{temp}</AppText></View> : null}
-      {wind ? <View style={[styles.weatherChip, weather?.windImpact === 'suppress' && styles.weatherChipRisk]}><AppText style={styles.weatherChipText}>{wind}</AppText></View> : null}
-      {rain >= 25 ? <View style={[styles.weatherChip, styles.weatherChipRain]}><AppText style={styles.weatherChipText}>{rain}% rain</AppText></View> : null}
+      {typeof weather?.tempF === 'number' ? (
+        <View style={[styles.thermoIcon, weather.tempF >= 80 && styles.thermoHot, weather.tempF <= 55 && styles.thermoCold]}>
+          <View style={styles.thermoStem} />
+          <View style={styles.thermoBulb} />
+        </View>
+      ) : null}
+      {wind ? (
+        <View style={[styles.windIcon, weather?.windImpact === 'suppress' && styles.windIconRisk]}>
+          <View style={styles.windLine} />
+          <View style={[styles.windLine, styles.windLineShort]} />
+        </View>
+      ) : null}
+      {rain >= 25 ? <View style={styles.rainRiskIcon} /> : null}
     </View>
   )
 }
@@ -2777,7 +2876,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   factorCard: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   factorHeader: {
     flexDirection: 'row',
@@ -2790,23 +2889,26 @@ const styles = StyleSheet.create({
   },
   factorMatchup: {
     color: colors.textPrimary,
-    fontSize: 21,
-    lineHeight: 24,
+    fontSize: 24,
+    lineHeight: 26,
     fontWeight: '900',
+    textTransform: 'uppercase',
   },
   factorScore: {
     alignItems: 'flex-end',
-    minWidth: 112,
+    minWidth: 86,
   },
   factorScoreLabel: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    lineHeight: 17,
-    fontWeight: '800',
+    color: colors.textSecondary,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.6,
   },
   factorScoreValue: {
-    fontSize: 34,
-    lineHeight: 36,
+    fontSize: 42,
+    lineHeight: 44,
     fontWeight: '900',
   },
   factorLean: {
@@ -2817,16 +2919,17 @@ const styles = StyleSheet.create({
   factorMetaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   factorMeta: {
-    flexGrow: 1,
-    flexBasis: '45%',
+    width: '48%',
+    minHeight: 96,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.bgCardAlt,
-    padding: spacing.md,
+    padding: spacing.sm,
   },
   factorMetaLabel: {
     color: colors.textMuted,
@@ -2834,9 +2937,15 @@ const styles = StyleSheet.create({
   },
   factorMetaValue: {
     marginTop: 5,
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  factorMetaLink: {
     color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '900',
+    textDecorationLine: 'underline',
+    textDecorationColor: 'rgba(198,145,50,.55)',
   },
   factorMetaSub: {
     marginTop: 4,
@@ -2868,40 +2977,116 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   weatherIcon: {
-    minWidth: 34,
-    height: 30,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(122,128,153,.08)',
   },
-  weatherIconText: {
-    fontSize: 11,
-    fontWeight: '900',
+  cloudIcon: {
+    width: 18,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  weatherChip: {
-    minHeight: 30,
+  rainIcon: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+  },
+  cloudShape: {
+    width: 16,
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: colors.textSecondary,
+  },
+  rainDrops: {
+    width: 14,
+    height: 5,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: '#4DB8FF',
+    marginTop: 2,
+  },
+  sunIcon: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F6D36F',
+  },
+  roofIcon: {
+    gap: 3,
+  },
+  roofLine: {
+    width: 14,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
+  },
+  thermoIcon: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(122,128,153,.22)',
     backgroundColor: 'rgba(122,128,153,.08)',
-    paddingHorizontal: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weatherChipRisk: {
-    borderColor: 'rgba(239,68,68,.35)',
-    backgroundColor: 'rgba(239,68,68,.1)',
+  thermoHot: {
+    borderColor: 'rgba(232,175,60,.36)',
+    backgroundColor: 'rgba(232,175,60,.1)',
   },
-  weatherChipRain: {
+  thermoCold: {
     borderColor: 'rgba(77,184,255,.35)',
     backgroundColor: 'rgba(77,184,255,.1)',
   },
-  weatherChipText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '800',
+  thermoStem: {
+    width: 5,
+    height: 13,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.goldLight,
+  },
+  thermoBulb: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.goldLight,
+    marginTop: -3,
+  },
+  windIcon: {
+    width: 38,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(122,128,153,.22)',
+    backgroundColor: 'rgba(122,128,153,.08)',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    gap: 4,
+  },
+  windIconRisk: {
+    borderColor: 'rgba(239,68,68,.35)',
+    backgroundColor: 'rgba(239,68,68,.1)',
+  },
+  windLine: {
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: colors.textSecondary,
+  },
+  windLineShort: {
+    width: 16,
+  },
+  rainRiskIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(77,184,255,.35)',
+    backgroundColor: 'rgba(77,184,255,.1)',
   },
   cheatMetricGrid: {
     flexDirection: 'row',
@@ -2922,6 +3107,40 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '900',
+  },
+  stadiumModal: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+    padding: spacing.xl,
+    justifyContent: 'center',
+  },
+  stadiumCard: {
+    gap: spacing.md,
+  },
+  stadiumTitle: {
+    color: colors.textPrimary,
+    fontSize: 30,
+    lineHeight: 32,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  stadiumTeam: {
+    marginTop: -spacing.sm,
+  },
+  stadiumGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  stadiumWeather: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  stadiumBlurb: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    lineHeight: 22,
   },
   reportHeader: {
     flexDirection: 'row',
