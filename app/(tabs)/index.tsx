@@ -1199,7 +1199,7 @@ export default function DashboardScreen() {
   const ncaafOutlookQuery = useQuery({
     queryKey: ['ncaaf-mobile-league-view'],
     queryFn: () => kingfishFetch<NCAAFOutlookData>('/data/ncaaf/team-outlook-2026.json'),
-    enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'matchups'),
+    enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'matchups' || view === 'lines'),
     staleTime: 24 * 60 * 60 * 1000,
   })
   const ncaabBaselineQuery = useQuery({

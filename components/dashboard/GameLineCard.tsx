@@ -31,6 +31,14 @@ type NcaafLineContext = {
     currentRecord?: string
     schedule?: string
     lean?: string
+    profile?: string
+    offense?: string
+    defense?: string
+    offenseRank?: number
+    defenseRank?: number
+    pointsForPerGame?: number
+    pointsAllowedPerGame?: number
+    lastGameTotal?: number
   }>
 }
 
@@ -626,6 +634,94 @@ function ncaafMoneylineLean(
   }
 }
 
+function gradeSignal(value?: string) {
+  const grade = String(value || '').toUpperCase()
+  if (grade.startsWith('A+')) return 4
+  if (grade.startsWith('A')) return 3
+  if (grade.startsWith('B+')) return 1.5
+  if (grade.startsWith('B')) return 0.5
+  if (grade.startsWith('C')) return -1
+  return 0
+}
+
+function ncaafTotalProfile(team: string, context?: NcaafLineContext) {
+  const info = ncaafTeamContext(team, context)
+  if (!info) return 0
+  const text = `${info.profile || ''} ${info.schedule || ''} ${info.lean || ''}`.toLowerCase()
+  let signal = 0
+  if (text.includes('over') || text.includes('explosive') || text.includes('scoring') || text.includes('fast')) signal += 1.2
+  if (text.includes('under') || text.includes('defense') || text.includes('controlled') || text.includes('grinder')) signal -= 1.2
+  if (text.includes('elite') || text.includes('playoff') || text.includes('title')) signal += 0.4
+  signal += gradeSignal(info.offense) * 0.35
+  signal -= gradeSignal(info.defense) * 0.25
+  if (Number.isFinite(Number(info.offenseRank))) signal += Math.max(-1.2, Math.min(1.2, (65 - Number(info.offenseRank)) / 30))
+  if (Number.isFinite(Number(info.defenseRank))) signal -= Math.max(-1.2, Math.min(1.2, (65 - Number(info.defenseRank)) / 30))
+  if (Number.isFinite(Number(info.lastGameTotal))) signal += Math.max(-1.4, Math.min(1.4, (Number(info.lastGameTotal) - 52) / 9))
+  return signal
+}
+
+function ncaafStatsTotalProjection(game: Game, context?: NcaafLineContext) {
+  const away = ncaafTeamContext(game.away_team, context)
+  const home = ncaafTeamContext(game.home_team, context)
+  const awayFor = Number(away?.pointsForPerGame)
+  const awayAllowed = Number(away?.pointsAllowedPerGame)
+  const homeFor = Number(home?.pointsForPerGame)
+  const homeAllowed = Number(home?.pointsAllowedPerGame)
+  if (![awayFor, awayAllowed, homeFor, homeAllowed].every(Number.isFinite)) return null
+  return ((awayFor + homeAllowed) / 2) + ((homeFor + awayAllowed) / 2)
+}
+
+function ncaafTotalLean(
+  game: Game,
+  postedTotal: number | undefined,
+  bestOver: { book: string; price: number } | null,
+  bestUnder: { book: string; price: number } | null,
+  allTotals: Array<{ over: number; under: number; point: number }>,
+  awaySpread: { point?: number } | null,
+  homeSpread: { point?: number } | null,
+  context?: NcaafLineContext,
+): LeanResult | null {
+  if (!postedTotal || (!bestOver && !bestUnder)) return null
+  const rows = allTotals.filter((item) => Number.isFinite(item.point) && Number.isFinite(item.over) && Number.isFinite(item.under))
+  const avgTotal = rows.length ? rows.reduce((sum, row) => sum + row.point, 0) / rows.length : postedTotal
+  const pressureSamples = rows.length
+    ? rows.map((row) => {
+        const overImp = impliedProbability(row.over) || 0.5
+        const underImp = impliedProbability(row.under) || 0.5
+        return overImp / (overImp + underImp)
+      })
+    : []
+  const overPressure = pressureSamples.length ? pressureSamples.reduce((sum, value) => sum + value, 0) / pressureSamples.length : 0.5
+  const pressureAdj = (overPressure - 0.5) * 8
+  const favoritePoint = [awaySpread?.point, homeSpread?.point]
+    .filter((point): point is number => typeof point === 'number')
+    .sort((a, b) => Math.abs(b) - Math.abs(a))[0]
+  const spreadAdj = typeof favoritePoint === 'number' && Math.abs(favoritePoint) >= 17
+    ? -0.8
+    : typeof favoritePoint === 'number' && Math.abs(favoritePoint) <= 3 ? 0.35 : 0
+  const profileAdj = ncaafTotalProfile(game.away_team, context) + ncaafTotalProfile(game.home_team, context)
+  const statsProjection = ncaafStatsTotalProjection(game, context)
+  const marketProjection = avgTotal + pressureAdj + profileAdj + spreadAdj
+  const estimate = statsProjection === null ? marketProjection : (statsProjection * 0.55) + (marketProjection * 0.45)
+  const diff = estimate - postedTotal
+  if (Math.abs(diff) < 0.8) {
+    return {
+      label: `Near ${postedTotal}`,
+      detail: `${estimate.toFixed(1)} total read. Market and team context are tight.`,
+      type: 'Total Watch',
+    }
+  }
+  const overLean = diff >= 0
+  const best = overLean ? bestOver : bestUnder
+  return {
+    label: `${overLean ? 'Over' : 'Under'} ${postedTotal}`,
+    detail: totalReadDetail(estimate.toFixed(1), postedTotal),
+    price: best?.price,
+    book: best?.book,
+    type: Math.abs(diff) >= 2.2 ? 'Strong Total Lean' : 'Total Lean',
+  }
+}
+
 function soccerPlayed(team: Record<string, any> | undefined) {
   return Number(team?.played || 0)
 }
@@ -860,6 +956,8 @@ export function GameLineCard({
     : consensusMoneylineLean(bookmakers, game, sport)
   const totalLean = sport === 'MLB'
     ? mlbTotalLean(game, over, under, bookmakers, mlbContext)
+    : sport === 'NCAAF'
+      ? ncaafTotalLean(game, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), awaySpread, homeSpread, ncaafContext)
     : sport === 'SOCCER'
       ? soccerTotalLean(over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), soccerContext)
     : usesTeamFormLean
