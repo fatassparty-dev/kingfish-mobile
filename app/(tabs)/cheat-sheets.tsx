@@ -269,6 +269,7 @@ type StadiumProfile = {
   venue: string
   homeTeam: string
   teamLabel?: string
+  city?: string
   homeRecord?: string
   environment: string
   market: string
@@ -287,10 +288,13 @@ type BallparkStaticProfile = {
   team: string
   teamName: string
   teamAbbr: string
+  city: string
   capacity: string
   altitudeFt: string
   roof: string
   surface: string
+  read: string
+  blurb: string
 }
 
 type BallparkProfilePayload = {
@@ -671,10 +675,11 @@ function factorImpactTone(value: number) {
 function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayload): StadiumProfile {
   const baseline = factorBaseline(row.homeTeam, 'MLB')
   const staticProfile = ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
-  const wind = row.weatherRaw?.windStr || ''
+  const hasRoofContext = Boolean(staticProfile?.roof && staticProfile.roof !== 'Open Air')
+  const wind = hasRoofContext ? (staticProfile?.roof === 'Fixed Dome' ? 'Controlled' : 'Roof watch') : row.weatherRaw?.windStr || ''
   const sky = cleanSkyLabel(row.weatherRaw?.sky)
   const temp = typeof row.weatherRaw?.tempF === 'number' ? `${row.weatherRaw.tempF}F` : ''
-  const weather = [sky, temp].filter(Boolean).join(' · ')
+  const weather = hasRoofContext ? `${staticProfile?.roof} context` : [sky, temp].filter(Boolean).join(' · ')
   const blurb = baseline.score >= 72
     ? `${row.venue} generally grades as a hitter-friendly park in KingFish Game Factors. Check wind and temperature before leaning into totals or power props.`
     : baseline.score <= 43
@@ -685,8 +690,9 @@ function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayl
     venue: row.venue,
     homeTeam: row.homeTeam,
     teamLabel: staticProfile?.team,
+    city: staticProfile?.city,
     homeRecord: staticProfile?.teamAbbr ? ballparkData?.homeRecords?.[staticProfile.teamAbbr] : undefined,
-    environment: row.environment || baseline.environment,
+    environment: staticProfile?.read || row.environment || baseline.environment,
     market: baseline.market || row.tags[0] || 'Watch board',
     score: baseline.score,
     capacity: staticProfile?.capacity,
@@ -695,7 +701,7 @@ function stadiumProfileForRow(row: FactorRow, ballparkData?: BallparkProfilePayl
     surface: staticProfile?.surface,
     weather,
     wind,
-    blurb,
+    blurb: staticProfile?.blurb || blurb,
   }
 }
 
@@ -2501,6 +2507,7 @@ export default function CheatSheetsScreen() {
             <AppText variant="eyebrow">// Stadium Profile</AppText>
             <AppText style={styles.stadiumTitle}>{stadiumProfile?.venue}</AppText>
             <AppText variant="muted" style={styles.stadiumTeam}>{stadiumProfile?.teamLabel || stadiumProfile?.homeTeam}</AppText>
+            {stadiumProfile?.city ? <AppText variant="muted" style={styles.stadiumCity}>{stadiumProfile.city}</AppText> : null}
             <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
             <View style={styles.stadiumGrid}>
               <FactorMetric label="Park Grade" value={String(stadiumProfile?.score || '-')} tone={colors.gold} />
@@ -3166,6 +3173,9 @@ const styles = StyleSheet.create({
   },
   stadiumTeam: {
     marginTop: -spacing.sm,
+  },
+  stadiumCity: {
+    marginTop: -spacing.md,
   },
   stadiumRecord: {
     marginTop: -spacing.md,
