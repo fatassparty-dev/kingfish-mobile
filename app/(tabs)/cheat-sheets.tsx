@@ -12,7 +12,7 @@ import { API_BASE_URL, kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fmtOdds, normalizeName } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
-import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
+import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
@@ -178,6 +178,9 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
   fanduel: 'FanDuel',
   fanatics: 'Fanatics',
   hardrockbet: 'Hard Rock Bet',
+  hardrockbet_az: 'Hard Rock Bet',
+  hardrockbet_fl: 'Hard Rock Bet',
+  hardrockbet_oh: 'Hard Rock Bet',
   pointsbetus: 'PointsBet',
   williamhill_us: 'Caesars',
 }
@@ -774,11 +777,11 @@ function sheetReason(sheetKey: SheetKey, row: { line: number; season: number; l1
     : `${recent}.`
 }
 
-function bestOutcomes(game: Game, marketKey: string) {
+function bestOutcomes(game: Game, marketKey: string, bookKeys = eligiblePropBookKeys()) {
   const map: Record<string, { player: string; line: number; odds?: number; book?: string }> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
-    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    if (!bookKeys.includes(bookmaker.key)) return
     const market = bookmaker.markets?.find((item) => item.key === marketKey)
     market?.outcomes?.forEach((outcome) => {
       if (!outcome.description || outcome.name !== 'Over') return
@@ -799,7 +802,7 @@ function bestOutcomes(game: Game, marketKey: string) {
   return Object.values(map)
 }
 
-function bestHitFadeOutcomes(game: Game) {
+function bestHitFadeOutcomes(game: Game, bookKeys = eligiblePropBookKeys()) {
   const map: Record<string, {
     player: string
     line: number
@@ -810,7 +813,7 @@ function bestHitFadeOutcomes(game: Game) {
   }> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
-    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    if (!bookKeys.includes(bookmaker.key)) return
     const market = bookmaker.markets?.find((item) => item.key === 'batter_hits')
     market?.outcomes?.forEach((outcome) => {
       if (!outcome.description) return
@@ -836,7 +839,7 @@ function bestHitFadeOutcomes(game: Game) {
   return Object.values(map)
 }
 
-function bestBookOutcomes(game: Game, marketKey: string) {
+function bestBookOutcomes(game: Game, marketKey: string, bookKeys = eligiblePropBookKeys()) {
   const map: Record<string, {
     player: string
     line: number
@@ -847,7 +850,7 @@ function bestBookOutcomes(game: Game, marketKey: string) {
   }> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
-    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    if (!bookKeys.includes(bookmaker.key)) return
     const market = bookmaker.markets?.find((item) => item.key === marketKey)
     market?.outcomes?.forEach((outcome) => {
       if (!outcome.description) return

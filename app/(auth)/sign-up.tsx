@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
+import { normalizeLocation } from '@/lib/locations'
 
 export default function SignUpScreen() {
   const [firstName, setFirstName] = useState('')
@@ -63,7 +64,7 @@ export default function SignUpScreen() {
         .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          state: state.trim().toUpperCase() || null,
+          state: normalizeLocation(state) || null,
         })
         .eq('user_id', data.user.id)
     }
@@ -86,14 +87,14 @@ export default function SignUpScreen() {
           <TextInput placeholder="Last name" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} style={[styles.input, styles.nameInput]} />
         </View>
         <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor={colors.textMuted} value={email} onChangeText={setEmail} style={styles.input} />
-        <TextInput autoCapitalize="characters" maxLength={2} placeholder="State, optional (LA)" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} style={styles.input} />
+        <TextInput autoCapitalize="characters" placeholder="Location, optional (LA, PR, OTHER)" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Confirm password" placeholderTextColor={colors.textMuted} secureTextEntry value={confirm} onChangeText={setConfirm} style={styles.input} />
 
         <CheckRow checked={is17} onPress={() => setIs17((v) => !v)} text="I confirm I am 17 or older where permitted by law." />
         <CheckRow checked={accepted} onPress={() => setAccepted((v) => !v)} text="I accept the Terms of Service and Privacy Policy." />
         <AppText variant="muted" style={styles.note}>
-          Your state helps KingFish show responsible context where betting rules differ. It is optional. You can delete your account anytime from Account.
+          Your location helps KingFish show the right sportsbook context. It is optional. You can delete your account anytime from Account.
         </AppText>
 
         {error ? <AppText style={styles.error}>{error}</AppText> : null}

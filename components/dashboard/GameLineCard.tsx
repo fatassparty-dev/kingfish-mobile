@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime } from '@/lib/format'
@@ -26,6 +26,7 @@ type NflLineContext = {
 type SoccerLineContext = {
   awayInfo?: Record<string, any>
   homeInfo?: Record<string, any>
+  isTournament?: boolean
 }
 
 type LeanResult = {
@@ -35,6 +36,38 @@ type LeanResult = {
   book?: string
   type?: string
   team?: string
+}
+
+const COUNTRY_CODES: Record<string, string> = {
+  Algeria: 'DZ', Argentina: 'AR', Australia: 'AU', Austria: 'AT', Belgium: 'BE',
+  'Bosnia & Herzegovina': 'BA', 'Bosnia and Herzegovina': 'BA', 'Bosnia-H.': 'BA', Brazil: 'BR',
+  Cameroon: 'CM', Canada: 'CA', 'Cape Verde': 'CV', Chile: 'CL', China: 'CN',
+  Colombia: 'CO', 'Costa Rica': 'CR', Croatia: 'HR', Curacao: 'CW',
+  Curaçao: 'CW', Czechia: 'CZ', 'Czech Republic': 'CZ', Denmark: 'DK', 'Congo DR': 'CD', 'DR Congo': 'CD',
+  Ecuador: 'EC', Egypt: 'EG', England: 'GB', France: 'FR', Germany: 'DE',
+  Ghana: 'GH', Greece: 'GR', Haiti: 'HT', Iran: 'IR', Iraq: 'IQ',
+  Italy: 'IT', 'Ivory Coast': 'CI', Jamaica: 'JM', Japan: 'JP', Jordan: 'JO',
+  Mexico: 'MX', Morocco: 'MA', Netherlands: 'NL', 'New Zealand': 'NZ',
+  Nigeria: 'NG', Norway: 'NO', Panama: 'PA', Paraguay: 'PY', Peru: 'PE',
+  Poland: 'PL', Portugal: 'PT',
+  Qatar: 'QA', 'Saudi Arabia': 'SA', Scotland: 'GB', Senegal: 'SN', Serbia: 'RS',
+  'South Africa': 'ZA', 'South Korea': 'KR', Spain: 'ES', Sweden: 'SE',
+  Switzerland: 'CH', Tunisia: 'TN', Turkey: 'TR', Ukraine: 'UA',
+  Uzbekistan: 'UZ', 'United States': 'US', USA: 'US', Uruguay: 'UY', Wales: 'GB',
+}
+
+function flagEmoji(country: string) {
+  const code = COUNTRY_CODES[country]
+  if (!code) return ''
+  return code
+    .toUpperCase()
+    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+}
+
+function tournamentTeamLabel(team: string, enabled?: boolean) {
+  if (!enabled || team === 'Draw') return team
+  const flag = flagEmoji(team)
+  return flag ? `${flag} ${team}` : team
 }
 
 function getMarket(bookmakers: Bookmaker[], key: string): Market | undefined {
@@ -565,6 +598,35 @@ function soccerMoneylineLean(
   }
 }
 
+function soccerMarketSnapshot(
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  drawMoneyline: { book: string; price: number } | null,
+): LeanResult | null {
+  const candidates = [
+    { label: game.away_team, line: awayMoneyline },
+    { label: game.home_team, line: homeMoneyline },
+    { label: 'Draw', line: drawMoneyline },
+  ].filter((item): item is { label: string; line: { book: string; price: number } } => Boolean(item.line))
+  if (!candidates.length) return null
+
+  const shortest = candidates.reduce((best, item) => {
+    const bestProbability = impliedProbability(best.line.price) || 0
+    const itemProbability = impliedProbability(item.line.price) || 0
+    return itemProbability > bestProbability ? item : best
+  })
+
+  return {
+    label: tournamentTeamLabel(shortest.label, true),
+    detail: `Books are pricing ${shortest.label} as the clear favorite at about ${Math.round((impliedProbability(shortest.line.price) || 0) * 100)}% implied. Cross-check draw risk, total, and both-teams-to-score before betting.`,
+    price: shortest.line.price,
+    book: shortest.line.book,
+    type: 'Snapshot',
+    team: shortest.label === 'Draw' ? undefined : shortest.label,
+  }
+}
+
 function soccerTotalLean(
   postedTotal: number | undefined,
   bestOver: { book: string; price: number } | null,
@@ -656,6 +718,8 @@ export function GameLineCard({
   teamFormContext,
   nflContext,
   soccerContext,
+  onPressSoccerTeam,
+  userState,
 }: {
   game: Game
   weather?: WeatherInfo
@@ -665,8 +729,10 @@ export function GameLineCard({
   teamFormContext?: TeamFormLineContext
   nflContext?: NflLineContext
   soccerContext?: SoccerLineContext
+  onPressSoccerTeam?: (team: string) => void
+  userState?: string | null
 }) {
-  const bookmakers = supportedBookmakers(game.bookmakers)
+  const bookmakers = supportedBookmakers(game.bookmakers, userState)
   const totalMarket = getMarket(bookmakers, 'totals')
   const over = findOutcome(totalMarket, 'Over')
   const under = findOutcome(totalMarket, 'Under')
@@ -683,7 +749,9 @@ export function GameLineCard({
     : sport === 'NFL'
       ? nflMoneylineLean(game, awayBest, homeBest, nflContext)
     : sport === 'SOCCER'
-      ? soccerMoneylineLean(game, awayBest, homeBest, drawBest, soccerContext)
+      ? soccerContext?.isTournament
+        ? soccerMarketSnapshot(game, awayBest, homeBest, drawBest)
+        : soccerMoneylineLean(game, awayBest, homeBest, drawBest, soccerContext)
     : usesTeamFormLean
       ? teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext)
     : consensusMoneylineLean(bookmakers, game)
@@ -695,11 +763,14 @@ export function GameLineCard({
       ? teamFormTotalLean(sport, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), teamFormContext)
     : consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
   const bttsLean = sport === 'SOCCER' ? soccerBttsLean(awayBest, drawBest, homeBest, bttsYes, bttsNo, soccerContext) : null
-  const moneylineLeanLabel = moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
+  const moneylineLeanLabel = sport === 'SOCCER' && soccerContext?.isTournament
+    ? 'Market Snapshot'
+    : moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
   const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
   const hideAwayMoneyline = moneylineLean?.team === game.away_team
   const hideHomeMoneyline = moneylineLean?.team === game.home_team
   const totalLeanSide = totalLean?.label.startsWith('Over') ? 'over' : totalLean?.label.startsWith('Under') ? 'under' : null
+  const showTournamentFlags = sport === 'SOCCER' && soccerContext?.isTournament
 
   return (
     <Card>
@@ -726,9 +797,23 @@ export function GameLineCard({
       )}
 
       {moneylineLean && <LeanBox label={moneylineLeanLabel} lean={moneylineLean} />}
-      {!hideAwayMoneyline && <TeamRow team={game.away_team} line={awayBest} />}
+      {!hideAwayMoneyline && (
+        <TeamRow
+          team={game.away_team}
+          line={awayBest}
+          tournament={showTournamentFlags}
+          onPress={showTournamentFlags ? onPressSoccerTeam : undefined}
+        />
+      )}
       {drawBest && <TeamRow team="Draw" line={drawBest} />}
-      {!hideHomeMoneyline && <TeamRow team={game.home_team} line={homeBest} />}
+      {!hideHomeMoneyline && (
+        <TeamRow
+          team={game.home_team}
+          line={homeBest}
+          tournament={showTournamentFlags}
+          onPress={showTournamentFlags ? onPressSoccerTeam : undefined}
+        />
+      )}
 
       {(awaySpread || homeSpread) && (
         <View style={styles.marketBox}>
@@ -762,8 +847,16 @@ export function GameLineCard({
           <AppText variant="eyebrow">// Both Teams To Score</AppText>
           {bttsLean && <LeanBox label={`KingFish ${bttsLean.type}`} lean={bttsLean} compact />}
           <View style={styles.totalRow}>
-            {bttsYes && <AppText style={styles.totalText}>Yes {fmtOdds(bttsYes.price)}</AppText>}
-            {bttsNo && <AppText style={styles.totalText}>No {fmtOdds(bttsNo.price)}</AppText>}
+            {bttsYes && (
+              <AppText style={styles.totalText}>
+                Yes <AppText style={styles.totalPrice}>{fmtOdds(bttsYes.price)}</AppText>
+              </AppText>
+            )}
+            {bttsNo && (
+              <AppText style={styles.totalText}>
+                No <AppText style={styles.totalPrice}>{fmtOdds(bttsNo.price)}</AppText>
+              </AppText>
+            )}
           </View>
         </View>
       )}
@@ -789,13 +882,26 @@ function LeanBox({ label, lean, compact = false }: { label: string; lean: LeanRe
   )
 }
 
-function TeamRow({ team, line }: { team: string; line: { price: number; book: string } | null }) {
+function TeamRow({
+  team,
+  line,
+  tournament = false,
+  onPress,
+}: {
+  team: string
+  line: { price: number; book: string } | null
+  tournament?: boolean
+  onPress?: (team: string) => void
+}) {
+  const teamName = (
+    <View style={styles.teamNameWrap}>
+      <AppText style={styles.teamName}>{tournamentTeamLabel(team, tournament)}</AppText>
+      {line && <AppText variant="mono">ML</AppText>}
+    </View>
+  )
   return (
     <View style={styles.teamRow}>
-      <View style={styles.teamNameWrap}>
-        <AppText style={styles.teamName}>{team}</AppText>
-        {line && <AppText variant="mono">ML</AppText>}
-      </View>
+      {onPress && team !== 'Draw' ? <Pressable onPress={() => onPress(team)}>{teamName}</Pressable> : teamName}
       <View style={styles.oddsBadge}>
         <AppText style={styles.oddsText}>{line ? fmtOdds(line.price) : '-'}</AppText>
       </View>

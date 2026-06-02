@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
@@ -13,13 +13,14 @@ import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
-import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
+import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS, supportedBookmakers } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
 
 type SoccerTeamInfo = {
   team: string
+  group?: string
   shortName?: string
   position?: number
   played?: number
@@ -31,6 +32,16 @@ type SoccerTeamInfo = {
   goalsAgainst?: number
   goalDifference?: number
   form?: string
+}
+
+type SoccerTeamProfileResponse = {
+  news?: Array<{
+    headline: string
+    description?: string | null
+    published?: string | null
+    url?: string | null
+    source?: string | null
+  }>
 }
 
 type KBOTeamStats = {
@@ -218,14 +229,14 @@ const NCAAB_MAJOR_CONFERENCES = [
 ]
 
 const SOCCER_LEAGUES = [
+  { key: 'soccer_fifa_world_cup', label: 'World Cup' },
   { key: 'soccer_epl', label: 'Premier League' },
+  { key: 'soccer_usa_mls', label: 'MLS' },
   { key: 'soccer_spain_la_liga', label: 'La Liga' },
   { key: 'soccer_italy_serie_a', label: 'Serie A' },
   { key: 'soccer_germany_bundesliga', label: 'Bundesliga' },
   { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
-  { key: 'soccer_usa_mls', label: 'MLS' },
   { key: 'soccer_uefa_champs_league', label: 'Champions League' },
-  { key: 'soccer_fifa_world_cup', label: 'World Cup' },
 ]
 
 const MLB_TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -550,6 +561,78 @@ function shortTeamName(team: string) {
   return team.replace(/ University$/i, '').replace(/ College$/i, '')
 }
 
+const WORLD_CUP_COUNTRY_CODES: Record<string, string> = {
+  Algeria: 'DZ', Argentina: 'AR', Australia: 'AU', Austria: 'AT', Belgium: 'BE',
+  'Bosnia & Herzegovina': 'BA', 'Bosnia and Herzegovina': 'BA', 'Bosnia-H.': 'BA', Brazil: 'BR',
+  Cameroon: 'CM', Canada: 'CA', 'Cape Verde': 'CV', Colombia: 'CO',
+  'Costa Rica': 'CR', Croatia: 'HR', Curacao: 'CW', Curaçao: 'CW',
+  Czechia: 'CZ', 'Czech Republic': 'CZ', Denmark: 'DK', 'Congo DR': 'CD', 'DR Congo': 'CD', Ecuador: 'EC',
+  Egypt: 'EG', England: 'GB', France: 'FR', Germany: 'DE', Ghana: 'GH',
+  Haiti: 'HT', Iran: 'IR', Iraq: 'IQ', Italy: 'IT', 'Ivory Coast': 'CI',
+  Jamaica: 'JM', Japan: 'JP', Jordan: 'JO', Mexico: 'MX', Morocco: 'MA',
+  Netherlands: 'NL', 'New Zealand': 'NZ', Nigeria: 'NG', Norway: 'NO',
+  Panama: 'PA', Paraguay: 'PY', Poland: 'PL',
+  Portugal: 'PT', Qatar: 'QA', 'Saudi Arabia': 'SA', Scotland: 'GB', Senegal: 'SN',
+  Serbia: 'RS', 'South Africa': 'ZA', 'South Korea': 'KR', Spain: 'ES',
+  Sweden: 'SE', Switzerland: 'CH', Tunisia: 'TN', Turkey: 'TR', Ukraine: 'UA',
+  Uzbekistan: 'UZ',
+  'United States': 'US', USA: 'US', Uruguay: 'UY', Wales: 'GB',
+}
+
+function countryFlag(country: string) {
+  const code = WORLD_CUP_COUNTRY_CODES[country]
+  if (!code) return ''
+  return code.toUpperCase().replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+}
+
+function countryLabel(country: string) {
+  const flag = countryFlag(country)
+  return flag ? `${flag} ${country}` : country
+}
+
+function countryStandingLabel(team: SoccerTeamInfo) {
+  const label = team.shortName || team.team
+  const flag = countryFlag(team.team) || countryFlag(label)
+  return flag ? `${flag} ${label}` : label
+}
+
+function soccerGoalDiffLabel(team: SoccerTeamInfo) {
+  const diff = Number(team.goalDifference || 0)
+  return `${diff >= 0 ? '+' : ''}${diff}`
+}
+
+function soccerRecordCompact(team: SoccerTeamInfo) {
+  if (!team.played) return '-'
+  return `${team.won || 0}-${team.drawn || 0}-${team.lost || 0}`
+}
+
+function worldCupStandingGroups(teams: SoccerTeamInfo[]) {
+  const rows = teams.filter((team) =>
+    team.team &&
+    (team.group || typeof team.position === 'number' || typeof team.points === 'number' || typeof team.played === 'number')
+  )
+  const groups = new Map<string, SoccerTeamInfo[]>()
+  rows.forEach((team) => {
+    const group = team.group || 'Standings'
+    groups.set(group, [...(groups.get(group) || []), team])
+  })
+  return Array.from(groups.entries())
+    .map(([name, entries]) => ({
+      name,
+      entries: entries.sort((a, b) =>
+        Number(a.position || 999) - Number(b.position || 999) ||
+        Number(b.points || 0) - Number(a.points || 0) ||
+        Number(b.goalDifference || 0) - Number(a.goalDifference || 0) ||
+        String(a.team).localeCompare(String(b.team))
+      ),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function profileTeamFromName(teams: SoccerTeamInfo[], teamName: string) {
+  return findSoccerTeam(teams, teamName) || { team: teamName, shortName: teamName }
+}
+
 const NFL_TEAM_ABBR: Record<string, string> = {
   'Arizona Cardinals': 'ARI',
   'Atlanta Falcons': 'ATL',
@@ -769,6 +852,15 @@ function soccerPower(team: SoccerTeamInfo | undefined) {
   return 35 + (ppg * 12) + (gdPerGame * 8) + (scoringRate * 3) - (againstRate * 2) + tableBonus
 }
 
+function soccerProfileRead(team: SoccerTeamInfo) {
+  if (!team.played) return 'Tournament table data is pending.'
+  const ppg = pointsPerGame(team)
+  const drawPct = Math.round(drawRate(team) * 100)
+  if (ppg >= 2) return `Strong table profile at ${ppg.toFixed(2)} points per match with a ${drawPct}% draw rate.`
+  if (ppg >= 1.4) return `Competitive table profile at ${ppg.toFixed(2)} points per match with a ${drawPct}% draw rate.`
+  return `Thin table profile at ${ppg.toFixed(2)} points per match with a ${drawPct}% draw rate.`
+}
+
 function findSoccerTeam(teams: SoccerTeamInfo[] = [], teamName: string) {
   const normalized = normalizeTeamKey(teamName)
   const lastWord = normalizeTeamKey(teamName.split(' ').pop() || teamName)
@@ -816,11 +908,24 @@ function soccerMatchupLean(awayInfo: SoccerTeamInfo | undefined, homeInfo: Socce
   }
 }
 
-function MatchupTeamBox({ title, grade, rows }: { title: string; grade?: string | null; rows: Array<{ label: string; value: string }> }) {
+function MatchupTeamBox({
+  title,
+  grade,
+  rows,
+  onPress,
+}: {
+  title: string
+  grade?: string | null
+  rows: Array<{ label: string; value: string }>
+  onPress?: () => void
+}) {
+  const titleContent = (
+    <AppText style={styles.matchupTeamTitle}>{title}</AppText>
+  )
   return (
     <View style={styles.matchupTeamBox}>
       <View style={styles.matchupTeamTop}>
-        <AppText style={styles.matchupTeamTitle}>{title}</AppText>
+        {onPress ? <Pressable onPress={onPress} style={styles.matchupTeamTitlePress}>{titleContent}</Pressable> : titleContent}
         {grade ? <AppText style={styles.matchupGrade}>{grade}</AppText> : null}
       </View>
       {rows.map((row) => (
@@ -830,6 +935,129 @@ function MatchupTeamBox({ title, grade, rows }: { title: string; grade?: string 
         </View>
       ))}
     </View>
+  )
+}
+
+function SoccerTeamProfileModal({
+  team,
+  league,
+  onClose,
+}: {
+  team: SoccerTeamInfo | null
+  league: string
+  onClose: () => void
+}) {
+  const query = useQuery({
+    queryKey: ['soccer-team-profile', league, team?.team],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        league,
+        team: team?.team || '',
+      })
+      if (team?.shortName) params.set('shortName', team.shortName)
+      return kingfishFetch<SoccerTeamProfileResponse>(`/api/soccer-team-profile?${params.toString()}`)
+    },
+    enabled: !!team,
+    staleTime: 15 * 60 * 1000,
+  })
+
+  return (
+    <Modal
+      visible={!!team}
+      animationType="slide"
+      transparent
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+      onRequestClose={onClose}
+    >
+      <View style={styles.teamProfileOverlay}>
+        <Pressable style={styles.teamProfileBackdrop} onPress={onClose} />
+        {team ? (
+          <View style={styles.teamProfileSheet}>
+            <View style={styles.teamProfileHeader}>
+              <View style={styles.teamProfileTitleBlock}>
+                <AppText variant="eyebrow">// Team Profile</AppText>
+                <AppText variant="title" style={styles.teamProfileTitle}>{countryStandingLabel(team)}</AppText>
+                <AppText variant="muted" style={styles.teamInfoMeta}>{soccerProfileRead(team)}</AppText>
+              </View>
+              <Pressable onPress={onClose} style={styles.closeTeamProfile}>
+                <AppText style={styles.closeTeamProfileText}>x</AppText>
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.teamProfileBody} showsVerticalScrollIndicator={false}>
+              <View style={styles.teamProfileGrid}>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">Record</AppText>
+                  <AppText style={styles.teamProfileValue}>{soccerRecordCompact(team)}</AppText>
+                </View>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">Table</AppText>
+                  <AppText style={styles.teamProfileValue}>{team.position ? `#${team.position}` : '-'}</AppText>
+                </View>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">Points</AppText>
+                  <AppText style={styles.teamProfileValue}>{team.points ?? '-'}</AppText>
+                </View>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">Goal Diff</AppText>
+                  <AppText style={styles.teamProfileValue}>{team.goalDifference != null ? soccerGoalDiffLabel(team) : '-'}</AppText>
+                </View>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">GF-GA</AppText>
+                  <AppText style={styles.teamProfileValue}>{team.played ? `${team.goalsFor || 0}-${team.goalsAgainst || 0}` : '-'}</AppText>
+                </View>
+                <View style={styles.teamProfileStat}>
+                  <AppText variant="mono">Draw Rate</AppText>
+                  <AppText style={styles.teamProfileValue}>{team.played ? `${Math.round(drawRate(team) * 100)}%` : '-'}</AppText>
+                </View>
+              </View>
+
+              {team.form ? (
+                <Card>
+                  <AppText variant="eyebrow">// Recent Form</AppText>
+                  <AppText style={styles.teamProfileForm}>{team.form}</AppText>
+                </Card>
+              ) : null}
+
+              <Card>
+                <AppText variant="eyebrow">// News</AppText>
+                {query.isLoading ? (
+                  <View style={styles.compactLoadingRow}>
+                    <ActivityIndicator color={colors.gold} />
+                    <AppText variant="muted">Checking news...</AppText>
+                  </View>
+                ) : query.data?.news?.length ? (
+                  <View style={styles.teamProfileNewsList}>
+                    {query.data.news.slice(0, 2).map((item, index) => (
+                      <Pressable
+                        key={`${item.headline}-${index}`}
+                        disabled={!item.url}
+                        onPress={() => item.url && Linking.openURL(item.url).catch(() => {})}
+                        style={styles.teamProfileNewsItem}
+                      >
+                        <AppText style={styles.teamProfileNewsHeadline}>{item.headline}</AppText>
+                        {item.description ? (
+                          <AppText variant="muted" style={styles.teamProfileNewsDescription}>{item.description}</AppText>
+                        ) : null}
+                        {(item.source || item.published) ? (
+                          <AppText variant="mono" style={styles.teamProfileNewsMeta}>
+                            {[item.source, item.published ? new Date(item.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null].filter(Boolean).join(' · ')}
+                          </AppText>
+                        ) : null}
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <AppText variant="muted" style={styles.stateText}>No matching team news right now.</AppText>
+                )}
+              </Card>
+
+              <Button variant="secondary" onPress={onClose}>Close</Button>
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
+    </Modal>
   )
 }
 
@@ -844,6 +1072,7 @@ export default function DashboardScreen() {
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
+  const [selectedSoccerTeam, setSelectedSoccerTeam] = useState<SoccerTeamInfo | null>(null)
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
   const [collegeScopeOpen, setCollegeScopeOpen] = useState(false)
   const [collegeConference, setCollegeConference] = useState('All')
@@ -894,6 +1123,16 @@ export default function DashboardScreen() {
   const canViewLines = isPremium || linesFree
   const canViewProps = isPremium || propsFree
   const canViewMatchups = true
+  const isWorldCupSoccer = sport === 'SOCCER' && soccerLeague === 'soccer_fifa_world_cup'
+  const dashboardViewLabel = (item: DashboardView) =>
+    item === 'league'
+      ? isWorldCupSoccer ? 'Tournament View' : 'League View'
+    : item === 'matchups'
+      ? 'Game Matchups'
+    : item === 'lines'
+      ? 'Game Lines'
+    : secondaryViewLabel
+  const canFetchWorldCupTournament = isSelectedSportActive && isWorldCupSoccer && view === 'league' && canViewLines && !linesMaintenance
   const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
   const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups
   const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && canViewProps && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
@@ -914,7 +1153,7 @@ export default function DashboardScreen() {
         ? `/api/soccer-odds?league=${soccerLeague}${view === 'matchups' ? '&scope=matchups' : ''}`
         : `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
     ),
-    enabled: canFetchLines || (canFetchMatchups && ['MLB', 'NBA', 'NHL', 'WNBA', 'SOCCER'].includes(sport)),
+    enabled: canFetchLines || canFetchWorldCupTournament || (canFetchMatchups && ['MLB', 'NBA', 'NHL', 'WNBA', 'SOCCER'].includes(sport)),
     staleTime: 5 * 60 * 1000,
   })
   const weatherQuery = useQuery({
@@ -1024,6 +1263,9 @@ export default function DashboardScreen() {
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
+  const worldCupTeams = Array.from(new Set(upcomingLineGames.flatMap((game) => [game.away_team, game.home_team]).filter(Boolean))).sort()
+  const worldCupGroups = groupGamesByDate(upcomingLineGames)
+  const worldCupStandings = worldCupStandingGroups(soccerTeams)
   const isPlayoffLeagueScope = (sport === 'NBA' || sport === 'NHL') && teamFormQuery.data?.seasonPhase === 'playoff' && leagueScope === 'playoff'
   const isWnbaRaceScope = sport === 'WNBA' && leagueScope === 'playoff'
   const playoffConferences = teamFormQuery.data?.playoffPicture?.conferences || []
@@ -1126,26 +1368,31 @@ export default function DashboardScreen() {
             style={[styles.segmentButton, view === item && styles.segmentActive]}
           >
             <AppText style={[styles.segmentText, view === item && styles.segmentTextActive]}>
-              {item === 'league' ? 'League View' : item === 'matchups' ? 'Game Matchups' : item === 'lines' ? 'Game Lines' : secondaryViewLabel}
+              {dashboardViewLabel(item)}
             </AppText>
           </Pressable>
         ))}
       </View>
 
       {sport === 'SOCCER' && (
-        <View style={styles.soccerLeagueRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.soccerLeagueRow}
+          style={styles.soccerLeagueScroll}
+        >
           {SOCCER_LEAGUES.map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={() => setSoccerLeague(item.key)}
-              style={[styles.soccerLeaguePill, soccerLeague === item.key && styles.soccerLeaguePillActive]}
-            >
-              <AppText style={[styles.soccerLeagueText, soccerLeague === item.key && styles.soccerLeagueTextActive]}>
-                {item.label}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
+              <Pressable
+                key={item.key}
+                onPress={() => setSoccerLeague(item.key)}
+                style={[styles.soccerLeaguePill, soccerLeague === item.key && styles.soccerLeaguePillActive]}
+              >
+                <AppText style={[styles.soccerLeagueText, soccerLeague === item.key && styles.soccerLeagueTextActive]}>
+                  {item.label}
+                </AppText>
+              </Pressable>
+            ))}
+        </ScrollView>
       )}
 
       {sport === 'NCAAF' && (
@@ -1262,9 +1509,7 @@ export default function DashboardScreen() {
         <Card>
           <AppText variant="eyebrow">// {sport} {isSelectedSportActive ? 'Active' : selectedSport.status}</AppText>
           <AppText variant="title" style={styles.cardTitle}>
-            {isSelectedSportActive
-              ? (view === 'league' ? 'League View' : view === 'matchups' ? 'Game Matchups' : view === 'lines' ? 'Game Lines' : secondaryViewLabel)
-              : selectedSport.inactiveTitle}
+            {isSelectedSportActive ? dashboardViewLabel(view) : selectedSport.inactiveTitle}
           </AppText>
             <AppText variant="muted">
               {isSelectedSportActive && sport === 'SOCCER'
@@ -1571,7 +1816,6 @@ export default function DashboardScreen() {
               const posted = normalizeTeamKey(game.home_team)
               return full === posted || short === posted || full.includes(posted) || posted.includes(full)
             }) : undefined
-            const soccerLean = sport === 'SOCCER' ? soccerMatchupLean(soccerAway, soccerHome, game) : null
             const awayPct = sport === 'MLB' ? Number(awayRecord?.pct || 0) : 0
             const homePct = sport === 'MLB' ? Number(homeRecord?.pct || 0) : 0
             const stronger = sport === 'MLB' && awayPct !== homePct ? (awayPct > homePct ? shortTeamName(game.away_team) : shortTeamName(game.home_team)) : null
@@ -1585,8 +1829,6 @@ export default function DashboardScreen() {
                   ? `${stronger} owns the better season win rate by ${(Math.abs(awayPct - homePct) * 100).toFixed(1)} percentage points.`
                   : 'Season records are close.',
                 pitcherEraNote || 'Use probable pitchers, recent form, and the best posted line before making the call.'].join(' ')
-              : sport === 'SOCCER' && soccerLean
-                ? `${soccerLean.detail} Use posted moneylines to compare the table edge against the best available price.`
                 : 'Use team form and posted market prices together before making the call.'
             const awayRows = sport === 'MLB'
               ? [
@@ -1634,29 +1876,26 @@ export default function DashboardScreen() {
                   <AppText style={styles.gameTitle}>{shortTeamName(game.away_team)} @ {shortTeamName(game.home_team)}</AppText>
                   <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                 </View>
-                {sport === 'SOCCER' && soccerLean && (
-                  <View style={styles.leanBox}>
-                    <View style={styles.leanCopy}>
-                      <AppText variant="mono">KingFish {soccerLean.type}</AppText>
-                      <AppText style={styles.leanMain}>{soccerLean.side}</AppText>
-                      <AppText variant="muted" style={styles.leanDetail}>{soccerLean.detail}</AppText>
-                    </View>
-                    {soccerLean.best && (
-                      <View style={styles.leanPrice}>
-                        <AppText style={styles.leanPriceText}>{soccerLean.best.price > 0 ? `+${soccerLean.best.price}` : soccerLean.best.price}</AppText>
-                        <AppText variant="mono">{BOOK_DISPLAY_NAMES[soccerLean.best.book] || soccerLean.best.book}</AppText>
-                      </View>
-                    )}
+                <View style={styles.matchupTeamGrid}>
+                  <MatchupTeamBox
+                    title={sport === 'SOCCER' && isWorldCupSoccer ? countryLabel(game.away_team) : shortTeamName(game.away_team)}
+                    grade={sport === 'MLB' ? recordGrade(awayPct) : null}
+                    rows={awayRows}
+                    onPress={sport === 'SOCCER' ? () => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, game.away_team)) : undefined}
+                  />
+                  <MatchupTeamBox
+                    title={sport === 'SOCCER' && isWorldCupSoccer ? countryLabel(game.home_team) : shortTeamName(game.home_team)}
+                    grade={sport === 'MLB' ? recordGrade(homePct) : null}
+                    rows={homeRows}
+                    onPress={sport === 'SOCCER' ? () => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, game.home_team)) : undefined}
+                  />
+                </View>
+                {sport !== 'SOCCER' && (
+                  <View style={styles.matchupNote}>
+                    <AppText variant="eyebrow">KingFish Matchup Note</AppText>
+                    <AppText variant="muted" style={styles.matchupNoteText}>{note}</AppText>
                   </View>
                 )}
-                <View style={styles.matchupTeamGrid}>
-                  <MatchupTeamBox title={shortTeamName(game.away_team)} grade={sport === 'MLB' ? recordGrade(awayPct) : null} rows={awayRows} />
-                  <MatchupTeamBox title={shortTeamName(game.home_team)} grade={sport === 'MLB' ? recordGrade(homePct) : null} rows={homeRows} />
-                </View>
-                <View style={styles.matchupNote}>
-                  <AppText variant="eyebrow">KingFish Matchup Note</AppText>
-                  <AppText variant="muted" style={styles.matchupNoteText}>{note}</AppText>
-                </View>
               </Card>
             )
           })}
@@ -2077,7 +2316,10 @@ export default function DashboardScreen() {
                   soccerContext={sport === 'SOCCER' ? {
                     awayInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.away_team),
                     homeInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.home_team),
+                    isTournament: soccerLeague === 'soccer_fifa_world_cup',
                   } : undefined}
+                  onPressSoccerTeam={sport === 'SOCCER' ? (team) => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, team)) : undefined}
+                  userState={profile?.state}
                   showNeutralTotalWatch={sport !== 'NFL'}
                 />
               ))}
@@ -2140,8 +2382,8 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} />}
-          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} />}
+          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} />}
+          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} />}
         </View>
       )}
 
@@ -2411,24 +2653,122 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'league' && sport === 'SOCCER' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">{selectedSoccerLeague.label} team table, goal context, and matchup context</AppText>
+            <AppText variant="mono">
+              {isWorldCupSoccer
+                ? 'World Cup fixtures and market coverage'
+                : `${selectedSoccerLeague.label} team table, goal context, and matchup context`}
+            </AppText>
           </View>
 
-          {soccerTeamQuery.isLoading && (
+          {(isWorldCupSoccer ? lineQuery.isLoading : soccerTeamQuery.isLoading) && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
-              <AppText variant="muted" style={styles.stateText}>Loading team info...</AppText>
+              <AppText variant="muted" style={styles.stateText}>
+                {isWorldCupSoccer ? 'Loading tournament view...' : 'Loading team info...'}
+              </AppText>
             </View>
           )}
 
-          {soccerTeamQuery.isError && (
+          {(isWorldCupSoccer ? lineQuery.isError : soccerTeamQuery.isError) && (
             <Card>
-              <AppText variant="eyebrow">// Team Info</AppText>
-              <AppText variant="muted" style={styles.stateText}>Could not load soccer team info.</AppText>
+              <AppText variant="eyebrow">{isWorldCupSoccer ? '// Tournament View' : '// Team Info'}</AppText>
+              <AppText variant="muted" style={styles.stateText}>
+                {isWorldCupSoccer ? 'Could not load World Cup fixtures.' : 'Could not load soccer team info.'}
+              </AppText>
             </Card>
           )}
 
-          {!soccerTeamQuery.isLoading && !soccerTeamQuery.isError && soccerTeams.length === 0 && (
+          {isWorldCupSoccer && !lineQuery.isLoading && !lineQuery.isError && (
+            <>
+              <Card>
+                <AppText variant="eyebrow">// Tournament View</AppText>
+                <AppText variant="title" style={styles.cardTitle}>World Cup Board</AppText>
+                <View style={styles.tournamentStats}>
+                  <View style={styles.tournamentStat}>
+                    <AppText variant="mono">Fixtures</AppText>
+                    <AppText style={styles.teamInfoValue}>{upcomingLineGames.length}</AppText>
+                  </View>
+                  <View style={styles.tournamentStat}>
+                    <AppText variant="mono">Countries</AppText>
+                    <AppText style={styles.teamInfoValue}>{worldCupTeams.length}</AppText>
+                  </View>
+                  <View style={styles.tournamentStat}>
+                    <AppText variant="mono">Next Window</AppText>
+                    <AppText style={styles.teamInfoValue}>{worldCupGroups[0]?.date || '-'}</AppText>
+                  </View>
+                </View>
+              </Card>
+
+              <Card>
+                <AppText variant="eyebrow">// Standings</AppText>
+                {soccerTeamQuery.isLoading ? (
+                  <View style={styles.compactLoadingRow}>
+                    <ActivityIndicator color={colors.gold} />
+                    <AppText variant="muted">Loading table data...</AppText>
+                  </View>
+                ) : worldCupStandings.length > 0 ? (
+                  <View style={styles.tournamentStandings}>
+                    {worldCupStandings.map((group) => (
+                      <View key={group.name} style={styles.tournamentStandingGroup}>
+                        <AppText variant="mono">{group.name}</AppText>
+                        <View style={styles.tournamentStandingHeader}>
+                          <AppText style={[styles.tournamentStandingHeadText, styles.tournamentStandingTeamCell]}>Country</AppText>
+                          <AppText style={styles.tournamentStandingHeadText}>W-D-L</AppText>
+                          <AppText style={styles.tournamentStandingHeadText}>GD</AppText>
+                          <AppText style={styles.tournamentStandingHeadText}>Pts</AppText>
+                        </View>
+                        {group.entries.map((team) => (
+                          <Pressable
+                            key={`${group.name}-${team.team}`}
+                            onPress={() => setSelectedSoccerTeam(team)}
+                            style={styles.tournamentStandingRow}
+                          >
+                            <AppText style={[styles.tournamentStandingTeam, styles.tournamentStandingTeamCell]} numberOfLines={1}>
+                              {countryStandingLabel(team)}
+                            </AppText>
+                            <AppText style={styles.tournamentStandingValue}>{soccerRecordCompact(team)}</AppText>
+                            <AppText style={styles.tournamentStandingValue}>{soccerGoalDiffLabel(team)}</AppText>
+                            <AppText style={[styles.tournamentStandingValue, styles.tournamentStandingPoints]}>{team.points ?? '-'}</AppText>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <AppText variant="muted" style={styles.stateText}>
+                    Group standings will appear when the tournament table is available.
+                  </AppText>
+                )}
+              </Card>
+
+              {worldCupGroups.map((group) => (
+                <Card key={group.date}>
+                  <AppText variant="eyebrow">// {group.date}</AppText>
+                  <View style={styles.tournamentFixtures}>
+                    {group.games.map((game) => (
+                      <View key={game.id || game.game_id || `${game.away_team}-${game.home_team}`} style={styles.tournamentFixture}>
+                        <View style={styles.tournamentFixtureTeams}>
+                          <Pressable onPress={() => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, game.away_team))}>
+                            <AppText style={styles.tournamentTeam}>{countryLabel(game.away_team)}</AppText>
+                          </Pressable>
+                          <AppText variant="mono">vs</AppText>
+                          <Pressable onPress={() => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, game.home_team))}>
+                            <AppText style={styles.tournamentTeam}>{countryLabel(game.home_team)}</AppText>
+                          </Pressable>
+                        </View>
+                        <View style={styles.tournamentFixtureMeta}>
+                          <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
+                          <AppText variant="mono">{supportedBookmakers(game.bookmakers, profile?.state).length} books</AppText>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </Card>
+              ))}
+            </>
+          )}
+
+          {!isWorldCupSoccer && !soccerTeamQuery.isLoading && !soccerTeamQuery.isError && soccerTeams.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Team Info</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Team Table Yet</AppText>
@@ -2438,39 +2778,41 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {soccerTeams.map((team) => (
-            <Card key={`${team.team}-${team.position}`}>
-              <View style={styles.teamInfoHeader}>
-                <View style={styles.teamInfoRank}>
-                  <AppText style={styles.teamInfoRankText}>{team.position || '-'}</AppText>
+          {!isWorldCupSoccer && soccerTeams.map((team) => (
+            <Pressable key={`${team.team}-${team.position}`} onPress={() => setSelectedSoccerTeam(team)}>
+              <Card>
+                <View style={styles.teamInfoHeader}>
+                  <View style={styles.teamInfoRank}>
+                    <AppText style={styles.teamInfoRankText}>{team.position || '-'}</AppText>
+                  </View>
+                  <View style={styles.teamInfoBody}>
+                    <AppText style={styles.teamInfoName}>{team.shortName || team.team}</AppText>
+                    <AppText variant="muted" style={styles.teamInfoMeta}>
+                      {team.played ? `${team.won || 0}W-${team.drawn || 0}D-${team.lost || 0}L · ${team.points || 0} pts` : 'Record pending'}
+                    </AppText>
+                  </View>
+                  <View style={styles.teamInfoGrade}>
+                    <AppText style={styles.teamInfoGradeText}>{soccerTeamGrade(team)}</AppText>
+                  </View>
                 </View>
-                <View style={styles.teamInfoBody}>
-                  <AppText style={styles.teamInfoName}>{team.shortName || team.team}</AppText>
-                  <AppText variant="muted" style={styles.teamInfoMeta}>
-                    {team.played ? `${team.won || 0}W-${team.drawn || 0}D-${team.lost || 0}L · ${team.points || 0} pts` : 'Record pending'}
-                  </AppText>
+                <View style={styles.teamInfoStats}>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">GF-GA</AppText>
+                    <AppText style={styles.teamInfoValue}>
+                      {team.played ? `${team.goalsFor || 0}-${team.goalsAgainst || 0}` : '-'}
+                    </AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">Goal Diff</AppText>
+                    <AppText style={styles.teamInfoValue}>{team.goalDifference != null ? `${Number(team.goalDifference) >= 0 ? '+' : ''}${team.goalDifference}` : '-'}</AppText>
+                  </View>
+                  <View style={styles.teamInfoStat}>
+                    <AppText variant="mono">PPG</AppText>
+                    <AppText style={styles.teamInfoValue}>{team.played ? pointsPerGame(team).toFixed(2) : '-'}</AppText>
+                  </View>
                 </View>
-                <View style={styles.teamInfoGrade}>
-                  <AppText style={styles.teamInfoGradeText}>{soccerTeamGrade(team)}</AppText>
-                </View>
-              </View>
-              <View style={styles.teamInfoStats}>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">GF-GA</AppText>
-                  <AppText style={styles.teamInfoValue}>
-                    {team.played ? `${team.goalsFor || 0}-${team.goalsAgainst || 0}` : '-'}
-                  </AppText>
-                </View>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">Goal Diff</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.goalDifference != null ? `${Number(team.goalDifference) >= 0 ? '+' : ''}${team.goalDifference}` : '-'}</AppText>
-                </View>
-                <View style={styles.teamInfoStat}>
-                  <AppText variant="mono">PPG</AppText>
-                  <AppText style={styles.teamInfoValue}>{team.played ? pointsPerGame(team).toFixed(2) : '-'}</AppText>
-                </View>
-              </View>
-            </Card>
+              </Card>
+            </Pressable>
           ))}
         </View>
       )}
@@ -2487,6 +2829,11 @@ export default function DashboardScreen() {
           </View>
         </Card>
       )}
+      <SoccerTeamProfileModal
+        team={selectedSoccerTeam}
+        league={soccerLeague}
+        onClose={() => setSelectedSoccerTeam(null)}
+      />
     </Screen>
   )
 }
@@ -2591,8 +2938,11 @@ const styles = StyleSheet.create({
   },
   soccerLeagueRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: spacing.lg,
+  },
+  soccerLeagueScroll: {
+    flexGrow: 0,
     marginBottom: spacing.lg,
   },
   soccerLeaguePill: {
@@ -2762,6 +3112,203 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.bgCardAlt,
     padding: spacing.md,
+  },
+  tournamentStats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  tournamentStat: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.sm,
+  },
+  compactLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  tournamentStandings: {
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  tournamentStandingGroup: {
+    gap: spacing.xs,
+  },
+  tournamentStandingHeader: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  tournamentStandingHeadText: {
+    flex: 0.58,
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    textAlign: 'right',
+  },
+  tournamentStandingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: spacing.sm,
+  },
+  tournamentStandingTeamCell: {
+    flex: 1.65,
+    minWidth: 0,
+    textAlign: 'left',
+  },
+  tournamentStandingTeam: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '900',
+  },
+  tournamentStandingValue: {
+    flex: 0.58,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  tournamentStandingPoints: {
+    color: colors.gold,
+  },
+  teamProfileOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,.62)',
+  },
+  teamProfileBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  teamProfileSheet: {
+    maxHeight: '82%',
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: colors.bgCard,
+    overflow: 'hidden',
+  },
+  teamProfileHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    padding: spacing.lg,
+  },
+  teamProfileTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  teamProfileTitle: {
+    marginTop: spacing.xs,
+  },
+  closeTeamProfile: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeTeamProfileText: {
+    color: colors.textMuted,
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: '900',
+  },
+  teamProfileBody: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  teamProfileGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  teamProfileStat: {
+    width: '31.5%',
+    minHeight: 78,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.sm,
+  },
+  teamProfileValue: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    marginTop: spacing.xs,
+  },
+  teamProfileForm: {
+    color: colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    marginTop: spacing.sm,
+  },
+  teamProfileNewsList: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  teamProfileNewsItem: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  teamProfileNewsHeadline: {
+    color: colors.textPrimary,
+    fontSize: 19,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  teamProfileNewsDescription: {
+    marginTop: spacing.xs,
+  },
+  teamProfileNewsMeta: {
+    color: colors.gold,
+    marginTop: spacing.sm,
+  },
+  tournamentFixtures: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  tournamentFixture: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+  },
+  tournamentFixtureTeams: {
+    gap: spacing.xs,
+  },
+  tournamentTeam: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '900',
+  },
+  tournamentFixtureMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   centerState: {
     alignItems: 'center',
@@ -3021,6 +3568,10 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  matchupTeamTitlePress: {
+    flex: 1,
+    minWidth: 0,
   },
   matchupGrade: {
     color: colors.gold,

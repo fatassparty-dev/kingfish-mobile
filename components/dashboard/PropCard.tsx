@@ -7,7 +7,7 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
-import { displayBookName, PROP_BOOK_KEYS } from '@/lib/sportsbooks'
+import { displayBookName, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Market, Outcome, Sport } from '@/types'
 
@@ -411,11 +411,12 @@ function marketKeysForSport(sport: Sport) {
   return []
 }
 
-function availableMarkets(games: Game[], sport: Sport) {
+function availableMarkets(games: Game[], sport: Sport, userState?: string | null) {
   const available = new Set<string>()
+  const bookKeys = eligiblePropBookKeys(userState)
   games.forEach((game) => {
     game.bookmakers?.forEach((bookmaker) => {
-      if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+      if (!bookKeys.includes(bookmaker.key)) return
       bookmaker.markets?.forEach((market) => {
           if (market.outcomes?.some((outcome) => {
             const isTouchdown = sport === 'NFL' && isNflTouchdownMarket(market.key)
@@ -437,14 +438,15 @@ function upcomingGames(games: Game[]) {
     .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
 }
 
-export function flattenProps(games: Game[], limit?: number, marketKey?: string): FlattenedProp[] {
+export function flattenProps(games: Game[], limit?: number, marketKey?: string, userState?: string | null): FlattenedProp[] {
   const propMap = new Map<string, FlattenedProp>()
+  const bookKeys = eligiblePropBookKeys(userState)
 
   for (const game of upcomingGames(games)) {
     const players = new Map<string, { market: Market; playerName: string; bookData: PlayerBookData; anytime: Record<string, number>; bookTitles: Record<string, string> }>()
 
     for (const bookmaker of game.bookmakers || []) {
-      if (!PROP_BOOK_KEYS.includes(bookmaker.key)) continue
+      if (!bookKeys.includes(bookmaker.key)) continue
       for (const market of bookmaker.markets || []) {
         if (marketKey && market.key !== marketKey) continue
         for (const outcome of market.outcomes || []) {
@@ -475,7 +477,7 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
     players.forEach((entry) => {
       const isTouchdown = isNflTouchdownMarket(entry.market.key) || entry.market.key === 'player_goal_scorer_anytime'
       if (isTouchdown) {
-        const options = PROP_BOOK_KEYS
+        const options = bookKeys
           .map((book) => ({ book, odds: entry.anytime[book] }))
           .filter((item): item is { book: string; odds: number } => typeof item.odds === 'number')
         if (!options.length) return
@@ -489,8 +491,8 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
         return
       }
 
-      const line = getDisplayLine(entry.bookData, PROP_BOOK_KEYS)
-      const best = getBestOverAtLine(entry.bookData, PROP_BOOK_KEYS, line)
+      const line = getDisplayLine(entry.bookData, bookKeys)
+      const best = getBestOverAtLine(entry.bookData, bookKeys, line)
       if (!best) return
       propMap.set(`${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`, {
         game,
@@ -505,11 +507,11 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string):
   return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit, initialStats }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any> }) {
+export function PropsList({ games, sport, limit, initialStats, userState }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const compactTable = sport === 'NFL' && landscapeTable
-  const availableMarketKeys = useMemo(() => availableMarkets(games, sport), [games, sport])
+  const availableMarketKeys = useMemo(() => availableMarkets(games, sport, userState), [games, sport, userState])
   const markets = useMemo(() => {
     if (availableMarketKeys.length || sport !== 'NFL') return availableMarketKeys
     return NFL_MARKETS.filter((marketKey) => !isAlternateMarket(marketKey))
@@ -540,7 +542,8 @@ export function PropsList({ games, sport, limit, initialStats }: { games: Game[]
       ? games
       : games.filter((game) => String(game.game_id || game.id) === activeGameFilter),
     limit,
-    selectedMarket
+    selectedMarket,
+    userState
   )
   const props = allProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]

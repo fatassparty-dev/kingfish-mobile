@@ -7,7 +7,7 @@ import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { kingfishFetch } from '@/lib/api'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
-import { PROP_BOOK_KEYS } from '@/lib/sportsbooks'
+import { eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game } from '@/types'
 
@@ -216,13 +216,14 @@ function buildRows(
   lineupMap: Record<string, LineupPlayer>,
   stats: Record<number, any>,
   search: string,
+  bookKeys: string[],
   bvpStats: Record<string, any> = {},
   bvpByGameBatter: Map<string, BvpMatchup> = new Map(),
 ): PlayerRow[] {
   const playerMap: Record<string, Record<string, { over?: number; point?: number }>> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
-    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
+    if (!bookKeys.includes(bookmaker.key)) return
     bookmaker.markets?.forEach((market) => {
       if (market.key !== marketKey) return
       market.outcomes?.forEach((outcome) => {
@@ -241,8 +242,8 @@ function buildRows(
     .filter((player) => !search || player.toLowerCase().includes(search.toLowerCase()))
     .map((player) => {
       const bookData = playerMap[player]
-      const line = getDisplayLine(bookData, PROP_BOOK_KEYS)
-      const best = getBestOverAtLine(bookData, PROP_BOOK_KEYS, line)
+      const line = getDisplayLine(bookData, bookKeys)
+      const best = getBestOverAtLine(bookData, bookKeys, line)
       const lineup = findLineupPlayer(lineupMap, player)
       const bvpMeta = lineup ? bvpByGameBatter.get(`${gameId(game)}_${lineup.id}`) : undefined
       const bvp = bvpMeta ? bvpStats[`${bvpMeta.batterID}_${bvpMeta.pitcherID}`] : null
@@ -333,7 +334,7 @@ function buildBvpMatchups(
   return matchups
 }
 
-export function MLBPropsTable({ games }: { games: Game[] }) {
+export function MLBPropsTable({ games, userState }: { games: Game[]; userState?: string | null }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const [marketKey, setMarketKey] = useState('batter_hits')
@@ -352,6 +353,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
   const filteredGames = activeGameFilter === 'all'
     ? gameOptions
     : gameOptions.filter((game) => gameId(game) === activeGameFilter)
+  const bookKeys = eligiblePropBookKeys(userState)
   const selectedGameForHeader = activeGameFilter === 'all'
     ? null
     : gameOptions.find((game) => gameId(game) === activeGameFilter)
@@ -479,7 +481,7 @@ export function MLBPropsTable({ games }: { games: Game[] }) {
   const selectedGameLabel = selectedGameForHeader
     ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
     : 'All Games'
-  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bvpQuery.data?.bvp, bvpByGameBatter)))
+  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter)))
 
   return (
     <View style={styles.wrap}>

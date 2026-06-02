@@ -12,6 +12,7 @@ import { useMobileConfig } from '@/lib/mobileConfig'
 import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
+import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
 
 type NotificationPreferenceKey = 'account' | 'betting' | 'offers'
 type NotificationPreferences = Record<NotificationPreferenceKey, boolean>
@@ -111,15 +112,15 @@ export default function AccountScreen() {
   async function saveProfile() {
     const nextFirstName = profileFirstName.trim()
     const nextLastName = profileLastName.trim()
-    const nextState = profileState.trim().toUpperCase()
+    const nextState = normalizeLocation(profileState)
 
     setProfileMessage('')
     if (!nextFirstName || !nextLastName) {
       setProfileMessage('First and last name are required.')
       return
     }
-    if (nextState && nextState.length !== 2) {
-      setProfileMessage('Use a 2-letter state abbreviation.')
+    if (!isValidLocation(nextState)) {
+      setProfileMessage('Use a state abbreviation, PR, or OTHER.')
       return
     }
     if (!user?.id) {
@@ -281,8 +282,7 @@ export default function AccountScreen() {
             </View>
             <TextInput
               autoCapitalize="characters"
-              maxLength={2}
-              placeholder="State, optional"
+              placeholder="Location, optional"
               placeholderTextColor={colors.textMuted}
               value={profileState}
               onChangeText={setProfileState}
@@ -298,7 +298,7 @@ export default function AccountScreen() {
           <>
             <View style={styles.profileGrid}>
               <ProfileCell label="Name" value={displayName || 'Not set'} />
-              <ProfileCell label="State" value={profile?.state || 'Not set'} />
+              <ProfileCell label="Location" value={locationLabel(profile?.state)} />
               <ProfileCell label="Plan" value={planLabel} />
               <ProfileCell label="Renews" value={renewalLabel} />
             </View>

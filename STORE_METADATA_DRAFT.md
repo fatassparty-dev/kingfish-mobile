@@ -8,7 +8,7 @@ KingFish Bets
 
 ## Subtitle / Short Description
 
-Sports analytics, odds research, props, and fantasy tools.
+Props & Odds Analytics
 
 ## Promotional Text
 
@@ -35,7 +35,7 @@ KingFish does not accept wagers. KingFish is an 18+ analytics and information pl
 
 ## Keywords
 
-sports analytics, sports betting research, odds research, player props, fantasy football, MLB props, NFL odds, sportsbook odds, cheat sheets, live odds
+sports odds,player props,MLB props,NFL odds,sports analytics,betting research,cheat sheets
 
 ## App Review Notes
 
