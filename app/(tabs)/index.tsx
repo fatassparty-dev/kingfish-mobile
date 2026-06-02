@@ -320,7 +320,7 @@ const SPORTS: Array<{
   key: Sport
   flag: FeatureFlagKey
   visibilityFlag: string
-  status: 'Live' | 'Offseason'
+  status: 'Live' | 'Markets'
   description: string
   inactiveTitle: string
   inactiveDescription: string
@@ -338,7 +338,7 @@ const SPORTS: Array<{
     key: 'NFL',
     flag: 'nfl_props',
     visibilityFlag: 'dashboard_tab_nfl',
-    status: 'Offseason',
+    status: 'Markets',
     description: 'NFL lines, matchups, props, and fantasy tools.',
     inactiveTitle: 'NFL Not In Season',
     inactiveDescription: 'Fantasy, draft research, injuries, futures, and offseason notes.',
@@ -383,7 +383,7 @@ const SPORTS: Array<{
     key: 'NCAAB',
     flag: 'dashboard_ncaab',
     visibilityFlag: 'dashboard_tab_ncaab',
-    status: 'Offseason',
+    status: 'Markets',
     description: 'College basketball lines, team trends, and matchups.',
     inactiveTitle: 'College Basketball Not In Season',
     inactiveDescription: 'Game lines and matchup context return in season.',
@@ -392,16 +392,16 @@ const SPORTS: Array<{
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
     visibilityFlag: 'dashboard_tab_ncaaf',
-    status: 'Offseason',
+    status: 'Markets',
     description: 'College football lines, team stats, and matchups.',
-    inactiveTitle: 'College Football Not In Season',
-    inactiveDescription: 'Game lines and matchup context return in season.',
+    inactiveTitle: 'College Football Lines Awaiting Markets',
+    inactiveDescription: 'Game lines and matchup context appear when sportsbooks post active markets.',
   },
   {
     key: 'SOCCER',
     flag: 'dashboard_soccer',
     visibilityFlag: 'dashboard_tab_soccer',
-    status: 'Offseason',
+    status: 'Markets',
     description: 'Soccer lines, league context, and team form.',
     inactiveTitle: 'Soccer Markets Unavailable',
     inactiveDescription: 'Game lines appear when league markets are active.',
@@ -1525,9 +1525,9 @@ export default function DashboardScreen() {
           </AppText>
           {!isSelectedSportActive && (
             <View style={styles.roadmapBox}>
-              <AppText variant="eyebrow">// Season Watch</AppText>
+              <AppText variant="eyebrow">// Market Watch</AppText>
               <AppText variant="muted" style={styles.roadmapText}>
-                Check back when markets are active.
+                Lines appear when sportsbooks post active markets.
               </AppText>
             </View>
           )}
@@ -2319,6 +2319,9 @@ export default function DashboardScreen() {
                   nflContext={sport === 'NFL' ? {
                     teamAbbrMap: NFL_TEAM_ABBR,
                     teamStatsMap: nflTeamStatsMap(nflCommandQuery.data),
+                  } : undefined}
+                  ncaafContext={sport === 'NCAAF' ? {
+                    teams: ncaafOutlookQuery.data?.teams,
                   } : undefined}
                   soccerContext={sport === 'SOCCER' ? {
                     awayInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.away_team),

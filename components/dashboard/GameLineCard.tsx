@@ -23,6 +23,17 @@ type NflLineContext = {
   teamStatsMap?: Record<string, { powerScore?: number }>
 }
 
+type NcaafLineContext = {
+  teams?: Array<{
+    rank?: number
+    team: string
+    lastRecord?: string
+    currentRecord?: string
+    schedule?: string
+    lean?: string
+  }>
+}
+
 type SoccerLineContext = {
   awayInfo?: Record<string, any>
   homeInfo?: Record<string, any>
@@ -128,7 +139,16 @@ function shortTeamName(team: string) {
   return pieces[pieces.length - 1] || team
 }
 
-function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game): LeanResult | null {
+function ncaafProgramName(team: string) {
+  const overrides: Record<string, string> = {
+    'TCU Horned Frogs': 'TCU',
+    'North Carolina Tar Heels': 'North Carolina',
+  }
+  if (overrides[team]) return overrides[team]
+  return team.replace(/ University$/i, '').replace(/ College$/i, '')
+}
+
+function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game, sport?: Sport): LeanResult | null {
   const totals: Record<string, number[]> = {}
 
   bookmakers.forEach((bookmaker) => {
@@ -168,7 +188,7 @@ function consensusMoneylineLean(bookmakers: Bookmaker[], game: Game): LeanResult
         : bestMoneyline(bookmakers, top.name)
 
   return {
-    label: `${shortTeamName(top.name)} ML`,
+    label: `${sport === 'NCAAF' ? ncaafProgramName(top.name) : shortTeamName(top.name)} ML`,
     detail: `Books lean this side across ${top.books} prices. Best number shown.`,
     price: best?.price,
     book: best?.book,
@@ -527,6 +547,85 @@ function nflMoneylineLean(
   }
 }
 
+function recordPct(record?: string) {
+  const match = String(record || '').match(/(\d+)\s*-\s*(\d+)/)
+  if (!match) return null
+  const wins = Number(match[1])
+  const losses = Number(match[2])
+  const total = wins + losses
+  return total > 0 ? wins / total : null
+}
+
+function ncaafTeamContext(team: string, context?: NcaafLineContext) {
+  const clean = ncaafProgramName(team).toLowerCase()
+  return context?.teams?.find((item) => {
+    const itemClean = ncaafProgramName(item.team).toLowerCase()
+    return itemClean === clean || clean.includes(itemClean) || itemClean.includes(clean)
+  })
+}
+
+function ncaafBaselineScore(team: string, context?: NcaafLineContext) {
+  const info = ncaafTeamContext(team, context)
+  if (!info) return 50
+  const rank = Number(info.rank)
+  const rankScore = Number.isFinite(rank) && rank > 0 ? clampScore(90 - (rank * 1.25)) : 50
+  const pct = recordPct(info.currentRecord || info.lastRecord)
+  const recordScore = pct === null ? rankScore : clampScore(pct * 100)
+  const scheduleText = `${info.schedule || ''} ${info.lean || ''}`.toLowerCase()
+  const scheduleBonus = scheduleText.includes('elite') || scheduleText.includes('playoff') || scheduleText.includes('title')
+    ? 4
+    : scheduleText.includes('strong') ? 2 : 0
+  return clampScore((rankScore * 0.62) + (recordScore * 0.28) + 10 + scheduleBonus)
+}
+
+function ncaafSpreadScore(line: { point?: number } | null) {
+  if (typeof line?.point !== 'number') return 50
+  return line.point < 0
+    ? clampScore(55 + (Math.abs(line.point) * 2))
+    : clampScore(48 - (line.point * 1.15))
+}
+
+function ncaafMlScore(
+  line: { price: number } | null,
+  spread: { point?: number } | null,
+  team: string,
+  isHome: boolean,
+  context?: NcaafLineContext,
+) {
+  const marketScore = line ? (impliedProbability(line.price) || 0.5) * 100 : 50
+  const baseline = ncaafBaselineScore(team, context)
+  const spreadScore = ncaafSpreadScore(spread)
+  const venueScore = isHome ? 56 : 50
+  return clampScore((marketScore * 0.45) + (baseline * 0.3) + (spreadScore * 0.15) + (venueScore * 0.1))
+}
+
+function ncaafMoneylineLean(
+  game: Game,
+  awayMoneyline: { book: string; price: number } | null,
+  homeMoneyline: { book: string; price: number } | null,
+  awaySpread: { book: string; price: number; point?: number } | null,
+  homeSpread: { book: string; price: number; point?: number } | null,
+  context?: NcaafLineContext,
+): LeanResult | null {
+  if (!awayMoneyline || !homeMoneyline) return consensusMoneylineLean([], game, 'NCAAF')
+  const awayScore = ncaafMlScore(awayMoneyline, awaySpread, game.away_team, false, context)
+  const homeScore = ncaafMlScore(homeMoneyline, homeSpread, game.home_team, true, context)
+  const awayLean = awayScore >= homeScore
+  const diff = Math.abs(awayScore - homeScore)
+  const score = Math.round(awayLean ? awayScore : homeScore)
+  const otherScore = Math.round(awayLean ? homeScore : awayScore)
+  const best = awayLean ? awayMoneyline : homeMoneyline
+  const team = awayLean ? game.away_team : game.home_team
+  return {
+    label: `${ncaafProgramName(team)} ML`,
+    detail: moneylineScoreDetail(score, otherScore),
+    price: best.price,
+    book: best.book,
+    type: mlScoreType(diff),
+    team,
+  }
+}
+
 function soccerPlayed(team: Record<string, any> | undefined) {
   return Number(team?.played || 0)
 }
@@ -717,6 +816,7 @@ export function GameLineCard({
   mlbContext,
   teamFormContext,
   nflContext,
+  ncaafContext,
   soccerContext,
   onPressSoccerTeam,
   userState,
@@ -728,6 +828,7 @@ export function GameLineCard({
   mlbContext?: MlbLineContext
   teamFormContext?: TeamFormLineContext
   nflContext?: NflLineContext
+  ncaafContext?: NcaafLineContext
   soccerContext?: SoccerLineContext
   onPressSoccerTeam?: (team: string) => void
   userState?: string | null
@@ -748,13 +849,15 @@ export function GameLineCard({
     ? mlbMoneylineLean(game, awayBest, homeBest, mlbContext)
     : sport === 'NFL'
       ? nflMoneylineLean(game, awayBest, homeBest, nflContext)
+    : sport === 'NCAAF'
+      ? ncaafMoneylineLean(game, awayBest, homeBest, awaySpread, homeSpread, ncaafContext)
     : sport === 'SOCCER'
       ? soccerContext?.isTournament
         ? soccerMarketSnapshot(game, awayBest, homeBest, drawBest)
         : soccerMoneylineLean(game, awayBest, homeBest, drawBest, soccerContext)
     : usesTeamFormLean
       ? teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext)
-    : consensusMoneylineLean(bookmakers, game)
+    : consensusMoneylineLean(bookmakers, game, sport)
   const totalLean = sport === 'MLB'
     ? mlbTotalLean(game, over, under, bookmakers, mlbContext)
     : sport === 'SOCCER'
@@ -818,8 +921,8 @@ export function GameLineCard({
       {(awaySpread || homeSpread) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Spread</AppText>
-          <MarketRow team={game.away_team} line={awaySpread} />
-          <MarketRow team={game.home_team} line={homeSpread} />
+          <MarketRow team={game.away_team} line={awaySpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} />
+          <MarketRow team={game.home_team} line={homeSpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} />
         </View>
       )}
 
@@ -909,7 +1012,7 @@ function TeamRow({
   )
 }
 
-function MarketRow({ team, line }: { team: string; line: { price: number; point?: number; book: string } | null }) {
+function MarketRow({ team, line, marketLabel }: { team: string; line: { price: number; point?: number; book: string } | null; marketLabel: string }) {
   const point = line ? fmtSpreadPoint(line.point) : ''
   return (
     <View style={styles.marketRow}>
@@ -918,7 +1021,7 @@ function MarketRow({ team, line }: { team: string; line: { price: number; point?
           <AppText style={styles.marketTeam}>{team}</AppText>
           {point ? <AppText style={styles.marketPoint}>{point}</AppText> : null}
         </View>
-        <AppText variant="mono">RL</AppText>
+        <AppText variant="mono">{marketLabel}</AppText>
       </View>
       <AppText style={styles.marketPrice}>{line ? fmtOdds(line.price) : '-'}</AppText>
     </View>
