@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Card } from '@/components/Card'
@@ -10,12 +10,13 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { colors, spacing } from '@/lib/theme'
 
-type FantasyMode = 'home' | 'bestball' | 'planner' | 'sleeper'
+type FantasyMode = 'home' | 'bestball' | 'planner' | 'teams'
 type Position = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'K' | 'DST'
 type PlannerLeague = 'home' | 'bestball'
 type BoardMode = 'home' | 'bestball'
 type BestBallView = 'players' | 'stacks'
 type StackBuild = 'small' | 'full'
+type DraftFormat = 'PPR' | 'Half PPR' | 'Standard'
 
 type DraftPlayer = {
   id: string
@@ -52,6 +53,14 @@ type SleeperPlayer = {
   depthRole?: { rank?: number | null; role?: string | null } | null
 }
 
+type ManualTeam = {
+  id: string
+  name: string
+  format: DraftFormat
+  playerIds: string[]
+  createdAt: string
+}
+
 type FantasyPayload = {
   generated_at?: string | null
   latest_season?: number | null
@@ -73,6 +82,7 @@ type FantasyPayload = {
 }
 
 const STORAGE_KEY = 'kingfish_sleeper_connect_v1'
+const MANUAL_TEAMS_STORAGE_KEY = 'kingfish_fantasy_manual_teams_v1'
 const HIDDEN_STORAGE_KEY = 'kingfish_fantasy_hidden_v1'
 const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v1'
 const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
@@ -189,6 +199,34 @@ function getStackPieces(players: DraftPlayer[], team: string, build: StackBuild)
   return [qb, ...passCatchers].filter((player): player is DraftPlayer => Boolean(player))
 }
 
+function positionCounts(players: Array<{ position?: string | null }>) {
+  return players.reduce<Record<string, number>>((counts, player) => {
+    const position = player.position || 'UNK'
+    counts[position] = (counts[position] || 0) + 1
+    return counts
+  }, {})
+}
+
+function rosterRead(players: Array<{ position?: string | null; risk?: string | null; injury_status?: string | null }>) {
+  const counts = positionCounts(players)
+  const skillDepth = (counts.RB || 0) + (counts.WR || 0) + (counts.TE || 0)
+  const riskCount = players.filter(player => player.risk && player.risk !== 'Low').length
+  const injuryCount = players.filter(player => player.injury_status).length
+  const strength = counts.WR >= 5 ? 'WR depth' : counts.RB >= 4 ? 'RB depth' : counts.QB >= 2 ? 'QB depth' : skillDepth >= 8 ? 'Skill depth' : 'Core starters'
+  const watch = counts.RB < 3
+    ? 'RB depth'
+    : counts.WR < 4
+      ? 'WR depth'
+      : counts.TE < 1
+        ? 'TE depth'
+        : injuryCount
+          ? 'Injury tags'
+          : riskCount
+            ? 'Role risk'
+            : 'Waiver upgrades'
+  return { counts, strength, watch, riskCount, injuryCount }
+}
+
 export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
@@ -209,6 +247,12 @@ export default function FantasyToolScreen() {
   const [plannerStackTeam, setPlannerStackTeam] = useState('ALL')
   const [plannerStackBuild, setPlannerStackBuild] = useState<StackBuild>('small')
   const [bestBallStackTeam, setBestBallStackTeam] = useState('ALL')
+  const [manualTeams, setManualTeams] = useState<ManualTeam[]>([])
+  const [draftModalOpen, setDraftModalOpen] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
+  const [draftSearch, setDraftSearch] = useState('')
+  const [draftPlayerIds, setDraftPlayerIds] = useState<string[]>([])
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -262,6 +306,16 @@ export default function FantasyToolScreen() {
         if (Array.isArray(parsed?.taken)) setPlannerTaken(parsed.taken)
         if (typeof parsed?.stackTeam === 'string') setPlannerStackTeam(parsed.stackTeam)
         if (parsed?.stackBuild === 'small' || parsed?.stackBuild === 'full') setPlannerStackBuild(parsed.stackBuild)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    AsyncStorage.getItem(MANUAL_TEAMS_STORAGE_KEY)
+      .then(value => {
+        if (!value) return
+        const parsed = JSON.parse(value)
+        if (Array.isArray(parsed)) setManualTeams(parsed)
       })
       .catch(() => {})
   }, [])
@@ -328,6 +382,40 @@ export default function FantasyToolScreen() {
     [plannerSourcePlayers, plannerStackBuild, plannerStackTeam],
   )
   const bestBallStackTeams = useMemo(() => getStackTeams(orderedBestBallPlayers), [orderedBestBallPlayers])
+  const allRankedPlayers = useMemo(() => {
+    const byId = new Map<string, DraftPlayer>()
+    ;[...orderedHomePlayers, ...orderedBestBallPlayers].forEach(player => {
+      if (!byId.has(player.id)) byId.set(player.id, player)
+    })
+    return Array.from(byId.values()).sort((a, b) => a.rank - b.rank)
+  }, [orderedBestBallPlayers, orderedHomePlayers])
+  const draftSelectedPlayers = useMemo(() => {
+    const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
+    return draftPlayerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
+  }, [allRankedPlayers, draftPlayerIds])
+  const draftSearchResults = useMemo(() => {
+    const selected = new Set(draftPlayerIds)
+    const needle = draftSearch.trim().toLowerCase()
+    return allRankedPlayers
+      .filter(player => !selected.has(player.id))
+      .filter(player => {
+        if (!needle) return true
+        return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle) || player.position.toLowerCase().includes(needle)
+      })
+      .slice(0, 16)
+  }, [allRankedPlayers, draftPlayerIds, draftSearch])
+  const manualTeamCards = useMemo(() => {
+    const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
+    return manualTeams.map(team => {
+      const teamPlayers = team.playerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
+      return {
+        team,
+        players: teamPlayers,
+        read: rosterRead(teamPlayers),
+      }
+    })
+  }, [allRankedPlayers, manualTeams])
+  const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
   const plannerTakenPlayers = useMemo(() => {
     const byId = new Map(plannerSourcePlayers.map(player => [player.id, player]))
     return plannerTaken.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
@@ -394,7 +482,7 @@ export default function FantasyToolScreen() {
     const next = { username }
     setActiveSleeper(next)
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setMode('sleeper')
+    setMode('teams')
   }
 
   async function selectLeague(leagueId: string, rosterId?: string) {
@@ -478,6 +566,13 @@ export default function FantasyToolScreen() {
     await savePlannerState(next)
   }
 
+  async function pickPlannerPlayer(player?: DraftPlayer | null) {
+    if (!player) return
+    setDraftPlayerIds(ids => Array.from(new Set([...ids, player.id])))
+    if (!draftName.trim()) setDraftName('My Draft')
+    await markPlannerTaken(player.id)
+  }
+
   async function clearPlannerTaken() {
     setPlannerTaken([])
     await savePlannerState([])
@@ -487,6 +582,49 @@ export default function FantasyToolScreen() {
     const next = plannerTaken.filter(id => id !== playerId)
     setPlannerTaken(next)
     await savePlannerState(next)
+  }
+
+  function openDraftModal(reset = true) {
+    if (reset) {
+      setDraftName('')
+      setDraftFormat('PPR')
+      setDraftPlayerIds([])
+    }
+    setDraftSearch('')
+    setDraftModalOpen(true)
+  }
+
+  async function saveManualTeam() {
+    const name = draftName.trim()
+    if (!name) {
+      Alert.alert('Team Name Needed', 'Add a name for this saved draft.')
+      return
+    }
+    if (draftPlayerIds.length < 5) {
+      Alert.alert('Add More Players', 'Save at least 5 drafted players so KingFish can monitor the roster.')
+      return
+    }
+    const nextTeam: ManualTeam = {
+      id: `${Date.now()}`,
+      name,
+      format: draftFormat,
+      playerIds: draftPlayerIds,
+      createdAt: new Date().toISOString(),
+    }
+    const next = [nextTeam, ...manualTeams]
+    setManualTeams(next)
+    await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
+    setDraftModalOpen(false)
+    setDraftName('')
+    setDraftSearch('')
+    setDraftPlayerIds([])
+    setMode('teams')
+  }
+
+  async function deleteManualTeam(teamId: string) {
+    const next = manualTeams.filter(team => team.id !== teamId)
+    setManualTeams(next)
+    await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
   }
 
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
@@ -501,7 +639,7 @@ export default function FantasyToolScreen() {
 
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
       <AppText variant="muted" style={styles.copy}>
-        Draft boards and team tracking for football season.
+        A roster monitoring and fast decision support tool for draft season.
       </AppText>
 
       <View style={styles.segmentRow}>
@@ -509,7 +647,7 @@ export default function FantasyToolScreen() {
           { key: 'home', label: 'Home' },
           { key: 'bestball', label: 'Best Ball' },
           { key: 'planner', label: 'Planner' },
-          { key: 'sleeper', label: 'Sleeper' },
+          { key: 'teams', label: 'My Teams' },
         ] as Array<{ key: FantasyMode; label: string }>).map(item => (
           <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.segmentButton, mode === item.key && styles.segmentButtonActive]}>
             <AppText style={[styles.segmentText, mode === item.key && styles.segmentTextActive]}>{item.label}</AppText>
@@ -528,10 +666,76 @@ export default function FantasyToolScreen() {
           <AppText style={styles.cardTitle}>Could Not Load</AppText>
           <AppText variant="muted" style={styles.cardCopy}>{fantasyQuery.error instanceof Error ? fantasyQuery.error.message : 'Fantasy Hub is unavailable right now.'}</AppText>
         </Card>
-      ) : mode === 'sleeper' ? (
+      ) : mode === 'teams' ? (
         <>
+          <Card style={styles.metaCard}>
+            <AppText variant="eyebrow">// My Teams</AppText>
+            <AppText style={styles.cardTitle}>Roster Watch</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>
+              Save draft results or connect Sleeper teams for roster monitoring, player news, role changes, and waiver planning. KingFish does not track live fantasy scoring.
+            </AppText>
+            <View style={styles.boardButtonRow}>
+              <Pressable onPress={() => openDraftModal()} style={styles.actionButtonWide}>
+                <AppText style={styles.actionText}>Save My Draft</AppText>
+              </Pressable>
+            </View>
+          </Card>
+
+          <Card style={styles.metaCard}>
+            <AppText variant="eyebrow">// Saved Drafts</AppText>
+            {manualTeamCards.length ? (
+              <View style={styles.manualTeamList}>
+                {manualTeamCards.map(({ team, players: teamPlayers, read }) => (
+                  <View key={team.id} style={styles.manualTeamCard}>
+                    <View style={styles.manualTeamHeader}>
+                      <View style={styles.playerMain}>
+                        <AppText style={styles.leagueName}>{team.name}</AppText>
+                        <AppText variant="muted" style={styles.leagueMeta}>{team.format} · {teamPlayers.length} players</AppText>
+                      </View>
+                      <Pressable onPress={() => deleteManualTeam(team.id)} style={styles.hideButton}>
+                        <AppText style={styles.hideText}>Delete</AppText>
+                      </Pressable>
+                    </View>
+                    <View style={styles.teamReadGrid}>
+                      <View style={styles.teamReadItem}>
+                        <AppText variant="eyebrow">Strength</AppText>
+                        <AppText style={styles.teamReadValue}>{read.strength}</AppText>
+                      </View>
+                      <View style={styles.teamReadItem}>
+                        <AppText variant="eyebrow">Watch</AppText>
+                        <AppText style={styles.teamReadValue}>{read.watch}</AppText>
+                      </View>
+                    </View>
+                    <View style={styles.plannerSummary}>
+                      {(['QB', 'RB', 'WR', 'TE', 'K', 'DST'] as const).map(pos => (
+                        <View key={pos} style={styles.plannerSummaryItem}>
+                          <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
+                          <AppText style={styles.plannerSummaryCount}>{read.counts[pos] || 0}</AppText>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.takenChipRow}>
+                      {teamPlayers.slice(0, 8).map(player => (
+                        <Pressable key={player.id} onPress={() => setProfilePlayer(player.name)} style={styles.takenChip}>
+                          <AppText style={styles.takenChipText}>{player.name}</AppText>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <AppText variant="muted" style={styles.cardCopy}>
+                No saved drafts yet. Save a draft after your league finishes so KingFish can watch roster strengths, thin spots, and player role signals.
+              </AppText>
+            )}
+          </Card>
+
           <Card style={styles.connectCard}>
-            <AppText variant="eyebrow">// Connect Sleeper</AppText>
+            <AppText variant="eyebrow">// Sleeper Synced Teams</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>
+              Import Sleeper rosters for monitoring only. Live points, standings, and matchup scoring stay in Sleeper.
+            </AppText>
             <View style={styles.inputRow}>
               <TextInput
                 value={sleeperUsername}
@@ -685,6 +889,9 @@ export default function FantasyToolScreen() {
             </View>
 
             <View style={styles.boardButtonRow}>
+              <Pressable onPress={() => openDraftModal(!draftPlayerIds.length)} style={styles.clearButton}>
+                <AppText style={styles.clearButtonText}>{draftPlayerIds.length ? 'Edit Draft' : 'Save My Draft'}</AppText>
+              </Pressable>
               <Pressable onPress={clearPlannerTaken} disabled={!plannerTaken.length} style={[styles.clearButton, !plannerTaken.length && styles.disabledButton]}>
                 <AppText style={styles.clearButtonText}>Clear Taken</AppText>
               </Pressable>
@@ -692,6 +899,31 @@ export default function FantasyToolScreen() {
                 <AppText style={styles.clearButtonText}>Open Board</AppText>
               </Pressable>
             </View>
+            {draftPlayerIds.length ? (
+              <View style={styles.currentDraftCard}>
+                <View style={styles.manualTeamHeader}>
+                  <View style={styles.playerMain}>
+                    <AppText variant="eyebrow">Current Draft</AppText>
+                    <AppText style={styles.currentDraftTitle}>{draftName.trim() || 'My Draft'}</AppText>
+                    <AppText variant="muted" style={styles.leagueMeta}>{draftFormat} · {draftSelectedPlayers.length} picked</AppText>
+                  </View>
+                  <Pressable onPress={saveManualTeam} style={styles.clearButton}>
+                    <AppText style={styles.clearButtonText}>Save Team</AppText>
+                  </Pressable>
+                </View>
+                <View style={styles.plannerSummary}>
+                  {Object.entries(PLANNER_TARGETS[plannerLeague]).map(([pos, target]) => (
+                    <View key={pos} style={styles.plannerSummaryItem}>
+                      <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
+                      <AppText style={styles.plannerSummaryCount}>{currentDraftRead.counts[pos] || 0}/{target}</AppText>
+                    </View>
+                  ))}
+                </View>
+                <AppText variant="muted" style={styles.cardCopy}>
+                  Strength: {currentDraftRead.strength}. Watch: {currentDraftRead.watch}.
+                </AppText>
+              </View>
+            ) : null}
             {plannerTakenPlayers.length ? (
               <View style={styles.takenList}>
                 <AppText variant="eyebrow">Taken</AppText>
@@ -715,6 +947,7 @@ export default function FantasyToolScreen() {
                 player={item.player}
                 onPress={() => item.player && setProfilePlayer(item.player.name)}
                 onTaken={() => markPlannerTaken(item.player?.id)}
+                onPick={() => pickPlannerPlayer(item.player)}
               />
             ))}
           </View>
@@ -819,6 +1052,98 @@ export default function FantasyToolScreen() {
           )}
         </>
       )}
+
+      <Modal visible={draftModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDraftModalOpen(false)}>
+        <Screen>
+          <AppText variant="eyebrow">// Save My Draft</AppText>
+          <AppText variant="title" style={styles.title}>Draft Result</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            Save the players you drafted. KingFish will use this roster for monitoring and quick decisions, not live scoring.
+          </AppText>
+
+          <Card style={styles.metaCard}>
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Team Name</AppText>
+              <TextInput
+                value={draftName}
+                onChangeText={setDraftName}
+                placeholder="Brian Home League"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Scoring</AppText>
+              <View style={styles.plannerToggleRow}>
+                {(['PPR', 'Half PPR', 'Standard'] as DraftFormat[]).map(format => (
+                  <Pressable key={format} onPress={() => setDraftFormat(format)} style={[styles.plannerToggle, draftFormat === format && styles.plannerToggleActive]}>
+                    <AppText style={[styles.plannerToggleText, draftFormat === format && styles.plannerToggleTextActive]}>{format}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Add Players</AppText>
+              <TextInput
+                value={draftSearch}
+                onChangeText={setDraftSearch}
+                placeholder="Search player, team, or position"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                style={styles.input}
+              />
+            </View>
+          </Card>
+
+          {draftSelectedPlayers.length ? (
+            <Card style={styles.metaCard}>
+              <AppText variant="eyebrow">Selected · {draftSelectedPlayers.length}</AppText>
+              <View style={styles.takenChipRow}>
+                {draftSelectedPlayers.map(player => (
+                  <Pressable
+                    key={player.id}
+                    onPress={() => setDraftPlayerIds(ids => ids.filter(id => id !== player.id))}
+                    style={styles.takenChip}
+                  >
+                    <AppText style={styles.takenChipText}>{player.name}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </Card>
+          ) : null}
+
+          <View style={styles.playerList}>
+            {draftSearchResults.map(player => (
+              <Pressable
+                key={player.id}
+                onPress={() => setDraftPlayerIds(ids => Array.from(new Set([...ids, player.id])))}
+                style={styles.playerRow}
+              >
+                <View style={styles.playerMain}>
+                  <View style={styles.playerTitleRow}>
+                    <AppText style={styles.playerName}>{player.name}</AppText>
+                    <AppText style={styles.positionBox}>{player.position}</AppText>
+                  </View>
+                  <AppText variant="muted" style={styles.playerMeta}>{player.team || '-'} · Rank #{player.rank}</AppText>
+                </View>
+                <AppText style={styles.grade}>Add</AppText>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.modalActions}>
+            <Pressable onPress={() => setDraftModalOpen(false)} style={styles.clearButton}>
+              <AppText style={styles.clearButtonText}>Cancel</AppText>
+            </Pressable>
+            <Pressable onPress={saveManualTeam} style={styles.actionButtonWide}>
+              <AppText style={styles.actionText}>Save Team</AppText>
+            </Pressable>
+          </View>
+        </Screen>
+      </Modal>
 
       <PlayerProfileModal playerName={profilePlayer} sport="nfl" context="fantasy" onClose={() => setProfilePlayer(null)} />
     </Screen>
@@ -1057,12 +1382,14 @@ function PlannerPickCard({
   player,
   onPress,
   onTaken,
+  onPick,
 }: {
   round: number
   pick: number
   player: DraftPlayer | null
   onPress: () => void
   onTaken: () => void
+  onPick: () => void
 }) {
   return (
     <Pressable onPress={onPress} disabled={!player} style={styles.plannerPickCard}>
@@ -1081,12 +1408,20 @@ function PlannerPickCard({
           </AppText>
           <View style={styles.plannerActions}>
             <AppText style={styles.grade}>{player.grade || '-'}</AppText>
-            <Pressable onPress={event => {
-              event.stopPropagation()
-              onTaken()
-            }} style={styles.plannerAvailableButton}>
-              <AppText style={styles.plannerAvailableText}>Available</AppText>
-            </Pressable>
+            <View style={styles.plannerActionButtons}>
+              <Pressable onPress={event => {
+                event.stopPropagation()
+                onTaken()
+              }} style={styles.plannerAvailableButton}>
+                <AppText style={styles.plannerAvailableText}>Available</AppText>
+              </Pressable>
+              <Pressable onPress={event => {
+                event.stopPropagation()
+                onPick()
+              }} style={styles.plannerPickButton}>
+                <AppText style={styles.plannerPickButtonText}>Pick</AppText>
+              </Pressable>
+            </View>
           </View>
         </>
       ) : (
@@ -1158,6 +1493,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   actionButton: { minWidth: 76, minHeight: 44, borderRadius: 8, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
+  actionButtonWide: { minHeight: 42, borderRadius: 8, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   actionText: { color: colors.bgPrimary, fontWeight: '900' },
   textButton: { marginTop: spacing.md },
   textButtonLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
@@ -1187,8 +1523,13 @@ const styles = StyleSheet.create({
   plannerRound: { color: colors.gold, fontSize: 14, fontWeight: '900' },
   plannerPick: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
   plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  plannerActionButtons: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' },
   plannerAvailableButton: { borderWidth: 1, borderColor: 'rgba(34,197,94,.45)', borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(34,197,94,.08)' },
   plannerAvailableText: { color: colors.green, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  plannerPickButton: { borderWidth: 1, borderColor: 'rgba(198,145,50,.45)', borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(198,145,50,.13)' },
+  plannerPickButtonText: { color: colors.gold, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  currentDraftCard: { marginTop: spacing.md, borderWidth: 1, borderColor: 'rgba(198,145,50,.32)', borderRadius: 8, padding: spacing.md, backgroundColor: colors.bgCardAlt },
+  currentDraftTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', marginTop: 3 },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
@@ -1200,6 +1541,14 @@ const styles = StyleSheet.create({
   leagueMeta: { marginTop: 4, fontSize: 12 },
   rosterCard: { marginTop: spacing.md },
   metaCard: { marginBottom: spacing.md },
+  manualTeamList: { gap: spacing.md, marginTop: spacing.md },
+  manualTeamCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, backgroundColor: colors.bgCardAlt, gap: spacing.md },
+  manualTeamHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  teamReadGrid: { flexDirection: 'row', gap: spacing.sm },
+  teamReadItem: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCard },
+  teamReadValue: { color: colors.textPrimary, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  draftField: { gap: spacing.sm, marginBottom: spacing.lg },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md, marginTop: spacing.lg, marginBottom: spacing.xl },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
