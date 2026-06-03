@@ -13,6 +13,8 @@ import { colors, spacing } from '@/lib/theme'
 interface PlayerProfileResponse {
   team: string | null
   position: string | null
+  jersey_number?: string | number | null
+  jerseyNumber?: string | number | null
   matchup?: string | null
   searchHint?: string | null
   injury_status: string | null
@@ -68,11 +70,70 @@ const TEAM_NAME_TO_ABBR: Record<string, string> = {
   'Washington Nationals': 'WAS',
 }
 
+const NFL_TEAM_LABELS: Record<string, string> = {
+  ARI: 'Arizona Cardinals',
+  ATL: 'Atlanta Falcons',
+  BAL: 'Baltimore Ravens',
+  BUF: 'Buffalo Bills',
+  CAR: 'Carolina Panthers',
+  CHI: 'Chicago Bears',
+  CIN: 'Cincinnati Bengals',
+  CLE: 'Cleveland Browns',
+  DAL: 'Dallas Cowboys',
+  DEN: 'Denver Broncos',
+  DET: 'Detroit Lions',
+  GB: 'Green Bay Packers',
+  HOU: 'Houston Texans',
+  IND: 'Indianapolis Colts',
+  JAC: 'Jacksonville Jaguars',
+  JAX: 'Jacksonville Jaguars',
+  KC: 'Kansas City Chiefs',
+  LAC: 'LA Chargers',
+  LAR: 'LA Rams',
+  LV: 'Las Vegas Raiders',
+  MIA: 'Miami Dolphins',
+  MIN: 'Minnesota Vikings',
+  NE: 'New England Patriots',
+  NO: 'New Orleans Saints',
+  NYG: 'NY Giants',
+  NYJ: 'NY Jets',
+  PHI: 'Philadelphia Eagles',
+  PIT: 'Pittsburgh Steelers',
+  SEA: 'Seattle Seahawks',
+  SF: 'San Francisco 49ers',
+  TB: 'Tampa Bay Buccaneers',
+  TEN: 'Tennessee Titans',
+  WAS: 'Washington Commanders',
+  WSH: 'Washington Commanders',
+}
+
+const NFL_POSITION_LABELS: Record<string, string> = {
+  QB: 'Quarterback',
+  RB: 'Running Back',
+  WR: 'Wide Receiver',
+  TE: 'Tight End',
+  K: 'Kicker',
+  DST: 'Defense',
+  DEF: 'Defense',
+}
+
 function teamAbbr(value: string) {
   const clean = value.trim()
   if (!clean) return ''
   if (/^[A-Z]{2,4}$/.test(clean)) return clean
   return TEAM_NAME_TO_ABBR[clean] || clean.split(/\s+/).map((word) => word[0]).join('').slice(0, 4).toUpperCase()
+}
+
+function nflProfileMeta(team?: string | null, position?: string | null) {
+  const cleanTeam = String(team || '').trim()
+  const cleanPosition = String(position || '').trim().toUpperCase()
+  const teamLabel = NFL_TEAM_LABELS[cleanTeam.toUpperCase()] || cleanTeam
+  const positionLabel = NFL_POSITION_LABELS[cleanPosition] || cleanPosition
+  return {
+    teamLabel,
+    positionLabel,
+    teamCode: /^[A-Z]{2,4}$/.test(cleanTeam) ? cleanTeam : teamAbbr(cleanTeam),
+  }
 }
 
 export interface PlayerProfileMarketContext {
@@ -423,6 +484,9 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
   const formNote = buildFormNote(sport, query.data)
   const propFocus = buildPropFocus(sport, query.data, marketContext)
   const canCopyShareCard = Boolean(propFocus && query.data && playerName && !isFantasyProfile)
+  const nflMeta = sport === 'nfl' ? nflProfileMeta(query.data?.team, query.data?.position) : null
+  const jerseyNumber = query.data?.jersey_number || query.data?.jerseyNumber || null
+  const nflMetaParts = [nflMeta?.teamLabel, jerseyNumber ? `#${jerseyNumber}` : null, nflMeta?.positionLabel].filter(Boolean)
 
   async function copyShareCard() {
     if (!shareCardRef.current || copyState === 'copying') return
@@ -460,9 +524,25 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
             <View style={styles.headerText}>
               <AppText variant="eyebrow">// Player Profile</AppText>
               <AppText variant="title" style={[styles.name, isLandscape && styles.nameLandscape]}>{playerName}</AppText>
-              <View style={styles.metaRow}>
-                {query.data?.team ? <Badge label={query.data.team} /> : null}
-                {query.data?.position ? <Badge label={query.data.position} muted /> : null}
+              {sport === 'nfl' && nflMetaParts.length ? (
+                <View style={styles.nflIdentityRow}>
+                  {nflMeta?.teamCode ? (
+                    <View style={styles.nflTeamMark}>
+                      <AppText style={styles.nflTeamMarkText}>{nflMeta.teamCode}</AppText>
+                    </View>
+                  ) : null}
+                  <AppText style={styles.nflIdentityText} numberOfLines={2}>
+                    {nflMetaParts.join(' · ')}
+                  </AppText>
+                </View>
+              ) : null}
+              <View style={[styles.metaRow, sport === 'nfl' && styles.metaRowCompact]}>
+                {sport === 'nfl' ? null : (
+                  <>
+                    {query.data?.team ? <Badge label={query.data.team} /> : null}
+                    {query.data?.position ? <Badge label={query.data.position} muted /> : null}
+                  </>
+                )}
                 {query.data?.matchup ? <Badge label={query.data.matchup} muted /> : null}
                 {query.data?.injury_status ? <Badge label={query.data.injury_status} danger /> : null}
               </View>
@@ -857,6 +937,38 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.md,
+  },
+  metaRowCompact: {
+    marginTop: spacing.sm,
+  },
+  nflIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    maxWidth: '100%',
+  },
+  nflTeamMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.45)',
+    backgroundColor: 'rgba(198,145,50,.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nflTeamMarkText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  nflIdentityText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '800',
   },
   headerActions: {
     alignItems: 'flex-end',
