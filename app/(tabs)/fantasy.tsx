@@ -649,7 +649,7 @@ export default function FantasyToolScreen() {
         {([
           { key: 'home', label: 'Home' },
           { key: 'bestball', label: 'Best Ball' },
-          { key: 'planner', label: 'Planner' },
+          { key: 'planner', label: 'Draft' },
           { key: 'teams', label: 'My Teams' },
         ] as Array<{ key: FantasyMode; label: string }>).map(item => (
           <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.segmentButton, mode === item.key && styles.segmentButtonActive]}>
@@ -677,11 +677,6 @@ export default function FantasyToolScreen() {
             <AppText variant="muted" style={styles.cardCopy}>
               View saved draft rosters and Sleeper teams for player news, role changes, waiver planning, and roster monitoring.
             </AppText>
-            <View style={styles.boardButtonRow}>
-              <Pressable onPress={() => setMode('planner')} style={styles.actionButtonWide}>
-                <AppText style={styles.actionText}>Draft Picker</AppText>
-              </Pressable>
-            </View>
           </Card>
 
           <Card style={styles.metaCard}>
