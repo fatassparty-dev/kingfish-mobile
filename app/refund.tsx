@@ -4,12 +4,9 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 
 export default function RefundScreen() {
-  const mobileConfig = useMobileConfig()
-
   function openUrl(primaryUrl: string, fallbackUrl?: string) {
     Linking.openURL(primaryUrl).catch(() => {
       if (fallbackUrl) Linking.openURL(fallbackUrl).catch(() => {})
@@ -21,7 +18,7 @@ export default function RefundScreen() {
       <AppText variant="eyebrow">// Billing</AppText>
       <AppText variant="title" style={styles.title}>Refund Policy</AppText>
       <AppText variant="muted" style={styles.copy}>
-        KingFish subscriptions are managed by the store used at checkout. Canceling turns off renewal, and access continues until the current billing period ends.
+        KingFish subscriptions purchased in the iOS app are managed through Apple. Canceling turns off renewal, and access continues until the current billing period ends.
       </AppText>
 
       <View style={styles.sections}>
@@ -45,19 +42,15 @@ export default function RefundScreen() {
         </Card>
 
         <Card>
-          <AppText style={styles.sectionTitle}>Website Purchases</AppText>
+          <AppText style={styles.sectionTitle}>Other Account Access</AppText>
           <AppText variant="muted" style={styles.body}>
-            If you subscribed through KingFishBets.com, manage billing on the website or contact support and we will help you find the right account path.
+            If your KingFish account already has web, gift, or manual access, contact support and we will help you find the right account path.
           </AppText>
           <View style={styles.cardAction}>
-            <Button variant="secondary" onPress={() => openUrl(mobileConfig.links.pricing)}>
-              Open Website Billing
+            <Button variant="secondary" onPress={() => router.push('/support')}>
+              Contact Support
             </Button>
           </View>
-          <View style={styles.gap} />
-          <Button variant="outline" onPress={() => router.push('/support')}>
-            Contact Support
-          </Button>
         </Card>
       </View>
 

@@ -180,7 +180,9 @@ export async function restorePurchases(appUserID?: string | null): Promise<Purch
         ? 'KingFish Bets Pro was restored.'
         : active
           ? 'Purchase restored. Tap Refresh Status if Premium does not show within a moment.'
-        : 'No active KingFish Bets Pro purchase was found for this Apple or Google account.',
+        : Platform.OS === 'android'
+          ? 'No active KingFish Bets Pro purchase was found for this Google account.'
+          : 'No active KingFish Bets Pro purchase was found for this Apple account.',
     }
   } catch (error: any) {
     return {

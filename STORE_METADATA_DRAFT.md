@@ -49,8 +49,25 @@ Reviewer notes:
 - Users can create an account, sign in, restore purchases, and delete their account from Account.
 - Terms, Privacy, Refund, Help, and support email are available from Account and authentication screens.
 - If no live market is posted for a sport, the app shows the current season-watch or empty state instead of fake content.
+- Please provide App Review with a test account that has KingFish Bets Pro enabled so premium boards, Ask KingFish, cheat sheets, Fantasy Hub, Account, billing, support, legal pages, and account deletion can all be reviewed without needing a real purchase.
+- Native subscriptions are handled through Apple in-app purchase in the iOS app. The mobile app does not include an outside checkout flow for new premium purchases.
 
 The app uses public mobile-safe API keys only. Server-only keys and paid data provider keys remain on the KingFish backend.
+
+## Review Test Account
+
+Add these credentials in App Store Connect Review Notes before submission:
+
+- Username: [create reviewer email]
+- Password: [create reviewer password]
+- Account state: Premium enabled, non-admin, safe demo account
+
+Recommended reviewer path:
+
+1. Sign in with the demo account.
+2. Review Dashboard, Game Lines, Player Props, Cheat Sheets, Fantasy Hub, Ask KingFish, Account, Help, Terms, Privacy, Refund Policy, and Support.
+3. Confirm Restore Purchases and Manage Apple Subscription are visible from Account and the paywall.
+4. Confirm Delete Account is visible from Account. Use a separate disposable account if Apple wants to test actual deletion.
 
 ## Screenshot Plan
 

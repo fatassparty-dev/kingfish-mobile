@@ -85,11 +85,11 @@ export default function PaywallScreen() {
           <AppText variant="eyebrow">// Active</AppText>
           <AppText style={styles.noticeTitle}>You are already on KingFish Bets Pro.</AppText>
           <AppText variant="muted" style={styles.noticeCopy}>
-            Manage subscriptions in your App Store or Google Play account settings.
+            Manage or cancel your plan in your Apple account settings. Access continues until the current billing period ends.
           </AppText>
         </Card>
         <Button variant="secondary" onPress={() => Linking.openURL('itms-apps://apps.apple.com/account/subscriptions')}>
-          Manage Subscription
+          Manage Apple Subscription
         </Button>
         <View style={styles.gap} />
         <Button variant="secondary" onPress={() => router.back()}>Close</Button>
@@ -159,7 +159,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your store account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your App Store or Google Play account settings. KingFish is intended for users 18+ where permitted by law.
+        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your Apple account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your Apple account settings. KingFish is intended for users 18+ where permitted by law.
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => router.push('/terms')}>
@@ -168,7 +168,7 @@ export default function PaywallScreen() {
         <Pressable onPress={() => router.push('/privacy')}>
           <AppText style={styles.legalLink}>Privacy</AppText>
         </Pressable>
-        <Pressable onPress={() => Linking.openURL(mobileConfig.links.refund)}>
+        <Pressable onPress={() => router.push('/refund')}>
           <AppText style={styles.legalLink}>Refunds</AppText>
         </Pressable>
       </View>

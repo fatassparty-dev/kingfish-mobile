@@ -401,7 +401,7 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Plan Management</AppText>
         <AppText style={styles.webTitle}>Billing</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Manage or cancel your plan through the store used at checkout. Canceling turns off renewal, and Pro access continues until the current billing period ends.
+          Manage or cancel App Store subscriptions through your Apple account settings. Canceling turns off renewal, and Pro access continues until the current billing period ends.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" onPress={openAppleSubscriptionManagement}>

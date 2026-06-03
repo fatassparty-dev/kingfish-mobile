@@ -16,7 +16,7 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [is17, setIs17] = useState(false)
+  const [is18, setIs18] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -29,8 +29,8 @@ export default function SignUpScreen() {
       setError('First and last name are required.')
       return
     }
-    if (!is17) {
-      setError('You must confirm you are 17 or older where permitted by law.')
+    if (!is18) {
+      setError('You must confirm you are 18 or older where permitted by law.')
       return
     }
     if (!accepted) {
@@ -91,7 +91,7 @@ export default function SignUpScreen() {
         <TextInput autoCapitalize="none" placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Confirm password" placeholderTextColor={colors.textMuted} secureTextEntry value={confirm} onChangeText={setConfirm} style={styles.input} />
 
-        <CheckRow checked={is17} onPress={() => setIs17((v) => !v)} text="I confirm I am 17 or older where permitted by law." />
+        <CheckRow checked={is18} onPress={() => setIs18((v) => !v)} text="I confirm I am 18 or older where permitted by law." />
         <CheckRow checked={accepted} onPress={() => setAccepted((v) => !v)} text="I accept the Terms of Service and Privacy Policy." />
         <AppText variant="muted" style={styles.note}>
           Your location helps KingFish show the right sportsbook context. It is optional. You can delete your account anytime from Account.

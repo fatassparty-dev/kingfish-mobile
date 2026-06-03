@@ -222,7 +222,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>Plans & Refunds</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Manage or cancel your plan from Account. Canceling turns off renewal, and access continues until the current billing period ends. Refund requests are handled by the store used at checkout.
+                Manage or cancel App Store subscriptions from Account. Canceling turns off renewal, and access continues until the current billing period ends. Apple handles refund requests for iOS purchases.
               </AppText>
               <View style={styles.buttonGap}>
                 <Button variant="secondary" onPress={() => router.push('/refund')}>

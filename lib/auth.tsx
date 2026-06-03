@@ -17,7 +17,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-const PUBLIC_ROUTES = new Set(['help', 'privacy', 'support', 'terms'])
+const PUBLIC_ROUTES = new Set(['help', 'privacy', 'refund', 'support', 'terms'])
 
 function isInvalidRefreshToken(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')
