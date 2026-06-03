@@ -90,6 +90,16 @@ const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
 const DRAFT_SLOT_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'FLEX', 'BENCH']
+const DRAFT_SLOT_LABELS: Record<string, string> = {
+  QB: 'QB',
+  RB: 'RB',
+  WR: 'WR',
+  TE: 'Tight End',
+  K: 'Kicker',
+  DST: 'Defense',
+  FLEX: 'Flex',
+  BENCH: 'Bench',
+}
 const DEFAULT_DRAFT_TARGETS: Record<PlannerLeague, Record<string, number>> = {
   home: { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1, FLEX: 1, BENCH: 7 },
   bestball: { QB: 2, RB: 2, WR: 3, TE: 1, FLEX: 2, BENCH: 8 },
@@ -1105,7 +1115,7 @@ export default function FantasyToolScreen() {
             <View style={styles.settingsSlotGrid}>
               {DRAFT_SLOT_ORDER.filter(position => currentDraftTargets[position] !== undefined).map(position => (
                 <View key={position} style={styles.settingsSlotCard}>
-                  <AppText style={styles.plannerSummaryPos}>{position}</AppText>
+                  <AppText style={styles.settingsSlotLabel} numberOfLines={2}>{DRAFT_SLOT_LABELS[position] || position}</AppText>
                   <AppText style={styles.settingsSlotCount}>{currentDraftTargets[position] || 0}</AppText>
                   <View style={styles.settingsStepper}>
                     <Pressable onPress={() => updateDraftTarget(position, -1)} style={styles.settingsStepButton}>
@@ -1502,11 +1512,12 @@ const styles = StyleSheet.create({
   currentDraftPlayerMeta: { marginTop: 2, fontSize: 11 },
   currentDraftRemove: { color: colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   settingsSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  settingsSlotCard: { width: '31%', minHeight: 112, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
-  settingsSlotCount: { color: colors.textPrimary, fontSize: 26, fontWeight: '900' },
+  settingsSlotCard: { width: '31%', minHeight: 126, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
+  settingsSlotLabel: { color: colors.textSecondary, fontSize: 10, lineHeight: 13, fontWeight: '900', textTransform: 'uppercase' },
+  settingsSlotCount: { color: colors.textPrimary, fontSize: 28, lineHeight: 34, fontWeight: '900', marginVertical: 4 },
   settingsStepper: { flexDirection: 'row', gap: spacing.xs },
-  settingsStepButton: { flex: 1, minHeight: 30, borderWidth: 1, borderColor: 'rgba(198,145,50,.35)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
-  settingsStepText: { color: colors.gold, fontSize: 16, fontWeight: '900' },
+  settingsStepButton: { flex: 1, height: 32, borderWidth: 1, borderColor: 'rgba(198,145,50,.35)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
+  settingsStepText: { color: colors.gold, fontSize: 18, lineHeight: 20, fontWeight: '900' },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
