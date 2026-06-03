@@ -58,6 +58,8 @@ type ManualTeam = {
   id: string
   name: string
   format: DraftFormat
+  leagueType?: PlannerLeague
+  slots?: Record<string, number>
   playerIds: string[]
   createdAt: string
 }
@@ -296,6 +298,8 @@ export default function FantasyToolScreen() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editingTeamName, setEditingTeamName] = useState('')
   const [editingTeamFormat, setEditingTeamFormat] = useState<DraftFormat>('PPR')
+  const [editingTeamPlayerIds, setEditingTeamPlayerIds] = useState<string[]>([])
+  const [editingTeamSearch, setEditingTeamSearch] = useState('')
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
   const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
@@ -432,13 +436,30 @@ export default function FantasyToolScreen() {
     const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
     return manualTeams.map(team => {
       const teamPlayers = team.playerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
+      const slots = team.slots || DEFAULT_DRAFT_TARGETS[team.leagueType || 'home']
       return {
         team,
         players: teamPlayers,
         read: rosterRead(teamPlayers),
+        slots: rosterSlotSummary(teamPlayers, slots),
       }
     })
   }, [allRankedPlayers, manualTeams])
+  const editingTeamPlayers = useMemo(() => {
+    const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
+    return editingTeamPlayerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
+  }, [allRankedPlayers, editingTeamPlayerIds])
+  const editingTeamAvailablePlayers = useMemo(() => {
+    const selected = new Set(editingTeamPlayerIds)
+    const needle = editingTeamSearch.trim().toLowerCase()
+    return allRankedPlayers
+      .filter(player => !selected.has(player.id))
+      .filter(player => {
+        if (!needle) return true
+        return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle) || player.position.toLowerCase().includes(needle)
+      })
+      .slice(0, 30)
+  }, [allRankedPlayers, editingTeamPlayerIds, editingTeamSearch])
   const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
   const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, currentDraftTargets), [currentDraftTargets, draftSelectedPlayers])
   const plannerPickerPlayers = useMemo(() => {
@@ -587,6 +608,8 @@ export default function FantasyToolScreen() {
       id: `${Date.now()}`,
       name,
       format: draftFormat,
+      leagueType: plannerLeague,
+      slots: { ...currentDraftTargets },
       playerIds: draftPlayerIds,
       createdAt: new Date().toISOString(),
     }
@@ -609,7 +632,18 @@ export default function FantasyToolScreen() {
     setEditingTeamId(team.id)
     setEditingTeamName(team.name)
     setEditingTeamFormat(team.format)
+    setEditingTeamPlayerIds(team.playerIds)
+    setEditingTeamSearch('')
     setTeamEditOpen(true)
+  }
+
+  function closeEditManualTeam() {
+    setTeamEditOpen(false)
+    setEditingTeamId(null)
+    setEditingTeamName('')
+    setEditingTeamFormat('PPR')
+    setEditingTeamPlayerIds([])
+    setEditingTeamSearch('')
   }
 
   async function saveEditedManualTeam() {
@@ -619,15 +653,16 @@ export default function FantasyToolScreen() {
       Alert.alert('Team Name Needed', 'Add a name for this saved draft.')
       return
     }
+    if (!editingTeamPlayerIds.length) {
+      Alert.alert('Add Players', 'Keep at least one player on this saved draft.')
+      return
+    }
     const next = manualTeams.map(team => (
-      team.id === editingTeamId ? { ...team, name, format: editingTeamFormat } : team
+      team.id === editingTeamId ? { ...team, name, format: editingTeamFormat, playerIds: editingTeamPlayerIds } : team
     ))
     setManualTeams(next)
     await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
-    setTeamEditOpen(false)
-    setEditingTeamId(null)
-    setEditingTeamName('')
-    setEditingTeamFormat('PPR')
+    closeEditManualTeam()
   }
 
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
@@ -683,7 +718,7 @@ export default function FantasyToolScreen() {
             <AppText variant="eyebrow">// Saved Drafts</AppText>
             {manualTeamCards.length ? (
               <View style={styles.manualTeamList}>
-                {manualTeamCards.map(({ team, players: teamPlayers, read }) => (
+                {manualTeamCards.map(({ team, players: teamPlayers, read, slots }) => (
                   <View key={team.id} style={styles.manualTeamCard}>
                     <View style={styles.manualTeamHeader}>
                       <View style={styles.playerMain}>
@@ -710,10 +745,10 @@ export default function FantasyToolScreen() {
                       </View>
                     </View>
                     <View style={styles.plannerSummary}>
-                      {(['QB', 'RB', 'WR', 'TE', 'K', 'DST'] as const).map(pos => (
-                        <View key={pos} style={styles.plannerSummaryItem}>
-                          <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
-                          <AppText style={styles.plannerSummaryCount}>{read.counts[pos] || 0}</AppText>
+                      {slots.map(slot => (
+                        <View key={slot.position} style={styles.plannerSummaryItem}>
+                          <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                          <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
                         </View>
                       ))}
                     </View>
@@ -1173,12 +1208,12 @@ export default function FantasyToolScreen() {
         </Screen>
       </Modal>
 
-      <Modal visible={teamEditOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setTeamEditOpen(false)}>
+      <Modal visible={teamEditOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeEditManualTeam}>
         <Screen>
           <AppText variant="eyebrow">// Saved Drafts</AppText>
           <AppText variant="title" style={styles.title}>Edit Team</AppText>
           <AppText variant="muted" style={styles.copy}>
-            Update the saved roster name and scoring format.
+            Update the saved roster name, scoring format, and players.
           </AppText>
 
           <Card style={styles.metaCard}>
@@ -1205,8 +1240,63 @@ export default function FantasyToolScreen() {
             </View>
           </Card>
 
+          <Card style={styles.metaCard}>
+            <View style={styles.takenPanelHead}>
+              <AppText variant="eyebrow">Players · {editingTeamPlayers.length}</AppText>
+            </View>
+            {editingTeamPlayers.length ? (
+              <View style={styles.currentDraftPlayerList}>
+                {editingTeamPlayers.map(player => (
+                  <Pressable
+                    key={`edit-${player.id}`}
+                    onPress={() => setEditingTeamPlayerIds(ids => ids.filter(id => id !== player.id))}
+                    style={styles.currentDraftPlayerChip}
+                  >
+                    <View style={styles.playerMain}>
+                      <AppText style={styles.currentDraftPlayerName} numberOfLines={1}>{player.name}</AppText>
+                      <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                    </View>
+                    <AppText style={styles.currentDraftRemove}>Remove</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <AppText variant="muted" style={styles.cardCopy}>Add players below to keep this saved draft useful.</AppText>
+            )}
+          </Card>
+
+          <Card style={styles.metaCard}>
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Add Players</AppText>
+              <TextInput
+                value={editingTeamSearch}
+                onChangeText={setEditingTeamSearch}
+                placeholder="Search player, team, or position"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.currentDraftPlayerList}>
+              {editingTeamAvailablePlayers.map(player => (
+                <Pressable
+                  key={`add-${player.id}`}
+                  onPress={() => setEditingTeamPlayerIds(ids => Array.from(new Set([...ids, player.id])))}
+                  style={styles.currentDraftPlayerChip}
+                >
+                  <View style={styles.playerMain}>
+                    <AppText style={styles.currentDraftPlayerName} numberOfLines={1}>{player.name}</AppText>
+                    <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                  </View>
+                  <AppText style={styles.currentDraftRemove}>Add</AppText>
+                </Pressable>
+              ))}
+            </View>
+          </Card>
+
           <View style={styles.modalActions}>
-            <Pressable onPress={() => setTeamEditOpen(false)} style={styles.clearButton}>
+            <Pressable onPress={closeEditManualTeam} style={styles.clearButton}>
               <AppText style={styles.clearButtonText}>Cancel</AppText>
             </Pressable>
             <Pressable onPress={saveEditedManualTeam} style={styles.actionButtonWide}>
@@ -1591,6 +1681,7 @@ const styles = StyleSheet.create({
   settingsStepButton: { flex: 1, height: 32, borderWidth: 1, borderColor: 'rgba(198,145,50,.35)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
   settingsStepText: { color: colors.gold, fontSize: 18, lineHeight: 20, fontWeight: '900' },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
+  takenPanelHead: { marginBottom: spacing.sm },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
   takenChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
