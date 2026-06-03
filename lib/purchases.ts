@@ -65,15 +65,13 @@ export async function configurePurchases(appUserID?: string | null): Promise<Pur
   if (!apiKey) {
     return {
       ok: false,
-      message: Platform.OS === 'android'
-        ? 'Google Play subscriptions are not configured for this build.'
-        : 'In-app subscriptions are not configured for this build.',
+      message: 'In-app subscriptions are not configured for this build.',
     }
   }
   if (isReleaseBuildUsingTestStoreKey(apiKey)) {
     return {
       ok: false,
-      message: 'In-app subscriptions need a production RevenueCat key for Release builds.',
+      message: 'In-app subscriptions are not available in this build.',
     }
   }
 
@@ -181,7 +179,7 @@ export async function restorePurchases(appUserID?: string | null): Promise<Purch
         : active
           ? 'Purchase restored. Tap Refresh Status if Premium does not show within a moment.'
         : Platform.OS === 'android'
-          ? 'No active KingFish Bets Pro purchase was found for this Google account.'
+          ? 'No active KingFish Bets Pro purchase was found for this account.'
           : 'No active KingFish Bets Pro purchase was found for this Apple account.',
     }
   } catch (error: any) {

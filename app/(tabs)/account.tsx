@@ -580,7 +580,7 @@ function getAccessSource(profile: ReturnType<typeof useAuth>['profile']) {
   if (!profile) return 'KingFish account'
   if (profile.is_gifted) return 'Gifted access'
   if (profile.subscription_platform === 'ios') return 'App Store'
-  if (profile.subscription_platform === 'android') return 'Google Play'
+  if (profile.subscription_platform === 'android') return 'Mobile app'
   if (profile.subscription_platform === 'manual') return 'Manual access'
   if (profile.stripe_plan) return 'KingFishBets.com'
   return 'KingFish account'
