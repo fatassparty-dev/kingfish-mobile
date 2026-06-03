@@ -5,6 +5,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { API_BASE_URL } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 
@@ -17,11 +18,26 @@ export default function SignInScreen() {
   async function signIn() {
     setError('')
     setLoading(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
-    if (authError) setError(authError.message || 'Invalid email or password.')
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/sign-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      })
+      const result = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        setError(result.error || 'Invalid email or password.')
+      } else if (result.session?.access_token && result.session?.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
+        })
+        if (sessionError) setError('Could not finish sign in. Please try again.')
+      }
+    } catch {
+      setError('Could not sign in. Please try again.')
+    }
     setLoading(false)
   }
 
