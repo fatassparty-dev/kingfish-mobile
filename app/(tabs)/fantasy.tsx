@@ -330,6 +330,7 @@ export default function FantasyToolScreen() {
   const [editingTeamSearch, setEditingTeamSearch] = useState('')
   const [editingTeamSlots, setEditingTeamSlots] = useState<Record<string, number>>({ ...DEFAULT_DRAFT_TARGETS.home })
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
+  const [expandedSettingsTeamId, setExpandedSettingsTeamId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
   const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
@@ -789,34 +790,45 @@ export default function FantasyToolScreen() {
                       onPress={() => setExpandedTeamId(current => current === team.id ? null : team.id)}
                       style={styles.rosterToggle}
                     >
-                      <AppText style={styles.rosterToggleText}>Roster Settings</AppText>
-                      <AppText style={styles.rosterToggleMeta}>{expandedTeamId === team.id ? 'Hide' : 'Show'}</AppText>
+                      <AppText style={styles.rosterToggleText}>Roster</AppText>
+                      <AppText style={styles.rosterToggleMeta}>{expandedTeamId === team.id ? 'Hide' : 'View Roster'}</AppText>
                     </Pressable>
                     {expandedTeamId === team.id ? (
-                      <View style={styles.compactSlotGrid}>
-                        {slots.map(slot => (
-                          <View key={slot.position} style={styles.compactSlotItem}>
-                            <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
-                            <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                    <View style={styles.savedRosterList}>
-                      {sections.filter(section => section.players.length).map(section => (
-                        <View key={section.key} style={styles.savedRosterSection}>
-                          <AppText variant="eyebrow">{section.label}</AppText>
-                          {section.players.map(player => (
-                            <Pressable key={player.id} onPress={() => setProfilePlayer(player.name)} style={styles.savedRosterRow}>
-                              <View style={styles.playerMain}>
-                                <AppText style={styles.savedRosterName} numberOfLines={1}>{player.name}</AppText>
-                                <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                      <>
+                        <Pressable
+                          onPress={() => setExpandedSettingsTeamId(current => current === team.id ? null : team.id)}
+                          style={styles.rosterToggle}
+                        >
+                          <AppText style={styles.rosterToggleText}>Roster Settings</AppText>
+                          <AppText style={styles.rosterToggleMeta}>{expandedSettingsTeamId === team.id ? 'Hide' : 'Show'}</AppText>
+                        </Pressable>
+                        {expandedSettingsTeamId === team.id ? (
+                          <View style={styles.compactSlotGrid}>
+                            {slots.map(slot => (
+                              <View key={slot.position} style={styles.compactSlotItem}>
+                                <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                                <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
                               </View>
-                            </Pressable>
+                            ))}
+                          </View>
+                        ) : null}
+                        <View style={styles.savedRosterList}>
+                          {sections.filter(section => section.players.length).map(section => (
+                            <View key={section.key} style={styles.savedRosterSection}>
+                              <AppText variant="eyebrow">{section.label}</AppText>
+                              {section.players.map(player => (
+                                <Pressable key={player.id} onPress={() => setProfilePlayer(player.name)} style={styles.savedRosterRow}>
+                                  <View style={styles.playerMain}>
+                                    <AppText style={styles.savedRosterName} numberOfLines={1}>{player.name}</AppText>
+                                    <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                                  </View>
+                                </Pressable>
+                              ))}
+                            </View>
                           ))}
                         </View>
-                      ))}
-                    </View>
+                      </>
+                    ) : null}
                   </View>
                 ))}
               </View>
