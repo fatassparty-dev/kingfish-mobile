@@ -137,6 +137,11 @@ function nflProfileMeta(team?: string | null, position?: string | null) {
   }
 }
 
+function nflPositionLabel(position?: string | null) {
+  const cleanPosition = String(position || '').trim().toUpperCase()
+  return NFL_POSITION_LABELS[cleanPosition] || cleanPosition || '-'
+}
+
 export interface PlayerProfileMarketContext {
   marketKey: string
   marketLabel: string
@@ -624,7 +629,7 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
                     ['Role', nflDepthRoleLabel(query.data.depthRole, query.data.position)],
                     ['Team', query.data.depthRole.team || query.data.team || '-'],
                     ['Depth', query.data.depthRole.rank ? `#${query.data.depthRole.rank}` : '-'],
-                    ['Position', query.data.depthRole.position || query.data.position || '-'],
+                    ['Position', nflPositionLabel(query.data.depthRole.position || query.data.position)],
                   ].map(([label, value]) => (
                     <View key={label} style={styles.roleItem}>
                       <AppText variant="mono">{label}</AppText>
