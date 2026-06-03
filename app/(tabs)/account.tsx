@@ -9,20 +9,18 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  fetchNotificationPreferences,
+  saveNotificationPreferences,
+  type NotificationPreferenceKey,
+  type NotificationPreferences,
+} from '@/lib/notifications'
 import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
 import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
-
-type NotificationPreferenceKey = 'account' | 'betting' | 'offers'
-type NotificationPreferences = Record<NotificationPreferenceKey, boolean>
-
-const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  account: true,
-  betting: false,
-  offers: false,
-}
 
 const NOTIFICATION_OPTIONS: Array<{
   key: NotificationPreferenceKey
@@ -98,6 +96,14 @@ export default function AccountScreen() {
           ...DEFAULT_NOTIFICATION_PREFERENCES,
           ...parsed,
         })
+      })
+      .catch(() => {})
+
+    fetchNotificationPreferences()
+      .then(async (preferences) => {
+        if (!mounted) return
+        setNotificationPreferences(preferences)
+        await AsyncStorage.setItem(storageKey, JSON.stringify(preferences)).catch(() => {})
       })
       .catch(() => {})
 
@@ -268,13 +274,19 @@ export default function AccountScreen() {
       [key]: !notificationPreferences[key],
     }
     setNotificationPreferences(nextPreferences)
-    setNotificationMessage('Notification preferences saved.')
+    setNotificationMessage('Saving notification preferences...')
 
     if (!storageKey) return
     try {
       await AsyncStorage.setItem(storageKey, JSON.stringify(nextPreferences))
-    } catch {
-      setNotificationMessage('Preference saved for this session. Sign in again if it does not stick.')
+      const result = await saveNotificationPreferences(nextPreferences, {
+        registerForPush: nextPreferences[key] === true,
+      })
+      setNotificationPreferences(result.preferences)
+      await AsyncStorage.setItem(storageKey, JSON.stringify(result.preferences))
+      setNotificationMessage(result.message)
+    } catch (error: any) {
+      setNotificationMessage(error?.message || 'Preference saved for this session. Sign in again if it does not stick.')
     }
   }
 

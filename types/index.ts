@@ -18,6 +18,11 @@ export interface UserProfile {
     disabledBookKeys?: string[]
     overrideRegional?: boolean
   } | null
+  notification_preferences?: {
+    account?: boolean
+    betting?: boolean
+    offers?: boolean
+  } | null
 }
 
 export interface Outcome {
