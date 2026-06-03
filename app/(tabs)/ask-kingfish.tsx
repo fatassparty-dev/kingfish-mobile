@@ -27,8 +27,8 @@ import type { ChatMessage } from '@/types'
 const FREE_DAILY_LIMIT = 3
 
 const STARTERS = [
-  'Which hit props look best today, and which ones should I pass on?',
-  'Are any home run props actually playable today, or are the prices too thin?',
+  'What are the top 3 hit props today?',
+  'Give me the top 3 home run targets today.',
 ]
 
 function todayKey() {
@@ -111,13 +111,18 @@ export default function AskKingFishScreen() {
     setSending(true)
 
     try {
-      const data = await kingfishFetch<{ reply: string; isPremium?: boolean }>('/api/kingfish-chat', {
+      const data = await kingfishFetch<{ reply: string; isPremium?: boolean; usageCount?: number }>('/api/kingfish-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: nextMessages }),
       })
 
       setMessages((current) => [...current, { role: 'assistant', content: data.reply }])
+      if (!data.isPremium) {
+        const nextCount = typeof data.usageCount === 'number' ? data.usageCount : chatsUsed + 1
+        queryClient.setQueryData(['chat-usage', date], { count: nextCount })
+        if (nextCount >= FREE_DAILY_LIMIT) setLimitHit(true)
+      }
       await queryClient.invalidateQueries({ queryKey: ['chat-usage', date] })
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
