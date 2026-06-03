@@ -27,8 +27,8 @@ import type { ChatMessage } from '@/types'
 const FREE_DAILY_LIMIT = 3
 
 const STARTERS = [
-  'MLB props: rank today’s best hit props by edge, price, and matchup.',
-  'MLB HR props: which posted prices are playable, and what makes the rest passes?',
+  'Which hit props look best today, and which ones should I pass on?',
+  'Are any home run props actually playable today, or are the prices too thin?',
 ]
 
 function todayKey() {
