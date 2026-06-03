@@ -292,6 +292,10 @@ export default function FantasyToolScreen() {
   const [manualTeams, setManualTeams] = useState<ManualTeam[]>([])
   const [draftModalOpen, setDraftModalOpen] = useState(false)
   const [leagueSettingsOpen, setLeagueSettingsOpen] = useState(false)
+  const [teamEditOpen, setTeamEditOpen] = useState(false)
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
+  const [editingTeamName, setEditingTeamName] = useState('')
+  const [editingTeamFormat, setEditingTeamFormat] = useState<DraftFormat>('PPR')
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
   const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
@@ -601,6 +605,31 @@ export default function FantasyToolScreen() {
     await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
   }
 
+  function openEditManualTeam(team: ManualTeam) {
+    setEditingTeamId(team.id)
+    setEditingTeamName(team.name)
+    setEditingTeamFormat(team.format)
+    setTeamEditOpen(true)
+  }
+
+  async function saveEditedManualTeam() {
+    const name = editingTeamName.trim()
+    if (!editingTeamId) return
+    if (!name) {
+      Alert.alert('Team Name Needed', 'Add a name for this saved draft.')
+      return
+    }
+    const next = manualTeams.map(team => (
+      team.id === editingTeamId ? { ...team, name, format: editingTeamFormat } : team
+    ))
+    setManualTeams(next)
+    await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
+    setTeamEditOpen(false)
+    setEditingTeamId(null)
+    setEditingTeamName('')
+    setEditingTeamFormat('PPR')
+  }
+
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
@@ -646,11 +675,11 @@ export default function FantasyToolScreen() {
             <AppText variant="eyebrow">// My Teams</AppText>
             <AppText style={styles.cardTitle}>Roster Watch</AppText>
             <AppText variant="muted" style={styles.cardCopy}>
-              Save draft results or connect Sleeper teams for roster monitoring, player news, role changes, and waiver planning. KingFish does not track live fantasy scoring.
+              View saved draft rosters and Sleeper teams for player news, role changes, waiver planning, and roster monitoring.
             </AppText>
             <View style={styles.boardButtonRow}>
-              <Pressable onPress={() => openDraftModal()} style={styles.actionButtonWide}>
-                <AppText style={styles.actionText}>Save My Draft</AppText>
+              <Pressable onPress={() => setMode('planner')} style={styles.actionButtonWide}>
+                <AppText style={styles.actionText}>Draft Picker</AppText>
               </Pressable>
             </View>
           </Card>
@@ -666,9 +695,14 @@ export default function FantasyToolScreen() {
                         <AppText style={styles.leagueName}>{team.name}</AppText>
                         <AppText variant="muted" style={styles.leagueMeta}>{team.format} · {teamPlayers.length} players</AppText>
                       </View>
-                      <Pressable onPress={() => deleteManualTeam(team.id)} style={styles.hideButton}>
-                        <AppText style={styles.hideText}>Delete</AppText>
-                      </Pressable>
+                      <View style={styles.manualTeamActions}>
+                        <Pressable onPress={() => openEditManualTeam(team)} style={styles.hideButton}>
+                          <AppText style={styles.hideText}>Edit</AppText>
+                        </Pressable>
+                        <Pressable onPress={() => deleteManualTeam(team.id)} style={styles.hideButton}>
+                          <AppText style={styles.hideText}>Delete</AppText>
+                        </Pressable>
+                      </View>
                     </View>
                     <View style={styles.teamReadGrid}>
                       <View style={styles.teamReadItem}>
@@ -700,7 +734,7 @@ export default function FantasyToolScreen() {
               </View>
             ) : (
               <AppText variant="muted" style={styles.cardCopy}>
-                No saved drafts yet. Save a draft after your league finishes so KingFish can watch roster strengths, thin spots, and player role signals.
+                No saved drafts yet. Use Draft Picker to build and save a roster.
               </AppText>
             )}
           </Card>
@@ -816,7 +850,7 @@ export default function FantasyToolScreen() {
                     <AppText style={styles.currentDraftTitle}>{draftName.trim() || 'My Draft'}</AppText>
                     <AppText variant="muted" style={styles.leagueMeta}>{draftFormat} · {draftSelectedPlayers.length} picked</AppText>
                   </View>
-                  <Pressable onPress={saveManualTeam} style={styles.clearButton}>
+                  <Pressable onPress={() => setDraftModalOpen(true)} style={styles.clearButton}>
                     <AppText style={styles.clearButtonText}>Save Team</AppText>
                   </Pressable>
                 </View>
@@ -1086,8 +1120,8 @@ export default function FantasyToolScreen() {
             <Pressable onPress={() => setDraftModalOpen(false)} style={styles.clearButton}>
               <AppText style={styles.clearButtonText}>Cancel</AppText>
             </Pressable>
-            <Pressable onPress={() => setDraftModalOpen(false)} style={styles.actionButtonWide}>
-              <AppText style={styles.actionText}>Done</AppText>
+            <Pressable onPress={draftPlayerIds.length ? saveManualTeam : () => setDraftModalOpen(false)} style={styles.actionButtonWide}>
+              <AppText style={styles.actionText}>{draftPlayerIds.length ? 'Save Draft' : 'Done'}</AppText>
             </Pressable>
           </View>
         </Screen>
@@ -1139,6 +1173,49 @@ export default function FantasyToolScreen() {
             </Pressable>
             <Pressable onPress={() => setLeagueSettingsOpen(false)} style={styles.actionButtonWide}>
               <AppText style={styles.actionText}>Done</AppText>
+            </Pressable>
+          </View>
+        </Screen>
+      </Modal>
+
+      <Modal visible={teamEditOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setTeamEditOpen(false)}>
+        <Screen>
+          <AppText variant="eyebrow">// Saved Drafts</AppText>
+          <AppText variant="title" style={styles.title}>Edit Team</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            Update the saved roster name and scoring format.
+          </AppText>
+
+          <Card style={styles.metaCard}>
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Team Name</AppText>
+              <TextInput
+                value={editingTeamName}
+                onChangeText={setEditingTeamName}
+                placeholder="Brian Home League"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.draftField}>
+              <AppText variant="eyebrow">Scoring</AppText>
+              <View style={styles.plannerToggleRow}>
+                {(['PPR', 'Half PPR', 'Standard'] as DraftFormat[]).map(format => (
+                  <Pressable key={format} onPress={() => setEditingTeamFormat(format)} style={[styles.plannerToggle, editingTeamFormat === format && styles.plannerToggleActive]}>
+                    <AppText style={[styles.plannerToggleText, editingTeamFormat === format && styles.plannerToggleTextActive]}>{format}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </Card>
+
+          <View style={styles.modalActions}>
+            <Pressable onPress={() => setTeamEditOpen(false)} style={styles.clearButton}>
+              <AppText style={styles.clearButtonText}>Cancel</AppText>
+            </Pressable>
+            <Pressable onPress={saveEditedManualTeam} style={styles.actionButtonWide}>
+              <AppText style={styles.actionText}>Save Changes</AppText>
             </Pressable>
           </View>
         </Screen>
@@ -1532,6 +1609,7 @@ const styles = StyleSheet.create({
   manualTeamList: { gap: spacing.md, marginTop: spacing.md },
   manualTeamCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, backgroundColor: colors.bgCardAlt, gap: spacing.md },
   manualTeamHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  manualTeamActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   teamReadGrid: { flexDirection: 'row', gap: spacing.sm },
   teamReadItem: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCard },
   teamReadValue: { color: colors.textPrimary, fontSize: 13, fontWeight: '900', marginTop: 4 },
