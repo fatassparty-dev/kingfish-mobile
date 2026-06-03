@@ -13,6 +13,7 @@ import { colors, spacing } from '@/lib/theme'
 interface PlayerProfileResponse {
   team: string | null
   position: string | null
+  age?: number | null
   jersey_number?: string | number | null
   jerseyNumber?: string | number | null
   matchup?: string | null
@@ -486,7 +487,12 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
   const canCopyShareCard = Boolean(propFocus && query.data && playerName && !isFantasyProfile)
   const nflMeta = sport === 'nfl' ? nflProfileMeta(query.data?.team, query.data?.position) : null
   const jerseyNumber = query.data?.jersey_number || query.data?.jerseyNumber || null
-  const nflMetaParts = [nflMeta?.teamLabel, jerseyNumber ? `#${jerseyNumber}` : null, nflMeta?.positionLabel].filter(Boolean)
+  const nflMetaParts = [
+    nflMeta?.teamLabel,
+    jerseyNumber ? `#${jerseyNumber}` : null,
+    nflMeta?.positionLabel,
+    query.data?.age ? `Age ${query.data.age}` : null,
+  ].filter(Boolean)
 
   async function copyShareCard() {
     if (!shareCardRef.current || copyState === 'copying') return
