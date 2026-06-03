@@ -89,9 +89,10 @@ const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v1'
 const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
-const STARTER_SLOTS: Record<PlannerLeague, Record<string, number>> = {
-  home: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DST: 1 },
-  bestball: { QB: 2, RB: 2, WR: 3, TE: 1, FLEX: 2 },
+const DRAFT_SLOT_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'FLEX', 'BENCH']
+const DEFAULT_DRAFT_TARGETS: Record<PlannerLeague, Record<string, number>> = {
+  home: { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1, FLEX: 1, BENCH: 7 },
+  bestball: { QB: 2, RB: 2, WR: 3, TE: 1, FLEX: 2, BENCH: 8 },
 }
 const PLANNER_ROUND_FILTERS: Array<{ key: PlannerRoundFilter; label: string }> = [
   { key: 'ALL', label: 'All Rounds' },
@@ -223,11 +224,17 @@ function rosterRead(players: Array<{ position?: string | null; risk?: string | n
   return { counts, strength, watch, riskCount, injuryCount }
 }
 
-function rosterSlotSummary(players: Array<{ position?: string | null }>, league: PlannerLeague, rounds: number) {
+function makeDefaultDraftTargets() {
+  return {
+    home: { ...DEFAULT_DRAFT_TARGETS.home },
+    bestball: { ...DEFAULT_DRAFT_TARGETS.bestball },
+  }
+}
+
+function rosterSlotSummary(players: Array<{ position?: string | null }>, slots: Record<string, number>) {
   const counts = positionCounts(players)
-  const slots = STARTER_SLOTS[league]
   const used: Record<string, number> = {}
-  const directPositions = Object.keys(slots).filter(position => position !== 'FLEX')
+  const directPositions = DRAFT_SLOT_ORDER.filter(position => position !== 'FLEX' && position !== 'BENCH' && position in slots)
   const entries = directPositions.map(position => {
     const count = Math.min(counts[position] || 0, slots[position] || 0)
     used[position] = count
@@ -237,12 +244,11 @@ function rosterSlotSummary(players: Array<{ position?: string | null }>, league:
   const flexTarget = slots.FLEX || 0
   const flexCount = Math.min(flexAvailable, flexTarget)
   const starterCount = entries.reduce((total, entry) => total + entry.count, 0) + flexCount
-  const benchTarget = Math.max(0, rounds - Object.values(slots).reduce((total, value) => total + value, 0))
   const benchCount = Math.max(0, players.length - starterCount)
   return [
     ...entries,
     ...(flexTarget ? [{ position: 'FLEX', count: flexCount, target: flexTarget }] : []),
-    { position: 'BENCH', count: benchCount, target: benchTarget },
+    { position: 'BENCH', count: benchCount, target: slots.BENCH || 0 },
   ]
 }
 
@@ -276,7 +282,7 @@ export default function FantasyToolScreen() {
   const [draftModalOpen, setDraftModalOpen] = useState(false)
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
-  const [draftSearch, setDraftSearch] = useState('')
+  const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
   const [draftPlayerIds, setDraftPlayerIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -392,8 +398,8 @@ export default function FantasyToolScreen() {
   const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
   const activeBoardMode: BoardMode = mode === 'bestball' ? 'bestball' : 'home'
   const boardDirty = (mode === 'home' || mode === 'bestball') && boardOrder[activeBoardMode].join('|') !== savedBoardOrder[activeBoardMode].join('|')
-  const plannerRounds = plannerLeague === 'bestball' ? 18 : 16
   const plannerSourcePlayers = plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
+  const currentDraftTargets = draftTargets[plannerLeague]
   const bestBallStackTeams = useMemo(() => getStackTeams(orderedBestBallPlayers), [orderedBestBallPlayers])
   const allRankedPlayers = useMemo(() => {
     const byId = new Map<string, DraftPlayer>()
@@ -406,17 +412,6 @@ export default function FantasyToolScreen() {
     const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
     return draftPlayerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
   }, [allRankedPlayers, draftPlayerIds])
-  const draftSearchResults = useMemo(() => {
-    const selected = new Set(draftPlayerIds)
-    const needle = draftSearch.trim().toLowerCase()
-    return allRankedPlayers
-      .filter(player => !selected.has(player.id))
-      .filter(player => {
-        if (!needle) return true
-        return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle) || player.position.toLowerCase().includes(needle)
-      })
-      .slice(0, 16)
-  }, [allRankedPlayers, draftPlayerIds, draftSearch])
   const manualTeamCards = useMemo(() => {
     const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
     return manualTeams.map(team => {
@@ -429,7 +424,7 @@ export default function FantasyToolScreen() {
     })
   }, [allRankedPlayers, manualTeams])
   const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
-  const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, plannerLeague, plannerRounds), [draftSelectedPlayers, plannerLeague, plannerRounds])
+  const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, currentDraftTargets), [currentDraftTargets, draftSelectedPlayers])
   const plannerPickerPlayers = useMemo(() => {
     const selected = new Set(draftPlayerIds)
     const needle = plannerSearch.trim().toLowerCase()
@@ -536,7 +531,6 @@ export default function FantasyToolScreen() {
   function clearCurrentDraft() {
     setDraftPlayerIds([])
     setDraftName('')
-    setDraftSearch('')
     setPlannerSearch('')
   }
 
@@ -546,8 +540,21 @@ export default function FantasyToolScreen() {
       setDraftFormat('PPR')
       setDraftPlayerIds([])
     }
-    setDraftSearch('')
     setDraftModalOpen(true)
+  }
+
+  function updateDraftTarget(position: string, delta: -1 | 1) {
+    setDraftTargets(current => {
+      const leagueTargets = current[plannerLeague]
+      const nextValue = Math.max(0, Math.min(20, (leagueTargets[position] || 0) + delta))
+      return {
+        ...current,
+        [plannerLeague]: {
+          ...leagueTargets,
+          [position]: nextValue,
+        },
+      }
+    })
   }
 
   async function saveManualTeam() {
@@ -572,7 +579,6 @@ export default function FantasyToolScreen() {
     await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
     setDraftModalOpen(false)
     setDraftName('')
-    setDraftSearch('')
     setDraftPlayerIds([])
     setMode('teams')
   }
@@ -815,7 +821,17 @@ export default function FantasyToolScreen() {
                 <View style={styles.plannerSummary}>
                   {currentDraftSlots.map(slot => (
                     <View key={slot.position} style={styles.plannerSummaryItem}>
-                      <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                      <View style={styles.slotHeader}>
+                        <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                        <View style={styles.slotStepper}>
+                          <Pressable onPress={() => updateDraftTarget(slot.position, -1)} style={styles.slotStepButton}>
+                            <AppText style={styles.slotStepText}>-</AppText>
+                          </Pressable>
+                          <Pressable onPress={() => updateDraftTarget(slot.position, 1)} style={styles.slotStepButton}>
+                            <AppText style={styles.slotStepText}>+</AppText>
+                          </Pressable>
+                        </View>
+                      </View>
                       <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
                     </View>
                   ))}
@@ -1001,10 +1017,10 @@ export default function FantasyToolScreen() {
 
       <Modal visible={draftModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDraftModalOpen(false)}>
         <Screen>
-          <AppText variant="eyebrow">// Save My Draft</AppText>
-          <AppText variant="title" style={styles.title}>Draft Result</AppText>
+          <AppText variant="eyebrow">// Draft Picker</AppText>
+          <AppText variant="title" style={styles.title}>Team Details</AppText>
           <AppText variant="muted" style={styles.copy}>
-            Save the players you drafted. KingFish will use this roster for monitoring and quick decisions, not live scoring.
+            Name this roster and set the scoring format so it is easy to tell your leagues apart.
           </AppText>
 
           <Card style={styles.metaCard}>
@@ -1029,19 +1045,6 @@ export default function FantasyToolScreen() {
                 ))}
               </View>
             </View>
-
-            <View style={styles.draftField}>
-              <AppText variant="eyebrow">Add Players</AppText>
-              <TextInput
-                value={draftSearch}
-                onChangeText={setDraftSearch}
-                placeholder="Search player, team, or position"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                style={styles.input}
-              />
-            </View>
           </Card>
 
           {draftSelectedPlayers.length ? (
@@ -1061,31 +1064,12 @@ export default function FantasyToolScreen() {
             </Card>
           ) : null}
 
-          <View style={styles.playerList}>
-            {draftSearchResults.map(player => (
-              <Pressable
-                key={player.id}
-                onPress={() => setDraftPlayerIds(ids => Array.from(new Set([...ids, player.id])))}
-                style={styles.playerRow}
-              >
-                <View style={styles.playerMain}>
-                  <View style={styles.playerTitleRow}>
-                    <AppText style={styles.playerName}>{player.name}</AppText>
-                    <AppText style={styles.positionBox}>{player.position}</AppText>
-                  </View>
-                  <AppText variant="muted" style={styles.playerMeta}>{player.team || '-'} · Rank #{player.rank}</AppText>
-                </View>
-                <AppText style={styles.grade}>Add</AppText>
-              </Pressable>
-            ))}
-          </View>
-
           <View style={styles.modalActions}>
             <Pressable onPress={() => setDraftModalOpen(false)} style={styles.clearButton}>
               <AppText style={styles.clearButtonText}>Cancel</AppText>
             </Pressable>
-            <Pressable onPress={saveManualTeam} style={styles.actionButtonWide}>
-              <AppText style={styles.actionText}>Save Team</AppText>
+            <Pressable onPress={() => setDraftModalOpen(false)} style={styles.actionButtonWide}>
+              <AppText style={styles.actionText}>Done</AppText>
             </Pressable>
           </View>
         </Screen>
@@ -1427,7 +1411,11 @@ const styles = StyleSheet.create({
   plannerToggleText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   plannerToggleTextActive: { color: colors.gold },
   plannerSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-  plannerSummaryItem: { minWidth: 58, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
+  plannerSummaryItem: { minWidth: 76, minHeight: 74, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
+  slotHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.xs },
+  slotStepper: { flexDirection: 'row', gap: 3 },
+  slotStepButton: { width: 18, height: 18, borderWidth: 1, borderColor: 'rgba(198,145,50,.32)', borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
+  slotStepText: { color: colors.gold, fontSize: 12, lineHeight: 13, fontWeight: '900' },
   plannerSummaryPos: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   plannerSummaryCount: { color: colors.textPrimary, fontSize: 14, fontWeight: '900', marginTop: 2 },
   plannerFilters: { gap: spacing.sm, marginTop: spacing.md },
