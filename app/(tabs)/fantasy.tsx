@@ -17,6 +17,7 @@ type BoardMode = 'home' | 'bestball'
 type BestBallView = 'players' | 'stacks'
 type StackBuild = 'small' | 'full'
 type DraftFormat = 'PPR' | 'Half PPR' | 'Standard'
+type PlannerRoundFilter = 'ALL' | 'EARLY' | 'MIDDLE' | 'LATE' | 'END'
 
 type DraftPlayer = {
   id: string
@@ -88,10 +89,17 @@ const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v1'
 const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
-const PLANNER_TARGETS: Record<PlannerLeague, Record<string, number>> = {
-  home: { QB: 2, RB: 5, WR: 6, TE: 2, K: 1, DST: 1 },
-  bestball: { QB: 3, RB: 7, WR: 8, TE: 3 },
+const STARTER_SLOTS: Record<PlannerLeague, Record<string, number>> = {
+  home: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DST: 1 },
+  bestball: { QB: 2, RB: 2, WR: 3, TE: 1, FLEX: 2 },
 }
+const PLANNER_ROUND_FILTERS: Array<{ key: PlannerRoundFilter; label: string }> = [
+  { key: 'ALL', label: 'All Rounds' },
+  { key: 'EARLY', label: 'R1-4' },
+  { key: 'MIDDLE', label: 'R5-8' },
+  { key: 'LATE', label: 'R9-12' },
+  { key: 'END', label: 'R13+' },
+]
 const NFL_TEAM_NAMES: Record<string, string> = {
   ARI: 'Arizona Cardinals',
   ATL: 'Atlanta Falcons',
@@ -135,18 +143,6 @@ function teamDisplayName(team: string) {
 
 function roundLabel(rank: number) {
   return rank > 0 ? `R${Math.ceil(rank / 12)}` : 'NR'
-}
-
-function snakePick(round: number, teams: number, slot: number) {
-  return round % 2 === 1
-    ? (round - 1) * teams + slot
-    : (round - 1) * teams + (teams - slot + 1)
-}
-
-function positionNeed(position: string, counts: Record<string, number>, targets: Record<string, number>) {
-  const target = targets[position] || 0
-  if (!target) return -99
-  return target - (counts[position] || 0)
 }
 
 function applySavedOrder(players: DraftPlayer[], orderedIds: string[]) {
@@ -227,6 +223,37 @@ function rosterRead(players: Array<{ position?: string | null; risk?: string | n
   return { counts, strength, watch, riskCount, injuryCount }
 }
 
+function rosterSlotSummary(players: Array<{ position?: string | null }>, league: PlannerLeague, rounds: number) {
+  const counts = positionCounts(players)
+  const slots = STARTER_SLOTS[league]
+  const used: Record<string, number> = {}
+  const directPositions = Object.keys(slots).filter(position => position !== 'FLEX')
+  const entries = directPositions.map(position => {
+    const count = Math.min(counts[position] || 0, slots[position] || 0)
+    used[position] = count
+    return { position, count, target: slots[position] || 0 }
+  })
+  const flexAvailable = ['RB', 'WR', 'TE'].reduce((total, position) => total + Math.max(0, (counts[position] || 0) - (used[position] || 0)), 0)
+  const flexTarget = slots.FLEX || 0
+  const flexCount = Math.min(flexAvailable, flexTarget)
+  const starterCount = entries.reduce((total, entry) => total + entry.count, 0) + flexCount
+  const benchTarget = Math.max(0, rounds - Object.values(slots).reduce((total, value) => total + value, 0))
+  const benchCount = Math.max(0, players.length - starterCount)
+  return [
+    ...entries,
+    ...(flexTarget ? [{ position: 'FLEX', count: flexCount, target: flexTarget }] : []),
+    { position: 'BENCH', count: benchCount, target: benchTarget },
+  ]
+}
+
+function matchesRoundFilter(round: number, filter: PlannerRoundFilter) {
+  if (filter === 'EARLY') return round <= 4
+  if (filter === 'MIDDLE') return round >= 5 && round <= 8
+  if (filter === 'LATE') return round >= 9 && round <= 12
+  if (filter === 'END') return round >= 13
+  return true
+}
+
 export default function FantasyToolScreen() {
   const [mode, setMode] = useState<FantasyMode>('home')
   const [position, setPosition] = useState<Position>('ALL')
@@ -241,11 +268,9 @@ export default function FantasyToolScreen() {
   const [boardMessage, setBoardMessage] = useState('')
   const [bestBallView, setBestBallView] = useState<BestBallView>('players')
   const [plannerLeague, setPlannerLeague] = useState<PlannerLeague>('home')
-  const [plannerTeams, setPlannerTeams] = useState('12')
-  const [plannerSlot, setPlannerSlot] = useState('6')
-  const [plannerTaken, setPlannerTaken] = useState<string[]>([])
-  const [plannerStackTeam, setPlannerStackTeam] = useState('ALL')
-  const [plannerStackBuild, setPlannerStackBuild] = useState<StackBuild>('small')
+  const [plannerSearch, setPlannerSearch] = useState('')
+  const [plannerPositionFilter, setPlannerPositionFilter] = useState<Position>('ALL')
+  const [plannerRoundFilter, setPlannerRoundFilter] = useState<PlannerRoundFilter>('ALL')
   const [bestBallStackTeam, setBestBallStackTeam] = useState('ALL')
   const [manualTeams, setManualTeams] = useState<ManualTeam[]>([])
   const [draftModalOpen, setDraftModalOpen] = useState(false)
@@ -301,11 +326,6 @@ export default function FantasyToolScreen() {
         if (!value) return
         const parsed = JSON.parse(value)
         if (parsed?.league === 'home' || parsed?.league === 'bestball') setPlannerLeague(parsed.league)
-        if (parsed?.teams) setPlannerTeams(String(parsed.teams))
-        if (parsed?.slot) setPlannerSlot(String(parsed.slot))
-        if (Array.isArray(parsed?.taken)) setPlannerTaken(parsed.taken)
-        if (typeof parsed?.stackTeam === 'string') setPlannerStackTeam(parsed.stackTeam)
-        if (parsed?.stackBuild === 'small' || parsed?.stackBuild === 'full') setPlannerStackBuild(parsed.stackBuild)
       })
       .catch(() => {})
   }, [])
@@ -372,15 +392,8 @@ export default function FantasyToolScreen() {
   const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
   const activeBoardMode: BoardMode = mode === 'bestball' ? 'bestball' : 'home'
   const boardDirty = (mode === 'home' || mode === 'bestball') && boardOrder[activeBoardMode].join('|') !== savedBoardOrder[activeBoardMode].join('|')
-  const plannerTeamsNum = Math.max(8, Math.min(14, Number(plannerTeams) || 12))
-  const plannerSlotNum = Math.max(1, Math.min(plannerTeamsNum, Number(plannerSlot) || 1))
   const plannerRounds = plannerLeague === 'bestball' ? 18 : 16
   const plannerSourcePlayers = plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
-  const plannerStackTeams = useMemo(() => getStackTeams(plannerSourcePlayers), [plannerSourcePlayers])
-  const plannerStackPieces = useMemo(
-    () => getStackPieces(plannerSourcePlayers, plannerStackTeam, plannerStackBuild),
-    [plannerSourcePlayers, plannerStackBuild, plannerStackTeam],
-  )
   const bestBallStackTeams = useMemo(() => getStackTeams(orderedBestBallPlayers), [orderedBestBallPlayers])
   const allRankedPlayers = useMemo(() => {
     const byId = new Map<string, DraftPlayer>()
@@ -416,65 +429,31 @@ export default function FantasyToolScreen() {
     })
   }, [allRankedPlayers, manualTeams])
   const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
-  const plannerTakenPlayers = useMemo(() => {
-    const byId = new Map(plannerSourcePlayers.map(player => [player.id, player]))
-    return plannerTaken.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
-  }, [plannerSourcePlayers, plannerTaken])
-  const plannerPath = useMemo(() => {
-    const taken = new Set(plannerTaken)
-    const used = new Set<string>()
-    const counts: Record<string, number> = {}
-    const targets = PLANNER_TARGETS[plannerLeague]
-    const stackTargets = plannerStackPieces.filter(player => !taken.has(player.id))
-
-    return Array.from({ length: plannerRounds }, (_, index) => {
-      const round = index + 1
-      const pick = snakePick(round, plannerTeamsNum, plannerSlotNum)
-      const candidates = plannerSourcePlayers.filter(player => !taken.has(player.id) && !used.has(player.id))
-      const nearPick = candidates.filter(player => (player.rank || 9999) >= Math.max(1, pick - 10))
-      const stackPick = stackTargets.find(player => {
-        if (used.has(player.id)) return false
-        const rank = player.rank || 9999
-        return rank <= pick + 30 || round >= 10
+  const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, plannerLeague, plannerRounds), [draftSelectedPlayers, plannerLeague, plannerRounds])
+  const plannerPickerPlayers = useMemo(() => {
+    const selected = new Set(draftPlayerIds)
+    const needle = plannerSearch.trim().toLowerCase()
+    return plannerSourcePlayers
+      .filter(player => !selected.has(player.id))
+      .filter(player => matchesRoundFilter(Math.ceil((player.rank || 9999) / 12), plannerRoundFilter))
+      .filter(player => {
+        if (plannerPositionFilter === 'ALL') return true
+        if (plannerPositionFilter === 'FLEX') return FLEX.has(player.position)
+        return player.position === plannerPositionFilter
       })
-      const preferred = stackPick
-        || nearPick.find(player => positionNeed(player.position, counts, targets) > 0)
-        || candidates.find(player => positionNeed(player.position, counts, targets) > 0)
-        || nearPick[0]
-        || candidates[0]
-        || null
-
-      if (preferred) {
-        used.add(preferred.id)
-        counts[preferred.position] = (counts[preferred.position] || 0) + 1
-      }
-
-      return { round, pick, player: preferred }
-    })
-  }, [plannerLeague, plannerRounds, plannerSlotNum, plannerSourcePlayers, plannerStackPieces, plannerTaken, plannerTeamsNum])
-  const plannerCounts = useMemo(() => {
-    return plannerPath.reduce<Record<string, number>>((counts, item) => {
-      if (item.player?.position) counts[item.player.position] = (counts[item.player.position] || 0) + 1
-      return counts
-    }, {})
-  }, [plannerPath])
+      .filter(player => {
+        if (!needle) return true
+        return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle) || player.position.toLowerCase().includes(needle)
+      })
+      .slice(0, 120)
+  }, [draftPlayerIds, plannerPositionFilter, plannerRoundFilter, plannerSearch, plannerSourcePlayers])
+  const plannerPositionOptions = POSITIONS.filter(pos => plannerLeague !== 'bestball' || (pos !== 'K' && pos !== 'DST'))
 
   useEffect(() => {
     AsyncStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify({
       league: plannerLeague,
-      teams: plannerTeams,
-      slot: plannerSlot,
-      taken: plannerTaken,
-      stackTeam: plannerStackTeam,
-      stackBuild: plannerStackBuild,
     })).catch(() => {})
-  }, [plannerLeague, plannerSlot, plannerStackBuild, plannerStackTeam, plannerTaken, plannerTeams])
-
-  useEffect(() => {
-    if (plannerStackTeam !== 'ALL' && !plannerStackTeams.includes(plannerStackTeam)) {
-      setPlannerStackTeam('ALL')
-    }
-  }, [plannerStackTeam, plannerStackTeams])
+  }, [plannerLeague])
 
   async function connectSleeper() {
     const username = sleeperUsername.trim()
@@ -548,40 +527,17 @@ export default function FantasyToolScreen() {
     await AsyncStorage.setItem(BOARD_ORDER_STORAGE_KEY, JSON.stringify(nextSaved))
   }
 
-  async function savePlannerState(nextTaken = plannerTaken) {
-    await AsyncStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify({
-      league: plannerLeague,
-      teams: plannerTeams,
-      slot: plannerSlot,
-      taken: nextTaken,
-      stackTeam: plannerStackTeam,
-      stackBuild: plannerStackBuild,
-    }))
-  }
-
-  async function markPlannerTaken(playerId?: string) {
-    if (!playerId) return
-    const next = Array.from(new Set([...plannerTaken, playerId]))
-    setPlannerTaken(next)
-    await savePlannerState(next)
-  }
-
-  async function pickPlannerPlayer(player?: DraftPlayer | null) {
+  function pickPlannerPlayer(player?: DraftPlayer | null) {
     if (!player) return
     setDraftPlayerIds(ids => Array.from(new Set([...ids, player.id])))
     if (!draftName.trim()) setDraftName('My Draft')
-    await markPlannerTaken(player.id)
   }
 
-  async function clearPlannerTaken() {
-    setPlannerTaken([])
-    await savePlannerState([])
-  }
-
-  async function removePlannerTaken(playerId: string) {
-    const next = plannerTaken.filter(id => id !== playerId)
-    setPlannerTaken(next)
-    await savePlannerState(next)
+  function clearCurrentDraft() {
+    setDraftPlayerIds([])
+    setDraftName('')
+    setDraftSearch('')
+    setPlannerSearch('')
   }
 
   function openDraftModal(reset = true) {
@@ -804,14 +760,17 @@ export default function FantasyToolScreen() {
       ) : mode === 'planner' ? (
         <>
           <Card style={styles.metaCard}>
-            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>Draft Path</AppText>
-            <AppText variant="muted" style={styles.cardCopy}>Uses your saved Home or Best Ball board order.</AppText>
+            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>Draft Picker</AppText>
+            <AppText variant="muted" style={styles.cardCopy}>
+              Use the research boards during the draft. After each pick, add the players you actually drafted here and save the team for roster monitoring.
+            </AppText>
 
             <View style={styles.plannerToggleRow}>
               {(['home', 'bestball'] as PlannerLeague[]).map(item => (
                 <Pressable key={item} onPress={() => {
                   setPlannerLeague(item)
-                  setPlannerTaken([])
+                  setPlannerPositionFilter('ALL')
+                  setPlannerRoundFilter('ALL')
                 }} style={[styles.plannerToggle, plannerLeague === item && styles.plannerToggleActive]}>
                   <AppText style={[styles.plannerToggleText, plannerLeague === item && styles.plannerToggleTextActive]}>
                     {item === 'home' ? 'Home League' : 'Best Ball'}
@@ -820,83 +779,15 @@ export default function FantasyToolScreen() {
               ))}
             </View>
 
-            <View style={styles.plannerInputs}>
-              <View style={styles.plannerInputBlock}>
-                <AppText variant="eyebrow">Teams</AppText>
-                <TextInput
-                  value={plannerTeams}
-                  onChangeText={setPlannerTeams}
-                  keyboardType="number-pad"
-                  placeholder="12"
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.input}
-                />
-              </View>
-              <View style={styles.plannerInputBlock}>
-                <AppText variant="eyebrow">Slot</AppText>
-                <TextInput
-                  value={plannerSlot}
-                  onChangeText={setPlannerSlot}
-                  keyboardType="number-pad"
-                  placeholder="6"
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.input}
-                />
-              </View>
-            </View>
-
-            <View style={styles.plannerStackBlock}>
-              <TeamDropdown
-                label="Stack Team"
-                value={plannerStackTeam}
-                teams={plannerStackTeams}
-                onChange={team => {
-                  setPlannerStackTeam(team)
-                  setPlannerTaken([])
-                }}
-              />
-              <View style={styles.stackBuildRow}>
-                {([
-                  { key: 'small', label: 'QB + 1' },
-                  { key: 'full', label: 'QB + 2' },
-                ] as Array<{ key: StackBuild; label: string }>).map(item => (
-                  <Pressable key={item.key} onPress={() => setPlannerStackBuild(item.key)} style={[styles.stackBuildButton, plannerStackBuild === item.key && styles.stackBuildButtonActive]}>
-                    <AppText style={[styles.stackBuildText, plannerStackBuild === item.key && styles.stackBuildTextActive]}>{item.label}</AppText>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {plannerStackPieces.length ? (
-              <View style={styles.stackPlan}>
-                <AppText variant="eyebrow">{teamDisplayName(plannerStackTeam)} Stack Plan</AppText>
-                {plannerStackPieces.map(player => (
-                  <View key={player.id} style={styles.stackPlanRow}>
-                    <AppText style={styles.stackPlanName}>{player.name}</AppText>
-                    <AppText style={styles.stackPlanMeta}>{player.position} · #{player.rank}</AppText>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={styles.plannerSummary}>
-              {Object.entries(PLANNER_TARGETS[plannerLeague]).map(([pos, target]) => (
-                <View key={pos} style={styles.plannerSummaryItem}>
-                  <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
-                  <AppText style={styles.plannerSummaryCount}>{plannerCounts[pos] || 0}/{target}</AppText>
-                </View>
-              ))}
-            </View>
-
             <View style={styles.boardButtonRow}>
               <Pressable onPress={() => openDraftModal(!draftPlayerIds.length)} style={styles.clearButton}>
-                <AppText style={styles.clearButtonText}>{draftPlayerIds.length ? 'Edit Draft' : 'Save My Draft'}</AppText>
+                <AppText style={styles.clearButtonText}>{draftPlayerIds.length ? 'Team Details' : 'Start Draft'}</AppText>
               </Pressable>
-              <Pressable onPress={clearPlannerTaken} disabled={!plannerTaken.length} style={[styles.clearButton, !plannerTaken.length && styles.disabledButton]}>
-                <AppText style={styles.clearButtonText}>Clear Taken</AppText>
+              <Pressable onPress={clearCurrentDraft} disabled={!draftPlayerIds.length} style={[styles.clearButton, !draftPlayerIds.length && styles.disabledButton]}>
+                <AppText style={styles.clearButtonText}>Clear Draft</AppText>
               </Pressable>
               <Pressable onPress={() => setMode(plannerLeague)} style={styles.clearButton}>
-                <AppText style={styles.clearButtonText}>Open Board</AppText>
+                <AppText style={styles.clearButtonText}>Open Research Board</AppText>
               </Pressable>
             </View>
             {draftPlayerIds.length ? (
@@ -911,11 +802,21 @@ export default function FantasyToolScreen() {
                     <AppText style={styles.clearButtonText}>Save Team</AppText>
                   </Pressable>
                 </View>
+                <View style={styles.currentDraftDetails}>
+                  <AppText variant="eyebrow">Team Name</AppText>
+                  <TextInput
+                    value={draftName}
+                    onChangeText={setDraftName}
+                    placeholder={plannerLeague === 'bestball' ? 'Best Ball Draft' : 'Home League Draft'}
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.input}
+                  />
+                </View>
                 <View style={styles.plannerSummary}>
-                  {Object.entries(PLANNER_TARGETS[plannerLeague]).map(([pos, target]) => (
-                    <View key={pos} style={styles.plannerSummaryItem}>
-                      <AppText style={styles.plannerSummaryPos}>{pos}</AppText>
-                      <AppText style={styles.plannerSummaryCount}>{currentDraftRead.counts[pos] || 0}/{target}</AppText>
+                  {currentDraftSlots.map(slot => (
+                    <View key={slot.position} style={styles.plannerSummaryItem}>
+                      <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                      <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
                     </View>
                   ))}
                 </View>
@@ -924,32 +825,59 @@ export default function FantasyToolScreen() {
                 </AppText>
               </View>
             ) : null}
-            {plannerTakenPlayers.length ? (
-              <View style={styles.takenList}>
-                <AppText variant="eyebrow">Taken</AppText>
-                <View style={styles.takenChipRow}>
-                  {plannerTakenPlayers.slice(0, 8).map(player => (
-                    <Pressable key={player.id} onPress={() => removePlannerTaken(player.id)} style={styles.takenChip}>
-                      <AppText style={styles.takenChipText}>{player.name}</AppText>
-                    </Pressable>
-                  ))}
-                </View>
+            <View style={styles.plannerFilters}>
+              <AppText variant="eyebrow">Search</AppText>
+              <TextInput
+                value={plannerSearch}
+                onChangeText={setPlannerSearch}
+                placeholder="Search drafted player, team, or position"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                style={styles.input}
+              />
+              <AppText variant="eyebrow">Position</AppText>
+              <View style={styles.filterRow}>
+                {plannerPositionOptions.map(pos => (
+                  <Pressable
+                    key={pos}
+                    onPress={() => setPlannerPositionFilter(pos)}
+                    style={[styles.filterButton, plannerPositionFilter === pos && styles.filterButtonActive]}
+                  >
+                    <AppText style={[styles.filterButtonText, plannerPositionFilter === pos && styles.filterButtonTextActive]}>{pos}</AppText>
+                  </Pressable>
+                ))}
               </View>
-            ) : null}
+              <AppText variant="eyebrow">Rounds</AppText>
+              <View style={styles.filterRow}>
+                {PLANNER_ROUND_FILTERS.map(filter => (
+                  <Pressable
+                    key={filter.key}
+                    onPress={() => setPlannerRoundFilter(filter.key)}
+                    style={[styles.filterButton, plannerRoundFilter === filter.key && styles.filterButtonActive]}
+                  >
+                    <AppText style={[styles.filterButtonText, plannerRoundFilter === filter.key && styles.filterButtonTextActive]}>{filter.label}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </Card>
 
           <View style={styles.playerList}>
-            {plannerPath.map(item => (
+            {plannerPickerPlayers.map(player => (
               <PlannerPickCard
-                key={`${item.round}-${item.pick}`}
-                round={item.round}
-                pick={item.pick}
-                player={item.player}
-                onPress={() => item.player && setProfilePlayer(item.player.name)}
-                onTaken={() => markPlannerTaken(item.player?.id)}
-                onPick={() => pickPlannerPlayer(item.player)}
+                key={player.id}
+                player={player}
+                onPress={() => setProfilePlayer(player.name)}
+                onPick={() => pickPlannerPlayer(player)}
               />
             ))}
+            {!plannerPickerPlayers.length ? (
+              <Card>
+                <AppText style={styles.cardTitle}>No Players Found</AppText>
+                <AppText variant="muted" style={styles.cardCopy}>Try clearing the search, position, or round filter.</AppText>
+              </Card>
+            ) : null}
           </View>
         </>
       ) : (
@@ -1377,56 +1305,34 @@ function StackSection({
 }
 
 function PlannerPickCard({
-  round,
-  pick,
   player,
   onPress,
-  onTaken,
   onPick,
 }: {
-  round: number
-  pick: number
-  player: DraftPlayer | null
+  player: DraftPlayer
   onPress: () => void
-  onTaken: () => void
   onPick: () => void
 }) {
   return (
-    <Pressable onPress={onPress} disabled={!player} style={styles.plannerPickCard}>
+    <Pressable onPress={onPress} style={styles.plannerPickCard}>
       <View style={styles.plannerPickHead}>
-        <AppText style={styles.plannerRound}>R{round}</AppText>
-        <AppText style={styles.plannerPick}>Pick {pick}</AppText>
+        <AppText style={styles.plannerRound}>#{player.rank}</AppText>
+        <AppText style={styles.plannerPick}>{roundLabel(player.rank)}</AppText>
       </View>
-      {player ? (
-        <>
-          <View style={styles.playerTitleRow}>
-            <AppText style={styles.playerName}>{player.name}</AppText>
-            <AppText style={styles.positionBox}>{player.position}</AppText>
-          </View>
-          <AppText variant="muted" style={styles.playerMeta}>
-            {player.team || '-'} · Rank #{player.rank}
-          </AppText>
-          <View style={styles.plannerActions}>
-            <AppText style={styles.grade}>{player.grade || '-'}</AppText>
-            <View style={styles.plannerActionButtons}>
-              <Pressable onPress={event => {
-                event.stopPropagation()
-                onTaken()
-              }} style={styles.plannerAvailableButton}>
-                <AppText style={styles.plannerAvailableText}>Available</AppText>
-              </Pressable>
-              <Pressable onPress={event => {
-                event.stopPropagation()
-                onPick()
-              }} style={styles.plannerPickButton}>
-                <AppText style={styles.plannerPickButtonText}>Pick</AppText>
-              </Pressable>
-            </View>
-          </View>
-        </>
-      ) : (
-        <AppText variant="muted" style={styles.cardCopy}>No player found.</AppText>
-      )}
+      <View style={styles.plannerPlayerCell}>
+        <AppText style={styles.plannerPlayerName} numberOfLines={1}>{player.name}</AppText>
+        <AppText variant="muted" style={styles.plannerPlayerMeta} numberOfLines={1}>
+          {player.position} · {player.team || '-'}
+        </AppText>
+      </View>
+      <View style={styles.plannerActions}>
+        <Pressable onPress={event => {
+          event.stopPropagation()
+          onPick()
+        }} style={styles.plannerPickButton}>
+          <AppText style={styles.plannerPickButtonText}>Pick</AppText>
+        </Pressable>
+      </View>
     </Pressable>
   )
 }
@@ -1502,34 +1408,29 @@ const styles = StyleSheet.create({
   plannerToggleActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
   plannerToggleText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   plannerToggleTextActive: { color: colors.gold },
-  plannerInputs: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md },
-  plannerInputBlock: { flex: 1, gap: spacing.xs },
-  plannerStackBlock: { gap: spacing.md, marginBottom: spacing.md },
-  stackBuildRow: { flexDirection: 'row', gap: spacing.sm },
-  stackBuildButton: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
-  stackBuildButtonActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
-  stackBuildText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
-  stackBuildTextActive: { color: colors.gold },
-  stackPlan: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.bgCardAlt },
-  stackPlanRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  stackPlanName: { flex: 1, color: colors.textPrimary, fontSize: 13, fontWeight: '900' },
-  stackPlanMeta: { color: colors.gold, fontSize: 11, fontWeight: '900' },
   plannerSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   plannerSummaryItem: { minWidth: 58, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
   plannerSummaryPos: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   plannerSummaryCount: { color: colors.textPrimary, fontSize: 14, fontWeight: '900', marginTop: 2 },
-  plannerPickCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.bgCardAlt, padding: spacing.md },
-  plannerPickHead: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.md },
-  plannerRound: { color: colors.gold, fontSize: 14, fontWeight: '900' },
-  plannerPick: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
-  plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  plannerActionButtons: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' },
-  plannerAvailableButton: { borderWidth: 1, borderColor: 'rgba(34,197,94,.45)', borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(34,197,94,.08)' },
-  plannerAvailableText: { color: colors.green, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  plannerPickButton: { borderWidth: 1, borderColor: 'rgba(198,145,50,.45)', borderRadius: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(198,145,50,.13)' },
+  plannerFilters: { gap: spacing.sm, marginTop: spacing.md },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  filterButton: { minHeight: 34, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
+  filterButtonActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
+  filterButtonText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  filterButtonTextActive: { color: colors.gold },
+  plannerPickCard: { minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: 6, backgroundColor: colors.bgCardAlt, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  plannerPickHead: { width: 46, gap: 1 },
+  plannerRound: { color: colors.gold, fontSize: 13, fontWeight: '900' },
+  plannerPick: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  plannerPlayerCell: { flex: 1, minWidth: 0 },
+  plannerPlayerName: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
+  plannerPlayerMeta: { marginTop: 1, fontSize: 11, lineHeight: 15 },
+  plannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.xs },
+  plannerPickButton: { borderWidth: 1, borderColor: 'rgba(198,145,50,.45)', borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: 'rgba(198,145,50,.13)' },
   plannerPickButtonText: { color: colors.gold, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   currentDraftCard: { marginTop: spacing.md, borderWidth: 1, borderColor: 'rgba(198,145,50,.32)', borderRadius: 8, padding: spacing.md, backgroundColor: colors.bgCardAlt },
   currentDraftTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  currentDraftDetails: { gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.md },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
