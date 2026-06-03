@@ -264,6 +264,34 @@ function rosterSlotSummary(players: Array<{ position?: string | null }>, slots: 
   ]
 }
 
+function rosterSections(players: DraftPlayer[], slots: Record<string, number>) {
+  const remaining = [...players].sort((a, b) => a.rank - b.rank)
+  const takePlayers = (match: (player: DraftPlayer) => boolean, count: number) => {
+    if (count <= 0) return []
+    const picked: DraftPlayer[] = []
+    for (let index = 0; index < remaining.length && picked.length < count;) {
+      if (match(remaining[index])) {
+        const [player] = remaining.splice(index, 1)
+        picked.push(player)
+      } else {
+        index += 1
+      }
+    }
+    return picked
+  }
+  const direct = DRAFT_SLOT_ORDER
+    .filter(position => position !== 'FLEX' && position !== 'BENCH' && slots[position])
+    .map(position => ({
+      key: position,
+      label: DRAFT_SLOT_LABELS[position] || position,
+      players: takePlayers(player => player.position === position, slots[position] || 0),
+    }))
+  const flex = slots.FLEX
+    ? [{ key: 'FLEX', label: 'Flex', players: takePlayers(player => FLEX.has(player.position), slots.FLEX || 0) }]
+    : []
+  return [...direct, ...flex, { key: 'BENCH', label: 'Bench', players: remaining }]
+}
+
 function matchesRoundFilter(round: number, filter: PlannerRoundFilter) {
   if (filter === 'EARLY') return round <= 4
   if (filter === 'MIDDLE') return round >= 5 && round <= 8
@@ -300,6 +328,8 @@ export default function FantasyToolScreen() {
   const [editingTeamFormat, setEditingTeamFormat] = useState<DraftFormat>('PPR')
   const [editingTeamPlayerIds, setEditingTeamPlayerIds] = useState<string[]>([])
   const [editingTeamSearch, setEditingTeamSearch] = useState('')
+  const [editingTeamSlots, setEditingTeamSlots] = useState<Record<string, number>>({ ...DEFAULT_DRAFT_TARGETS.home })
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
   const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
@@ -442,6 +472,7 @@ export default function FantasyToolScreen() {
         players: teamPlayers,
         read: rosterRead(teamPlayers),
         slots: rosterSlotSummary(teamPlayers, slots),
+        sections: rosterSections(teamPlayers, slots),
       }
     })
   }, [allRankedPlayers, manualTeams])
@@ -460,6 +491,7 @@ export default function FantasyToolScreen() {
       })
       .slice(0, 30)
   }, [allRankedPlayers, editingTeamPlayerIds, editingTeamSearch])
+  const editingTeamSections = useMemo(() => rosterSections(editingTeamPlayers, editingTeamSlots), [editingTeamPlayers, editingTeamSlots])
   const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
   const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, currentDraftTargets), [currentDraftTargets, draftSelectedPlayers])
   const plannerPickerPlayers = useMemo(() => {
@@ -634,6 +666,7 @@ export default function FantasyToolScreen() {
     setEditingTeamFormat(team.format)
     setEditingTeamPlayerIds(team.playerIds)
     setEditingTeamSearch('')
+    setEditingTeamSlots({ ...(team.slots || DEFAULT_DRAFT_TARGETS[team.leagueType || 'home']) })
     setTeamEditOpen(true)
   }
 
@@ -644,6 +677,7 @@ export default function FantasyToolScreen() {
     setEditingTeamFormat('PPR')
     setEditingTeamPlayerIds([])
     setEditingTeamSearch('')
+    setEditingTeamSlots({ ...DEFAULT_DRAFT_TARGETS.home })
   }
 
   async function saveEditedManualTeam() {
@@ -658,11 +692,18 @@ export default function FantasyToolScreen() {
       return
     }
     const next = manualTeams.map(team => (
-      team.id === editingTeamId ? { ...team, name, format: editingTeamFormat, playerIds: editingTeamPlayerIds } : team
+      team.id === editingTeamId ? { ...team, name, format: editingTeamFormat, playerIds: editingTeamPlayerIds, slots: editingTeamSlots } : team
     ))
     setManualTeams(next)
     await AsyncStorage.setItem(MANUAL_TEAMS_STORAGE_KEY, JSON.stringify(next))
     closeEditManualTeam()
+  }
+
+  function updateEditingTeamSlot(position: string, delta: -1 | 1) {
+    setEditingTeamSlots(current => ({
+      ...current,
+      [position]: Math.max(0, Math.min(20, (current[position] || 0) + delta)),
+    }))
   }
 
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
@@ -718,7 +759,7 @@ export default function FantasyToolScreen() {
             <AppText variant="eyebrow">// Saved Drafts</AppText>
             {manualTeamCards.length ? (
               <View style={styles.manualTeamList}>
-                {manualTeamCards.map(({ team, players: teamPlayers, read, slots }) => (
+                {manualTeamCards.map(({ team, players: teamPlayers, read, slots, sections }) => (
                   <View key={team.id} style={styles.manualTeamCard}>
                     <View style={styles.manualTeamHeader}>
                       <View style={styles.playerMain}>
@@ -744,19 +785,36 @@ export default function FantasyToolScreen() {
                         <AppText style={styles.teamReadValue}>{read.watch}</AppText>
                       </View>
                     </View>
-                    <View style={styles.plannerSummary}>
-                      {slots.map(slot => (
-                        <View key={slot.position} style={styles.plannerSummaryItem}>
-                          <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
-                          <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
+                    <Pressable
+                      onPress={() => setExpandedTeamId(current => current === team.id ? null : team.id)}
+                      style={styles.rosterToggle}
+                    >
+                      <AppText style={styles.rosterToggleText}>Roster Settings</AppText>
+                      <AppText style={styles.rosterToggleMeta}>{expandedTeamId === team.id ? 'Hide' : 'Show'}</AppText>
+                    </Pressable>
+                    {expandedTeamId === team.id ? (
+                      <View style={styles.compactSlotGrid}>
+                        {slots.map(slot => (
+                          <View key={slot.position} style={styles.compactSlotItem}>
+                            <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
+                            <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    <View style={styles.savedRosterList}>
+                      {sections.filter(section => section.players.length).map(section => (
+                        <View key={section.key} style={styles.savedRosterSection}>
+                          <AppText variant="eyebrow">{section.label}</AppText>
+                          {section.players.map(player => (
+                            <Pressable key={player.id} onPress={() => setProfilePlayer(player.name)} style={styles.savedRosterRow}>
+                              <View style={styles.playerMain}>
+                                <AppText style={styles.savedRosterName} numberOfLines={1}>{player.name}</AppText>
+                                <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                              </View>
+                            </Pressable>
+                          ))}
                         </View>
-                      ))}
-                    </View>
-                    <View style={styles.takenChipRow}>
-                      {teamPlayers.slice(0, 8).map(player => (
-                        <Pressable key={player.id} onPress={() => setProfilePlayer(player.name)} style={styles.takenChip}>
-                          <AppText style={styles.takenChipText}>{player.name}</AppText>
-                        </Pressable>
                       ))}
                     </View>
                   </View>
@@ -926,7 +984,8 @@ export default function FantasyToolScreen() {
               </View>
             ) : null}
             <View style={styles.plannerFilters}>
-              <View style={styles.filterHeaderRow}>
+              <AppText variant="eyebrow">Position</AppText>
+              <View style={styles.filterRow}>
                 <Pressable
                   onPress={() => setPlannerSearchOpen(open => !open)}
                   style={[styles.filterButton, (plannerSearchOpen || !!plannerSearch) && styles.filterButtonActive]}
@@ -940,6 +999,15 @@ export default function FantasyToolScreen() {
                     <AppText style={styles.filterButtonText}>Clear</AppText>
                   </Pressable>
                 ) : null}
+                {plannerPositionOptions.map(pos => (
+                  <Pressable
+                    key={pos}
+                    onPress={() => setPlannerPositionFilter(pos)}
+                    style={[styles.filterButton, plannerPositionFilter === pos && styles.filterButtonActive]}
+                  >
+                    <AppText style={[styles.filterButtonText, plannerPositionFilter === pos && styles.filterButtonTextActive]}>{pos}</AppText>
+                  </Pressable>
+                ))}
               </View>
               {plannerSearchOpen ? (
                 <TextInput
@@ -952,18 +1020,6 @@ export default function FantasyToolScreen() {
                   style={styles.input}
                 />
               ) : null}
-              <AppText variant="eyebrow">Position</AppText>
-              <View style={styles.filterRow}>
-                {plannerPositionOptions.map(pos => (
-                  <Pressable
-                    key={pos}
-                    onPress={() => setPlannerPositionFilter(pos)}
-                    style={[styles.filterButton, plannerPositionFilter === pos && styles.filterButtonActive]}
-                  >
-                    <AppText style={[styles.filterButtonText, plannerPositionFilter === pos && styles.filterButtonTextActive]}>{pos}</AppText>
-                  </Pressable>
-                ))}
-              </View>
               <AppText variant="eyebrow">Rounds</AppText>
               <View style={styles.filterRow}>
                 {PLANNER_ROUND_FILTERS.map(filter => (
@@ -1210,8 +1266,15 @@ export default function FantasyToolScreen() {
 
       <Modal visible={teamEditOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeEditManualTeam}>
         <Screen>
-          <AppText variant="eyebrow">// Saved Drafts</AppText>
-          <AppText variant="title" style={styles.title}>Edit Team</AppText>
+          <View style={styles.modalHeaderRow}>
+            <View style={styles.playerMain}>
+              <AppText variant="eyebrow">// Saved Drafts</AppText>
+              <AppText variant="title" style={styles.title}>Edit Team</AppText>
+            </View>
+            <Pressable onPress={closeEditManualTeam} style={styles.closeIconButton}>
+              <AppText style={styles.closeIconText}>X</AppText>
+            </Pressable>
+          </View>
           <AppText variant="muted" style={styles.copy}>
             Update the saved roster name, scoring format, and players.
           </AppText>
@@ -1241,23 +1304,48 @@ export default function FantasyToolScreen() {
           </Card>
 
           <Card style={styles.metaCard}>
+            <AppText variant="eyebrow">Roster Settings</AppText>
+            <View style={styles.settingsSlotGrid}>
+              {DRAFT_SLOT_ORDER.filter(position => editingTeamSlots[position] !== undefined).map(position => (
+                <View key={position} style={styles.settingsSlotCard}>
+                  <AppText style={styles.settingsSlotLabel} numberOfLines={2}>{DRAFT_SLOT_LABELS[position] || position}</AppText>
+                  <AppText style={styles.settingsSlotCount}>{editingTeamSlots[position] || 0}</AppText>
+                  <View style={styles.settingsStepper}>
+                    <Pressable onPress={() => updateEditingTeamSlot(position, -1)} style={styles.settingsStepButton}>
+                      <AppText style={styles.settingsStepText}>-</AppText>
+                    </Pressable>
+                    <Pressable onPress={() => updateEditingTeamSlot(position, 1)} style={styles.settingsStepButton}>
+                      <AppText style={styles.settingsStepText}>+</AppText>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          <Card style={styles.metaCard}>
             <View style={styles.takenPanelHead}>
-              <AppText variant="eyebrow">Players · {editingTeamPlayers.length}</AppText>
+              <AppText variant="eyebrow">Roster · {editingTeamPlayers.length}</AppText>
             </View>
             {editingTeamPlayers.length ? (
-              <View style={styles.currentDraftPlayerList}>
-                {editingTeamPlayers.map(player => (
-                  <Pressable
-                    key={`edit-${player.id}`}
-                    onPress={() => setEditingTeamPlayerIds(ids => ids.filter(id => id !== player.id))}
-                    style={styles.currentDraftPlayerChip}
-                  >
-                    <View style={styles.playerMain}>
-                      <AppText style={styles.currentDraftPlayerName} numberOfLines={1}>{player.name}</AppText>
-                      <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
-                    </View>
-                    <AppText style={styles.currentDraftRemove}>Remove</AppText>
-                  </Pressable>
+              <View style={styles.savedRosterList}>
+                {editingTeamSections.filter(section => section.players.length).map(section => (
+                  <View key={`edit-section-${section.key}`} style={styles.savedRosterSection}>
+                    <AppText variant="eyebrow">{section.label}</AppText>
+                    {section.players.map(player => (
+                      <Pressable
+                        key={`edit-${player.id}`}
+                        onPress={() => setEditingTeamPlayerIds(ids => ids.filter(id => id !== player.id))}
+                        style={styles.savedRosterRow}
+                      >
+                        <View style={styles.playerMain}>
+                          <AppText style={styles.savedRosterName} numberOfLines={1}>{player.name}</AppText>
+                          <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                        </View>
+                        <AppText style={styles.currentDraftRemove}>Remove</AppText>
+                      </Pressable>
+                    ))}
+                  </View>
                 ))}
               </View>
             ) : (
@@ -1673,6 +1761,18 @@ const styles = StyleSheet.create({
   currentDraftPlayerName: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
   currentDraftPlayerMeta: { marginTop: 2, fontSize: 11 },
   currentDraftRemove: { color: colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  closeIconButton: { width: 38, height: 38, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
+  closeIconText: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
+  rosterToggle: { minHeight: 40, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bgCard },
+  rosterToggleText: { color: colors.textPrimary, fontSize: 12, fontWeight: '900' },
+  rosterToggleMeta: { color: colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  compactSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  compactSlotItem: { minWidth: 72, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCard },
+  savedRosterList: { gap: spacing.md },
+  savedRosterSection: { gap: spacing.sm },
+  savedRosterRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCard },
+  savedRosterName: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
   settingsSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
   settingsSlotCard: { width: '31%', minHeight: 126, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
   settingsSlotLabel: { color: colors.textSecondary, fontSize: 10, lineHeight: 13, fontWeight: '900', textTransform: 'uppercase' },
