@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
@@ -196,12 +196,12 @@ const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
 
 const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
-  { key: 'unit', label: 'Unit Plan', desc: 'Turn bankroll and risk percent into unit sizes and daily guardrails.' },
-  { key: 'ev', label: 'EV', desc: 'Compare your true probability against the book price.' },
-  { key: 'novig', label: 'No-Vig', desc: 'Strip the book margin from a two-way market.' },
-  { key: 'kelly', label: 'Kelly', desc: 'Turn bankroll, price, and edge into a stake guide.' },
-  { key: 'parlay', label: 'Parlay', desc: 'Combine American odds into payout and profit.' },
-  { key: 'hedge', label: 'Hedge', desc: 'Estimate the other-side stake for a guaranteed result.' },
+  { key: 'unit', label: 'Unit Plan', desc: 'Set unit size, stop-loss, and max exposure before betting.' },
+  { key: 'ev', label: 'EV', desc: 'Check if your true probability beats the book price.' },
+  { key: 'novig', label: 'No-Vig', desc: 'Find fair market probability after removing the hold.' },
+  { key: 'kelly', label: 'Kelly', desc: 'Convert a verified edge into conservative stake sizes.' },
+  { key: 'parlay', label: 'Parlay', desc: 'See combined payout before tying legs together.' },
+  { key: 'hedge', label: 'Hedge', desc: 'Size the other side to lock or reduce risk.' },
 ]
 
 interface LineupPlayer {
@@ -1976,7 +1976,7 @@ export default function CheatSheetsScreen() {
       const odds = parseNumber(calcInputs.evOdds)
       const probability = parseNumber(calcInputs.evProb) / 100
       const stake = parseNumber(calcInputs.evStake) || 100
-      if (!Number.isFinite(odds) || !Number.isFinite(probability) || probability <= 0) return null
+      if (!Number.isFinite(odds) || odds === 0 || !Number.isFinite(probability) || probability <= 0 || probability >= 1) return null
       const decimal = americanToDecimal(odds)
       const profit = (decimal - 1) * stake
       const ev = probability * profit - (1 - probability) * stake
@@ -1991,7 +1991,7 @@ export default function CheatSheetsScreen() {
     if (calculatorKey === 'novig') {
       const sideA = parseNumber(calcInputs.novigA)
       const sideB = parseNumber(calcInputs.novigB)
-      if (!Number.isFinite(sideA) || !Number.isFinite(sideB)) return null
+      if (!Number.isFinite(sideA) || sideA === 0 || !Number.isFinite(sideB) || sideB === 0) return null
       const impA = impliedProbability(sideA)
       const impB = impliedProbability(sideB)
       const total = impA + impB
@@ -2009,7 +2009,7 @@ export default function CheatSheetsScreen() {
       const bankroll = parseNumber(calcInputs.kellyBankroll)
       const odds = parseNumber(calcInputs.kellyOdds)
       const probability = parseNumber(calcInputs.kellyProb) / 100
-      if (!Number.isFinite(bankroll) || !Number.isFinite(odds) || !Number.isFinite(probability)) return null
+      if (!Number.isFinite(bankroll) || bankroll <= 0 || !Number.isFinite(odds) || odds === 0 || !Number.isFinite(probability) || probability <= 0 || probability >= 1) return null
       const decimal = americanToDecimal(odds)
       const b = decimal - 1
       const kelly = (b * probability - (1 - probability)) / b
@@ -2022,7 +2022,7 @@ export default function CheatSheetsScreen() {
     }
 
     if (calculatorKey === 'parlay') {
-      const odds = calcInputs.parlayLegs.split(',').map(parseNumber).filter((price) => Number.isFinite(price))
+      const odds = calcInputs.parlayLegs.split(',').map(parseNumber).filter((price) => Number.isFinite(price) && price !== 0)
       const stake = parseNumber(calcInputs.parlayStake) || 100
       if (odds.length < 2) return null
       const decimal = odds.map(americanToDecimal).reduce((total, next) => total * next, 1)
@@ -2037,7 +2037,7 @@ export default function CheatSheetsScreen() {
     const stake = parseNumber(calcInputs.hedgeStake)
     const originalOdds = parseNumber(calcInputs.hedgeOdds)
     const hedgeOdds = parseNumber(calcInputs.hedgeOppOdds)
-    if (!Number.isFinite(stake) || !Number.isFinite(originalOdds) || !Number.isFinite(hedgeOdds)) return null
+    if (!Number.isFinite(stake) || stake <= 0 || !Number.isFinite(originalOdds) || originalOdds === 0 || !Number.isFinite(hedgeOdds) || hedgeOdds === 0) return null
     const originalReturn = stake * americanToDecimal(originalOdds)
     const hedgeStake = originalReturn / americanToDecimal(hedgeOdds)
     return [
@@ -2059,6 +2059,62 @@ export default function CheatSheetsScreen() {
           <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
         </View>
       ) : null}
+    </Card>
+  )
+
+  const calculatorCard = (
+    <Card style={styles.inlineCalculatorCard}>
+      <AppText variant="eyebrow">// Calculator</AppText>
+      <AppText style={styles.cardTitle}>{CALCULATORS.find((item) => item.key === calculatorKey)?.label}</AppText>
+      {calculatorKey === 'unit' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Bankroll" value={calcInputs.unitBankroll} onChangeText={(value) => updateCalc('unitBankroll', value)} />
+          <ToolInput label="Unit %" value={calcInputs.unitPct} onChangeText={(value) => updateCalc('unitPct', value)} />
+        </View>
+      )}
+      {calculatorKey === 'ev' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Book Odds" value={calcInputs.evOdds} onChangeText={(value) => updateCalc('evOdds', value)} />
+          <ToolInput label="True Prob %" value={calcInputs.evProb} onChangeText={(value) => updateCalc('evProb', value)} />
+          <ToolInput label="Stake" value={calcInputs.evStake} onChangeText={(value) => updateCalc('evStake', value)} />
+        </View>
+      )}
+      {calculatorKey === 'novig' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Side A Odds" value={calcInputs.novigA} onChangeText={(value) => updateCalc('novigA', value)} />
+          <ToolInput label="Side B Odds" value={calcInputs.novigB} onChangeText={(value) => updateCalc('novigB', value)} />
+        </View>
+      )}
+      {calculatorKey === 'kelly' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Bankroll" value={calcInputs.kellyBankroll} onChangeText={(value) => updateCalc('kellyBankroll', value)} />
+          <ToolInput label="Odds" value={calcInputs.kellyOdds} onChangeText={(value) => updateCalc('kellyOdds', value)} />
+          <ToolInput label="True Prob %" value={calcInputs.kellyProb} onChangeText={(value) => updateCalc('kellyProb', value)} />
+        </View>
+      )}
+      {calculatorKey === 'parlay' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Leg Odds" value={calcInputs.parlayLegs} onChangeText={(value) => updateCalc('parlayLegs', value)} wide />
+          <ToolInput label="Stake" value={calcInputs.parlayStake} onChangeText={(value) => updateCalc('parlayStake', value)} />
+        </View>
+      )}
+      {calculatorKey === 'hedge' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Original Stake" value={calcInputs.hedgeStake} onChangeText={(value) => updateCalc('hedgeStake', value)} />
+          <ToolInput label="Original Odds" value={calcInputs.hedgeOdds} onChangeText={(value) => updateCalc('hedgeOdds', value)} />
+          <ToolInput label="Hedge Odds" value={calcInputs.hedgeOppOdds} onChangeText={(value) => updateCalc('hedgeOppOdds', value)} />
+        </View>
+      )}
+      <View style={styles.resultBox}>
+        {calculatorResult ? calculatorResult.map((item) => (
+          <View key={item.label} style={styles.resultRow}>
+            <AppText variant="muted">{item.label}</AppText>
+            <AppText style={[styles.resultValue, item.tone ? { color: item.tone } : null]}>{item.value}</AppText>
+          </View>
+        )) : (
+          <AppText variant="muted">Enter values to see the result.</AppText>
+        )}
+      </View>
     </Card>
   )
 
@@ -2240,72 +2296,29 @@ export default function CheatSheetsScreen() {
         premiumToolsCard
       ) : toolMode === 'calculators' ? (
         <>
-          <View style={styles.sheetGrid}>
-            {CALCULATORS.map((calculator) => (
-              <Pressable
-                key={calculator.key}
-                onPress={() => setCalculatorKey(calculator.key)}
-                style={[styles.sheetTile, styles.calcTile, calculatorKey === calculator.key && styles.sheetTileActive]}
-              >
-                <AppText variant="eyebrow">// Tool</AppText>
-                <AppText style={[styles.sheetTileTitle, calculatorKey === calculator.key && styles.sheetTileTitleActive]}>{calculator.label}</AppText>
-                <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{calculator.desc}</AppText>
-              </Pressable>
-            ))}
+          <View style={styles.calculatorRows}>
+            {[0, 2, 4].map((start) => {
+              const row = CALCULATORS.slice(start, start + 2)
+              return (
+                <Fragment key={start}>
+                  <View style={styles.calculatorTileRow}>
+                    {row.map((calculator) => (
+                      <Pressable
+                        key={calculator.key}
+                        onPress={() => setCalculatorKey(calculator.key)}
+                        style={[styles.sheetTile, styles.calcTile, calculatorKey === calculator.key && styles.sheetTileActive]}
+                      >
+                        <AppText variant="eyebrow">// Tool</AppText>
+                        <AppText style={[styles.sheetTileTitle, calculatorKey === calculator.key && styles.sheetTileTitleActive]}>{calculator.label}</AppText>
+                        <AppText variant="muted" style={styles.sheetTileCopy} numberOfLines={3}>{calculator.desc}</AppText>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {row.some((calculator) => calculator.key === calculatorKey) ? calculatorCard : null}
+                </Fragment>
+              )
+            })}
           </View>
-          <Card>
-            <AppText variant="eyebrow">// Calculator</AppText>
-            <AppText style={styles.cardTitle}>{CALCULATORS.find((item) => item.key === calculatorKey)?.label}</AppText>
-            {calculatorKey === 'unit' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Bankroll" value={calcInputs.unitBankroll} onChangeText={(value) => updateCalc('unitBankroll', value)} />
-                <ToolInput label="Unit %" value={calcInputs.unitPct} onChangeText={(value) => updateCalc('unitPct', value)} />
-              </View>
-            )}
-            {calculatorKey === 'ev' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Book Odds" value={calcInputs.evOdds} onChangeText={(value) => updateCalc('evOdds', value)} />
-                <ToolInput label="True Prob %" value={calcInputs.evProb} onChangeText={(value) => updateCalc('evProb', value)} />
-                <ToolInput label="Stake" value={calcInputs.evStake} onChangeText={(value) => updateCalc('evStake', value)} />
-              </View>
-            )}
-            {calculatorKey === 'novig' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Side A Odds" value={calcInputs.novigA} onChangeText={(value) => updateCalc('novigA', value)} />
-                <ToolInput label="Side B Odds" value={calcInputs.novigB} onChangeText={(value) => updateCalc('novigB', value)} />
-              </View>
-            )}
-            {calculatorKey === 'kelly' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Bankroll" value={calcInputs.kellyBankroll} onChangeText={(value) => updateCalc('kellyBankroll', value)} />
-                <ToolInput label="Odds" value={calcInputs.kellyOdds} onChangeText={(value) => updateCalc('kellyOdds', value)} />
-                <ToolInput label="True Prob %" value={calcInputs.kellyProb} onChangeText={(value) => updateCalc('kellyProb', value)} />
-              </View>
-            )}
-            {calculatorKey === 'parlay' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Leg Odds" value={calcInputs.parlayLegs} onChangeText={(value) => updateCalc('parlayLegs', value)} wide />
-                <ToolInput label="Stake" value={calcInputs.parlayStake} onChangeText={(value) => updateCalc('parlayStake', value)} />
-              </View>
-            )}
-            {calculatorKey === 'hedge' && (
-              <View style={styles.inputGrid}>
-                <ToolInput label="Original Stake" value={calcInputs.hedgeStake} onChangeText={(value) => updateCalc('hedgeStake', value)} />
-                <ToolInput label="Original Odds" value={calcInputs.hedgeOdds} onChangeText={(value) => updateCalc('hedgeOdds', value)} />
-                <ToolInput label="Hedge Odds" value={calcInputs.hedgeOppOdds} onChangeText={(value) => updateCalc('hedgeOppOdds', value)} />
-              </View>
-            )}
-            <View style={styles.resultBox}>
-              {calculatorResult ? calculatorResult.map((item) => (
-                <View key={item.label} style={styles.resultRow}>
-                  <AppText variant="muted">{item.label}</AppText>
-                  <AppText style={[styles.resultValue, item.tone ? { color: item.tone } : null]}>{item.value}</AppText>
-                </View>
-              )) : (
-                <AppText variant="muted">Enter values to see the result.</AppText>
-              )}
-            </View>
-          </Card>
         </>
       ) : !hasOpenSheet ? (
         <>
@@ -2807,6 +2820,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
+  calculatorRows: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  calculatorTileRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
   featureTool: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2901,6 +2922,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   calcTile: { minHeight: 134 },
+  inlineCalculatorCard: {
+    width: '100%',
+  },
   inputGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

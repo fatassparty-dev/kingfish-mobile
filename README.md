@@ -116,15 +116,30 @@ Use this focused pass before submitting a build:
 Use these as guardrails when matching mobile on web or when touching nearby mobile screens:
 
 - Mobile Tools uses three tabs: Cheat Sheets, Calculators, and Pro Tools. Pro Tools contains Fantasy Hub and Game Factors.
+- Calculators should feel attached to the selected tool. When a calculator tile is tapped, render that calculator directly under the selected tile, not under the entire grid.
+- Keep calculators only when they answer a real betting question:
+  - Unit Plan: unit size, stop-loss, and max daily exposure.
+  - EV: whether the user's true probability beats the book price.
+  - No-Vig: fair probability and fair odds after removing hold.
+  - Kelly: conservative stake sizing from bankroll, price, and edge.
+  - Parlay: combined payout and profit before tying legs together.
+  - Hedge: other-side stake to lock or reduce risk.
 - Cheat Sheet tiles should stay clean and intentional: compact two-column cards, sport eyebrow, strong title, subtle gold top accent, no repeated descriptions.
 - The current sheet set includes MLB sheets plus NFL TD Streaks, NFL QB 2+ TD Streaks, and QB 200+ Yard Games.
 - Game Factors should explain itself as a scoring-volume grade built from stadium, weather, officials, and matchup context. Avoid customer-facing terms such as "setup" when "volume" or "grade" is clearer.
 - Hide neutral Game Factors tags. Keep useful tags such as HR Props, Power-Friendly, Cold Suppress, Rain/Wind Risk, Totals/Passing, and similar signals.
+- Do not remove Game Factors data without explicit approval. Venue, weather, weather icons, umpire/referee, market read, and useful tags are the point of the tool.
+- MLB and NFL Game Factors should stay close to the web design. Board cards need matchup, score, venue, weather, official/referee, market read, and useful tags. Cheat Sheet should be a compact table/list, not game-by-game cards.
+- Stadium profiles should be available from Game Factors and dashboard Game Lines when the venue name is shown. MLB profiles include city, home record, capacity, altitude, roof, surface, wind/market read, and a user-facing blurb. NFL profiles include capacity, surface, roof, altitude, wind impact, weather exposure, and a betting-focused blurb.
+- The 2026 Week 1 San Francisco 49ers vs Los Angeles Rams neutral-site game should show Melbourne Cricket Ground, not SoFi Stadium. It can use a basic one-off stadium profile.
 - Player prop landscape columns should be Player, Line, Odds, AVG, L5, L10, L5 Hit, L10 Hit, Edge.
 - Player profiles can use landscape, but fantasy profiles should not show gambling-style Recent Form. Use News when available instead.
 - Fantasy Draft Planner player actions should read Available until tapped; tapping marks the player taken and rebuilds/collapses the path around them.
 - Account support actions should be obvious: Help Guide and Contact Support as full-width buttons, with Terms, Privacy, and Refund Policy as compact legal links.
 - iOS billing should show Manage Apple Subscription and Refund Policy. Do not send users to Pricing when they are trying to manage a plan.
+- Sportsbook preferences should avoid internal wording. Say users can turn sportsbooks on or off for best-price checks and market comparisons. Do not call books "regional" in user-facing copy when those books may be local to the user.
+- Book preferences should list supported sportsbooks individually so a user can turn any book on or off. The Odds API key `espnbet` should display as `theScore Bet`.
+- If this handoff is being read after June 2, 2026, check git status before starting. The last known dirty mobile file in this session was `app/(tabs)/cheat-sheets.tsx` for the calculator inline-panel polish.
 
 Do not turn this into another page-by-page polish pass unless Brian asks for it.
 
