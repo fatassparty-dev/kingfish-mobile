@@ -275,11 +275,13 @@ export default function FantasyToolScreen() {
   const [bestBallView, setBestBallView] = useState<BestBallView>('players')
   const [plannerLeague, setPlannerLeague] = useState<PlannerLeague>('home')
   const [plannerSearch, setPlannerSearch] = useState('')
+  const [plannerSearchOpen, setPlannerSearchOpen] = useState(false)
   const [plannerPositionFilter, setPlannerPositionFilter] = useState<Position>('ALL')
   const [plannerRoundFilter, setPlannerRoundFilter] = useState<PlannerRoundFilter>('ALL')
   const [bestBallStackTeam, setBestBallStackTeam] = useState('ALL')
   const [manualTeams, setManualTeams] = useState<ManualTeam[]>([])
   const [draftModalOpen, setDraftModalOpen] = useState(false)
+  const [leagueSettingsOpen, setLeagueSettingsOpen] = useState(false)
   const [draftName, setDraftName] = useState('')
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('PPR')
   const [draftTargets, setDraftTargets] = useState<Record<PlannerLeague, Record<string, number>>>(() => makeDefaultDraftTargets())
@@ -785,15 +787,15 @@ export default function FantasyToolScreen() {
               ))}
             </View>
 
-            <View style={styles.boardButtonRow}>
-              <Pressable onPress={() => openDraftModal(!draftPlayerIds.length)} style={styles.clearButton}>
-                <AppText style={styles.clearButtonText}>{draftPlayerIds.length ? 'Team Details' : 'Start Draft'}</AppText>
+            <View style={styles.plannerActionGrid}>
+              <Pressable onPress={() => setDraftModalOpen(true)} style={[styles.clearButton, styles.plannerActionButton]}>
+                <AppText style={styles.clearButtonText}>Team Details</AppText>
               </Pressable>
-              <Pressable onPress={clearCurrentDraft} disabled={!draftPlayerIds.length} style={[styles.clearButton, !draftPlayerIds.length && styles.disabledButton]}>
+              <Pressable onPress={() => setLeagueSettingsOpen(true)} style={[styles.clearButton, styles.plannerActionButton]}>
+                <AppText style={styles.clearButtonText}>League Settings</AppText>
+              </Pressable>
+              <Pressable onPress={clearCurrentDraft} disabled={!draftPlayerIds.length} style={[styles.clearButton, styles.plannerActionButton, !draftPlayerIds.length && styles.disabledButton]}>
                 <AppText style={styles.clearButtonText}>Clear Draft</AppText>
-              </Pressable>
-              <Pressable onPress={() => setMode(plannerLeague)} style={styles.clearButton}>
-                <AppText style={styles.clearButtonText}>Open Research Board</AppText>
               </Pressable>
             </View>
             {draftPlayerIds.length ? (
@@ -821,17 +823,7 @@ export default function FantasyToolScreen() {
                 <View style={styles.plannerSummary}>
                   {currentDraftSlots.map(slot => (
                     <View key={slot.position} style={styles.plannerSummaryItem}>
-                      <View style={styles.slotHeader}>
-                        <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
-                        <View style={styles.slotStepper}>
-                          <Pressable onPress={() => updateDraftTarget(slot.position, -1)} style={styles.slotStepButton}>
-                            <AppText style={styles.slotStepText}>-</AppText>
-                          </Pressable>
-                          <Pressable onPress={() => updateDraftTarget(slot.position, 1)} style={styles.slotStepButton}>
-                            <AppText style={styles.slotStepText}>+</AppText>
-                          </Pressable>
-                        </View>
-                      </View>
+                      <AppText style={styles.plannerSummaryPos}>{slot.position}</AppText>
                       <AppText style={styles.plannerSummaryCount}>{slot.count}/{slot.target}</AppText>
                     </View>
                   ))}
@@ -860,16 +852,32 @@ export default function FantasyToolScreen() {
               </View>
             ) : null}
             <View style={styles.plannerFilters}>
-              <AppText variant="eyebrow">Search</AppText>
-              <TextInput
-                value={plannerSearch}
-                onChangeText={setPlannerSearch}
-                placeholder="Search drafted player, team, or position"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                style={styles.input}
-              />
+              <View style={styles.filterHeaderRow}>
+                <Pressable
+                  onPress={() => setPlannerSearchOpen(open => !open)}
+                  style={[styles.filterButton, (plannerSearchOpen || !!plannerSearch) && styles.filterButtonActive]}
+                >
+                  <AppText style={[styles.filterButtonText, (plannerSearchOpen || !!plannerSearch) && styles.filterButtonTextActive]}>
+                    {plannerSearch ? 'Search On' : 'Search'}
+                  </AppText>
+                </Pressable>
+                {plannerSearch ? (
+                  <Pressable onPress={() => setPlannerSearch('')} style={styles.filterButton}>
+                    <AppText style={styles.filterButtonText}>Clear</AppText>
+                  </Pressable>
+                ) : null}
+              </View>
+              {plannerSearchOpen ? (
+                <TextInput
+                  value={plannerSearch}
+                  onChangeText={setPlannerSearch}
+                  placeholder="Search drafted player, team, or position"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  style={styles.input}
+                />
+              ) : null}
               <AppText variant="eyebrow">Position</AppText>
               <View style={styles.filterRow}>
                 {plannerPositionOptions.map(pos => (
@@ -1069,6 +1077,57 @@ export default function FantasyToolScreen() {
               <AppText style={styles.clearButtonText}>Cancel</AppText>
             </Pressable>
             <Pressable onPress={() => setDraftModalOpen(false)} style={styles.actionButtonWide}>
+              <AppText style={styles.actionText}>Done</AppText>
+            </Pressable>
+          </View>
+        </Screen>
+      </Modal>
+
+      <Modal visible={leagueSettingsOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLeagueSettingsOpen(false)}>
+        <Screen>
+          <AppText variant="eyebrow">// Draft Picker</AppText>
+          <AppText variant="title" style={styles.title}>League Settings</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            Match your league roster spots so the Current Draft counts line up with your format.
+          </AppText>
+
+          <Card style={styles.metaCard}>
+            <View style={styles.plannerToggleRow}>
+              {(['home', 'bestball'] as PlannerLeague[]).map(item => (
+                <Pressable key={item} onPress={() => setPlannerLeague(item)} style={[styles.plannerToggle, plannerLeague === item && styles.plannerToggleActive]}>
+                  <AppText style={[styles.plannerToggleText, plannerLeague === item && styles.plannerToggleTextActive]}>
+                    {item === 'home' ? 'Home League' : 'Best Ball'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.settingsSlotGrid}>
+              {DRAFT_SLOT_ORDER.filter(position => currentDraftTargets[position] !== undefined).map(position => (
+                <View key={position} style={styles.settingsSlotCard}>
+                  <AppText style={styles.plannerSummaryPos}>{position}</AppText>
+                  <AppText style={styles.settingsSlotCount}>{currentDraftTargets[position] || 0}</AppText>
+                  <View style={styles.settingsStepper}>
+                    <Pressable onPress={() => updateDraftTarget(position, -1)} style={styles.settingsStepButton}>
+                      <AppText style={styles.settingsStepText}>-</AppText>
+                    </Pressable>
+                    <Pressable onPress={() => updateDraftTarget(position, 1)} style={styles.settingsStepButton}>
+                      <AppText style={styles.settingsStepText}>+</AppText>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          <View style={styles.modalActions}>
+            <Pressable
+              onPress={() => setDraftTargets(current => ({ ...current, [plannerLeague]: { ...DEFAULT_DRAFT_TARGETS[plannerLeague] } }))}
+              style={styles.clearButton}
+            >
+              <AppText style={styles.clearButtonText}>Reset</AppText>
+            </Pressable>
+            <Pressable onPress={() => setLeagueSettingsOpen(false)} style={styles.actionButtonWide}>
               <AppText style={styles.actionText}>Done</AppText>
             </Pressable>
           </View>
@@ -1372,6 +1431,8 @@ const styles = StyleSheet.create({
   cardCopy: { marginTop: spacing.sm, lineHeight: 20 },
   metaActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.md },
   boardButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  plannerActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  plannerActionButton: { flexGrow: 1, alignItems: 'center' },
   boardToggleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   boardToggle: { flex: 1, minHeight: 42, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
   boardToggleActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
@@ -1405,20 +1466,17 @@ const styles = StyleSheet.create({
   actionText: { color: colors.bgPrimary, fontWeight: '900' },
   textButton: { marginTop: spacing.md },
   textButtonLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  plannerToggleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  plannerToggleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   plannerToggle: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
   plannerToggleActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
   plannerToggleText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   plannerToggleTextActive: { color: colors.gold },
   plannerSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   plannerSummaryItem: { minWidth: 76, minHeight: 74, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
-  slotHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.xs },
-  slotStepper: { flexDirection: 'row', gap: 3 },
-  slotStepButton: { width: 18, height: 18, borderWidth: 1, borderColor: 'rgba(198,145,50,.32)', borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
-  slotStepText: { color: colors.gold, fontSize: 12, lineHeight: 13, fontWeight: '900' },
   plannerSummaryPos: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   plannerSummaryCount: { color: colors.textPrimary, fontSize: 14, fontWeight: '900', marginTop: 2 },
   plannerFilters: { gap: spacing.sm, marginTop: spacing.md },
+  filterHeaderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
   filterButton: { minHeight: 34, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgCardAlt },
   filterButtonActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
@@ -1443,6 +1501,12 @@ const styles = StyleSheet.create({
   currentDraftPlayerName: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
   currentDraftPlayerMeta: { marginTop: 2, fontSize: 11 },
   currentDraftRemove: { color: colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  settingsSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
+  settingsSlotCard: { width: '31%', minHeight: 112, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.sm, backgroundColor: colors.bgCardAlt, justifyContent: 'space-between' },
+  settingsSlotCount: { color: colors.textPrimary, fontSize: 26, fontWeight: '900' },
+  settingsStepper: { flexDirection: 'row', gap: spacing.xs },
+  settingsStepButton: { flex: 1, minHeight: 30, borderWidth: 1, borderColor: 'rgba(198,145,50,.35)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(198,145,50,.08)' },
+  settingsStepText: { color: colors.gold, fontSize: 16, fontWeight: '900' },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
