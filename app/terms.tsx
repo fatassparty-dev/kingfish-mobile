@@ -45,7 +45,7 @@ const sections = [
   },
   {
     title: '10. League and Trademark Disclaimer',
-    body: 'KingFish Bets is not affiliated with, endorsed by, sponsored by, or officially connected to any professional or collegiate sports league, team, sportsbook, media company, or governing body. League, team, player, event, and sportsbook names may be used only to identify games, markets, statistics, odds, news, or research context. All trademarks belong to their respective owners.',
+    body: 'KingFish Bets is not affiliated with, endorsed by, sponsored by, or officially connected to any professional or collegiate sports league, team, sportsbook, media company, or governing body. League, team, player, event, and sportsbook names are used only for identification. All trademarks belong to their respective owners.',
   },
   {
     title: '11. Disclaimer of Warranties',
