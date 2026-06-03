@@ -820,6 +820,24 @@ export default function FantasyToolScreen() {
                     </View>
                   ))}
                 </View>
+                <View style={styles.currentDraftPlayers}>
+                  <AppText variant="eyebrow">Selected Players</AppText>
+                  <View style={styles.currentDraftPlayerList}>
+                    {draftSelectedPlayers.map(player => (
+                      <Pressable
+                        key={player.id}
+                        onPress={() => setDraftPlayerIds(ids => ids.filter(id => id !== player.id))}
+                        style={styles.currentDraftPlayerChip}
+                      >
+                        <View style={styles.playerMain}>
+                          <AppText style={styles.currentDraftPlayerName} numberOfLines={1}>{player.name}</AppText>
+                          <AppText variant="muted" style={styles.currentDraftPlayerMeta}>{player.position} · {player.team || '-'}</AppText>
+                        </View>
+                        <AppText style={styles.currentDraftRemove}>Remove</AppText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
                 <AppText variant="muted" style={styles.cardCopy}>
                   Strength: {currentDraftRead.strength}. Watch: {currentDraftRead.watch}.
                 </AppText>
@@ -1431,6 +1449,12 @@ const styles = StyleSheet.create({
   currentDraftCard: { marginTop: spacing.md, borderWidth: 1, borderColor: 'rgba(198,145,50,.32)', borderRadius: 8, padding: spacing.md, backgroundColor: colors.bgCardAlt },
   currentDraftTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', marginTop: 3 },
   currentDraftDetails: { gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.md },
+  currentDraftPlayers: { gap: spacing.sm, marginBottom: spacing.sm },
+  currentDraftPlayerList: { gap: spacing.sm },
+  currentDraftPlayerChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, backgroundColor: colors.bgCard },
+  currentDraftPlayerName: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
+  currentDraftPlayerMeta: { marginTop: 2, fontSize: 11 },
+  currentDraftRemove: { color: colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   takenList: { gap: spacing.sm, marginTop: spacing.md },
   takenChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   takenChip: { borderWidth: 1, borderColor: colors.borderActive, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
