@@ -56,7 +56,7 @@ function displayPurchaseError(error: any) {
 async function syncPremiumStatus(customerInfo?: any) {
   try {
     const revenueCatAppUserId = await Purchases.getAppUserID().catch(() => null)
-    return await kingfishFetch<{ ok: boolean; is_premium: boolean }>('/api/revenuecat/sync', {
+    return await kingfishFetch<{ ok: boolean; is_premium: boolean; error?: string; sync_debug?: string }>('/api/revenuecat/sync', {
       method: 'POST',
       body: JSON.stringify({
         revenueCatAppUserId,
@@ -68,6 +68,7 @@ async function syncPremiumStatus(customerInfo?: any) {
       ok: false,
       is_premium: false,
       error: error?.message || 'Premium status could not sync yet.',
+      sync_debug: null,
     }
   }
 }
@@ -165,7 +166,7 @@ export async function purchasePremium(appUserID?: string | null, plan?: Purchase
       message: active && synced?.is_premium
         ? 'KingFish Bets Pro is active.'
         : active
-          ? 'Purchase completed. Tap Refresh Status if Premium does not show within a moment.'
+          ? `Purchase completed, but account sync did not activate Premium yet. ${synced?.error || synced?.sync_debug || 'Check RevenueCat sync settings.'}`
         : 'Purchase completed, but KingFish Bets Pro is not active yet.',
     }
   } catch (error: any) {
@@ -193,7 +194,7 @@ export async function restorePurchases(appUserID?: string | null): Promise<Purch
       message: active && synced?.is_premium
         ? 'KingFish Bets Pro was restored.'
         : active
-          ? 'Purchase restored. Tap Refresh Status if Premium does not show within a moment.'
+          ? `Purchase restored, but account sync did not activate Premium yet. ${synced?.error || synced?.sync_debug || 'Check RevenueCat sync settings.'}`
         : Platform.OS === 'android'
           ? 'No active KingFish Bets Pro purchase was found for this account.'
           : 'No active KingFish Bets Pro purchase was found for this Apple account.',
