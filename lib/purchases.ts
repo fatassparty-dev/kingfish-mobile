@@ -10,16 +10,19 @@ export type PurchaseResult = {
 declare const require: (name: string) => any
 
 const ENTITLEMENT_IDS = ['kingfish_bets_pro', 'KingFish Bets Pro', 'premium']
+const PREMIUM_PRODUCT_IDS = ['kingfish_bets_pro_monthly', 'kingfish_bets_pro_yearly']
 const PRODUCT_PRIORITY = [
   '$rc_monthly',
   'monthly',
+  'kingfish_bets_pro_monthly',
   '$rc_annual',
   'yearly',
+  'kingfish_bets_pro_yearly',
 ]
 
 const PLAN_PACKAGE_IDS = {
-  monthly: ['$rc_monthly', 'monthly'],
-  yearly: ['$rc_annual', 'yearly'],
+  monthly: ['$rc_monthly', 'monthly', 'kingfish_bets_pro_monthly'],
+  yearly: ['$rc_annual', 'yearly', 'kingfish_bets_pro_yearly'],
 } as const
 
 export type PurchasePlan = keyof typeof PLAN_PACKAGE_IDS
@@ -38,7 +41,11 @@ function isReleaseBuildUsingTestStoreKey(apiKey: string) {
 
 function isActivePremium(customerInfo: any) {
   const active = customerInfo?.entitlements?.active || {}
-  return ENTITLEMENT_IDS.some((id) => typeof active[id] !== 'undefined')
+  const activeSubscriptions = customerInfo?.activeSubscriptions || []
+  return (
+    ENTITLEMENT_IDS.some((id) => typeof active[id] !== 'undefined') ||
+    PREMIUM_PRODUCT_IDS.some((id) => activeSubscriptions.includes(id))
+  )
 }
 
 function displayPurchaseError(error: any) {
