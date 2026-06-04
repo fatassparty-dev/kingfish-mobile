@@ -53,10 +53,15 @@ function displayPurchaseError(error: any) {
   return error?.message || 'Purchase could not be completed. Please try again.'
 }
 
-async function syncPremiumStatus() {
+async function syncPremiumStatus(customerInfo?: any) {
   try {
+    const revenueCatAppUserId = await Purchases.getAppUserID().catch(() => null)
     return await kingfishFetch<{ ok: boolean; is_premium: boolean }>('/api/revenuecat/sync', {
       method: 'POST',
+      body: JSON.stringify({
+        revenueCatAppUserId,
+        activeSubscriptions: customerInfo?.activeSubscriptions || [],
+      }),
     })
   } catch (error: any) {
     return {
@@ -154,7 +159,7 @@ export async function purchasePremium(appUserID?: string | null, plan?: Purchase
 
     const { customerInfo } = await Purchases.purchasePackage(selectedPackage)
     const active = isActivePremium(customerInfo)
-    const synced = active ? await syncPremiumStatus() : null
+    const synced = active ? await syncPremiumStatus(customerInfo) : null
     return {
       ok: active && (synced?.is_premium ?? true),
       message: active && synced?.is_premium
@@ -164,6 +169,10 @@ export async function purchasePremium(appUserID?: string | null, plan?: Purchase
         : 'Purchase completed, but KingFish Bets Pro is not active yet.',
     }
   } catch (error: any) {
+    if (String(error?.message || '').toLowerCase().includes('already subscribed')) {
+      return restorePurchases(appUserID)
+    }
+
     return {
       ok: false,
       message: displayPurchaseError(error),
@@ -178,7 +187,7 @@ export async function restorePurchases(appUserID?: string | null): Promise<Purch
   try {
     const customerInfo = await Purchases.restorePurchases()
     const active = isActivePremium(customerInfo)
-    const synced = active ? await syncPremiumStatus() : null
+    const synced = active ? await syncPremiumStatus(customerInfo) : null
     return {
       ok: active && (synced?.is_premium ?? true),
       message: active && synced?.is_premium
