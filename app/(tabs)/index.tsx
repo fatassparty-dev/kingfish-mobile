@@ -95,6 +95,14 @@ type MLBSchedulePayload = {
   teamRecords?: Record<string, { wins: number; losses: number; pct: number }>
   pitcherNameMap?: Record<string, string>
   pitcherEraMap?: Record<string, number>
+  games?: Array<{
+    gamePk?: number
+    gameDate?: string
+    teams?: {
+      away?: { team?: { name?: string } }
+      home?: { team?: { name?: string } }
+    }
+  }>
   seasonPhase?: 'regular' | 'postseason'
 }
 
@@ -1420,6 +1428,15 @@ export default function DashboardScreen() {
   const mlbRace = mlbPlayoffRace(mlbScheduleQuery.data?.teamRecords, mlbL10Query.data?.teamL10Map)
   const isMlbRaceScope = sport === 'MLB' && leagueScope === 'playoff'
   const upcomingLineGames = upcomingGames(lineQuery.data || [])
+  const mlbScheduleGames = upcomingGames((mlbScheduleQuery.data?.games || []).map((game) => ({
+    id: game.gamePk ? String(game.gamePk) : undefined,
+    game_id: game.gamePk ? String(game.gamePk) : undefined,
+    away_team: game.teams?.away?.team?.name || '',
+    home_team: game.teams?.home?.team?.name || '',
+    commence_time: game.gameDate || '',
+  })).filter((game) => game.away_team && game.home_team))
+  const matchupGames = sport === 'MLB' ? mlbScheduleGames : upcomingLineGames
+  const matchupLoading = sport === 'MLB' ? mlbScheduleQuery.isLoading : lineQuery.isLoading
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
@@ -1942,19 +1959,19 @@ export default function DashboardScreen() {
 
       {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && canViewMatchups && (
         <View style={styles.liveSection}>
-          {lineQuery.isLoading && (
+          {matchupLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted" style={styles.stateText}>Loading matchups...</AppText>
             </View>
           )}
-          {lineQuery.data?.length === 0 && (
+          {!matchupLoading && matchupGames.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Empty</AppText>
               <AppText variant="muted" style={styles.stateText}>No matchups found for {sport} right now.</AppText>
             </Card>
           )}
-          {upcomingLineGames.map((game) => {
+          {matchupGames.map((game) => {
             const awayAbbr = mlbAbbr(game.away_team)
             const homeAbbr = mlbAbbr(game.home_team)
             const awayForm = sport === 'MLB'
@@ -2069,11 +2086,9 @@ export default function DashboardScreen() {
             <AppText variant="eyebrow">// Premium</AppText>
             <AppText variant="title" style={styles.cardTitle}>Unlock Game Matchups</AppText>
             <AppText variant="muted">Team form, matchup context, and market notes are part of KingFish Bets Pro.</AppText>
-            {mobileConfig.flags.mobile_paywall ? (
-              <View style={styles.upgradeAction}>
-                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-              </View>
-            ) : null}
+            <View style={styles.upgradeAction}>
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            </View>
           </Card>
         </View>
       )}
@@ -2381,11 +2396,9 @@ export default function DashboardScreen() {
               Live moneylines, spreads, totals, best available prices, and KingFish matchup context
               are part of KingFish Bets Pro.
             </AppText>
-            {mobileConfig.flags.mobile_paywall ? (
-              <View style={styles.upgradeAction}>
-                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-              </View>
-            ) : null}
+            <View style={styles.upgradeAction}>
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            </View>
           </Card>
         </View>
       )}
@@ -2507,11 +2520,9 @@ export default function DashboardScreen() {
               Player props, cheat sheets, Edge Scores, and unlimited Ask KingFish access are part
               of KingFish Bets Pro.
             </AppText>
-            {mobileConfig.flags.mobile_paywall ? (
-              <View style={styles.upgradeAction}>
-                <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-              </View>
-            ) : null}
+            <View style={styles.upgradeAction}>
+              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+            </View>
           </Card>
         </View>
       )}

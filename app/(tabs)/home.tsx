@@ -73,7 +73,7 @@ export default function HomeScreen() {
           </View>
 
           <AppText style={styles.copy}>
-            Find the lines, context, and angles worth checking before you place a bet.
+            Find the lines, context, and angles worth checking before you make a decision.
           </AppText>
 
           <View style={styles.actionGrid}>

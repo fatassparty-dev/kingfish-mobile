@@ -20,7 +20,6 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import type { ChatMessage } from '@/types'
 
@@ -28,7 +27,7 @@ const FREE_DAILY_LIMIT = 3
 
 const STARTERS = [
   'What are the top 3 hit props today?',
-  'Give me the top 3 home run targets today.',
+  'Who has the best pitcher matchup today?',
 ]
 
 function todayKey() {
@@ -37,7 +36,6 @@ function todayKey() {
 
 export default function AskKingFishScreen() {
   const { profile } = useAuth()
-  const mobileConfig = useMobileConfig()
   const queryClient = useQueryClient()
   const scrollRef = useRef<ScrollView>(null)
   const mascotNod = useRef(new Animated.Value(0)).current
@@ -288,9 +286,7 @@ export default function AskKingFishScreen() {
           <AppText variant="muted" style={styles.upgradeCopy}>
             Premium includes unlimited chat, player props, cheat sheets, and edge tools.
           </AppText>
-          {mobileConfig.flags.mobile_paywall ? (
-            <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-          ) : null}
+          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
         </View>
       )}
 

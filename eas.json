@@ -15,7 +15,14 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://gkfyuobwnzwannbrzklc.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Vz0BmofkcZz4g5-SOW31dA_M0Mn6fqF",
+        "EXPO_PUBLIC_API_BASE_URL": "https://kingfishbets.com",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_HHsIXRzhYREefxSJfsxqvpwYDbM",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
   },
   "submit": {

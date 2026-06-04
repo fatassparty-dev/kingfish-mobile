@@ -2052,13 +2052,11 @@ export default function CheatSheetsScreen() {
       <AppText variant="eyebrow">// Premium</AppText>
       <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
       <AppText variant="muted" style={styles.cardCopy}>
-        Cheat Sheets, player props, Edge Scores, calculators, and unlimited Ask KingFish access are part of KingFish Bets Pro.
+        Cheat Sheets, player props, Edge Scores, game factors, and unlimited Ask KingFish access are part of KingFish Bets Pro.
       </AppText>
-      {mobileConfig.flags.mobile_paywall ? (
-        <View style={styles.action}>
-          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
-        </View>
-      ) : null}
+      <View style={styles.action}>
+        <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+      </View>
     </Card>
   )
 
@@ -2292,8 +2290,6 @@ export default function CheatSheetsScreen() {
             </>
           )}
         </>
-      ) : !isPremium ? (
-        premiumToolsCard
       ) : toolMode === 'calculators' ? (
         <>
           <View style={styles.calculatorRows}>
@@ -2320,6 +2316,8 @@ export default function CheatSheetsScreen() {
             })}
           </View>
         </>
+      ) : !isPremium ? (
+        premiumToolsCard
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>

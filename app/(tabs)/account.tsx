@@ -374,12 +374,12 @@ export default function AccountScreen() {
         {profileMessage ? <AppText style={styles.noticeText}>{profileMessage}</AppText> : null}
         {restoreMessage ? <AppText style={styles.noticeText}>{restoreMessage}</AppText> : null}
         <View style={styles.cardAction}>
-          {!isPremium && mobileConfig.flags.mobile_paywall ? (
+          {!isPremium ? (
             <Button onPress={() => router.push('/modals/paywall')}>Upgrade</Button>
           ) : null}
           {!isPremium ? (
             <>
-              <View style={mobileConfig.flags.mobile_paywall ? styles.buttonGap : undefined} />
+              <View style={styles.buttonGap} />
               <Button variant="secondary" loading={restoring} onPress={handleRestorePurchases}>
                 Restore Purchases
               </Button>

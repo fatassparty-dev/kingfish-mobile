@@ -6,7 +6,6 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
-import { useMobileConfig } from '@/lib/mobileConfig'
 import { purchasePremium, restorePurchases } from '@/lib/purchases'
 import type { PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
@@ -44,18 +43,12 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const { user, profile, refreshProfile } = useAuth()
-  const mobileConfig = useMobileConfig()
   const [message, setMessage] = useState('')
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
   const isPremium = profile?.is_premium === true
-  const purchasePaused = mobileConfig.flags.mobile_paywall === false
 
   async function handlePurchase() {
-    if (purchasePaused) {
-      setMessage('Subscriptions are temporarily paused. Please try again later.')
-      return
-    }
     setLoadingAction('purchase')
     const result = await purchasePremium(user?.id, selectedPlan)
     setMessage(result.message)
@@ -149,8 +142,8 @@ export default function PaywallScreen() {
         </Card>
       ) : null}
 
-      <Button loading={loadingAction === 'purchase'} disabled={purchasePaused} onPress={handlePurchase}>
-        {purchasePaused ? 'Subscriptions Paused' : 'Start Premium'}
+      <Button loading={loadingAction === 'purchase'} onPress={handlePurchase}>
+        Start Premium
       </Button>
       <View style={styles.gap} />
       <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>
