@@ -47,9 +47,20 @@ export default function SignUpScreen() {
     }
 
     setLoading(true)
+    // Pass the name into auth metadata so it persists even before a session exists
+    // (email confirmation pending). The on_auth_user_created DB trigger copies this
+    // into user_profiles server-side, so the name survives regardless of RLS/session.
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          full_name: `${firstName.trim()} ${lastName.trim()}`,
+          state: normalizeLocation(state) || null,
+        },
+      },
     })
 
     if (authError) {
@@ -58,6 +69,7 @@ export default function SignUpScreen() {
       return
     }
 
+    // Best-effort client write; the DB trigger is the source of truth.
     if (data.user) {
       await supabase
         .from('user_profiles')
