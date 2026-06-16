@@ -17,7 +17,26 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
+type SheetKey = 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
+
+// One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
+// rendered identically on web, studio, and mobile.
+type NrfiRow = {
+  game_id: string
+  commence_time: string
+  home_team: string; away_team: string; home_abbr: string; away_abbr: string
+  home_pitcher: string; away_pitcher: string
+  away_offense_1st: { runs: number; games: number; rate: number } | null
+  home_offense_1st: { runs: number; games: number; rate: number } | null
+  away_pitcher_1st: { runs: number; starts: number; rate: number } | null
+  home_pitcher_1st: { runs: number; starts: number; rate: number } | null
+  nrfi: { price: number; book: string } | null
+  yrfi: { price: number; book: string } | null
+  market_nrfi_prob: number | null
+  model_nrfi_prob: number
+  park_read: string | null
+  lean: { side: string; strength: string; label: string; color: string; edge: number | null; confidence: string; note?: string }
+}
 type ToolTile = {
   key: SheetKey
   label: string
@@ -32,11 +51,12 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'td'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'td' | 'nrfi'
   market?: string
   statField?: string
   trend?: boolean
 }> = [
+  { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Run / no-run first inning — starter & offense first-inning splits vs the market, with a model lean. Free.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
@@ -50,6 +70,7 @@ const SHEETS: Array<{
 ]
 
 const TOOL_TILES: ToolTile[] = [
+  { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
   { key: 'tb', label: 'Total Bases', sport: 'MLB' },
@@ -1715,6 +1736,14 @@ export default function CheatSheetsScreen() {
     enabled: canLoadMlbSheetData,
     staleTime: 12 * 60 * 60 * 1000,
   })
+  // NRFI/YRFI is free — loads for any signed-in user, no premium gate.
+  const nrfiQuery = useQuery({
+    queryKey: ['cheat-sheet', 'nrfi'],
+    queryFn: () => kingfishFetch<{ data: NrfiRow[]; updated_at?: string; published_at?: string; sheet_date?: string }>('/api/mlb-nrfi'),
+    enabled: toolMode === 'sheets' && activeKey === 'nrfi',
+    staleTime: 5 * 60 * 1000,
+  })
+  const nrfiRows = nrfiQuery.data?.data ?? []
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
@@ -2316,12 +2345,10 @@ export default function CheatSheetsScreen() {
             })}
           </View>
         </>
-      ) : !isPremium ? (
-        premiumToolsCard
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>
-            {TOOL_TILES.map((sheet) => (
+            {(isPremium ? TOOL_TILES : TOOL_TILES.filter((t) => t.key === 'nrfi')).map((sheet) => (
               <Pressable
                 key={sheet.key}
                 onPress={() => {
@@ -2335,7 +2362,10 @@ export default function CheatSheetsScreen() {
               </Pressable>
             ))}
           </View>
+          {!isPremium ? premiumToolsCard : null}
         </>
+      ) : (!isPremium && activeKey !== 'nrfi') ? (
+        premiumToolsCard
       ) : (
         <>
           <View style={styles.reportHeader}>
@@ -2364,16 +2394,56 @@ export default function CheatSheetsScreen() {
             </View>
             {!isTdSheet ? (
               <AppText style={styles.reportDate}>
-                {formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
+                {activeKey === 'nrfi'
+                  ? formatSavedAt(nrfiQuery.data?.published_at || nrfiQuery.data?.updated_at, nrfiQuery.data?.sheet_date)
+                  : formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
               </AppText>
             ) : null}
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading) && (
+          {((activeKey === 'nrfi' && nrfiQuery.isLoading) || sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
             </View>
+          )}
+
+          {activeKey === 'nrfi' && !nrfiQuery.isLoading && (
+            nrfiRows.length === 0 ? (
+              <AppText variant="muted" style={styles.errorText}>No games posted yet — check back closer to first pitch.</AppText>
+            ) : (
+              <>
+                <View style={styles.reportRows}>
+                  {nrfiRows.map((row, index) => {
+                    const pct = (n: number | null) => (typeof n === 'number' ? `${Math.round(n * 100)}%` : '—')
+                    const sp = (s: NrfiRow['away_pitcher_1st']) => (s ? `${s.runs}r/${s.starts}gs` : 'TBD')
+                    const showEdge = row.lean?.edge != null && row.lean.strength !== 'pass' && row.lean.strength !== 'info'
+                    return (
+                      <View key={`${row.game_id}-${index}`} style={styles.reportRow}>
+                        <View style={styles.rowMain}>
+                          <AppText style={styles.compactPlayer} numberOfLines={1}>{row.away_abbr || row.away_team} @ {row.home_abbr || row.home_team}</AppText>
+                          <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                            {row.away_pitcher} ({sp(row.away_pitcher_1st)}) · {row.home_pitcher} ({sp(row.home_pitcher_1st)})
+                          </AppText>
+                          <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                            Model NRFI {pct(row.model_nrfi_prob)} · Mkt {pct(row.market_nrfi_prob)}
+                            {row.nrfi ? ` · NRFI ${row.nrfi.price > 0 ? '+' : ''}${row.nrfi.price}` : ''}
+                            {row.yrfi ? ` · YRFI ${row.yrfi.price > 0 ? '+' : ''}${row.yrfi.price}` : ''}
+                          </AppText>
+                        </View>
+                        <View style={styles.rowNumbers}>
+                          <AppText style={[styles.compactEdge, { color: row.lean?.color || colors.textSecondary }]}>{row.lean?.label || '—'}</AppText>
+                          <AppText style={styles.compactOdds}>{showEdge ? `+${Math.abs((row.lean.edge as number) * 100).toFixed(1)}%` : (row.park_read || '')}</AppText>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </View>
+                <AppText variant="muted" style={styles.cardCopy}>
+                  Model lean, not a guarantee — log-5 first-inning matchup with sample shrinkage, calibrated to the league NRFI rate and graded daily. For entertainment only.
+                </AppText>
+              </>
+            )
           )}
 
           {(sheetQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFantasyQuery.isError) && (
