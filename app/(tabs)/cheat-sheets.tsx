@@ -56,7 +56,7 @@ const SHEETS: Array<{
   statField?: string
   trend?: boolean
 }> = [
-  { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Run / no-run first inning — starter & offense first-inning splits vs the market, with a model lean. Free.', type: 'nrfi' },
+  { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today. Free.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
@@ -2440,7 +2440,7 @@ export default function CheatSheetsScreen() {
                   })}
                 </View>
                 <AppText variant="muted" style={styles.cardCopy}>
-                  Model lean, not a guarantee — log-5 first-inning matchup with sample shrinkage, calibrated to the league NRFI rate and graded daily. For entertainment only.
+                  Model lean, not a guarantee. For entertainment only — please bet responsibly.
                 </AppText>
               </>
             )
