@@ -65,9 +65,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return
       setSession(data.session)
-      await configurePurchases(data.session?.user?.id)
+      // Premium is read from the Supabase profile (`is_premium`), so load it
+      // FIRST and reveal the app immediately. RevenueCat is only needed to make
+      // a purchase/restore — warm it up in the background so it never blocks the
+      // premium reveal (a web/Stripe subscriber has no Apple entitlement to wait
+      // on). This is what made cold launch take ~20s to show Pro.
       await loadProfile(data.session)
       setLoading(false)
+      configurePurchases(data.session?.user?.id).catch(() => {})
     }).catch((err) => {
       if (!mounted) return
       if (isInvalidRefreshToken(err)) {
@@ -84,8 +89,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       try {
         setSession(nextSession)
-        await configurePurchases(nextSession?.user?.id)
+        // Profile (premium source of truth) first; RevenueCat warm-up in the
+        // background so it never gates the premium reveal. See note above.
         await loadProfile(nextSession)
+        configurePurchases(nextSession?.user?.id).catch(() => {})
       } catch (err) {
         if (isInvalidRefreshToken(err)) {
           supabase.auth.signOut({ scope: 'local' }).catch(() => {})
