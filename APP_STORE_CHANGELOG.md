@@ -26,6 +26,20 @@ data* it didn't know about before.
 
 > _Nothing submitted yet. The items below are pending the next build._
 
+- **[Built — 2026-06-18] Consistent "off-season / no markets" wording on the dashboard.**
+  - **What the reviewer sees:** When a league has no live betting markets, the
+    placeholder card now uses clear, consistent wording across every sport (e.g.
+    college football now reads "College Football Not In Season" instead of
+    "College Football Lines Awaiting Markets"; NBA/NHL read "Not In Season" when
+    off-season). Same card, same place — only the text changed.
+  - **Why:** The copy had drifted per-sport and didn't match our website, so the
+    same situation was described several different ways. This aligns the app's
+    empty-state wording with the web for one coherent message.
+  - **Scope:** Small, text-only. File: `app/(tabs)/index.tsx` — the `inactiveTitle`
+    / `inactiveDescription` strings for all nine sports. No layout changes (the
+    iPhone keeps its existing card structure), no new screens, no new data.
+  - **Risk:** Very low / cosmetic — display strings only.
+
 - **[Built — 2026-06-14] Sign-up now reliably saves the customer's name.**
   - **What the reviewer sees:** No visible change — the Create Account screen still
     has the same First name / Last name fields. The only difference is under the
@@ -68,16 +82,20 @@ data* it didn't know about before.
   for this part.** The matching app change (🔵 above) just makes the app send the
   name itself, on top of this safety net.
   - _Status: live in Supabase (ran 2026-06-14): `supabase-user-profile-autocreate.sql`._
-- **Soccer / World Cup predictions are now a real statistical model**, computed on
-  the server (`lib/soccer/model.ts`): team-strength (Elo) → expected goals (Poisson)
-  → win/draw/away probabilities → de-vig the market → edge % → conservative
-  quarter-Kelly stake. Delivered via `/api/soccer-odds` as `kingfishModel`. The
-  current app already renders this for World Cup, so **no app update required.**
-  - _Status: ready in working tree; pending deploy._
+- **Soccer / World Cup predictions — real statistical model** computed on the
+  server (`lib/soccer/model.ts`): team-strength (Elo) → expected goals (Poisson) →
+  win/draw/away probabilities → de-vig the market → edge % → quarter-Kelly stake.
+  Delivered via `/api/soccer-odds` as `kingfishModel`; the current app already
+  renders it for World Cup, so **no app update required** when it does ship.
+  - _Status: **SHIPPED then ROLLED BACK on 2026-06-14** (commit 23a7421 →
+    reverted in cd0e6c9). It overstated edges — live cards showed implausible EV
+    (e.g. Netherlands +18.7% vs Japan, a +2000 draw "edge" on Curaçao–Germany).
+    **Blocker before re-ship: calibrate against real results.** Code kept as WIP,
+    not deleted._
 - **Bug fix — neutral-venue home-field.** World Cup games no longer give the
   listed-first team an unearned home-field boost (they're neutral-site), which was
   inflating one side's edge. Server-side only.
-  - _Status: ready in working tree; pending deploy._
+  - _Status: included in the rolled-back commit above; re-ships with the calibrated model._
 
 ---
 

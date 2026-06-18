@@ -11,9 +11,9 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
-import { fmtTime } from '@/lib/format'
+import { fmtOdds, fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
-import { BOOK_DISPLAY_NAMES, PROP_BOOK_KEYS, supportedBookmakers } from '@/lib/sportsbooks'
+import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
@@ -396,7 +396,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'MLB lines, props, weather, trends, and stat sheets.',
     inactiveTitle: 'MLB Lines Unavailable',
-    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
+    inactiveDescription: 'No MLB markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'NFL',
@@ -405,7 +405,7 @@ const SPORTS: Array<{
     status: 'Markets',
     description: 'NFL lines, matchups, props, and fantasy tools.',
     inactiveTitle: 'NFL Not In Season',
-    inactiveDescription: 'Fantasy, draft research, injuries, futures, and offseason notes.',
+    inactiveDescription: 'NFL lives year-round in KingFish. Fantasy tools, draft research, injuries, futures, and offseason notes stay available while regular-season markets are off the board.',
   },
   {
     key: 'NBA',
@@ -413,8 +413,8 @@ const SPORTS: Array<{
     visibilityFlag: 'dashboard_tab_nba',
     status: 'Live',
     description: 'NBA lines, props, recent form, and Edge.',
-    inactiveTitle: 'NBA Lines Unavailable',
-    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
+    inactiveTitle: 'NBA Not In Season',
+    inactiveDescription: 'NBA game lines, props, and stat context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'NHL',
@@ -422,8 +422,8 @@ const SPORTS: Array<{
     visibilityFlag: 'dashboard_tab_nhl',
     status: 'Live',
     description: 'NHL lines, props, shot volume, and scoring trends.',
-    inactiveTitle: 'NHL Lines Unavailable',
-    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
+    inactiveTitle: 'NHL Not In Season',
+    inactiveDescription: 'NHL game lines and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'WNBA',
@@ -432,7 +432,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'WNBA lines, props, recent form, and hit rates.',
     inactiveTitle: 'WNBA Lines Unavailable',
-    inactiveDescription: 'Game lines, props, and stat context appear when markets are active.',
+    inactiveDescription: 'No WNBA markets are posted right now. When books post lines, KingFish will show game lines, props, and stat context.',
   },
   {
     key: 'KBO',
@@ -441,7 +441,7 @@ const SPORTS: Array<{
     status: 'Live',
     description: 'KBO lines, market movement, and team context.',
     inactiveTitle: 'KBO Lines Unavailable',
-    inactiveDescription: 'Game lines appear when the next slate is active.',
+    inactiveDescription: 'No KBO markets are posted right now. When books post the next slate, KingFish will show game lines.',
   },
   {
     key: 'NCAAB',
@@ -450,7 +450,7 @@ const SPORTS: Array<{
     status: 'Markets',
     description: 'College basketball lines, team trends, and matchups.',
     inactiveTitle: 'College Basketball Not In Season',
-    inactiveDescription: 'Game lines and matchup context return in season.',
+    inactiveDescription: 'College basketball game lines and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'NCAAF',
@@ -458,8 +458,8 @@ const SPORTS: Array<{
     visibilityFlag: 'dashboard_tab_ncaaf',
     status: 'Markets',
     description: 'College football lines, team stats, and matchups.',
-    inactiveTitle: 'College Football Lines Awaiting Markets',
-    inactiveDescription: 'Game lines and matchup context appear when sportsbooks post active markets.',
+    inactiveTitle: 'College Football Not In Season',
+    inactiveDescription: 'College football game lines, market leans, and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
     key: 'SOCCER',
@@ -468,7 +468,7 @@ const SPORTS: Array<{
     status: 'Markets',
     description: 'Soccer lines, league context, and team form.',
     inactiveTitle: 'Soccer Markets Unavailable',
-    inactiveDescription: 'Game lines appear when league markets are active.',
+    inactiveDescription: 'Supported soccer game lines appear when US sportsbooks have active markets for the selected leagues.',
   },
 ]
 
@@ -987,27 +987,6 @@ function drawRate(team: SoccerTeamInfo | undefined) {
   return Number(team?.drawn || 0) / played
 }
 
-function recentDrawCount(team: SoccerTeamInfo | undefined) {
-  return String(team?.form || '').toUpperCase().split('').filter((result) => result === 'D').length
-}
-
-function goalsForPerGame(team: SoccerTeamInfo | undefined) {
-  const played = Number(team?.played || 0)
-  if (!played) return 0
-  return Number(team?.goalsFor || 0) / played
-}
-
-function soccerPower(team: SoccerTeamInfo | undefined) {
-  if (!team?.played) return 50
-  const played = Number(team.played || 1)
-  const ppg = pointsPerGame(team)
-  const gdPerGame = Number(team.goalDifference || 0) / played
-  const scoringRate = goalsForPerGame(team)
-  const againstRate = Number(team.goalsAgainst || 0) / played
-  const tableBonus = Math.max(0, 22 - Number(team.position || 20)) * 1.1
-  return 35 + (ppg * 12) + (gdPerGame * 8) + (scoringRate * 3) - (againstRate * 2) + tableBonus
-}
-
 function soccerProfileRead(team: SoccerTeamInfo) {
   if (!team.played) return 'Tournament table data is pending.'
   const ppg = pointsPerGame(team)
@@ -1024,44 +1003,6 @@ function findSoccerTeam(teams: SoccerTeamInfo[] = [], teamName: string) {
     const candidates = [team.team, team.shortName].map((value) => normalizeTeamKey(value || ''))
     return candidates.some((candidate) => candidate && (candidate === normalized || normalized.includes(candidate) || candidate.includes(lastWord)))
   })
-}
-
-function bestMoneylineFor(game: Game, side: 'away' | 'home' | 'draw') {
-  const target = side === 'away' ? game.away_team : side === 'home' ? game.home_team : 'Draw'
-  const options: Array<{ book: string; price: number }> = []
-  game.bookmakers?.forEach((bookmaker) => {
-    if (!PROP_BOOK_KEYS.includes(bookmaker.key)) return
-    const market = bookmaker.markets?.find((item) => item.key === 'h2h')
-    const outcome = market?.outcomes?.find((item) => item.name === target)
-    if (typeof outcome?.price === 'number') options.push({ book: bookmaker.key, price: outcome.price })
-  })
-  return options.reduce<typeof options[number] | null>((best, item) => (!best || item.price > best.price ? item : best), null)
-}
-
-function soccerMatchupLean(awayInfo: SoccerTeamInfo | undefined, homeInfo: SoccerTeamInfo | undefined, game: Game) {
-  if (!awayInfo || !homeInfo) return null
-  const awayPower = soccerPower(awayInfo)
-  const homePower = soccerPower(homeInfo) + 3
-  const diff = homePower - awayPower
-  const ppgGap = Math.abs(pointsPerGame(homeInfo) - pointsPerGame(awayInfo))
-  const drawProfile =
-    (recentDrawCount(awayInfo) > 0 && recentDrawCount(homeInfo) > 0) ||
-    (drawRate(awayInfo) >= 0.24 && drawRate(homeInfo) >= 0.24) ||
-    ((drawRate(awayInfo) + drawRate(homeInfo)) / 2 >= 0.28)
-  const isDrawWatch = (Math.abs(diff) < 5 || ppgGap <= 0.15) && drawProfile
-  const stronger = diff > 0 ? homeInfo : awayInfo
-  const weaker = diff > 0 ? awayInfo : homeInfo
-  const best = bestMoneylineFor(game, isDrawWatch ? 'draw' : diff > 0 ? 'home' : 'away')
-  const ppgEdge = (pointsPerGame(stronger) - pointsPerGame(weaker)).toFixed(2)
-  const gdEdge = Number(stronger.goalDifference || 0) - Number(weaker.goalDifference || 0)
-  return {
-    type: isDrawWatch ? 'Draw Lean' : Math.abs(diff) >= 10 ? 'Strong Lean' : 'Lean',
-    side: isDrawWatch ? 'Draw' : (stronger.shortName || stronger.team),
-    detail: isDrawWatch
-      ? `${ppgGap.toFixed(2)} points/game gap with a draw profile on both sides.`
-      : `${ppgEdge} points/game edge and ${gdEdge >= 0 ? '+' : ''}${gdEdge} goal-difference edge.`,
-    best,
-  }
 }
 
 function MatchupTeamBox({
@@ -2941,6 +2882,21 @@ export default function DashboardScreen() {
                           <AppText variant="mono">{fmtTime(game.commence_time)}</AppText>
                           <AppText variant="mono">{supportedBookmakers(game.bookmakers, profile?.state).length} books</AppText>
                         </View>
+                        {game.kingfishModel && (
+                          <View style={styles.leanBox}>
+                            <View style={styles.leanCopy}>
+                              <AppText variant="eyebrow">KingFish {game.kingfishModel.type}</AppText>
+                              <AppText style={styles.leanMain}>{game.kingfishModel.side}</AppText>
+                              <AppText variant="muted" style={styles.leanDetail}>{game.kingfishModel.detail}</AppText>
+                            </View>
+                            {game.kingfishModel.best && (
+                              <View style={styles.leanPrice}>
+                                <AppText style={styles.leanPriceText}>{fmtOdds(game.kingfishModel.best.price)}</AppText>
+                                <AppText variant="mono">{displayBookName(game.kingfishModel.best.book, game.kingfishModel.best.book)}</AppText>
+                              </View>
+                            )}
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
