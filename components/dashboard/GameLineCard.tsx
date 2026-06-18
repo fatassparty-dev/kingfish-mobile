@@ -235,6 +235,36 @@ function mlbAbbr(team: string, context?: MlbLineContext) {
   return context?.teamAbbrMap?.[team] || team
 }
 
+// Server-computed moneyline lean (game.kingfishLean), the source of truth for
+// every sport that ships it (MLB, NBA, NHL, WNBA). Clients render the field and
+// fall through to the local heuristic only when it's absent (stale cache /
+// offline). See the "Calculated scores live on the web" law.
+function serverMoneylineLean(game: Game): LeanResult | null {
+  const km = (game as any).kingfishLean
+  if (!km) return null
+  return {
+    label: km.side,
+    detail: km.detail,
+    price: km.best?.price,
+    book: km.best ? displayBookName(km.best.book, km.best.book) : undefined,
+    type: km.type,
+    team: km.team || km.side,
+  }
+}
+
+// Server-computed total lean (game.kingfishTotalLean), parallel to the moneyline.
+function serverTotalLean(game: Game): LeanResult | null {
+  const kt = (game as any).kingfishTotalLean
+  if (!kt) return null
+  return {
+    label: kt.label,
+    detail: kt.detail,
+    price: kt.best?.price,
+    book: kt.best ? displayBookName(kt.best.book, kt.best.book) : undefined,
+    type: kt.type,
+  }
+}
+
 function mlbMoneylineLean(
   game: Game,
   awayMoneyline: { book: string; price: number } | null,
@@ -917,11 +947,11 @@ export function GameLineCard({
   const homeSpread = bestSpread(bookmakers, game.home_team)
   const usesTeamFormLean = sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
   const moneylineLean = sport === 'MLB'
-    ? mlbMoneylineLean(game, awayBest, homeBest, mlbContext)
+    ? (serverMoneylineLean(game) || mlbMoneylineLean(game, awayBest, homeBest, mlbContext))
     : sport === 'NFL'
-      ? nflMoneylineLean(game, awayBest, homeBest, nflContext)
+      ? (serverMoneylineLean(game) || nflMoneylineLean(game, awayBest, homeBest, nflContext))
     : sport === 'NCAAF'
-      ? ncaafMoneylineLean(game, awayBest, homeBest, awaySpread, homeSpread, ncaafContext)
+      ? (serverMoneylineLean(game) || ncaafMoneylineLean(game, awayBest, homeBest, awaySpread, homeSpread, ncaafContext))
     : sport === 'SOCCER'
       ? soccerContext?.isTournament
         ? (() => {
@@ -941,17 +971,17 @@ export function GameLineCard({
           })()
         : soccerMoneylineLean(game, awayBest, homeBest, drawBest, soccerContext)
     : usesTeamFormLean
-      ? teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext)
-    : consensusMoneylineLean(bookmakers, game, sport)
+      ? (serverMoneylineLean(game) || teamFormMoneylineLean(sport, game, awayBest, homeBest, teamFormContext))
+    : (serverMoneylineLean(game) || consensusMoneylineLean(bookmakers, game, sport))
   const totalLean = sport === 'MLB'
     ? mlbTotalLean(game, over, under, bookmakers, mlbContext)
     : sport === 'NCAAF'
-      ? ncaafTotalLean(game, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), awaySpread, homeSpread, ncaafContext)
+      ? (serverTotalLean(game) || ncaafTotalLean(game, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), awaySpread, homeSpread, ncaafContext))
     : sport === 'SOCCER'
       ? soccerTotalLean(over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), soccerContext)
     : usesTeamFormLean
-      ? teamFormTotalLean(sport, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), teamFormContext)
-    : consensusTotalLean(bookmakers, weather, showNeutralTotalWatch)
+      ? (serverTotalLean(game) || teamFormTotalLean(sport, over?.point, bestMarketOutcome(bookmakers, 'totals', 'Over'), bestMarketOutcome(bookmakers, 'totals', 'Under'), pricedTotals(bookmakers), teamFormContext))
+    : (serverTotalLean(game) || consensusTotalLean(bookmakers, weather, showNeutralTotalWatch))
   const bttsLean = sport === 'SOCCER' ? soccerBttsLean(awayBest, drawBest, homeBest, bttsYes, bttsNo, soccerContext) : null
   const moneylineLeanLabel = moneylineLean?.type ? `KingFish ${moneylineLean.type}` : 'Moneyline Lean'
   const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
