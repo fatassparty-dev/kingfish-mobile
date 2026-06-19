@@ -62,6 +62,12 @@ export default function AskKingFishScreen() {
   const chatsLeft = Math.max(0, FREE_DAILY_LIMIT - chatsUsed)
   const isPremium = profile?.is_premium === true
   const reachedLimit = !isPremium && (limitHit || chatsLeft <= 0)
+  const hasMessages = messages.length > 0
+  const limitLabel = isPremium
+    ? 'Unlimited Premium chat'
+    : reachedLimit
+      ? 'Daily free limit reached'
+      : `${chatsLeft} free chat${chatsLeft === 1 ? '' : 's'} left today`
 
   useEffect(() => {
     let mounted = true
@@ -176,6 +182,16 @@ export default function AskKingFishScreen() {
 
   return (
     <Screen>
+      {hasMessages ? (
+        <View style={styles.compactHeader}>
+          <Image source={require('../../assets/images/kingfish-body-layer.png')} style={styles.compactAvatar} />
+          <View style={styles.compactTitleWrap}>
+            <AppText variant="eyebrow">// AI Analyst</AppText>
+            <AppText style={styles.compactTitle}>Ask KingFish</AppText>
+          </View>
+          <AppText variant="mono" style={styles.compactLimit} numberOfLines={1}>{limitLabel}</AppText>
+        </View>
+      ) : (
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Image source={require('../../assets/images/kingfish-body-layer.png')} style={styles.avatarLayer} />
@@ -218,15 +234,10 @@ export default function AskKingFishScreen() {
           {!isPremium && Array.from({ length: FREE_DAILY_LIMIT }).map((_, index) => (
             <View key={index} style={[styles.limitDot, index < chatsLeft && styles.limitDotActive]} />
           ))}
-          <AppText variant="mono">
-            {isPremium
-              ? 'Unlimited Premium chat'
-              : reachedLimit
-                ? 'Daily free limit reached'
-                : `${chatsLeft} free chat${chatsLeft === 1 ? '' : 's'} left today`}
-          </AppText>
+          <AppText variant="mono">{limitLabel}</AppText>
         </View>
       </View>
+      )}
 
       {messages.length === 0 && !reachedLimit && (
         <View style={styles.starters}>
@@ -353,6 +364,34 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 8,
     textAlign: 'center',
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  compactAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.35)',
+    backgroundColor: colors.bgCardAlt,
+    resizeMode: 'contain',
+  },
+  compactTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  compactTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  compactLimit: {
+    color: colors.textSecondary,
+    fontSize: 11,
   },
   copy: {
     marginTop: 10,
