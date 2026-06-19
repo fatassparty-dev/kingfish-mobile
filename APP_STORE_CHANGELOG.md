@@ -26,6 +26,20 @@ data* it didn't know about before.
 
 > _Nothing submitted yet. The items below are pending the next build._
 
+- **[Built — 2026-06-18] Ask KingFish header shrinks once a chat is active.**
+  - **What the reviewer sees:** On the Ask KingFish tab, the large mascot image +
+    "Ask KingFish" title show at the top of a new/empty chat as before. Once you've
+    sent a message, that header collapses to a small bar (a small avatar + the title
+    on one line) so the conversation has more room. Same screen, same chat — only
+    the header size changes based on whether a conversation has started.
+  - **Why:** The full-size header was taking up the top third of the screen during an
+    active conversation, squeezing the chat. This is a layout-only refinement.
+  - **Scope:** Small, layout-only. File: `app/(tabs)/ask-kingfish.tsx` — a compact
+    header variant shown when the chat has messages. No new screens, no new data, no
+    new permissions. (The iPhone keeps its single-conversation Ask — the multi-chat
+    sidebar is iPad/web only.)
+  - **Risk:** Very low / cosmetic — display layout only.
+
 - **[Built — 2026-06-18] Consistent "off-season / no markets" wording on the dashboard.**
   - **What the reviewer sees:** When a league has no live betting markets, the
     placeholder card now uses clear, consistent wording across every sport (e.g.
