@@ -5,6 +5,7 @@ import { router, useSegments } from 'expo-router'
 import { supabase } from './supabase'
 import type { UserProfile } from '@/types'
 import { configurePurchases } from './purchases'
+import { kingfishFetch } from './api'
 
 interface AuthContextValue {
   session: Session | null
@@ -19,8 +20,34 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const PUBLIC_ROUTES = new Set(['help', 'privacy', 'refund', 'support', 'terms'])
 
+// Background retry cadence for a profile read that comes back empty/failed right
+// after sign-in. Premium is read from the server, so a transient miss must not be
+// treated as "free" — we retry until the read resolves (token attaches / network
+// warms up) instead of waiting on a chance token refresh ~30s out.
+const PROFILE_RETRY_DELAYS_MS = [1200, 2400, 3600, 5000]
+
 function isInvalidRefreshToken(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('invalid refresh token')
+}
+
+// One authoritative profile read via the server (`GET /api/account`). Reading
+// server-side (service role) instead of querying `user_profiles` directly removes
+// the sign-in race that made paid users briefly show as "Free", and the server
+// self-heals a stale mobile entitlement. Hard timeout so a cold/slow network can't
+// hang the premium reveal.
+async function fetchProfileOnce(): Promise<{ data: UserProfile | null; error: Error | null }> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+  try {
+    const res = await kingfishFetch<{ profile: UserProfile | null }>('/api/account', {
+      signal: controller.signal,
+    })
+    return { data: res.profile ?? null, error: null }
+  } catch (err: any) {
+    return { data: null, error: err instanceof Error ? err : new Error('Could not load profile.') }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -30,6 +57,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true)
   const [profileError, setProfileError] = useState<string | null>(null)
 
+  // Keep retrying a missing/failed profile read in the background until the row
+  // resolves, the user changes, or we run out of attempts. Never clears an
+  // already-loaded profile — a transient miss must not downgrade a premium user
+  // to "free". This is what previously only self-healed by luck after ~30s.
+  async function retryLoadProfile(userId: string) {
+    for (const delay of PROFILE_RETRY_DELAYS_MS) {
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      // Bail if the signed-in user changed (or signed out) while we waited.
+      const { data: current } = await supabase.auth.getSession()
+      if (current.session?.user?.id !== userId) return
+      const { data } = await fetchProfileOnce()
+      if (data) {
+        setProfile(data)
+        setProfileError(null)
+        return
+      }
+    }
+  }
+
   async function loadProfile(activeSession = session) {
     const user = activeSession?.user
     if (!user) {
@@ -38,25 +84,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return
     }
 
-    try {
-      const profileRequest = supabase
-        .from('user_profiles')
-        .select('user_id, is_premium, is_admin, is_vip, is_gifted, first_name, last_name, state, subscription_status, subscription_platform, stripe_plan, premium_expires_at, sportsbook_preferences')
-        .eq('user_id', user.id)
-        .single()
-
-      const timeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile lookup timed out. Pull to refresh or try again.')), 10000)
-      })
-
-      const { data, error } = await Promise.race([profileRequest, timeout])
-      if (error) throw error
-      setProfile((data as UserProfile) || null)
+    // First read blocks the caller so the app can reveal quickly.
+    const { data, error } = await fetchProfileOnce()
+    if (data) {
+      setProfile(data)
       setProfileError(null)
-    } catch (err: any) {
-      setProfile(null)
-      setProfileError(err.message || 'Could not load profile.')
+      return
     }
+
+    // No usable profile yet. Right after sign-in this is almost always a transient
+    // race (auth token not attached -> RLS returns no row) or a cold-start timeout,
+    // NOT a real free account. Preserve any known-good profile for this same user
+    // instead of flashing "Free", surface the error, and retry in the background.
+    setProfile((prev) => (prev && prev.user_id === user.id ? prev : null))
+    if (error) setProfileError(error.message)
+    void retryLoadProfile(user.id)
   }
 
   useEffect(() => {
@@ -65,11 +107,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return
       setSession(data.session)
-      // Premium is read from the Supabase profile (`is_premium`), so load it
-      // FIRST and reveal the app immediately. RevenueCat is only needed to make
-      // a purchase/restore — warm it up in the background so it never blocks the
-      // premium reveal (a web/Stripe subscriber has no Apple entitlement to wait
-      // on). This is what made cold launch take ~20s to show Pro.
+      // Premium comes from the authoritative server profile (`/api/account`), so
+      // load it FIRST and reveal the app immediately. RevenueCat is only needed to
+      // make a purchase/restore — warm it up in the background so it never blocks
+      // the premium reveal (a web/Stripe subscriber has no Apple entitlement to
+      // wait on). This is what made cold launch take ~20s to show Pro.
       await loadProfile(data.session)
       setLoading(false)
       configurePurchases(data.session?.user?.id).catch(() => {})

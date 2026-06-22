@@ -29,6 +29,10 @@ export default function SignUpScreen() {
       setError('First and last name are required.')
       return
     }
+    if (!normalizeLocation(state)) {
+      setError('Please enter your location (state, PR, or OTHER).')
+      return
+    }
     if (!is18) {
       setError('You must confirm you are 18 or older where permitted by law.')
       return
@@ -99,14 +103,14 @@ export default function SignUpScreen() {
           <TextInput placeholder="Last name" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} style={[styles.input, styles.nameInput]} />
         </View>
         <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor={colors.textMuted} value={email} onChangeText={setEmail} style={styles.input} />
-        <TextInput autoCapitalize="characters" placeholder="Location, optional (LA, PR, OTHER)" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} style={styles.input} />
+        <TextInput autoCapitalize="characters" placeholder="Location (state, PR, or OTHER)" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Confirm password" placeholderTextColor={colors.textMuted} secureTextEntry value={confirm} onChangeText={setConfirm} style={styles.input} />
 
         <CheckRow checked={is18} onPress={() => setIs18((v) => !v)} text="I confirm I am 18 or older where permitted by law." />
         <CheckRow checked={accepted} onPress={() => setAccepted((v) => !v)} text="I accept the Terms of Service and Privacy Policy." />
         <AppText variant="muted" style={styles.note}>
-          Your location helps KingFish show the right sportsbook context. It is optional. You can delete your account anytime from Account.
+          Your location helps KingFish show the right sportsbook context. You can change it anytime from Account.
         </AppText>
 
         {error ? <AppText style={styles.error}>{error}</AppText> : null}

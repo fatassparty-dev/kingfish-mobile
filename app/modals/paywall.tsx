@@ -21,14 +21,14 @@ const PLANS: {
     id: 'monthly',
     eyebrow: '// Monthly',
     price: '$9.99/mo',
-    sub: 'Eligible new subscribers get 7 days free, then flexible monthly access.',
+    sub: '7 days free, then $9.99/month. Automatically renews unless canceled.',
     badge: 'Start here',
   },
   {
     id: 'yearly',
     eyebrow: '// Yearly',
     price: '$99/yr',
-    sub: 'Eligible new subscribers get 7 days free, then the best value for the full sports calendar.',
+    sub: '7 days free, then $99/year. Automatically renews unless canceled.',
     badge: 'Best value',
   },
 ]

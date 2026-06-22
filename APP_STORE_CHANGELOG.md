@@ -26,6 +26,43 @@ data* it didn't know about before.
 
 > _Nothing submitted yet. The items below are pending the next build._
 
+- **[Built — 2026-06-21] Premium status no longer briefly shows as "Free" after sign-in.**
+  - **What the reviewer sees:** When a paid/Pro user signs in, the account now shows
+    "Premium Active / Pro" reliably. Previously, some users (especially those who
+    subscribed on the website) would see "Free" right after signing in and had to
+    tap **Restore** — or wait ~30 seconds — before Pro appeared.
+  - **Why:** Premium status was read by querying the account record directly from
+    the database at sign-in; that single request could lose a race with the login
+    token (or time out on a cold network) and the app fell back to "Free" and never
+    retried. The app now reads premium from one authoritative server endpoint
+    (`GET /api/account`), which resolves entitlement server-side (so there's no
+    client-side timing race) and self-heals a stale subscription. The app also
+    retries transient failures in the background and never downgrades an
+    already-loaded Pro account to "Free."
+  - **Scope:** Small, client-only. File: `lib/auth.tsx` — `loadProfile` now calls
+    the server endpoint with a timed read + background retry and preserves a
+    known-good profile. No new screens, no new data collected, no new permissions.
+  - **Risk:** Low — strictly more resilient than before; removes the need for the
+    Restore workaround.
+  - **Note:** Requires the matching server endpoint (`kingfish-bets /api/account`
+    GET) to be deployed first; it is additive and backward-compatible, so older app
+    builds keep working unchanged.
+
+- **[Built — 2026-06-19] Location is now required at sign-up.**
+  - **What the reviewer sees:** On the Create Account screen, the Location field
+    (state, PR, or OTHER) is now required, like first/last name. Submitting without
+    it shows "Please enter your location (state, PR, or OTHER)." Label no longer
+    says "optional"; helper line notes it can be changed anytime from Account.
+  - **Why:** Location drives which sportsbooks KingFish shows; requiring it at
+    sign-up means every account has the right book context from the start.
+  - **Scope:** Small, client validation only. File: `app/(auth)/sign-up.tsx` — a
+    `normalizeLocation(state)` required-check plus placeholder/helper text. No new
+    data collected (field already existed), no new screens or permissions.
+  - **Risk:** Low — an extra required field on an existing screen.
+  - **Note:** Pairs with a server-side guard (in the web/Supabase project) that
+    rejects account creation without a name — that part needs no app update and
+    covers this app even on the current build.
+
 - **[Built — 2026-06-18] Ask KingFish header shrinks once a chat is active.**
   - **What the reviewer sees:** On the Ask KingFish tab, the large mascot image +
     "Ask KingFish" title show at the top of a new/empty chat as before. Once you've

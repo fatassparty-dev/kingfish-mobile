@@ -43,6 +43,15 @@ export interface Bookmaker {
   markets: Market[]
 }
 
+// Render-ready KingFish model lean, computed server-side in /api/soccer-odds and
+// shared by web + mobile so the prediction logic lives in one place.
+export interface ModelLean {
+  side: string
+  type: string
+  detail: string
+  best: { book: string; price: number } | null
+}
+
 export interface Game {
   id?: string
   game_id?: string
@@ -50,6 +59,7 @@ export interface Game {
   away_team: string
   commence_time: string
   bookmakers: Bookmaker[]
+  kingfishModel?: ModelLean | null
 }
 
 export interface WeatherInfo {
