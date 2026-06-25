@@ -42,10 +42,10 @@ data* it didn't know about before.
 
 - **Sign-in no longer hangs after signing in (no data / "Free" / no name).**
   - **What the user saw:** On 1.0.1, after signing in the app could sit with player props stuck "loading," the account shown as "Free," and no name/location — and never recover (even Restore Purchases did nothing).
-  - **Why:** The app's Supabase auth client connected directly to supabase.co (Cloudflare), whose HTTP/3 (QUIC) edge could stall a network call that runs *inside* sign-in (`setSession`'s `GET /auth/v1/user`) on device. That call holds an internal auth lock, so when it stalled, all of auth froze and never self-healed.
-  - **Fix:** The app now reaches Supabase through `kingfishbets.com` (HTTP/2 only, no QUIC), so that call can't stall. Added a 15-second network timeout so any stalled request fails and retries instead of spinning forever. Files: `eas.json`/`.env` (Supabase URL), `lib/api.ts`.
-  - **Scope/permissions:** Networking path only. No new data, no new permissions.
-  - **Risk:** Low — well-understood connection-path change; the same routing the iPad app already uses.
+  - **Why:** On launch/sign-in the app read the profile from inside the Supabase `onAuthStateChange` handler, which Supabase runs **while holding an internal auth lock**. That read calls `getSession()`, which needs the **same lock** → a re-entrant deadlock. One deadlock froze everything at once: the profile never loaded (premium showed "Free"), every data fetch hung ("Loading…" forever), and **Sign Out hung** (the dead-button issue from 1.0.1).
+  - **Fix:** Defer the auth-state-change work so the lock releases before any further auth call (the supabase-recommended pattern), and make Sign Out never block on a lock-bound call. Also routed Supabase through `kingfishbets.com` (HTTP/2) and added a 15s network timeout as hardening against a separate device-only HTTP/3 stall. Files: `lib/auth.tsx`, `lib/api.ts`, `eas.json`. **Verified in the iOS Simulator** (premium shows, props load, Sign Out works).
+  - **Scope/permissions:** Client logic + networking path only. No new data, no new permissions.
+  - **Risk:** Low — the fix is the documented way to avoid this exact Supabase deadlock; verified locally before submission.
 - **Sign-up "Location" is a dropdown (matches the website).** The Create Account location field is now a state dropdown (Other / outside US + all states, Puerto Rico in place) instead of a free-text box, matching the web signup. Files: `app/(auth)/sign-up.tsx`, `lib/locations.ts`.
 - **Clearer weak-password message.** A weak password now shows plain guidance (e.g. "at least 8 characters and include a lowercase letter, an uppercase letter, and a number") instead of the raw system message that listed entire character sets. File: `app/(auth)/sign-up.tsx`.
 

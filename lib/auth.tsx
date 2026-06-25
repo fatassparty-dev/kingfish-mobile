@@ -128,25 +128,34 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      try {
-        setSession(nextSession)
-        // Profile (premium source of truth) first; RevenueCat warm-up in the
-        // background so it never gates the premium reveal. See note above.
-        await loadProfile(nextSession)
-        configurePurchases(nextSession?.user?.id).catch(() => {})
-      } catch (err) {
-        if (isInvalidRefreshToken(err)) {
-          supabase.auth.signOut({ scope: 'local' }).catch(() => {})
-          setSession(null)
-          setProfile(null)
-          setProfileError(null)
-        } else {
-          setProfileError(err instanceof Error ? err.message : 'Could not load session.')
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      // CRITICAL: supabase fires this event while holding its internal auth lock.
+      // Our handler calls loadProfile() -> kingfishFetch -> getAccessToken ->
+      // supabase.auth.getSession(), which needs that SAME lock -> reentrant
+      // deadlock. That one deadlock froze everything: the profile never loaded
+      // (premium showed "Free"), every data fetch's getSession() hung (props spun
+      // forever), and Sign Out hung. Defer with setTimeout(0) so the lock is
+      // released before we touch the auth client again. (See onAuthStateChange
+      // docs: do not call other supabase.auth methods inside the callback.)
+      setTimeout(async () => {
+        if (!mounted) return
+        try {
+          await loadProfile(nextSession)
+          configurePurchases(nextSession?.user?.id).catch(() => {})
+        } catch (err) {
+          if (isInvalidRefreshToken(err)) {
+            supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+            setSession(null)
+            setProfile(null)
+            setProfileError(null)
+          } else {
+            setProfileError(err instanceof Error ? err.message : 'Could not load session.')
+          }
+        } finally {
+          setLoading(false)
         }
-      } finally {
-        setLoading(false)
-      }
+      }, 0)
     })
 
     return () => {
@@ -178,15 +187,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setLoading(false)
       },
       signOut: async () => {
-        // The default (global) sign-out hits the network to revoke the token; if
-        // that hangs or errors (cold simulator, offline), fall back to a local-only
-        // clear so the session is always removed and the lines below still run —
-        // otherwise the button looked dead.
-        try {
-          await supabase.auth.signOut()
-        } catch {
-          await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
-        }
+        // Never AWAIT sign-out. supabase.auth.signOut() can HANG on the auth lock,
+        // and a hang is not a throw — so the old try/catch never recovered and the
+        // button looked dead (the exact issue reported on 1.0.1). Fire it without
+        // awaiting and clear local state + navigate immediately so the button
+        // always responds. (Lock contention itself is fixed in onAuthStateChange.)
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {})
         setSession(null)
         setProfile(null)
         setProfileError(null)
