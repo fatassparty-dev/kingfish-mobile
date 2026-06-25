@@ -42,10 +42,10 @@ type ToolTile = {
   label: string
   sport: 'MLB' | 'NFL'
 }
-type ToolMode = 'sheets' | 'calculators' | 'more' | 'factors'
+type ToolMode = 'sheets' | 'calculators' | 'more'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
-type FactorSport = 'MLB' | 'NFL'
-type FactorView = 'board' | 'cheat'
+export type FactorSport = 'MLB' | 'NFL'
+export type FactorView = 'board' | 'cheat'
 
 const SHEETS: Array<{
   key: SheetKey
@@ -56,7 +56,7 @@ const SHEETS: Array<{
   statField?: string
   trend?: boolean
 }> = [
-  { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today. Free.', type: 'nrfi' },
+  { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
@@ -211,7 +211,7 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
-  { key: 'more', label: 'Pro Tools' },
+  { key: 'more', label: 'Tools' },
 ]
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
@@ -269,7 +269,7 @@ interface BvpRow {
   ops: string
 }
 
-interface FactorRow {
+export interface FactorRow {
   id: string
   matchup: string
   homeTeam: string
@@ -286,7 +286,7 @@ interface FactorRow {
   tags: string[]
 }
 
-type StadiumProfile = {
+export type StadiumProfile = {
   sport: FactorSport
   venue: string
   homeTeam: string
@@ -322,7 +322,7 @@ type BallparkStaticProfile = {
   blurb: string
 }
 
-type BallparkProfilePayload = {
+export type BallparkProfilePayload = {
   profilesByVenue?: Record<string, BallparkStaticProfile>
   profilesByTeam?: Record<string, BallparkStaticProfile>
   homeRecords?: Record<string, string>
@@ -342,12 +342,12 @@ type FootballStadiumStaticProfile = {
   blurb: string
 }
 
-type FootballStadiumProfilePayload = {
+export type FootballStadiumProfilePayload = {
   profilesByVenue?: Record<string, FootballStadiumStaticProfile>
   profilesByTeam?: Record<string, FootballStadiumStaticProfile>
 }
 
-interface FactorCheatRow {
+export interface FactorCheatRow {
   id: string
   matchup: string
   time: string
@@ -359,7 +359,7 @@ interface FactorCheatRow {
   tone: string
 }
 
-type FactorOfficial = {
+export type FactorOfficial = {
   name?: string
   role?: string
   impact?: 'boost' | 'suppress' | 'neutral' | string
@@ -575,7 +575,7 @@ function factorBaseline(homeTeam: string, sport: FactorSport) {
   }
 }
 
-function cleanSkyLabel(sky?: string) {
+export function cleanSkyLabel(sky?: string) {
   const value = String(sky || '').toLowerCase()
   if (value.includes('storm')) return 'Storms'
   if (value.includes('rain')) return 'Rain'
@@ -689,7 +689,7 @@ function gameContextFactor(game: Game, sport: FactorSport) {
   return { delta, tags }
 }
 
-function isNeutralFactorText(value?: string) {
+export function isNeutralFactorText(value?: string) {
   return /\bneutral\b/i.test(String(value || ''))
 }
 
@@ -698,6 +698,26 @@ function factorTeamDisplay(team: string) {
   const words = team.split(' ').filter(Boolean)
   if (words.length <= 2) return team
   return words.slice(0, -1).join(' ')
+}
+
+// Abbreviated city + nickname (e.g. "KC Royals", "TB Rays") for the MLB stadium
+// cheat-sheet matchups, so the full table fits on an iPhone.
+const MLB_TEAM_CHEAT_SHORT: Record<string, string> = {
+  'Arizona Diamondbacks': 'AZ Diamondbacks', 'Atlanta Braves': 'ATL Braves', 'Baltimore Orioles': 'BAL Orioles',
+  'Boston Red Sox': 'BOS Red Sox', 'Chicago Cubs': 'CHC Cubs', 'Chicago White Sox': 'CWS White Sox',
+  'Cincinnati Reds': 'CIN Reds', 'Cleveland Guardians': 'CLE Guardians', 'Colorado Rockies': 'COL Rockies',
+  'Detroit Tigers': 'DET Tigers', 'Houston Astros': 'HOU Astros', 'Kansas City Royals': 'KC Royals',
+  'Los Angeles Angels': 'LAA Angels', 'Los Angeles Dodgers': 'LAD Dodgers', 'Miami Marlins': 'MIA Marlins',
+  'Milwaukee Brewers': 'MIL Brewers', 'Minnesota Twins': 'MIN Twins', 'New York Mets': 'NYM Mets',
+  'New York Yankees': 'NYY Yankees', 'Oakland Athletics': 'OAK Athletics', 'Athletics': 'Athletics',
+  'Philadelphia Phillies': 'PHI Phillies', 'Pittsburgh Pirates': 'PIT Pirates', 'San Diego Padres': 'SD Padres',
+  'San Francisco Giants': 'SF Giants', 'Seattle Mariners': 'SEA Mariners', 'St. Louis Cardinals': 'STL Cardinals',
+  'Tampa Bay Rays': 'TB Rays', 'Texas Rangers': 'TEX Rangers', 'Toronto Blue Jays': 'TOR Blue Jays',
+  'Washington Nationals': 'WSH Nationals',
+}
+
+function cheatTeamShort(team: string) {
+  return MLB_TEAM_CHEAT_SHORT[team] || factorTeamDisplay(team)
 }
 
 function factorTone(score: number) {
@@ -710,13 +730,13 @@ function factorScoreLabel(sport: FactorSport) {
   return sport === 'MLB' ? 'Run/HR Volume' : 'Scoring Volume'
 }
 
-function factorImpactTone(value: number) {
+export function factorImpactTone(value: number) {
   if (value >= 8) return colors.green
   if (value <= -8) return colors.red
   return colors.gold
 }
 
-function stadiumProfileForRow(
+export function stadiumProfileForRow(
   row: FactorRow,
   sport: FactorSport,
   ballparkData?: BallparkProfilePayload,
@@ -806,7 +826,7 @@ function stadiumProfileForGameLine(
   return stadiumProfileForRow(row, 'MLB', ballparkData)
 }
 
-function buildFactorRows(
+export function buildFactorRows(
   games: Game[] = [],
   weatherData: Record<string, any> = {},
   sport: FactorSport,
@@ -847,7 +867,7 @@ function buildFactorRows(
     })
 }
 
-function buildFactorCheatRows(games: Game[] = [], weatherData: Record<string, any> = {}): FactorCheatRow[] {
+export function buildFactorCheatRows(games: Game[] = [], weatherData: Record<string, any> = {}): FactorCheatRow[] {
   return games
     .filter((game) => new Date(game.commence_time).getTime() > Date.now() - 3 * 60 * 60 * 1000)
     .map((game) => {
@@ -872,7 +892,7 @@ function buildFactorCheatRows(games: Game[] = [], weatherData: Record<string, an
 
       return {
         id,
-        matchup: `${game.away_team} @ ${game.home_team}`,
+        matchup: `${cheatTeamShort(game.away_team)} @ ${cheatTeamShort(game.home_team)}`,
         time: new Date(game.commence_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }),
         venue: weather?.park || baseline.venue,
         weather: weatherRead.label || 'Weather pending',
@@ -1686,17 +1706,19 @@ function buildStrikeoutRows(
 }
 
 export default function CheatSheetsScreen() {
-  const { profile } = useAuth()
+  const { profile, session } = useAuth()
   const { mode } = useLocalSearchParams<{ mode?: string }>()
   const mobileConfig = useMobileConfig()
   const isPremium = profile?.is_premium === true
+  // One HQ switch ("Free Access: Cheat Sheets") opens every cheat sheet for
+  // logged-in free users during a promo. Requires an account (server enforces it too).
+  const cheatSheetsFree = (mobileConfig.flags['cheat_sheets_free'] ?? false) && Boolean(session)
+  const canUseCheatSheets = isPremium || cheatSheetsFree
   const [toolMode, setToolMode] = useState<ToolMode>('sheets')
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
-  const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
-  const [factorView, setFactorView] = useState<FactorView>('board')
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
     unitBankroll: '1000',
@@ -1718,13 +1740,12 @@ export default function CheatSheetsScreen() {
   const activeKey = selectedKey || 'hits'
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
   const hasOpenSheet = selectedKey !== null
-  const canLoadData = isPremium && toolMode === 'sheets' && hasOpenSheet
+  const canLoadData = canUseCheatSheets && toolMode === 'sheets' && hasOpenSheet
   const isTdSheet = activeSheet.type === 'td'
   const canLoadMlbSheetData = canLoadData && !isTdSheet
-  const canLoadFactors = isPremium && toolMode === 'factors'
 
   useEffect(() => {
-    if (mode === 'factors' || mode === 'calculators' || mode === 'sheets' || mode === 'more') {
+    if (mode === 'calculators' || mode === 'sheets' || mode === 'more') {
       setToolMode(mode)
       setSelectedKey(null)
     }
@@ -1736,11 +1757,11 @@ export default function CheatSheetsScreen() {
     enabled: canLoadMlbSheetData,
     staleTime: 12 * 60 * 60 * 1000,
   })
-  // NRFI/YRFI is free — loads for any signed-in user, no premium gate.
+  // NRFI/YRFI is premium, same tier as the other cheat sheets.
   const nrfiQuery = useQuery({
     queryKey: ['cheat-sheet', 'nrfi'],
     queryFn: () => kingfishFetch<{ data: NrfiRow[]; updated_at?: string; published_at?: string; sheet_date?: string }>('/api/mlb-nrfi'),
-    enabled: toolMode === 'sheets' && activeKey === 'nrfi',
+    enabled: canUseCheatSheets && toolMode === 'sheets' && activeKey === 'nrfi',
     staleTime: 5 * 60 * 1000,
   })
   const nrfiRows = nrfiQuery.data?.data ?? []
@@ -1871,71 +1892,10 @@ export default function CheatSheetsScreen() {
     staleTime: 12 * 60 * 60 * 1000,
   })
 
-  const factorGamesQuery = useQuery({
-    queryKey: ['mobile-game-factors-games', factorSport],
-    queryFn: async () => {
-      if (factorSport === 'MLB') {
-        const schedule = await kingfishFetch<{ games?: any[] }>('/api/mlb-schedule')
-        return (schedule.games || []).map((game: any) => ({
-          id: String(game.gamePk),
-          commence_time: game.gameDate,
-          away_team: game?.teams?.away?.team?.name || '',
-          home_team: game?.teams?.home?.team?.name || '',
-          dayNight: game.dayNight,
-          doubleHeader: game.doubleHeader,
-          status: game?.status?.detailedState || game?.status?.abstractGameState,
-          statusReason: game?.status?.reason || '',
-          neutralSite: game.neutralSite === true,
-          venueName: game?.venue?.name || '',
-          gameNumber: Number(game.gameNumber) || undefined,
-          bookmakers: [],
-        })).filter((game: Game) => game.away_team && game.home_team)
-      }
-
-      const nflGames = await kingfishFetch<Game[]>('/api/nfl-odds')
-      return nflGames.filter((game) => game.away_team && game.home_team)
-    },
-    enabled: canLoadFactors,
-    staleTime: 60 * 60 * 1000,
-  })
-
-  const factorGames = useMemo(() => factorGamesQuery.data || [], [factorGamesQuery.data])
-
-  const factorWeatherQuery = useQuery({
-    queryKey: ['mobile-game-factors-weather', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
-    queryFn: () =>
-      kingfishFetch<Record<string, any>>(factorSport === 'MLB' ? '/api/mlb-weather' : '/api/nfl-weather', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: factorGames }),
-      }),
-    enabled: canLoadFactors && factorGames.length > 0,
-    staleTime: 60 * 60 * 1000,
-  })
-
-  const factorOfficialQuery = useQuery({
-    queryKey: ['mobile-game-factors-officials', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
-    queryFn: () =>
-      kingfishFetch<Record<string, FactorOfficial>>(factorSport === 'MLB' ? '/api/mlb-officials' : '/api/nfl-officials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: factorGames }),
-      }),
-    enabled: canLoadFactors && factorGames.length > 0,
-    staleTime: 60 * 60 * 1000,
-  })
-
   const ballparkProfileQuery = useQuery({
     queryKey: ['mobile-mlb-ballpark-profiles'],
     queryFn: () => kingfishFetch<BallparkProfilePayload>('/api/mlb-ballpark-profiles'),
-    enabled: canLoadFactors && factorSport === 'MLB',
-    staleTime: 30 * 60 * 1000,
-  })
-
-  const footballStadiumProfileQuery = useQuery({
-    queryKey: ['mobile-nfl-stadium-profiles'],
-    queryFn: () => kingfishFetch<FootballStadiumProfilePayload>('/api/nfl-stadium-profiles'),
-    enabled: canLoadFactors && factorSport === 'NFL',
+    enabled: canLoadMlbSheetData && activeKey === 'lines',
     staleTime: 30 * 60 * 1000,
   })
 
@@ -1947,12 +1907,6 @@ export default function CheatSheetsScreen() {
   const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
   const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
   const qb200Rows = activeKey === 'qb200' ? buildQb200Rows(nflFantasyQuery.data) : []
-  const factorRows = toolMode === 'factors'
-    ? buildFactorRows(factorGames, factorWeatherQuery.data, factorSport, factorOfficialQuery.data)
-    : []
-  const factorCheatRows = toolMode === 'factors' && factorSport === 'MLB'
-    ? buildFactorCheatRows(factorGames, factorWeatherQuery.data)
-    : []
   const shareText = useMemo(
     () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows),
     [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows],
@@ -2078,13 +2032,12 @@ export default function CheatSheetsScreen() {
 
   const premiumToolsCard = (
     <Card>
-      <AppText variant="eyebrow">// Premium</AppText>
       <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
       <AppText variant="muted" style={styles.cardCopy}>
         Cheat Sheets, player props, Edge Scores, game factors, and unlimited Ask KingFish access are part of KingFish Bets Pro.
       </AppText>
       <View style={styles.action}>
-        <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+        <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
       </View>
     </Card>
   )
@@ -2160,9 +2113,9 @@ export default function CheatSheetsScreen() {
               setToolMode(mode.key)
               setSelectedKey(null)
             }}
-            style={[styles.segmentButton, (toolMode === mode.key || (mode.key === 'more' && toolMode === 'factors')) && styles.segmentButtonActive]}
+            style={[styles.segmentButton, toolMode === mode.key && styles.segmentButtonActive]}
           >
-            <AppText style={[styles.segmentText, (toolMode === mode.key || (mode.key === 'more' && toolMode === 'factors')) && styles.segmentTextActive]}>{mode.label}</AppText>
+            <AppText style={[styles.segmentText, toolMode === mode.key && styles.segmentTextActive]}>{mode.label}</AppText>
           </Pressable>
         ))}
       </View>
@@ -2177,147 +2130,29 @@ export default function CheatSheetsScreen() {
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>
 
-          <Pressable
-            onPress={() => {
-              setToolMode('factors')
-              setSelectedKey(null)
-            }}
-            style={styles.featureTool}
-          >
+          <Pressable onPress={() => router.push('/game-factors' as any)} style={styles.featureTool}>
             <View style={styles.featureToolCopy}>
               <AppText variant="eyebrow">// MLB + NFL</AppText>
               <AppText style={styles.featureToolTitle}>Game Factors</AppText>
             </View>
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>
-        </>
-      ) : toolMode === 'factors' ? (
-        <>
-          <View style={styles.sectionEyebrowRow}>
-            <AppText variant="eyebrow">// Game Factors</AppText>
-            <AppText variant="muted" style={styles.sectionDescription}>
-              Factoring stadium, weather, officials, and matchup context into a scoring volume grade.
-            </AppText>
-          </View>
 
-          {!isPremium ? premiumToolsCard : (
-            <>
-              <View style={styles.factorToggle}>
-                {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
-                  <Pressable
-                    key={item}
-                    onPress={() => {
-                      setFactorSport(item)
-                      if (item === 'NFL') setFactorView('board')
-                    }}
-                    style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
-                  >
-                    <AppText style={[styles.segmentText, factorSport === item && styles.segmentTextActive]}>{item}</AppText>
-                  </Pressable>
-                ))}
-              </View>
+          <Pressable onPress={() => router.push('/scout' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// NFL Tracking Data</AppText>
+              <AppText style={styles.featureToolTitle}>The Scout</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
 
-              {factorSport === 'MLB' ? (
-                <View style={styles.factorViewToggle}>
-                  {([
-                    { key: 'board', label: 'Board' },
-                    { key: 'cheat', label: 'Cheat Sheet' },
-                  ] as Array<{ key: FactorView; label: string }>).map((item) => (
-                    <Pressable
-                      key={item.key}
-                      onPress={() => setFactorView(item.key)}
-                      style={[styles.factorViewButton, factorView === item.key && styles.factorViewButtonActive]}
-                    >
-                      <AppText style={[styles.factorViewText, factorView === item.key && styles.factorViewTextActive]}>{item.label}</AppText>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-
-              {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
-                <View style={styles.loading}>
-                  <ActivityIndicator color={colors.gold} />
-                  <AppText variant="muted">Loading game factors...</AppText>
-                </View>
-              )}
-
-              {!factorGamesQuery.isLoading && factorRows.length === 0 && (
-                <Card>
-                  <AppText variant="eyebrow">// Game Factors</AppText>
-                  <AppText style={styles.cardTitle}>No Games Posted</AppText>
-                  <AppText variant="muted" style={styles.cardCopy}>
-                    {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : 'NFL factors will populate when game markets post.'}
-                  </AppText>
-                </Card>
-              )}
-
-              {factorView === 'cheat' && factorSport === 'MLB' ? (
-                <Card style={styles.factorCheatSheet}>
-                  <View style={styles.cheatSheetHeader}>
-                    <AppText variant="mono" style={[styles.cheatSheetHeadCell, styles.cheatSheetGameHead]}>Game</AppText>
-                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>Total</AppText>
-                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>HR</AppText>
-                    <AppText variant="mono" style={styles.cheatSheetHeadCell}>Read</AppText>
-                  </View>
-                  {factorCheatRows.map((row) => (
-                    <View key={row.id} style={styles.cheatSheetRow}>
-                      <View style={styles.cheatSheetGameCell}>
-                        <AppText style={styles.cheatSheetMatchup}>{row.matchup}</AppText>
-                        <AppText variant="muted" style={styles.cheatSheetMeta}>{row.time}</AppText>
-                        <AppText variant="muted" style={styles.cheatSheetMeta}>{row.venue}</AppText>
-                        <AppText variant="muted" style={styles.cheatSheetWeather}>{row.weather}</AppText>
-                      </View>
-                      <AppText style={[styles.cheatSheetMetric, { color: factorImpactTone(row.gameTotalPct) }]}>
-                        {row.gameTotalPct > 0 ? '+' : ''}{row.gameTotalPct}%
-                      </AppText>
-                      <AppText style={[styles.cheatSheetMetric, { color: factorImpactTone(row.hrPct) }]}>
-                        {row.hrPct > 0 ? '+' : ''}{row.hrPct}%
-                      </AppText>
-                      <AppText style={[styles.cheatSheetRead, { color: row.tone }]}>{row.read}</AppText>
-                    </View>
-                  ))}
-                </Card>
-              ) : (
-              <View style={styles.factorRows}>
-                {factorRows.map((row) => (
-                  <Card key={row.id} style={styles.factorCard}>
-                    <View style={styles.factorHeader}>
-                      <View style={styles.factorTitleWrap}>
-                        <AppText style={styles.factorMatchup}>{row.matchup}</AppText>
-                        <AppText variant="mono" style={styles.compactMeta}>{row.time}</AppText>
-                      </View>
-                      <View style={styles.factorScore}>
-                        <AppText style={styles.factorScoreLabel}>Score</AppText>
-                        <AppText style={[styles.factorScoreValue, { color: row.tone }]}>{row.score}</AppText>
-                        <AppText style={[styles.factorLean, { color: row.tone }]}>{row.lean}</AppText>
-                      </View>
-                    </View>
-                    <View style={styles.factorMetaGrid}>
-                      <FactorMeta
-                        label="Venue"
-                        value={row.venue}
-                        sub={row.environment}
-                        onPress={() => setStadiumProfile(stadiumProfileForRow(row, factorSport, ballparkProfileQuery.data, footballStadiumProfileQuery.data))}
-                      />
-                      <FactorMeta label="Weather" value={row.weather || 'Weather pending'} visual={<FactorWeatherVisual weather={row.weatherRaw} />} />
-                      {row.official ? <FactorMeta label={factorSport === 'MLB' ? 'Umpire' : 'Referee'} value={row.official} /> : null}
-                      <FactorMeta label="Market Read" value={row.tags.find((tag) => !isNeutralFactorText(tag)) || 'Watch board'} />
-                    </View>
-                    {row.tags.filter((tag) => !isNeutralFactorText(tag)).length ? (
-                      <View style={styles.factorTags}>
-                        {row.tags.filter((tag) => !isNeutralFactorText(tag)).map((tag) => (
-                          <View key={tag} style={styles.factorTag}>
-                            <AppText style={styles.factorTagText}>{tag}</AppText>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </Card>
-                ))}
-              </View>
-              )}
-            </>
-          )}
+          <Pressable onPress={() => router.push('/grade-slip' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// Slip Grader</AppText>
+              <AppText style={styles.featureToolTitle}>Grade My Slip</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
         </>
       ) : toolMode === 'calculators' ? (
         <>
@@ -2348,7 +2183,7 @@ export default function CheatSheetsScreen() {
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>
-            {(isPremium ? TOOL_TILES : TOOL_TILES.filter((t) => t.key === 'nrfi')).map((sheet) => (
+            {(canUseCheatSheets ? TOOL_TILES : []).map((sheet) => (
               <Pressable
                 key={sheet.key}
                 onPress={() => {
@@ -2361,10 +2196,21 @@ export default function CheatSheetsScreen() {
                 <AppText style={styles.sheetPickerTitle} numberOfLines={2}>{sheet.label}</AppText>
               </Pressable>
             ))}
+            {canUseCheatSheets ? (
+              <Pressable
+                key="stadium"
+                onPress={() => router.push('/game-factors?view=cheat' as any)}
+                style={styles.sheetPickerTile}
+              >
+                <View style={styles.sheetPickerAccent} />
+                <AppText style={styles.sheetSportLabel}>MLB</AppText>
+                <AppText style={styles.sheetPickerTitle} numberOfLines={2}>Stadium Cheat Sheet</AppText>
+              </Pressable>
+            ) : null}
           </View>
-          {!isPremium ? premiumToolsCard : null}
+          {!canUseCheatSheets ? premiumToolsCard : null}
         </>
-      ) : (!isPremium && activeKey !== 'nrfi') ? (
+      ) : !canUseCheatSheets ? (
         premiumToolsCard
       ) : (
         <>
@@ -2730,7 +2576,7 @@ function BvpMetric({ label, value, tone }: { label: string; value: string; tone?
   )
 }
 
-function FactorMeta({ label, value, sub, visual, onPress }: { label: string; value: string; sub?: string; visual?: ReactNode; onPress?: () => void }) {
+export function FactorMeta({ label, value, sub, visual, onPress }: { label: string; value: string; sub?: string; visual?: ReactNode; onPress?: () => void }) {
   const cleanSub = isNeutralFactorText(sub) ? '' : sub
   const content = (
     <>
@@ -2754,7 +2600,7 @@ function FactorMeta({ label, value, sub, visual, onPress }: { label: string; val
   )
 }
 
-function shortSurface(surface?: string) {
+export function shortSurface(surface?: string) {
   if (!surface) return '-'
   return surface.replace('Artificial Turf', 'Turf').replace('Natural Grass', 'Grass')
 }
@@ -2769,7 +2615,7 @@ function windArrow(direction: string) {
   return arrows[direction] || ''
 }
 
-function WindArrow({ value }: { value: string }) {
+export function WindArrow({ value }: { value: string }) {
   const direction = windDirectionFromLabel(value)
   if (!direction) return null
 
@@ -2784,7 +2630,7 @@ function WindArrow({ value }: { value: string }) {
   )
 }
 
-function FactorMetric({ label, value, tone, wide = false, large = false, visual }: { label: string; value: string; tone?: string; wide?: boolean; large?: boolean; visual?: ReactNode }) {
+export function FactorMetric({ label, value, tone, wide = false, large = false, visual }: { label: string; value: string; tone?: string; wide?: boolean; large?: boolean; visual?: ReactNode }) {
   return (
     <View style={[styles.factorMetric, wide && styles.factorMetricWide]}>
       <AppText variant="mono" style={styles.factorMetaLabel}>{label}</AppText>
@@ -2796,7 +2642,7 @@ function FactorMetric({ label, value, tone, wide = false, large = false, visual 
   )
 }
 
-function FactorWeatherVisual({ weather }: { weather?: any }) {
+export function FactorWeatherVisual({ weather }: { weather?: any }) {
   const sky = cleanSkyLabel(weather?.sky)
   const wind = weather?.windStr || ''
   const rain = Number(weather?.precipPct || 0)

@@ -1159,7 +1159,7 @@ function SoccerTeamProfileModal({
 }
 
 export default function DashboardScreen() {
-  const { profile } = useAuth()
+  const { profile, session } = useAuth()
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<DashboardView>('lines')
@@ -1218,8 +1218,11 @@ export default function DashboardScreen() {
   const propsFree = mobileFlag(`${sportFlagPrefix}_access_props_free`, false)
   const linesMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_lines`, false)
   const propsMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_props`, false)
-  const canViewLines = isPremium || linesFree
-  const canViewProps = isPremium || propsFree
+  // Free promos require a logged-in account (server gates these the same way),
+  // so a logged-out user never gets promo access without signing up.
+  const isLoggedIn = Boolean(session)
+  const canViewLines = isPremium || (linesFree && isLoggedIn)
+  const canViewProps = isPremium || (propsFree && isLoggedIn)
   const canViewMatchups = true
   const isWorldCupSoccer = sport === 'SOCCER' && soccerLeague === 'soccer_fifa_world_cup'
   const dashboardViewLabel = (item: DashboardView) =>
@@ -2024,11 +2027,10 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'matchups' && !canViewMatchups && (
         <View style={styles.liveSection}>
           <Card>
-            <AppText variant="eyebrow">// Premium</AppText>
             <AppText variant="title" style={styles.cardTitle}>Unlock Game Matchups</AppText>
             <AppText variant="muted">Team form, matchup context, and market notes are part of KingFish Bets Pro.</AppText>
             <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
             </View>
           </Card>
         </View>
@@ -2331,14 +2333,13 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'lines' && !canViewLines && (
         <View style={styles.liveSection}>
           <Card>
-            <AppText variant="eyebrow">// Premium</AppText>
             <AppText variant="title" style={styles.cardTitle}>Unlock Game Lines</AppText>
             <AppText variant="muted">
               Live moneylines, spreads, totals, best available prices, and KingFish matchup context
               are part of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
             </View>
           </Card>
         </View>
@@ -2455,14 +2456,13 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !canViewProps && (
         <View style={styles.liveSection}>
           <Card>
-            <AppText variant="eyebrow">// Premium</AppText>
             <AppText variant="title" style={styles.cardTitle}>Unlock Player Props</AppText>
             <AppText variant="muted">
               Player props, cheat sheets, Edge Scores, and unlimited Ask KingFish access are part
               of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+              <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
             </View>
           </Card>
         </View>

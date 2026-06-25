@@ -160,9 +160,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     const inAuthGroup = segments[0] === '(auth)'
     const isPublicRoute = PUBLIC_ROUTES.has(String(segments[0] || ''))
-    if (!session && !inAuthGroup && !isPublicRoute) {
-      router.replace('/sign-in')
-    } else if (session && inAuthGroup) {
+    if (session && inAuthGroup) {
       router.replace('/home')
     }
   }, [loading, session, segments])
@@ -180,9 +178,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setLoading(false)
       },
       signOut: async () => {
-        await supabase.auth.signOut()
+        // The default (global) sign-out hits the network to revoke the token; if
+        // that hangs or errors (cold simulator, offline), fall back to a local-only
+        // clear so the session is always removed and the lines below still run —
+        // otherwise the button looked dead.
+        try {
+          await supabase.auth.signOut()
+        } catch {
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+        }
         setSession(null)
         setProfile(null)
+        setProfileError(null)
         router.replace('/sign-in')
       },
     }),

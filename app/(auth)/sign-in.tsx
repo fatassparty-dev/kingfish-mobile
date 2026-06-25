@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { API_BASE_URL } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 
 export default function SignInScreen() {
@@ -14,6 +15,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const mobileConfig = useMobileConfig()
 
   async function signIn() {
     setError('')
@@ -51,6 +53,18 @@ export default function SignInScreen() {
           Access your dashboard, cheat sheets, Ask KingFish history, and premium status.
         </AppText>
       </View>
+
+      {mobileConfig.app_notice ? (
+        <Card style={styles.noticeCard}>
+          <AppText variant="eyebrow">// Notice</AppText>
+          {mobileConfig.app_notice.title ? (
+            <AppText style={styles.noticeTitle}>{mobileConfig.app_notice.title}</AppText>
+          ) : null}
+          {mobileConfig.app_notice.body ? (
+            <AppText variant="muted" style={styles.noticeBody}>{mobileConfig.app_notice.body}</AppText>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card>
         <TextInput
@@ -90,6 +104,9 @@ export default function SignInScreen() {
       </View>
 
       <View style={styles.legalLinks}>
+        <Pressable onPress={() => router.replace('/home')}>
+          <AppText style={styles.legalLink}>Home</AppText>
+        </Pressable>
         <Pressable onPress={() => router.push('/terms')}>
           <AppText style={styles.legalLink}>Terms</AppText>
         </Pressable>
@@ -120,6 +137,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     fontSize: 15,
   },
+  noticeCard: { marginBottom: spacing.lg, borderColor: colors.borderActive },
+  noticeTitle: { marginTop: 6, fontSize: 18, fontWeight: '900', color: colors.textPrimary },
+  noticeBody: { marginTop: spacing.sm },
   error: { color: colors.red, marginBottom: spacing.md },
   links: { alignItems: 'center', gap: spacing.md, marginTop: spacing.xl },
   link: { color: colors.gold, fontWeight: '700' },

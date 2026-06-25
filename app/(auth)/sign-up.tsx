@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -7,7 +7,34 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
-import { normalizeLocation } from '@/lib/locations'
+import { normalizeLocation, LOCATION_OPTIONS } from '@/lib/locations'
+
+// Supabase returns weak-password errors as a raw string that lists the entire
+// required character sets (the whole alphabet, all digits) — unreadable to a user.
+// Translate it into plain language, derived from what Supabase actually asked for
+// so the guidance stays accurate even if the password policy changes.
+function friendlyAuthError(err: { message?: string; code?: string } | null): string {
+  const message = err?.message || 'Could not create your account. Please try again.'
+  const isWeakPassword =
+    err?.code === 'weak_password' ||
+    (/password/i.test(message) && /(should contain|at least one character|too weak)/i.test(message))
+  if (!isWeakPassword) return message
+
+  const needs: string[] = []
+  if (message.includes('abcdefghijklmnopqrstuvwxyz')) needs.push('a lowercase letter')
+  if (message.includes('ABCDEFGHIJKLMNOPQRSTUVWXYZ')) needs.push('an uppercase letter')
+  if (message.includes('0123456789')) needs.push('a number')
+  if (message.includes('!@#$')) needs.push('a symbol')
+
+  if (!needs.length) {
+    return 'Password must be at least 8 characters and use a mix of uppercase and lowercase letters and numbers.'
+  }
+  const list =
+    needs.length === 1
+      ? needs[0]
+      : `${needs.slice(0, -1).join(', ')}, and ${needs[needs.length - 1]}`
+  return `Password must be at least 8 characters and include ${list}.`
+}
 
 export default function SignUpScreen() {
   const [firstName, setFirstName] = useState('')
@@ -21,6 +48,7 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showLocationPicker, setShowLocationPicker] = useState(false)
 
   async function signUp() {
     setError('')
@@ -68,7 +96,7 @@ export default function SignUpScreen() {
     })
 
     if (authError) {
-      setError(authError.message)
+      setError(friendlyAuthError(authError))
       setLoading(false)
       return
     }
@@ -103,7 +131,11 @@ export default function SignUpScreen() {
           <TextInput placeholder="Last name" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} style={[styles.input, styles.nameInput]} />
         </View>
         <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor={colors.textMuted} value={email} onChangeText={setEmail} style={styles.input} />
-        <TextInput autoCapitalize="characters" placeholder="Location (state, PR, or OTHER)" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} style={styles.input} />
+        <Pressable onPress={() => setShowLocationPicker(true)} style={[styles.input, styles.selectTrigger]}>
+          <AppText style={state ? styles.selectValue : styles.selectPlaceholder}>
+            {LOCATION_OPTIONS.find((o) => o.value === state)?.label ?? 'Select your location...'}
+          </AppText>
+        </Pressable>
         <TextInput autoCapitalize="none" placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
         <TextInput autoCapitalize="none" placeholder="Confirm password" placeholderTextColor={colors.textMuted} secureTextEntry value={confirm} onChangeText={setConfirm} style={styles.input} />
 
@@ -131,6 +163,30 @@ export default function SignUpScreen() {
           </Pressable>
         </Link>
       </View>
+
+      <Modal visible={showLocationPicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowLocationPicker(false)}>
+        <View style={styles.modalScreen}>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <AppText variant="eyebrow">// Location</AppText>
+            <AppText variant="title" style={styles.modalTitle}>Select your location</AppText>
+            <View style={styles.optionList}>
+              {LOCATION_OPTIONS.map((option) => {
+                const active = state === option.value
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => { setState(option.value); setShowLocationPicker(false) }}
+                    style={[styles.option, active && styles.optionActive]}
+                  >
+                    <AppText style={[styles.optionText, active && styles.optionTextActive]}>{option.label}</AppText>
+                    {active ? <AppText style={styles.optionCheck}>✓</AppText> : null}
+                  </Pressable>
+                )
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </Screen>
   )
 }
@@ -172,4 +228,25 @@ const styles = StyleSheet.create({
   success: { color: colors.green, marginBottom: spacing.md },
   footerLinks: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xl, marginTop: spacing.xl },
   link: { color: colors.gold, fontWeight: '700' },
+  selectTrigger: { justifyContent: 'center' },
+  selectValue: { color: colors.textPrimary, fontSize: 15 },
+  selectPlaceholder: { color: colors.textMuted, fontSize: 15 },
+  modalScreen: { flex: 1, backgroundColor: colors.bgPrimary },
+  modalContent: { padding: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
+  modalTitle: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  optionList: { gap: spacing.sm },
+  option: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  optionActive: { borderColor: 'rgba(198,145,50,.55)', backgroundColor: 'rgba(198,145,50,.08)' },
+  optionText: { color: colors.textSecondary, fontWeight: '800', fontSize: 15 },
+  optionTextActive: { color: colors.textPrimary },
+  optionCheck: { color: colors.gold, fontWeight: '900' },
 })

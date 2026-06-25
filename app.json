@@ -3,7 +3,7 @@
     "name": "KingFish Bets",
     "slug": "kingfish-bets",
     "scheme": "kingfish",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
@@ -20,6 +20,7 @@
       "bundleIdentifier": "com.kingfishbets.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "KingFish uses your photo library so you can pick a bet-slip screenshot to grade.",
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
@@ -27,7 +28,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ]
       },
-      "buildNumber": "10"
+      "buildNumber": "15"
     },
     "android": {
       "package": "com.kingfishbets.app",
@@ -40,6 +41,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "KingFish uses your photo library so you can pick a bet-slip screenshot to grade."
+        }
+      ],
       [
         "@sentry/react-native/expo",
         {

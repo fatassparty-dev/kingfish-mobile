@@ -292,12 +292,11 @@ export default function AskKingFishScreen() {
 
       {reachedLimit && (
         <View style={styles.upgradeBox}>
-          <AppText variant="eyebrow">// Premium</AppText>
           <AppText style={styles.upgradeTitle}>Unlimited Ask KingFish</AppText>
           <AppText variant="muted" style={styles.upgradeCopy}>
             Premium includes unlimited chat, player props, cheat sheets, and edge tools.
           </AppText>
-          <Button onPress={() => router.push('/modals/paywall')}>View Premium</Button>
+          <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
         </View>
       )}
 

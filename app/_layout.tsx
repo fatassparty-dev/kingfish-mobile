@@ -27,6 +27,9 @@ function RootLayout() {
           <Stack.Screen name="refund" />
           <Stack.Screen name="support" />
           <Stack.Screen name="modals/paywall" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="scout" />
+          <Stack.Screen name="grade-slip" />
+          <Stack.Screen name="game-factors" />
         </Stack>
       </AuthProvider>
     </QueryClientProvider>

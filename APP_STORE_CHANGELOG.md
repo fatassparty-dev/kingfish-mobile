@@ -24,7 +24,65 @@ data* it didn't know about before.
 
 ## 🔵 Pending — next iOS submission (describe these to Apple)
 
-> _Nothing submitted yet. The items below are pending the next build._
+### ⚠️ MUST be in the next shipped build — signup name capture
+
+- **Signup must send the name in auth metadata.** The current source (build 10+,
+  commit `7df389f`) already does: `signUp({ options: { data: { first_name,
+  last_name, full_name, state } } })`. The **shipped 1.0.0 store build predates this**
+  and sends only `{ email, password }` — which made every account from it nameless in
+  HQ (and, while email confirmation was on, also un-signin-able). **Do not ship a
+  build that regresses this.** Background: `kingfish-bets/docs/auth-signup.md`.
+- Context (server-side, already done, no app change): the DB name guard was dropped
+  and **email confirmation was turned OFF** so the 1.0.0 build's post-signup profile
+  write succeeds and names save without an app update. Once this metadata-sending
+  build is the universal shipped build, name capture no longer depends on that
+  workaround.
+
+### Build 1.0.2 (15) — 2026-06-25 — emergency fix build
+
+- **Sign-in no longer hangs after signing in (no data / "Free" / no name).**
+  - **What the user saw:** On 1.0.1, after signing in the app could sit with player props stuck "loading," the account shown as "Free," and no name/location — and never recover (even Restore Purchases did nothing).
+  - **Why:** The app's Supabase auth client connected directly to supabase.co (Cloudflare), whose HTTP/3 (QUIC) edge could stall a network call that runs *inside* sign-in (`setSession`'s `GET /auth/v1/user`) on device. That call holds an internal auth lock, so when it stalled, all of auth froze and never self-healed.
+  - **Fix:** The app now reaches Supabase through `kingfishbets.com` (HTTP/2 only, no QUIC), so that call can't stall. Added a 15-second network timeout so any stalled request fails and retries instead of spinning forever. Files: `eas.json`/`.env` (Supabase URL), `lib/api.ts`.
+  - **Scope/permissions:** Networking path only. No new data, no new permissions.
+  - **Risk:** Low — well-understood connection-path change; the same routing the iPad app already uses.
+- **Sign-up "Location" is a dropdown (matches the website).** The Create Account location field is now a state dropdown (Other / outside US + all states, Puerto Rico in place) instead of a free-text box, matching the web signup. Files: `app/(auth)/sign-up.tsx`, `lib/locations.ts`.
+- **Clearer weak-password message.** A weak password now shows plain guidance (e.g. "at least 8 characters and include a lowercase letter, an uppercase letter, and a number") instead of the raw system message that listed entire character sets. File: `app/(auth)/sign-up.tsx`.
+
+### Build 1.0.1 (14) — 2026-06-23 (latest pass; supersedes builds 12/13)
+
+- **Premium status now correct for admin/comp accounts.** Admin/VIP/gifted accounts now show "Premium / Pro" in the app instead of "Free." (Server-side fix in the entitlement source; the app simply reads the corrected `is_premium` from `GET /api/account`.) **No new data or permissions.**
+- **Sign-in entry simplified.** Removed the "Sign In / Sign Up Free" buttons from the top of the Home screen (supersedes the earlier note about those buttons). Sign-in is now reached from the **Account** tab. Added a **Home** link on the Sign In screen so users can always exit. Files: `app/(tabs)/home.tsx`, `app/(auth)/sign-in.tsx`.
+- **"Get Access" wording.** Premium upgrade buttons now read **"Get Access"** (was "View Premium") so the same prompt works whether premium is paid or offered free during a promo. Removed the small "// Premium" labels above gated sections. Paywall bullet now reads "Unlimited Ask KingFish with live context" (free tier keeps 3 chats/day).
+- **Account screen — safer Delete.** "Delete Account" moved into its own separate "Danger Zone" card (away from Sign Out) with a stronger "this cannot be undone / cannot be recovered" confirmation. Fixed a Sign Out reliability issue (it now always completes even on a flaky network). File: `app/(tabs)/account.tsx`, `lib/auth.tsx`.
+- **Account announcement card.** The account pages and the Sign In screen now display an optional one-line notice (e.g. a promo message) sent from the server. Display-only; the text is set server-side. Files: `app/(tabs)/account.tsx`, `app/(auth)/sign-in.tsx`.
+- **The Scout — readability.** Team column shows abbreviations, player names abbreviated (e.g. "J. Winston"), removed the "Born" column (kept Age), and the table is now a fixed-width aligned grid. File: `app/scout.tsx`.
+- **Game Factors is its own screen.** Moved Game Factors out of the Tools tab into its own full-screen page (with a Back button) for more room. New file: `app/game-factors.tsx`. Reads existing endpoints; no new permissions.
+- **Tools polish.** Renamed the "Pro Tools" sub-tab to "Tools"; Grade My Slip header label tidied; Fantasy Hub top button is now a standard Back; added a "Stadium Cheat Sheet" shortcut in the Cheat Sheets list; MLB stadium cheat-sheet team names shortened to fit. NRFI/YRFI is now the same premium tier as the other cheat sheets.
+- **Account required for premium & promos.** Logged-out users who tap a premium/locked feature are now prompted to **create a free account** rather than a purchase screen. Free promotional access (when enabled server-side) requires a logged-in account. Files: `app/modals/paywall.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/cheat-sheets.tsx`.
+- **Promo access plumbing.** The app reads server feature flags so KingFish can open specific sections (game lines / player props / cheat sheets / Soccer) to free logged-in users during promos — all controlled server-side, no app behavior change unless a flag is on.
+  - **Risk:** Low overall — these are UI/wording refinements, an account-gating tightening, and reading server-provided values. No new permissions, no new data collection.
+
+- **[Built — 2026-06-23] App opens to the full experience — no sign-in required to browse.**
+  - **What the reviewer sees:** The app no longer forces a sign-in screen on first launch. Users land directly on the Home tab and can browse freely. A "Sign In" and "Sign Up Free" button appear in the upper right of the Home screen. The Account tab shows a sign-in/create-account prompt when not logged in. Tapping any tab or feature works without an account.
+  - **Why:** New users were seeing a login wall before they could evaluate the product. Removing the mandatory sign-in gate lets people see value before committing to an account.
+  - **Scope:** Small. Files: `lib/auth.tsx` (removed forced redirect), `app/(tabs)/home.tsx` (added auth buttons when signed out), `app/(tabs)/account.tsx` (added sign-in/sign-up prompt when signed out). No new data collected, no new permissions.
+  - **Risk:** Low — users can still sign in and sign up as before; the change only removes the forced redirect.
+
+- **[Built — 2026-06-23] New Pro Tool: The Scout (NFL tracking data).**
+  - **What the reviewer sees:** A new "The Scout" screen accessible from the Pro Tools section of the TackleBox tab. Shows NFL Next Gen Stats (CPOE, air yards, time to throw for QBs; separation and YAC+ for receivers; efficiency and RYOE for rushers) with combine measurements. Sortable columns, player search, and team filter. Premium-gated (shows upgrade prompt for free users).
+  - **Why:** Adds NFL player tracking and physical profiling data to the iPhone app, matching what is already available on the iPad app.
+  - **Scope:** New screen. File: `app/scout.tsx`. Reads from existing `/api/nfl-command-data` endpoint (no new server endpoint). No new permissions beyond what the app already has.
+  - **Risk:** Low — new standalone screen, no changes to existing screens.
+
+- **[Built — 2026-06-23] New Pro Tool: Grade My Slip (bet-slip OCR grader).**
+  - **What the reviewer sees:** A new "Grade My Slip" screen in Pro Tools. User picks a sport, chooses a screenshot of a bet slip from their photo library, and the app reads the legs on-device using Apple Vision (no image is sent to any server). The detected legs are shown for review/editing, then submitted to KingFish's server for a grade and commentary. Same-game parlays get an "Improve my grade" option. Premium-gated.
+  - **Why:** Adds the bet-slip grading tool already available on the iPad app to the iPhone.
+  - **Scope:** New screen. Files: `app/grade-slip.tsx`, `lib/slip/parseSlip.ts`, `modules/visionocr/` (Apple Vision OCR native module). New dependency: `expo-image-picker` (photo library access). Reads from existing `/api/grade-slip` endpoint.
+  - **Permissions:** Photo library access (`NSPhotoLibraryUsageDescription`) — only to pick a bet-slip screenshot the user explicitly selects. No background access, no camera.
+  - **Risk:** Low — new standalone screen; the OCR runs fully on-device, no image data leaves the device.
+
+> _The items below were pending in previous build planning._
 
 - **[Built — 2026-06-21] Premium status no longer briefly shows as "Free" after sign-in.**
   - **What the reviewer sees:** When a paid/Pro user signs in, the account now shows

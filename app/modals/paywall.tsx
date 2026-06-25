@@ -37,7 +37,7 @@ const FEATURES = [
   'Live props, game lines, and best odds',
   'Player profiles with recent form',
   'MLB cheat sheets and stat reports',
-  'Ask KingFish with live context',
+  'Unlimited Ask KingFish with live context',
   'NFL Command Center and all supported sports',
 ]
 
@@ -62,6 +62,31 @@ export default function PaywallScreen() {
     setMessage(result.message)
     await refreshProfile()
     setLoadingAction(null)
+  }
+
+  // Logged-out users must create an account first — premium access (paid OR a free
+  // promo) is always tied to an account. This is the single chokepoint every
+  // "Get Access" gate routes through, so it gates all premium sections at once.
+  if (!user) {
+    return (
+      <Screen>
+        <View style={styles.hero}>
+          <AppText variant="eyebrow">// KingFish Bets</AppText>
+          <AppText variant="title" style={styles.title}>Create A Free Account</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            Premium tools and free promos are tied to your KingFish account. Sign up free to unlock
+            access — it only takes a moment.
+          </AppText>
+        </View>
+        <Button onPress={() => { router.back(); router.push('/sign-up') }}>Sign Up Free</Button>
+        <View style={styles.gap} />
+        <Button variant="secondary" onPress={() => { router.back(); router.push('/sign-in') }}>
+          I already have an account
+        </Button>
+        <View style={styles.gap} />
+        <Button variant="secondary" onPress={() => router.back()}>Close</Button>
+      </Screen>
+    )
   }
 
   if (isPremium) {

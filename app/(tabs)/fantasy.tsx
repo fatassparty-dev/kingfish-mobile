@@ -713,8 +713,8 @@ export default function FantasyToolScreen() {
 
   return (
     <Screen>
-      <Pressable onPress={() => router.push('/cheat-sheets')} style={styles.backButton}>
-        <AppText style={styles.backText}>Tools</AppText>
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <AppText style={styles.backText}>‹ Back</AppText>
       </Pressable>
 
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
@@ -1673,14 +1673,10 @@ function PlannerPickCard({
 const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  backText: { color: colors.gold, fontSize: 12, fontWeight: '900' },
+  backText: { color: colors.gold, fontSize: 16, fontWeight: '800' },
   title: { marginTop: 6 },
   copy: { marginTop: spacing.sm, marginBottom: spacing.lg, lineHeight: 22 },
   segmentRow: {

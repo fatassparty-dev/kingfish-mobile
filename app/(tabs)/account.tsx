@@ -247,11 +247,11 @@ export default function AccountScreen() {
 
   function confirmDeleteAccount() {
     Alert.alert(
-      'Delete Account',
-      'This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. If you have an active App Store subscription, cancel it separately in your Apple account settings.',
+      'Delete Account?',
+      'This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. This cannot be undone and your account cannot be recovered. If you have an active App Store subscription, cancel it separately in your Apple account settings.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Account', style: 'destructive', onPress: handleDeleteAccount },
+        { text: 'Delete Forever', style: 'destructive', onPress: handleDeleteAccount },
       ],
     )
   }
@@ -288,6 +288,41 @@ export default function AccountScreen() {
     } catch (error: any) {
       setNotificationMessage(error?.message || 'Preference saved for this session. Sign in again if it does not stick.')
     }
+  }
+
+  if (!user && !loading) {
+    return (
+      <Screen>
+        <View style={styles.header}>
+          <Image source={require('../../assets/images/crown-logo.png')} style={styles.logo} />
+          <View style={styles.headerText}>
+            <AppText variant="title" style={styles.title}>Account</AppText>
+          </View>
+        </View>
+        <Card>
+          <AppText variant="eyebrow">// KingFish Bets</AppText>
+          <AppText style={styles.plan}>Sign in to access your account</AppText>
+          <AppText variant="muted" style={styles.copy}>
+            View your membership, premium status, and manage your subscription.
+          </AppText>
+          <View style={styles.authActions}>
+            <Button onPress={() => router.push('/sign-in')}>Sign In</Button>
+            <View style={{ height: spacing.md }} />
+            <Button variant="secondary" onPress={() => router.push('/sign-up')}>Create Account</Button>
+          </View>
+        </Card>
+        {mobileConfig.app_notice ? (
+          <>
+            <View style={styles.sectionGap} />
+            <Card style={styles.noticeCard}>
+              <AppText variant="eyebrow">// Notice</AppText>
+              {mobileConfig.app_notice.title ? <AppText style={styles.webTitle}>{mobileConfig.app_notice.title}</AppText> : null}
+              <AppText variant="muted" style={styles.copy}>{mobileConfig.app_notice.body}</AppText>
+            </Card>
+          </>
+        ) : null}
+      </Screen>
+    )
   }
 
   return (
@@ -431,7 +466,7 @@ export default function AccountScreen() {
           <View style={styles.sectionGap} />
           <Card style={styles.noticeCard}>
             <AppText variant="eyebrow">// Notice</AppText>
-            <AppText style={styles.webTitle}>{mobileConfig.app_notice.title}</AppText>
+            {mobileConfig.app_notice.title ? <AppText style={styles.webTitle}>{mobileConfig.app_notice.title}</AppText> : null}
             <AppText variant="muted" style={styles.copy}>{mobileConfig.app_notice.body}</AppText>
           </Card>
         </>
@@ -511,7 +546,7 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Controls</AppText>
         <AppText style={styles.webTitle}>Account</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Clear saved Ask KingFish history, sign out, or delete your account.
+          Clear saved Ask KingFish history or sign out.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
@@ -520,8 +555,18 @@ export default function AccountScreen() {
         </View>
         <View style={styles.buttonGap} />
         <Button variant="outline" onPress={signOut}>Sign Out</Button>
-        <View style={styles.deleteWrap}>
-          <AppText style={styles.deleteLink} onPress={confirmDeleteAccount}>
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
+        <AppText variant="eyebrow">// Danger Zone</AppText>
+        <AppText style={styles.webTitle}>Delete Account</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Permanently delete your account and all associated data. This cannot be undone.
+        </AppText>
+        <View style={styles.deleteButton}>
+          <AppText style={styles.deleteButtonText} onPress={confirmDeleteAccount}>
             {deletingAccount ? 'Deleting account...' : 'Delete Account'}
           </AppText>
         </View>
@@ -815,13 +860,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  deleteWrap: {
+  deleteButton: {
+    marginTop: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.red,
   },
-  deleteLink: {
+  deleteButtonText: {
     color: colors.red,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '900',
+  },
+  authActions: {
+    marginTop: spacing.lg,
   },
 })

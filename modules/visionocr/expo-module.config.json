@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["VisionocrModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.visionocr.VisionocrModule"]
+  }
+}
