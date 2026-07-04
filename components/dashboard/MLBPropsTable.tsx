@@ -127,6 +127,23 @@ async function fetchMlbStatsInBatches(batters: LineupPlayer[], pitchers: LineupP
   return results.reduce<Record<number, any>>((merged, result) => ({ ...merged, ...(result.stats || {}) }), {})
 }
 
+// Server-computed EDGE for this player+market (CLAUDE.md "Calculated scores
+// live on the web" — this table renders it, never recomputes it as primary).
+// Keyed the same way lib/scoring/mlbPropScoring.ts's secondary output key is:
+// `${marketKey}-${player}`. Guarded on line match; null when unresolved so
+// callers fall back to the local edgeLabel() calc (kept as a backup only).
+function serverEdge(marketKey: string, player: string, line: number, boardScores: Record<string, any> | undefined) {
+  const entry = boardScores?.[`${marketKey}-${player}`]
+  if (!entry || entry.line !== line) return null
+  const label = String(entry.edgeLabel || '').replace(/\s*\d+$/, '')
+  const color = label.startsWith('Strong') ? colors.green
+    : label.startsWith('Lean') ? colors.gold
+    : label.startsWith('Neutral') ? colors.textSecondary
+    : label.startsWith('Fade') ? colors.red
+    : colors.textMuted
+  return { label, color, score: entry.edgeScore as number }
+}
+
 function edgeLabel(line: number, season: number, l10: number, l5: number, odds?: number, isHR = false) {
   if (!season) return { label: '-', color: colors.textMuted, score: 0 }
   if (isHR && line <= 0.5) {
@@ -334,7 +351,7 @@ function buildBvpMatchups(
   return matchups
 }
 
-export function MLBPropsTable({ games, userState }: { games: Game[]; userState?: string | null }) {
+export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]; userState?: string | null; boardScores?: Record<string, any> }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const [marketKey, setMarketKey] = useState('batter_hits')
@@ -372,7 +389,7 @@ export function MLBPropsTable({ games, userState }: { games: Game[]; userState?:
     const l20 = row.stats?.[`l20_${market.statField}`] || 0
     const l10 = row.stats?.[`l10_${market.statField}`] || 0
     const l5 = row.stats?.[`l5_${market.statField}`] || 0
-    const edge = edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+    const edge = serverEdge(marketKey, row.player, row.line, boardScores) || edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
 
     if (key === 'player') return row.player
     if (key === 'line') return row.line
@@ -558,6 +575,7 @@ export function MLBPropsTable({ games, userState }: { games: Game[]; userState?:
               marketLabel={market.label}
               statField={market.statField}
               landscape={landscapeTable}
+              boardScores={boardScores}
               onPress={() => {
                 setSelectedPlayer(row.player)
                 setSelectedMarketContext({
@@ -648,6 +666,7 @@ function PlayerPropRow({
   marketLabel,
   statField,
   landscape,
+  boardScores,
   onPress,
 }: {
   row: PlayerRow
@@ -655,12 +674,15 @@ function PlayerPropRow({
   marketLabel: string
   statField: string
   landscape: boolean
+  boardScores?: Record<string, any>
   onPress: () => void
 }) {
   const season = row.stats?.[`season_${statField}`] || 0
   const l10 = row.stats?.[`l10_${statField}`] || 0
   const l5 = row.stats?.[`l5_${statField}`] || 0
-  const edge = edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+  // Server-first (CLAUDE.md "Calculated scores live on the web"): local
+  // edgeLabel() is kept only as the offline/mismatch fallback, never primary.
+  const edge = serverEdge(marketKey, row.player, row.line, boardScores) || edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
   const l5Hit = hitRate(row.stats, statField, row.line, 5)
   const l10Hit = hitRate(row.stats, statField, row.line, 10)
 

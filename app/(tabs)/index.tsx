@@ -59,7 +59,7 @@ type KBOTeamStats = {
   updated_at?: string | null
 }
 
-type PropsResponse = Game[] | { props: Game[]; playerStats?: Record<string, any>; cacheMode?: string }
+type PropsResponse = Game[] | { props: Game[]; playerStats?: Record<string, any>; boardScores?: Record<string, any>; cacheMode?: string }
 
 type DashboardView = 'league' | 'matchups' | 'lines' | 'props'
 
@@ -1282,11 +1282,11 @@ export default function DashboardScreen() {
   })
   const propsQuery = useQuery({
     queryKey: ['player-props', sport],
-    queryFn: () => kingfishFetch<PropsResponse>(
-      sport === 'NBA' || sport === 'NHL' || sport === 'WNBA'
-        ? `/api/${sportApiKey(sport)}-props?includeStats=1`
-        : `/api/${sportApiKey(sport)}-props`
-    ),
+    // includeStats=1 also returns `boardScores` (server-computed EDGE/GRADE/
+    // VALUE/EV — CLAUDE.md "Calculated scores live on the web"). MLB and NFL
+    // were missing from this list, so their prop tables were silently falling
+    // back to locally-recomputed EDGE scores instead of the server's.
+    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
@@ -1459,6 +1459,7 @@ export default function DashboardScreen() {
   const ncaabMatchupGroups = groupGamesByDate(filteredNcaabMatchups)
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
   const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
+  const propsBoardScores = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.boardScores
 
   return (
     <Screen>
@@ -2504,8 +2505,8 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} />}
-          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} />}
+          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} boardScores={propsBoardScores} />}
+          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} boardScores={propsBoardScores} />}
         </View>
       )}
 

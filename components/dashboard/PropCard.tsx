@@ -507,7 +507,7 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
   return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit, initialStats, userState }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null }) {
+export function PropsList({ games, sport, limit, initialStats, userState, boardScores }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null; boardScores?: Record<string, any> }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const compactTable = sport === 'NFL' && landscapeTable
@@ -597,8 +597,8 @@ export function PropsList({ games, sport, limit, initialStats, userState }: { ga
     return [...gameProps].sort((a, b) => {
       const aStats = statsByPlayer[normalizeName(a.outcome.description || '')]
       const bStats = statsByPlayer[normalizeName(b.outcome.description || '')]
-      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable)
-      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable)
+      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable, boardScores)
+      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable, boardScores)
       const direction = sortDir === 'asc' ? 1 : -1
 
       if (typeof aValue === 'string' || typeof bValue === 'string') {
@@ -762,6 +762,7 @@ export function PropsList({ games, sport, limit, initialStats, userState }: { ga
                   stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
                   sport={sport}
                   landscape={landscapeTable}
+                  boardScores={boardScores}
                   onSelectPlayer={(playerName, context) => {
                     setSelectedPlayer(playerName)
                     setSelectedMarketContext(context)
@@ -805,16 +806,39 @@ const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
-function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean) {
+// Maps a server edge label ("Strong 82", "Lean 61", ...) to this table's
+// existing tier colors, so a server-sourced score renders identically to a
+// locally-computed one.
+function edgeColorFromLabel(label: string): string {
+  if (label.startsWith('Strong')) return colors.green
+  if (label.startsWith('Lean')) return colors.gold
+  if (label.startsWith('Neutral')) return colors.textSecondary
+  if (label.startsWith('Fade')) return colors.red
+  return colors.textMuted
+}
+
+// Server-computed EDGE for this prop (CLAUDE.md "Calculated scores live on
+// the web" — the client renders it, never recomputes it as primary). Keyed
+// the same way lib/scoring/propScoring.ts's secondary output key is:
+// `${marketKey}-${player}`. Guarded on line match; null when unresolved so
+// callers fall back to the local calc (kept as a backup only, per that law).
+function serverEdge(prop: FlattenedProp, boardScores: Record<string, any> | undefined) {
+  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const entry = boardScores?.[`${prop.market.key}-${prop.outcome.description}`]
+  if (!entry || entry.line !== line) return null
+  return { score: entry.edgeScore as number, label: entry.edgeLabel as string, color: edgeColorFromLabel(entry.edgeLabel) }
+}
+
+function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean, boardScores?: Record<string, any>) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Rate = hitRate(recentValues(stats, prop.market.key, 10), line)
   const l5Rate = hitRate(recentValues(stats, prop.market.key, 5), line)
-  const edge = sport === 'NFL'
+  const edge = serverEdge(prop, boardScores) || (sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport))
 
   if (key === 'player') return prop.outcome.description || ''
   if (key === 'line') return line
@@ -832,12 +856,14 @@ function PropTableRow({
   stats,
   sport,
   landscape,
+  boardScores,
   onSelectPlayer,
 }: {
   prop: FlattenedProp
   stats?: Record<string, any>
   sport: Sport
   landscape: boolean
+  boardScores?: Record<string, any>
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
@@ -846,9 +872,11 @@ function PropTableRow({
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Values = recentValues(stats, prop.market.key, 10)
   const l5Values = recentValues(stats, prop.market.key, 5)
-  const edge = sport === 'NFL'
+  // Server-first (CLAUDE.md "Calculated scores live on the web"): the local
+  // calc below is kept only as the offline/mismatch fallback, never primary.
+  const edge = serverEdge(prop, boardScores) || (sport === 'NFL'
     ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
+    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport))
   const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
   const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
   const openProfile = () => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
