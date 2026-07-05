@@ -2153,6 +2153,14 @@ export default function CheatSheetsScreen() {
             </View>
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>
+
+          <Pressable onPress={() => router.push('/value-finder' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// All Sports</AppText>
+              <AppText style={styles.featureToolTitle}>Game Lines</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
         </>
       ) : toolMode === 'calculators' ? (
         <>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { GameLineCard } from '@/components/dashboard/GameLineCard'
+import { GamePropsTable } from '@/components/dashboard/GamePropsTable'
 import { MLBPropsTable } from '@/components/dashboard/MLBPropsTable'
 import { PropsList } from '@/components/dashboard/PropCard'
 import { Screen } from '@/components/Screen'
@@ -1160,6 +1160,8 @@ function SoccerTeamProfileModal({
 
 export default function DashboardScreen() {
   const { profile, session } = useAuth()
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions()
+  const isLandscape = windowWidth > windowHeight
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<DashboardView>('lines')
@@ -1231,7 +1233,7 @@ export default function DashboardScreen() {
     : item === 'matchups'
       ? 'Game Matchups'
     : item === 'lines'
-      ? 'Game Lines'
+      ? 'Game Props'
     : secondaryViewLabel
   const canFetchWorldCupTournament = isSelectedSportActive && isWorldCupSoccer && view === 'league' && canViewLines && !linesMaintenance
   const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
@@ -2334,7 +2336,7 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'lines' && !canViewLines && (
         <View style={styles.liveSection}>
           <Card>
-            <AppText variant="title" style={styles.cardTitle}>Unlock Game Lines</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Unlock Game Props</AppText>
             <AppText variant="muted">
               Live moneylines, spreads, totals, best available prices, and KingFish matchup context
               are part of KingFish Bets Pro.
@@ -2350,7 +2352,7 @@ export default function DashboardScreen() {
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Maintenance</AppText>
-            <AppText variant="title" style={styles.cardTitle}>Game Lines Paused</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Game Props Paused</AppText>
             <AppText variant="muted">This board is temporarily paused while KingFish refreshes the market data.</AppText>
           </Card>
         </View>
@@ -2407,48 +2409,21 @@ export default function DashboardScreen() {
             </Card>
           )}
 
+          {/* Game Props — dense table (web 2026-07-02 swap; the card view now
+              lives in the Game Lines tool). Portrait shows the compact
+              decision set; landscape opens the full board (iPhone-no-iPad-
+              polish: per-device layout, same server data). */}
           {visibleLineGroups.map((group) => (
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
-              {group.games.map((game) => (
-                <GameLineCard
-                  key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
-                  game={game}
-                  sport={sport}
-                  weather={sport === 'MLB' || sport === 'NFL' ? weatherQuery.data?.[game.id || game.game_id || ''] : undefined}
-                  mlbContext={sport === 'MLB' ? {
-                    teamAbbrMap: MLB_TEAM_NAME_TO_ABBR,
-                    records: mlbScheduleQuery.data?.teamRecords,
-                    l10Map: mlbL10Query.data?.teamL10Map,
-                    pitcherEraMap: mlbScheduleQuery.data?.pitcherEraMap,
-                  } : undefined}
-                  teamFormContext={sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' ? {
-                    awayForm: findTeamForm(teamFormQuery.data?.teams, game.away_team),
-                    homeForm: findTeamForm(teamFormQuery.data?.teams, game.home_team),
-                  } : undefined}
-                  nflContext={sport === 'NFL' ? {
-                    teamAbbrMap: NFL_TEAM_ABBR,
-                    teamStatsMap: nflTeamStatsMap(nflCommandQuery.data),
-                  } : undefined}
-                  ncaafContext={sport === 'NCAAF' ? {
-                    teams: ncaafOutlookQuery.data?.teams,
-                  } : undefined}
-                  soccerContext={sport === 'SOCCER' ? {
-                    awayInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.away_team),
-                    homeInfo: findSoccerTeam(soccerTeamQuery.data?.teams, game.home_team),
-                    isTournament: soccerLeague === 'soccer_fifa_world_cup',
-                  } : undefined}
-                  onPressSoccerTeam={sport === 'SOCCER' ? (team) => setSelectedSoccerTeam(profileTeamFromName(soccerTeams, team)) : undefined}
-                  onPressVenue={sport === 'MLB'
-                    ? (cardGame, cardWeather) => setSelectedBallpark(dashboardBallparkProfile(cardGame, cardWeather, ballparkProfileQuery.data, mlbScheduleQuery.data))
-                    : sport === 'NFL'
-                      ? (cardGame, cardWeather) => setSelectedBallpark(dashboardNflStadiumProfile(cardGame, cardWeather, footballStadiumProfileQuery.data))
-                      : undefined}
-                  userState={profile?.state}
-                  sportsbookPreferences={profile?.sportsbook_preferences}
-                  showNeutralTotalWatch={sport !== 'NFL'}
-                />
-              ))}
+              <GamePropsTable
+                games={group.games}
+                sport={sport}
+                userState={profile?.state}
+                sportsbookPreferences={profile?.sportsbook_preferences}
+                weather={sport === 'MLB' || sport === 'NFL' ? weatherQuery.data : undefined}
+                compact={!isLandscape}
+              />
             </View>
           ))}
         </View>

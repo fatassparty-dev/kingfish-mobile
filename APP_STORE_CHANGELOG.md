@@ -24,6 +24,28 @@ data* it didn't know about before.
 
 ## 🔵 Pending — next iOS submission (describe these to Apple)
 
+- **[2026-07-05] Dashboard "Game Lines" tab is now "Game Props" — a dense board table.**
+  - **What the reviewer sees:** The dashboard's game-lines tab is renamed Game Props and
+    shows a sortable table per date — matchup, KingFish ML lean, Edge, Grade, best
+    moneyline/spread/total prices with the book. Portrait shows a compact decision set;
+    rotating to landscape opens the full board.
+  - **Why:** Matches the website's dashboard (swapped 2026-07-02). All leans/edge values
+    are server-computed on the odds feed the app already reads — the table only renders.
+
+- **[2026-07-05] New Pro Tool: "Game Lines" (Value Finder).**
+  - **What the reviewer sees:** A new tile under Tools → Pro Tools opens Game Lines —
+    per-sport cards showing the KingFish value lean for each game plus the best
+    available moneyline, run line/spread, and total across supported sportsbooks.
+  - **Why:** Ports the website's /value-finder Pro Tool. Uses the same odds endpoints
+    the dashboard already calls; verdicts are server-computed. Gated to Premium (or the
+    HQ "Free Access: Pro Tools" promo flag).
+
+- **[2026-07-05] Prop tables now render the server's EDGE scores (commit f88221e).**
+  - **What the reviewer sees:** Nothing visually new — EDGE scores on player props now
+    come from the server (identical numbers to web/iPad) instead of being recomputed
+    on-device. Local math stays only as an offline fallback.
+  - **Why:** Cross-platform consistency law — one number, computed once, everywhere.
+
 ### ⚠️ MUST be in the next shipped build — signup name capture
 
 - **Signup must send the name in auth metadata.** The current source (build 10+,

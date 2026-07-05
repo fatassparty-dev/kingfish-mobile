@@ -85,6 +85,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     nfl_dashboard_tab_lines: true,
     nfl_dashboard_tab_props: true,
     cheat_sheets_free: false,
+    pro_tools_free: false,
     mlb_access_lines_free: false,
     mlb_access_props_free: false,
     nba_access_lines_free: false,
