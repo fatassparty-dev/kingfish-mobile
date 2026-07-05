@@ -44,7 +44,11 @@ function fmtPoint(point?: number) {
 }
 
 function fmtTimeCT(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' })
+  // PM is implied (nearly every US slate is afternoon/evening) — only the
+  // rare morning start (European soccer) keeps its AM tag.
+  // \s (not a literal space) — newer ICU separates "PM" with U+202F narrow
+  // no-break space, which a plain ' PM' replace silently misses.
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' }).replace(/\s*PM$/i, '')
 }
 
 function pickBest<T extends { price: number }>(items: T[]): T | null {
@@ -98,10 +102,42 @@ function serverTotalLean(game: Game) {
   return (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string } | undefined
 }
 
+// A true yellow for the Edge tier / lopsided-grade highlight — theme's
+// `yellow` (#E8AF3C) is literally the goldLight tone and reads as more gold
+// next to the gold prices (Brian, 2026-07-05).
+const EDGE_YELLOW = '#F5D04C'
+
 function edgeColor(score?: number) {
   const n = Number(score)
   if (!Number.isFinite(n)) return colors.textSecondary
-  return n >= 75 ? colors.green : n >= 60 ? colors.gold : colors.textSecondary
+  return n >= 75 ? colors.green : n >= 60 ? EDGE_YELLOW : colors.textSecondary
+}
+
+// The column header already says "ML Lean" — the trailing " ML" is doubled
+// context, and the city is implied by the matchup column, so "Atlanta Braves
+// ML" renders as just "Braves" (same last-word rule as the matchup names).
+function leanSideDisplay(side?: string) {
+  const noMl = String(side || '').replace(/\s+ML$/i, '').trim()
+  const nickname = noMl.split(' ').pop() || noMl
+  // One line, no silly mid-word wraps ("Athletic\ns"): long nicknames fall
+  // back to the same 3-letter code the Run Line column already uses (GUA/DIA).
+  return nickname.length > 8 ? nickname.slice(0, 3).toUpperCase() : nickname
+}
+
+// Compact (phone-portrait) Edge shows just the tier word ("Lean", "Strong",
+// "Fade", "Neutral") — actionable and fits; the precise score stays for the
+// full landscape/iPad label. Strips the trailing number off "Lean 64.1".
+function edgeTier(label: string) {
+  return String(label || '').replace(/\s*[\d.]+\s*$/, '').trim() || label
+}
+
+// Grade renders neutral unless the split is lopsided by a ton — a 55-45 isn't
+// a call worth color; a 65-35 is.
+function gradeColor(gradeFor?: number, gradeAgainst?: number) {
+  const f = Number(gradeFor)
+  const a = Number(gradeAgainst)
+  if (Number.isFinite(f) && Number.isFinite(a) && f - a >= 20) return EDGE_YELLOW
+  return colors.textPrimary
 }
 
 function PriceCell({ line, flex = 1 }: { line: BestLine; flex?: number }) {
@@ -119,13 +155,13 @@ function PriceCell({ line, flex = 1 }: { line: BestLine; flex?: number }) {
   )
 }
 
-function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.6 }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; flex?: number }) {
+function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.8 }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; flex?: number }) {
   const half = (abbr: string, line: BestLine) => (
     <View style={styles.spreadHalf}>
-      <AppText variant="mono" style={styles.spreadAbbr}>{abbr}</AppText>
+      <AppText variant="mono" style={styles.spreadAbbr} numberOfLines={1}>{abbr}</AppText>
       {line ? (
-        <AppText variant="mono" style={styles.spreadText} numberOfLines={1}>
-          {fmtPoint(line.point)} <AppText variant="mono" style={styles.priceText}>{fmtOdds(line.price)}</AppText>
+        <AppText variant="mono" style={styles.spreadText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {fmtPoint(line.point)} {fmtOdds(line.price)}
         </AppText>
       ) : (
         <AppText variant="mono" style={styles.emptyText}>—</AppText>
@@ -133,7 +169,7 @@ function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.6 }: { awayAbbr: 
     </View>
   )
   return (
-    <View style={[styles.cell, { flex }]}>
+    <View style={[styles.cell, { flex, overflow: 'hidden' }]}>
       {half(awayAbbr, away)}
       {half(homeAbbr, home)}
     </View>
@@ -193,20 +229,23 @@ export function GamePropsTable({
 
   return (
     <View style={styles.table}>
+      {/* Edge lives at the FAR RIGHT, player-props style — it's the verdict,
+          the thing your eye should land on last. Matchup stacks away-over-home
+          so the headers fit without truncating. */}
       <View style={styles.headerRow}>
-        <Header label="Matchup" flex={compact ? 2.6 : 2.4} align="left" />
-        {!compact && <Header label="Time CT" target="time" flex={1} />}
-        {showWeather && <Header label="Weather" flex={1.1} />}
-        <Header label="ML Lean" flex={compact ? 1.4 : 1.3} />
-        <Header label="Edge" target="edge" flex={1.1} />
-        <Header label="Grade" target="grade" flex={1} />
-        {!compact && <Header label="Away ML" flex={1} />}
-        {!compact && <Header label="Home ML" flex={1} />}
-        {!compact && <Header label={spreadLabel(sport)} flex={1.6} />}
+        <Header label="Matchup" flex={compact ? 1.9 : 1.7} align="left" />
+        {!compact && <Header label="Time" target="time" flex={0.9} />}
+        {showWeather && <Header label="Wthr" flex={0.9} />}
+        <Header label="ML Lean" flex={1.2} />
+        {!compact && <Header label="Grade" target="grade" flex={0.9} />}
+        {!compact && <Header label="Away" flex={1} />}
+        {!compact && <Header label="Home" flex={1} />}
+        {!compact && <Header label={spreadLabel(sport)} flex={1.8} />}
         <Header label="O/U" target="total" flex={0.8} />
-        <Header label="Total Lean" flex={compact ? 1.4 : 1.3} />
+        <Header label="Total" flex={compact ? 1 : 0.9} />
         {!compact && <Header label="Over" flex={1} />}
         {!compact && <Header label="Under" flex={1} />}
+        <Header label="Edge" target="edge" flex={1.2} />
       </View>
 
       {rows.map(({ game, mk }) => {
@@ -221,39 +260,42 @@ export function GamePropsTable({
             onPress={onPressMatchup ? () => onPressMatchup(game) : undefined}
             style={styles.row}
           >
-            <View style={[styles.cell, { flex: compact ? 2.6 : 2.4, alignItems: 'flex-start' }]}>
+            <View style={[styles.cell, { flex: compact ? 1.9 : 1.7, alignItems: 'flex-start' }]}>
+              {/* Away-over-home stack — buys back the width one long line ate. */}
               <AppText style={styles.matchupText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                {shortName(game.away_team)} @ {shortName(game.home_team)}
+                {shortName(game.away_team)} @
+              </AppText>
+              <AppText style={styles.matchupText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
             </View>
             {!compact && (
-              <View style={[styles.cell, { flex: 1 }]}>
-                <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)}</AppText>
+              <View style={[styles.cell, { flex: 0.9 }]}>
+                <AppText variant="mono" style={styles.subText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtTimeCT(game.commence_time)}</AppText>
               </View>
             )}
             {showWeather && (
-              <View style={[styles.cell, { flex: 1.1 }]}>
+              <View style={[styles.cell, { flex: 0.9 }]}>
+                {/* Temp only — the wind string never fit this column (it's the
+                    "100°…" dots); wind context lives on the matchup card. */}
                 <AppText variant="mono" style={styles.subText} numberOfLines={1}>
-                  {wx ? `${wx.tempF}°F ${wx.windStr || ''}`.trim() : '—'}
+                  {wx && wx.tempF != null ? `${wx.tempF}°` : '—'}
                 </AppText>
               </View>
             )}
-            <View style={[styles.cell, { flex: compact ? 1.4 : 1.3 }]}>
+            <View style={[styles.cell, { flex: 1.2 }]}>
               {lean?.side
-                ? <AppText style={styles.leanText} numberOfLines={2}>{lean.side}</AppText>
+                ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean.side)}</AppText>
                 : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
             </View>
-            <View style={[styles.cell, { flex: 1.1 }]}>
-              <AppText variant="mono" style={[styles.edgeText, { color: edgeColor(edge?.score) }]} numberOfLines={1}>
-                {edge?.label || '—'}
-              </AppText>
-            </View>
-            <View style={[styles.cell, { flex: 1 }]}>
-              {lean && lean.grade_for != null && lean.grade_against != null
-                ? <AppText variant="mono" style={styles.gradeText}>{lean.grade_for}-{lean.grade_against}</AppText>
-                : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
-            </View>
+            {!compact && (
+              <View style={[styles.cell, { flex: 0.9 }]}>
+                {lean && lean.grade_for != null && lean.grade_against != null
+                  ? <AppText variant="mono" style={[styles.gradeText, { color: gradeColor(lean.grade_for, lean.grade_against) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{lean.grade_for}-{lean.grade_against}</AppText>
+                  : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
+              </View>
+            )}
             {!compact && <PriceCell line={mk.bestAwayMoneyline} />}
             {!compact && <PriceCell line={mk.bestHomeMoneyline} />}
             {!compact && (
@@ -264,16 +306,33 @@ export function GamePropsTable({
                 home={mk.bestHomeSpread}
               />
             )}
-            <View style={[styles.cell, { flex: 0.8 }]}>
-              <AppText variant="mono" style={styles.totalText}>{mk.bestOverTotal?.point ?? mk.bestUnderTotal?.point ?? '—'}</AppText>
+            <View style={[styles.cell, { flex: 0.8, overflow: 'hidden' }]}>
+              <AppText variant="mono" style={styles.totalText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{mk.bestOverTotal?.point ?? mk.bestUnderTotal?.point ?? '—'}</AppText>
             </View>
-            <View style={[styles.cell, { flex: compact ? 1.4 : 1.3 }]}>
+            <View style={[styles.cell, { flex: compact ? 1 : 0.9 }]}>
+              {/* Direction ONLY — the O/U column next door carries the number,
+                  and a lean tile never doubles it (no-doubled-data rule). */}
               {totalLean?.label && !noTotalLean
-                ? <AppText style={styles.leanText} numberOfLines={2}>{totalLean.label}</AppText>
+                ? <AppText style={styles.leanText} numberOfLines={1}>{String(totalLean.label).split(' ')[0]}</AppText>
                 : <AppText variant="mono" style={styles.emptyText}>{totalLean ? 'No Lean' : '—'}</AppText>}
             </View>
             {!compact && <PriceCell line={mk.bestOverTotal} />}
             {!compact && <PriceCell line={mk.bestUnderTotal} />}
+            <View style={[styles.cell, { flex: 1.2 }]}>
+              {edge?.label ? (
+                // Player-props-style verdict cell: big bold score, tier under it.
+                <>
+                  <AppText variant="mono" style={[styles.edgeScoreBig, { color: edgeColor(edge.score) }]} numberOfLines={1}>
+                    {Number.isFinite(Number(edge.score)) ? Math.round(Number(edge.score)) : '—'}
+                  </AppText>
+                  <AppText style={[styles.edgeTierSmall, { color: edgeColor(edge.score) }]} numberOfLines={1}>
+                    {edgeTier(edge.label)}
+                  </AppText>
+                </>
+              ) : (
+                <AppText variant="mono" style={styles.emptyText}>—</AppText>
+              )}
+            </View>
           </Pressable>
         )
       })}
@@ -307,19 +366,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   cell: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
-  headerText: { fontSize: 9 },
+  headerText: { fontSize: 9, letterSpacing: 0.4 },
   headerActive: { color: colors.gold },
   matchupText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   subText: { fontSize: 11, color: colors.textSecondary },
   leanText: { fontSize: 12, fontWeight: '600', color: colors.gold, textAlign: 'center' },
-  edgeText: { fontSize: 12, fontWeight: '700' },
-  gradeText: { fontSize: 12, fontWeight: '700', color: colors.gold },
-  totalText: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  edgeScoreBig: { fontSize: 17, fontWeight: '900' },
+  edgeTierSmall: { fontSize: 10, fontWeight: '800' },
+  gradeText: { fontSize: 12, fontWeight: '700' },
+  totalText: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
   priceWrap: { alignItems: 'center' },
   priceText: { fontSize: 12, fontWeight: '700', color: colors.gold },
   bookText: { fontSize: 8, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  spreadHalf: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1 },
-  spreadAbbr: { fontSize: 10, color: colors.textSecondary, width: 30 },
-  spreadText: { fontSize: 11, color: colors.textPrimary },
+  spreadHalf: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1, alignSelf: 'stretch', justifyContent: 'center' },
+  spreadAbbr: { fontSize: 10, color: colors.textSecondary, width: 26 },
+  spreadText: { fontSize: 10, color: colors.gold, fontWeight: '700', flexShrink: 1 },
   emptyText: { fontSize: 12, color: colors.textMuted },
 })

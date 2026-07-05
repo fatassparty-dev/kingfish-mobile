@@ -1164,7 +1164,7 @@ export default function DashboardScreen() {
   const isLandscape = windowWidth > windowHeight
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
-  const [view, setView] = useState<DashboardView>('lines')
+  const [view, setView] = useState<DashboardView>('props')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
   const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
@@ -1196,23 +1196,27 @@ export default function DashboardScreen() {
     }
     return true
   }
+  // Tab order convention (matches web): Player Props, Game Props, Game
+  // Matchups, League View — landing = first tab.
   const rawDashboardViewsForSport = (sportKey: Sport): DashboardView[] =>
     sportKey === 'NFL'
-      ? ['league', 'matchups', 'lines', 'props']
+      ? ['props', 'lines', 'matchups', 'league']
     : sportKey === 'NCAAF'
-        ? ['league', 'matchups', 'lines']
+        ? ['lines', 'matchups', 'league']
     : sportKey === 'NCAAB'
-        ? ['league', 'matchups', 'lines']
+        ? ['lines', 'matchups', 'league']
       : sportKey === 'MLB' || sportKey === 'NBA' || sportKey === 'NHL' || sportKey === 'WNBA'
-        ? ['league', 'matchups', 'lines', 'props']
+        ? ['props', 'lines', 'matchups', 'league']
         : sportKey === 'SOCCER'
-          ? ['league', 'matchups', 'lines']
-          : ['lines', 'props']
+          ? ['lines', 'matchups', 'league']
+        : sportKey === 'KBO'
+          ? ['lines', 'props'] // KBO's "props" tab is a Team/League board (labeled "League View"); Game Props leads
+          : ['props', 'lines']
   const firstDashboardViewForSport = (sportKey: Sport) => rawDashboardViewsForSport(sportKey).find((tab) => tabVisibleForSport(sportKey, tab)) || 'lines'
   const tabVisible = (tab: DashboardView) => tabVisibleForSport(sport, tab)
   const rawDashboardViews = rawDashboardViewsForSport(sport)
   const dashboardViews = rawDashboardViews.filter(tabVisible)
-  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'Team Stats' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
+  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'League View' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const sportFlagPrefix = sportApiKey(sport)
   const viewVisible = dashboardViews.includes(view)
@@ -1492,7 +1496,7 @@ export default function DashboardScreen() {
             onPress={() => setView(item)}
             style={[styles.segmentButton, view === item && styles.segmentActive]}
           >
-            <AppText style={[styles.segmentText, view === item && styles.segmentTextActive]}>
+            <AppText style={[styles.segmentText, view === item && styles.segmentTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {dashboardViewLabel(item)}
             </AppText>
           </Pressable>
@@ -3065,8 +3069,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
   },
   segment: {
+    // ONE row, always — the 2x2 wrap ate half the screen before any data
+    // showed, and percentage-basis wrapping was flaky across orientations.
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 4,
     backgroundColor: colors.bgCard,
     borderColor: colors.border,
@@ -3076,12 +3081,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   segmentButton: {
-    flexBasis: '48%',
-    flexGrow: 1,
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 7,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   segmentActive: {
     backgroundColor: colors.gold,
@@ -3089,7 +3094,7 @@ const styles = StyleSheet.create({
   segmentText: {
     color: colors.textSecondary,
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
   segmentTextActive: {

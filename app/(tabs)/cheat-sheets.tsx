@@ -1754,12 +1754,19 @@ export default function CheatSheetsScreen() {
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
     queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
-    enabled: canLoadMlbSheetData,
+    // NRFI renders entirely from its own /api/mlb-nrfi snapshot (nrfiQuery below) —
+    // statsheet-data has no 'nrfi' type (the server would serve the full PROPS
+    // snapshot, the largest sheet payload, for nothing). Worse, on the NRFI sheet
+    // this query's key ['cheat-sheet','nrfi'] COLLIDED with nrfiQuery's key, so
+    // the props payload could land in the NRFI board's cache slot — the root cause
+    // of the old "NRFI opens blank until you switch sheets" bug and the slow open.
+    // (Port of kingfish-studio 59cae72.)
+    enabled: canLoadMlbSheetData && activeKey !== 'nrfi',
     staleTime: 12 * 60 * 60 * 1000,
   })
   // NRFI/YRFI is premium, same tier as the other cheat sheets.
   const nrfiQuery = useQuery({
-    queryKey: ['cheat-sheet', 'nrfi'],
+    queryKey: ['cheat-sheet-nrfi'],
     queryFn: () => kingfishFetch<{ data: NrfiRow[]; updated_at?: string; published_at?: string; sheet_date?: string }>('/api/mlb-nrfi'),
     enabled: canUseCheatSheets && toolMode === 'sheets' && activeKey === 'nrfi',
     staleTime: 5 * 60 * 1000,
@@ -1768,7 +1775,7 @@ export default function CheatSheetsScreen() {
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
-    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines',
+    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && activeKey !== 'nrfi',
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -2255,7 +2262,9 @@ export default function CheatSheetsScreen() {
             ) : null}
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {((activeKey === 'nrfi' && nrfiQuery.isLoading) || sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading) && (
+          {(activeKey === 'nrfi'
+            ? nrfiQuery.isLoading
+            : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading)) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
