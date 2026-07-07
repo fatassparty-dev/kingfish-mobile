@@ -1216,7 +1216,7 @@ export default function DashboardScreen() {
   const tabVisible = (tab: DashboardView) => tabVisibleForSport(sport, tab)
   const rawDashboardViews = rawDashboardViewsForSport(sport)
   const dashboardViews = rawDashboardViews.filter(tabVisible)
-  const secondaryViewLabel = sport === 'NCAAF' ? 'Game Matchups' : sport === 'KBO' ? 'League View' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
+  const secondaryViewLabel = sport === 'NCAAF' ? 'Matchups' : sport === 'KBO' ? 'League View' : isCollegeSport(sport) || sport === 'SOCCER' ? 'Team Info' : 'Player Props'
   const isPremium = profile?.is_premium === true
   const sportFlagPrefix = sportApiKey(sport)
   const viewVisible = dashboardViews.includes(view)
@@ -1235,7 +1235,7 @@ export default function DashboardScreen() {
     item === 'league'
       ? isWorldCupSoccer ? 'Tournament View' : 'League View'
     : item === 'matchups'
-      ? 'Game Matchups'
+      ? 'Matchups'
     : item === 'lines'
       ? 'Game Props'
     : secondaryViewLabel

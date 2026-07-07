@@ -95,7 +95,7 @@ export default function HomeScreen() {
             <HomeAction
               label="Game Factors"
               body="Weather, park, dome, and matchup context."
-              onPress={() => router.push({ pathname: '/cheat-sheets', params: { mode: 'factors' } } as any)}
+              onPress={() => router.push('/game-factors' as any)}
             />
             <HomeAction
               label="Ask KingFish"

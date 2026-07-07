@@ -45,6 +45,12 @@ data* it didn't know about before.
     5.1.1 posture that content isn't locked behind registration/payment up front.
 - **[2026-07-07] Game Matchups text enlarged.** Stat labels/values 13→15, team grade
   13→16 on the matchup team boxes (was hard to read). Display-only.
+- **[2026-07-07] Dashboard tab renamed "Game Matchups" → "Matchups".** The four view
+  pills now all render at full size on the phone's one-row tab bar ("Game Matchups"
+  was getting shrunk to fit). Label only — keys/behavior unchanged.
+- **[2026-07-07] Home "Game Factors" tile opens Game Factors.** It routed to the
+  Tools screen with a `mode: 'factors'` param the Tools screen ignores, landing users
+  on Tools instead of the Game Factors tool. Now routes to `/game-factors` directly.
 
 ### Build 1.0.3 (16) — 2026-07-07 — TestFlight only
 
