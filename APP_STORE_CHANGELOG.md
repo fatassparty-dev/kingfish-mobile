@@ -22,7 +22,13 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 Pending — next iOS submission (describe these to Apple)
+## 🔵 IN REVIEW — 1.0.3 (build 16), submitted 2026-07-07
+
+> _1.0.3 (16) submitted 2026-07-07 — a pure feature update carrying the three items
+> below plus the NRFI instant-open fix and verdict-only lean tiles (ported from Studio).
+> Version had to be 1.0.3: the 1.0.2 train is CLOSED (Transporter 409) because
+> **1.0.2 (15) shipped and is the live store build** — so the store already has the
+> auth-deadlock fix, guest mode, and signup name capture._
 
 - **[2026-07-05] Dashboard "Game Lines" tab is now "Game Props" — a dense board table.**
   - **What the reviewer sees:** The dashboard's game-lines tab is renamed Game Props and
@@ -60,7 +66,7 @@ data* it didn't know about before.
   build is the universal shipped build, name capture no longer depends on that
   workaround.
 
-### Build 1.0.2 (15) — 2026-06-25 — emergency fix build
+### Build 1.0.2 (15) — 2026-06-25 — emergency fix build — ✅ SHIPPED (live store build)
 
 - **Sign-in no longer hangs after signing in (no data / "Free" / no name).**
   - **What the user saw:** On 1.0.1, after signing in the app could sit with player props stuck "loading," the account shown as "Free," and no name/location — and never recover (even Restore Purchases did nothing).
