@@ -1092,6 +1092,9 @@ export function GameLineCard({
   )
 }
 
+// Verdict only — lean tiles never show a price/book, even when the lean data
+// (server field or local fallback) carries one; odds live solely in the card's
+// Moneyline/Total sections (no-doubled-data rule, 2026-07-02).
 function LeanBox({ label, lean, compact = false }: { label: string; lean: LeanResult; compact?: boolean }) {
   return (
     <View style={[styles.leanBox, compact && styles.leanBoxCompact]}>
@@ -1100,12 +1103,6 @@ function LeanBox({ label, lean, compact = false }: { label: string; lean: LeanRe
         <AppText style={styles.leanMain}>{lean.label}</AppText>
         <AppText variant="muted" style={styles.leanDetail}>{lean.detail}</AppText>
       </View>
-      {typeof lean.price === 'number' && (
-        <View style={styles.leanPrice}>
-          <AppText style={styles.leanPriceText}>{fmtOdds(lean.price)}</AppText>
-          {lean.book ? <AppText variant="mono">{lean.book}</AppText> : null}
-        </View>
-      )}
     </View>
   )
 }

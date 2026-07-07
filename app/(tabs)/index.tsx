@@ -3739,7 +3739,7 @@ const styles = StyleSheet.create({
   },
   matchupGrade: {
     color: colors.gold,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
   },
   matchupStatRow: {
@@ -3750,12 +3750,12 @@ const styles = StyleSheet.create({
   },
   matchupStatLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 15,
   },
   matchupStatValue: {
     flex: 1,
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
     textAlign: 'right',
   },

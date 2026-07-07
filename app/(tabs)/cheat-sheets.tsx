@@ -209,8 +209,8 @@ const SHEET_BOOK_NAMES: Record<string, string> = {
 }
 
 const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
-  { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'calculators', label: 'Calculators' },
+  { key: 'sheets', label: 'Cheat Sheets' },
   { key: 'more', label: 'Tools' },
 ]
 
@@ -1714,7 +1714,9 @@ export default function CheatSheetsScreen() {
   // logged-in free users during a promo. Requires an account (server enforces it too).
   const cheatSheetsFree = (mobileConfig.flags['cheat_sheets_free'] ?? false) && Boolean(session)
   const canUseCheatSheets = isPremium || cheatSheetsFree
-  const [toolMode, setToolMode] = useState<ToolMode>('sheets')
+  // Land on Calculators: it's free for everyone, so guests/free users (and App
+  // Review) see usable tools before any premium gate.
+  const [toolMode, setToolMode] = useState<ToolMode>('calculators')
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)

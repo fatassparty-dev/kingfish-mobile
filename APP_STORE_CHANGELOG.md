@@ -22,13 +22,31 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 IN REVIEW — 1.0.3 (build 16), submitted 2026-07-07
+## 🔵 1.0.3 — build 16 on TestFlight 2026-07-07; build 17 next (TestFlight pass first, then submit)
 
-> _1.0.3 (16) submitted 2026-07-07 — a pure feature update carrying the three items
-> below plus the NRFI instant-open fix and verdict-only lean tiles (ported from Studio).
+> _1.0.3 (16) uploaded 2026-07-07 and put on TestFlight (NOT submitted — Brian tests
+> first). TestFlight review of 16 produced the three fixes below, going into build 17.
 > Version had to be 1.0.3: the 1.0.2 train is CLOSED (Transporter 409) because
 > **1.0.2 (15) shipped and is the live store build** — so the store already has the
 > auth-deadlock fix, guest mode, and signup name capture._
+
+- **[2026-07-07] Lean tiles are verdict-only (no-doubled-data law port from Studio).**
+  - **What the reviewer sees:** The KingFish Lean / Total Lean tiles on game cards show
+    the call, grade, and one-line read — no price or sportsbook. All odds appear once,
+    in the card's Moneyline / Spread / Total sections.
+  - **Why:** A tile price could disagree with the market section mid-cache-refresh
+    (the +196/+182 incident). Same removal Studio shipped 2026-07-02
+    (`components/dashboard/GameLineCard.tsx` `LeanBox`).
+- **[2026-07-07] Tools ("TackleBox") opens on Calculators.**
+  - **What the reviewer sees:** The Tools tab lands on the free Calculators (order:
+    Calculators, Cheat Sheets, Tools) instead of opening straight into the premium
+    Cheat Sheets gate.
+  - **Why:** Free users (and App Review) see usable free tools first — supports the
+    5.1.1 posture that content isn't locked behind registration/payment up front.
+- **[2026-07-07] Game Matchups text enlarged.** Stat labels/values 13→15, team grade
+  13→16 on the matchup team boxes (was hard to read). Display-only.
+
+### Build 1.0.3 (16) — 2026-07-07 — TestFlight only
 
 - **[2026-07-05] Dashboard "Game Lines" tab is now "Game Props" — a dense board table.**
   - **What the reviewer sees:** The dashboard's game-lines tab is renamed Game Props and
