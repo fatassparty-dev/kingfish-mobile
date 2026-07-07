@@ -3,7 +3,7 @@
     "name": "KingFish Bets",
     "slug": "kingfish-bets",
     "scheme": "kingfish",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
