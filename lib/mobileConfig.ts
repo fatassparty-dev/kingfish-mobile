@@ -1,6 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { kingfishFetch } from './api'
 
+// A home-screen tile: deep-links into a screen in the app. The list is
+// server-driven (/api/mobile-config home_tiles, defaults in kingfish-bets
+// lib/homeTiles.ts) so the home layout can change with a site deploy — never
+// an App Store build. DEFAULT_MOBILE_CONFIG.home_tiles is the offline/stale
+// fallback; keep it in sync with the server defaults.
+export type HomeTile = {
+  key: string
+  label: string
+  body: string
+  route: string
+  params?: Record<string, string>
+}
+
 export type MobileConfig = {
   updated_at?: string
   links: {
@@ -20,6 +33,7 @@ export type MobileConfig = {
     body: string
   } | null
   dashboard_sport_order: string[]
+  home_tiles: HomeTile[]
   flags: {
     fantasy_hub: boolean
     nfl_props: boolean
@@ -43,6 +57,58 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
   },
   app_notice: null,
   dashboard_sport_order: ['MLB', 'NFL', 'NBA', 'NHL', 'WNBA', 'KBO', 'NCAAB', 'NCAAF', 'Soccer'],
+  home_tiles: [
+    {
+      key: 'top-leans',
+      label: 'Top 5 KingFish Leans',
+      body: "Today's five best prop edges plus the top game lean. Locks 9:05 AM CT.",
+      route: '/cheat-sheets',
+      params: { sheet: 'topleans' },
+    },
+    {
+      key: 'nrfi',
+      label: 'NRFI / YRFI',
+      body: 'A first-inning run / no-run call for every game today.',
+      route: '/cheat-sheets',
+      params: { sheet: 'nrfi' },
+    },
+    {
+      key: 'value-finder',
+      label: 'Game Lines',
+      body: 'The KingFish value lean and best prices for every game, per sport.',
+      route: '/value-finder',
+    },
+    {
+      key: 'game-factors',
+      label: 'Game Factors',
+      body: 'Weather, park, dome, and matchup context.',
+      route: '/game-factors',
+    },
+    {
+      key: 'fantasy',
+      label: 'Fantasy Hub',
+      body: 'Draft boards, rankings, sleepers, and team tools.',
+      route: '/fantasy',
+    },
+    {
+      key: 'scout',
+      label: 'The Scout',
+      body: 'NFL tracking data: separation, pressure, coverage.',
+      route: '/scout',
+    },
+    {
+      key: 'ref-report',
+      label: 'Ref Report',
+      body: 'Officiating crew tendencies and totals impact.',
+      route: '/ref-report',
+    },
+    {
+      key: 'grade-slip',
+      label: 'Grade My Slip',
+      body: 'Snap a bet slip for an A–F grade and per-leg read.',
+      route: '/grade-slip',
+    },
+  ],
   flags: {
     fantasy_hub: true,
     nfl_props: false,
@@ -126,6 +192,9 @@ export async function fetchMobileConfig() {
       dashboard_sport_order: Array.isArray(config.dashboard_sport_order)
         ? config.dashboard_sport_order
         : DEFAULT_MOBILE_CONFIG.dashboard_sport_order,
+      home_tiles: Array.isArray(config.home_tiles) && config.home_tiles.length
+        ? config.home_tiles
+        : DEFAULT_MOBILE_CONFIG.home_tiles,
     }
   } catch {
     return DEFAULT_MOBILE_CONFIG

@@ -30,6 +30,26 @@ data* it didn't know about before.
 > **1.0.2 (15) shipped and is the live store build** — so the store already has the
 > auth-deadlock fix, guest mode, and signup name capture._
 
+- **[2026-07-07] Home screen: deep-link tiles, server-driven (build 18).**
+  - **What the reviewer sees:** The Bait Shop home grid no longer repeats the tab bar
+    (Dashboard/Tools/Ask/Account tiles are gone). It now offers eight destinations:
+    Top 5 KingFish Leans, NRFI/YRFI, Game Lines, Game Factors, Fantasy Hub, The Scout,
+    Ref Report, Grade My Slip — each opening its screen directly.
+  - **Why:** Home should hold destinations, not duplicate the tab bar's categories. The
+    tile list is served by /api/mobile-config (`home_tiles`, kingfish-bets PR #54) so the
+    layout can change with a site deploy — never an App Store build. The same list is
+    baked in as the offline fallback, so the app renders identically if the config
+    fetch fails. User-customizable tiles are deferred to a future version.
+- **[2026-07-07] New cheat sheet: Top 5 KingFish Leans (build 18).**
+  - **What the reviewer sees:** A new "Top 5 KingFish Leans" tile (first in Cheat
+    Sheets, badge ALL) opens today's board: the five best prop edges across every
+    sport plus the top game-line lean, locked at 9:05 AM CT. Same premium gate as the
+    other sheets.
+  - **Why:** The sheet has been live on the web (/api/top-leans daily snapshot); this
+    renders that server data in the app — no client math. Also supports
+    /cheat-sheets?sheet=<key> deep links (used by the home tiles).
+- **[2026-07-07] NRFI: stray "No MLB markets…" line removed (port of Studio b2a23ae
+  empty-state fix — the generic props empty-state leaked onto the NRFI board).**
 - **[2026-07-07] Lean tiles are verdict-only (no-doubled-data law port from Studio).**
   - **What the reviewer sees:** The KingFish Lean / Total Lean tiles on game cards show
     the call, grade, and one-line read — no price or sportsbook. All odds appear once,

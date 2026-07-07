@@ -17,7 +17,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
+type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -40,22 +40,46 @@ type NrfiRow = {
 type ToolTile = {
   key: SheetKey
   label: string
-  sport: 'MLB' | 'NFL'
+  sport: 'ALL' | 'MLB' | 'NFL'
 }
 type ToolMode = 'sheets' | 'calculators' | 'more'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
 export type FactorSport = 'MLB' | 'NFL'
 export type FactorView = 'board' | 'cheat'
 
+type TopLeanProp = {
+  sport: string
+  player: string
+  market_label: string
+  line: number | null
+  odds: number
+  edge_score: number
+  grade: string | null
+  proj: number | null
+  home_team: string | null
+  away_team: string | null
+}
+type TopLeanGameLine = {
+  sport: string
+  side: string
+  type: string
+  detail: string
+  odds: number
+  home_team: string
+  away_team: string
+}
+type TopLeansData = { props: TopLeanProp[]; game_line: TopLeanGameLine | null }
+
 const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'td' | 'nrfi'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'td' | 'nrfi' | 'topleans'
   market?: string
   statField?: string
   trend?: boolean
 }> = [
+  { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
@@ -70,6 +94,7 @@ const SHEETS: Array<{
 ]
 
 const TOOL_TILES: ToolTile[] = [
+  { key: 'topleans', label: 'Top 5 KingFish Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
@@ -1707,7 +1732,7 @@ function buildStrikeoutRows(
 
 export default function CheatSheetsScreen() {
   const { profile, session } = useAuth()
-  const { mode } = useLocalSearchParams<{ mode?: string }>()
+  const { mode, sheet } = useLocalSearchParams<{ mode?: string; sheet?: string }>()
   const mobileConfig = useMobileConfig()
   const isPremium = profile?.is_premium === true
   // One HQ switch ("Free Access: Cheat Sheets") opens every cheat sheet for
@@ -1753,6 +1778,15 @@ export default function CheatSheetsScreen() {
     }
   }, [mode])
 
+  // Deep link from a home tile: /cheat-sheets?sheet=<key> opens that sheet.
+  useEffect(() => {
+    const sheetParam = typeof sheet === 'string' ? sheet : undefined
+    if (sheetParam && SHEETS.some((entry) => entry.key === sheetParam)) {
+      setToolMode('sheets')
+      setSelectedKey(sheetParam as SheetKey)
+    }
+  }, [sheet])
+
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
     queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
@@ -1763,7 +1797,7 @@ export default function CheatSheetsScreen() {
     // the props payload could land in the NRFI board's cache slot — the root cause
     // of the old "NRFI opens blank until you switch sheets" bug and the slow open.
     // (Port of kingfish-studio 59cae72.)
-    enabled: canLoadMlbSheetData && activeKey !== 'nrfi',
+    enabled: canLoadMlbSheetData && activeKey !== 'nrfi' && activeKey !== 'topleans',
     staleTime: 12 * 60 * 60 * 1000,
   })
   // NRFI/YRFI is premium, same tier as the other cheat sheets.
@@ -1774,10 +1808,19 @@ export default function CheatSheetsScreen() {
     staleTime: 5 * 60 * 1000,
   })
   const nrfiRows = nrfiQuery.data?.data ?? []
+  // Top 5 KingFish Leans — cross-sport daily snapshot, own endpoint like NRFI.
+  const topLeansQuery = useQuery({
+    queryKey: ['cheat-sheet-top-leans'],
+    queryFn: () => kingfishFetch<{ data: TopLeansData; updated_at?: string; published_at?: string; sheet_date?: string }>('/api/top-leans'),
+    enabled: canUseCheatSheets && toolMode === 'sheets' && activeKey === 'topleans',
+    staleTime: 5 * 60 * 1000,
+  })
+  const topLeansData = topLeansQuery.data?.data
+  const topLeanProps = topLeansData?.props ?? []
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
-    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && activeKey !== 'nrfi',
+    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && activeKey !== 'nrfi' && activeKey !== 'topleans',
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -2259,6 +2302,8 @@ export default function CheatSheetsScreen() {
               <AppText style={styles.reportDate}>
                 {activeKey === 'nrfi'
                   ? formatSavedAt(nrfiQuery.data?.published_at || nrfiQuery.data?.updated_at, nrfiQuery.data?.sheet_date)
+                  : activeKey === 'topleans'
+                  ? formatSavedAt(topLeansQuery.data?.published_at || topLeansQuery.data?.updated_at, topLeansQuery.data?.sheet_date)
                   : formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
               </AppText>
             ) : null}
@@ -2266,6 +2311,8 @@ export default function CheatSheetsScreen() {
 
           {(activeKey === 'nrfi'
             ? nrfiQuery.isLoading
+            : activeKey === 'topleans'
+            ? topLeansQuery.isLoading
             : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading)) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
@@ -2303,6 +2350,54 @@ export default function CheatSheetsScreen() {
                       </View>
                     )
                   })}
+                </View>
+                <AppText variant="muted" style={styles.cardCopy}>
+                  Model lean, not a guarantee. For entertainment only — please bet responsibly.
+                </AppText>
+              </>
+            )
+          )}
+
+          {activeKey === 'topleans' && !topLeansQuery.isLoading && (
+            topLeanProps.length === 0 && !topLeansData?.game_line ? (
+              <AppText variant="muted" style={styles.errorText}>Today's board locks at 9:05 AM CT — check back then.</AppText>
+            ) : (
+              <>
+                <View style={styles.reportRows}>
+                  {topLeanProps.map((row, index) => (
+                    <View key={`${row.player}-${index}`} style={styles.reportRow}>
+                      <View style={styles.rowMain}>
+                        <AppText style={styles.compactPlayer} numberOfLines={1}>#{index + 1} {row.player}</AppText>
+                        <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                          {row.sport}{row.away_team && row.home_team ? ` · ${row.away_team} @ ${row.home_team}` : ''}
+                        </AppText>
+                        <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                          {row.market_label}{row.line != null ? ` O ${row.line}` : ''}{row.proj != null ? ` · Proj ${row.proj}` : ''}{row.grade ? ` · ${row.grade}` : ''}
+                        </AppText>
+                      </View>
+                      <View style={styles.rowNumbers}>
+                        <AppText style={[styles.compactEdge, { color: colors.gold }]}>{Math.round(row.edge_score)}</AppText>
+                        <AppText style={styles.compactOdds}>{row.odds > 0 ? `+${row.odds}` : `${row.odds}`}</AppText>
+                      </View>
+                    </View>
+                  ))}
+                  {topLeansData?.game_line ? (
+                    <View style={styles.reportRow}>
+                      <View style={styles.rowMain}>
+                        <AppText style={styles.compactPlayer} numberOfLines={1}>{topLeansData.game_line.side}</AppText>
+                        <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                          {topLeansData.game_line.sport} · {topLeansData.game_line.away_team} @ {topLeansData.game_line.home_team}
+                        </AppText>
+                        <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
+                          KingFish {topLeansData.game_line.type} · {topLeansData.game_line.detail}
+                        </AppText>
+                      </View>
+                      <View style={styles.rowNumbers}>
+                        <AppText style={[styles.compactEdge, { color: colors.gold }]}>{topLeansData.game_line.type === 'Strong Lean' ? 'STRONG' : 'LEAN'}</AppText>
+                        <AppText style={styles.compactOdds}>{topLeansData.game_line.odds > 0 ? `+${topLeansData.game_line.odds}` : `${topLeansData.game_line.odds}`}</AppText>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
                 <AppText variant="muted" style={styles.cardCopy}>
                   Model lean, not a guarantee. For entertainment only — please bet responsibly.
@@ -2517,7 +2612,7 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && activeKey !== 'nrfi' && activeKey !== 'topleans' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>

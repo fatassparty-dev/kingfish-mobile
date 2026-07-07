@@ -3,9 +3,21 @@ import { AccessibilityInfo, Animated, Image, Pressable, StyleSheet, View } from 
 import { router } from 'expo-router'
 import { AppText } from '@/components/Text'
 import { Screen } from '@/components/Screen'
+import { useMobileConfig, type HomeTile } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 
 export default function HomeScreen() {
+  // Server-driven deep-link tiles (fallback list baked into DEFAULT_MOBILE_CONFIG).
+  // Home offers destinations inside the app; the tab bar already covers the
+  // categories (Dashboard/Tools/Ask/Account), so tiles never duplicate it.
+  const homeTiles = useMobileConfig().home_tiles
+  const openTile = (tile: HomeTile) => {
+    if (tile.params && Object.keys(tile.params).length) {
+      router.push({ pathname: tile.route, params: tile.params } as any)
+    } else {
+      router.push(tile.route as any)
+    }
+  }
   const lampGlow = useRef(new Animated.Value(0.46)).current
   const lampScale = useRef(new Animated.Value(1)).current
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -77,36 +89,14 @@ export default function HomeScreen() {
           </AppText>
 
           <View style={styles.actionGrid}>
-            <HomeAction
-              label="Dashboard"
-              body="Live lines, props, and market movement."
-              onPress={() => router.push('/')}
-            />
-            <HomeAction
-              label="Tools"
-              body="MLB and NFL cheat sheets plus calculators."
-              onPress={() => router.push('/cheat-sheets')}
-            />
-            <HomeAction
-              label="Fantasy Hub"
-              body="Draft boards, rankings, sleepers, and team tools."
-              onPress={() => router.push('/fantasy' as any)}
-            />
-            <HomeAction
-              label="Game Factors"
-              body="Weather, park, dome, and matchup context."
-              onPress={() => router.push('/game-factors' as any)}
-            />
-            <HomeAction
-              label="Ask KingFish"
-              body="AI sports analysis connected to KingFish lines, props, and more."
-              onPress={() => router.push('/ask-kingfish')}
-            />
-            <HomeAction
-              label="Account"
-              body="Manage premium access, purchases, and support."
-              onPress={() => router.push('/account')}
-            />
+            {homeTiles.map((tile) => (
+              <HomeAction
+                key={tile.key}
+                label={tile.label}
+                body={tile.body}
+                onPress={() => openTile(tile)}
+              />
+            ))}
           </View>
         </View>
       </View>
