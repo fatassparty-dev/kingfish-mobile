@@ -22,7 +22,7 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.0.3 (build 19) — SUBMITTING 2026-07-07 after TestFlight pass (builds 16/17/18 were TestFlight iterations)
+## 🔵 1.0.3 (build 19) — SUBMITTED to App Review 2026-07-07 (builds 16/17/18 were TestFlight iterations)
 
 > _1.0.3 (16) uploaded 2026-07-07 and put on TestFlight (NOT submitted — Brian tests
 > first). TestFlight review of 16 produced the three fixes below, going into build 17.
