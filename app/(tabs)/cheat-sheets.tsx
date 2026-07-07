@@ -94,7 +94,7 @@ const SHEETS: Array<{
 ]
 
 const TOOL_TILES: ToolTile[] = [
-  { key: 'topleans', label: 'Top 5 KingFish Leans', sport: 'ALL' },
+  { key: 'topleans', label: 'Top 5 Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
