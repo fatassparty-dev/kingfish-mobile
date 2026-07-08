@@ -252,6 +252,18 @@ data* it didn't know about before.
 
 ## 🟢 Server/web changes — no app update needed (for your records)
 
+### 2026-07-08
+- **Top 5 KingFish Leans: matchup grade + tie-break.** The `grade` field on
+  `/api/top-leans` is now strictly a **matchup grade** (MLB: career BvP vs
+  today's starter + career vs-team + opponent record). Non-MLB sports send
+  `grade: null` — their old letter was just the edge score re-bucketed, i.e.
+  the same number twice. Ties on edge score now break server-side to the best
+  matchup grade, then price. The app renders `row.grade` inline with no
+  header, so nothing breaks; non-MLB rows simply stop showing a redundant
+  letter (matters in the fall). Web-only extras (not app-relevant): column
+  header renamed GRADE → MATCHUP, player names click through to the player
+  profile.
+
 ### 2026-06-14
 - **Sign-up names are now created server-side by a database trigger.** A new
   `on_auth_user_created` trigger copies the name from sign-up into the customer
