@@ -253,6 +253,14 @@ data* it didn't know about before.
 ## 🟢 Server/web changes — no app update needed (for your records)
 
 ### 2026-07-08
+- **MLB edge score: probability-based for O 0.5 lines.** The old rate-to-line
+  ratio pinned every regular at a clamped 100 on 0.5-line combo props (TB,
+  H+R+RBI average 2-5x the line), which is how a 100 edge sat next to a D+
+  matchup and flooded the Top 5 sheet with ties. Sub-1.0 lines now score
+  P(over) × 100 from the same model VALUE/EV and the grading cron use; O 0.5
+  total bases reads the hits distribution since it's literally the same bet.
+  Server-side (`lib/scoring/mlbPropScoring.ts`) — every surface updates with
+  no app build.
 - **Top 5 KingFish Leans: matchup grade + tie-break.** The `grade` field on
   `/api/top-leans` is now strictly a **matchup grade** (MLB: career BvP vs
   today's starter + career vs-team + opponent record). Non-MLB sports send
