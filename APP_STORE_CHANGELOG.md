@@ -253,6 +253,14 @@ data* it didn't know about before.
 ## 🟢 Server/web changes — no app update needed (for your records)
 
 ### 2026-07-08
+- **MLB edge score: probability-based for ALL lines (extended same day).** Every
+  non-HR MLB prop edge now reads as P(over) × 100 — a 75 means the model gives
+  the over a 75% chance — with the old ratio kept only as a no-data fallback.
+  Also: the matchup grade no longer prints a letter from opponent record alone
+  (a no-history rookie vs a good team was grading D+); it now requires real
+  BvP/vs-team history. Server-side; iPhone 1.0.3 renders the new numbers via
+  boardScores with no build. The app-bundled fallback copies (old ratio,
+  record-only grade) update whenever a future build ships.
 - **MLB edge score: probability-based for O 0.5 lines.** The old rate-to-line
   ratio pinned every regular at a clamped 100 on 0.5-line combo props (TB,
   H+R+RBI average 2-5x the line), which is how a 100 edge sat next to a D+
