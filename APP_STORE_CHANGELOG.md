@@ -253,6 +253,25 @@ data* it didn't know about before.
 ## 🟢 Server/web changes — no app update needed (for your records)
 
 ### 2026-07-09
+- **ONE number per prop — every cheat sheet now renders DASHBOARD edges**
+  (`kingfish-bets` `0b135bc`→`9aec758`). Architecture ruling (Brian): the
+  dashboard is the source of truth; sheets pull its numbers, never own math.
+  - **HR edge = new probability model.** The dashboard's batter_home_runs O 0.5
+    edge is now P(homers today) — Statcast xSLG-led power × platoon × park HR
+    factor by handedness × game-time weather × lineup-slot PAs (competitor
+    research build; no price term, BvP display-only). Ships via boardScores, so
+    **iPhone 1.0.3 and iPad show the new HR numbers with no build.** Payload
+    carries `hrProb` + `hrDetail` (receipts line).
+  - HR Targets / Hits Bet-Fade / Hot Total Bases / Safe Alt K sheets all render
+    the dashboard edge (fades = 100 − edge; alt K lines = the shared
+    probability engine at the row's line). **Hot Hitters redesigned as a
+    STREAKS sheet** — new `streak` field (consecutive games with a hit), top 10
+    by streak, no L5/L10 columns (🔵 app cheat-sheet renderers pick all this up
+    with the sheet_scores adoption below).
+  - Web sheets: PICK columns show direction/tier word only (no doubled score),
+    and the "● SAVED DAILY + method blurb" strip is REMOVED (secret-sauce rule
+    — never publish formula ingredients; apps should drop any equivalent strip
+    in their next builds too).
 - **Cheat-sheet scores now server-side** (`kingfish-bets` `9e5fef3`): the five
   derived-score sheets (Hits bets+fades, HR Targets, Total Bases, Hot Streaks,
   Strikeouts) are computed once on the web and shipped as
