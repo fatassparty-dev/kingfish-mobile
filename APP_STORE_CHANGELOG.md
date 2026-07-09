@@ -252,6 +252,18 @@ data* it didn't know about before.
 
 ## 🟢 Server/web changes — no app update needed (for your records)
 
+### 2026-07-09
+- **Cheat-sheet scores now server-side** (`kingfish-bets` `9e5fef3`): the five
+  derived-score sheets (Hits bets+fades, HR Targets, Total Bases, Hot Streaks,
+  Strikeouts) are computed once on the web and shipped as
+  `sheet_scores` on `/api/statsheet-data` (keyed `gameId|player|line`). Web
+  renders them already. **🔵 iPhone (and iPad): next build should read
+  `sheet_scores` server-first in the cheat-sheet renderers** — same
+  `server || local` pattern the prop boards use — keeping local math as
+  offline fallback. Until then the app's local formulas still run (no
+  regression, but formula improvements — e.g. the new HR Targets score with
+  shrunk BvP and no price term — won't reach the app).
+
 ### 2026-07-08
 - **MLB edge score: probability-based for ALL lines (extended same day).** Every
   non-HR MLB prop edge now reads as P(over) × 100 — a 75 means the model gives
