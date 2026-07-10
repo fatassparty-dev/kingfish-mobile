@@ -1205,12 +1205,39 @@ function bvpByBatterId(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = [
   return new Map(matchups.map((matchup) => [matchup.batterID, bvp[`${matchup.batterID}_${matchup.pitcherID}`]]))
 }
 
+// ── Server-first sheet scores ─────────────────────────────────────────────────
+// /api/statsheet-data now ships `sheet_scores` — the SAME dashboard-derived
+// numbers the web statsheet renders (2026-07-09 conversion; "calculated scores
+// live on the web"), keyed `${gameId}|${player}|${line}` per sheet. Builders
+// prefer these so iPhone/web show IDENTICAL scores; the local formulas below
+// stay strictly as the offline fallback (backups are kept, never deleted).
+type SheetScores = Record<string, Record<string, any>>
+
+function serverSheetScore(sheetScores: SheetScores | undefined, sheet: string, game: Game, player: string, line: number) {
+  const gameId = (game as any).game_id ?? (game as any).id
+  return sheetScores?.[sheet]?.[`${gameId}|${player}|${line}`]
+}
+
+// App-styled tier chip for a server probability-scale score (EDGE_CONFIG.mlb
+// tiers 80/55/35 — the same cutoffs as the MLB dashboard edge). Presentation
+// stays client-side; only the NUMBER comes from the server.
+function probTierEdge(score: number, neutralWord = 'Neutral', fadeWord = 'Fade') {
+  return score >= 80
+    ? { label: `Strong ${score}`, color: colors.green, score }
+    : score >= 55
+      ? { label: `Lean ${score}`, color: colors.gold, score }
+      : score >= 35
+        ? { label: `${neutralWord} ${score}`, color: colors.textSecondary, score }
+        : { label: `${fadeWord} ${score}`, color: colors.red, score }
+}
+
 function buildHitFadeRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
   stats: Record<number, any>,
   bvp: Record<string, any> = {},
   matchups: BvpMatchup[] = [],
+  sheetScores?: SheetScores,
 ) {
   const rows: Array<SheetRow & {
     fadeScore: number
@@ -1248,19 +1275,21 @@ function buildHitFadeRows(
         vsSpAb >= 3 && vsSpHitRate <= 0.200 ? 20 :
         vsSpAb >= 3 ? Math.max(0, 18 - vsSpHitRate * 60) :
         6
-      const hitScore = Math.round(
+      // Server-first: the dashboard hits edge (P(hit) × 100, fade = complement).
+      const srv = serverSheetScore(sheetScores, 'hits', game, outcome.player, outcome.line)
+      const hitScore = typeof srv?.score === 'number' ? srv.score : Math.round(
         Math.min(l5 / 1.0, 1.5) * 34 +
         Math.min(l10 / 1.0, 1.4) * 18 +
         (vsSpAb >= 3 ? Math.min(vsSpHitRate / 0.34, 1.6) * 32 : 8) +
         overMarket * 16
       )
-      const fadeScore = Math.round(
+      const fadeScore = typeof srv?.fadeScore === 'number' ? srv.fadeScore : Math.round(
         starterZeroScore +
         Math.max(0, 1 - Math.min(l5 / 0.70, 1)) * 28 +
         Math.max(0, 1 - Math.min(l10 / 0.80, 1)) * 14 +
         underMarket * 12
       )
-      const overEdge = hitScore >= 78
+      const overEdge = typeof srv?.score === 'number' ? probTierEdge(hitScore) : hitScore >= 78
         ? { label: `Strong ${hitScore}`, color: colors.green, score: hitScore }
         : hitScore >= 64
           ? { label: `Lean ${hitScore}`, color: colors.gold, score: hitScore }
@@ -1380,12 +1409,13 @@ function buildRows(
   trend = false,
   bvp: Record<string, any> = {},
   matchups: BvpMatchup[] = [],
+  sheetScores?: SheetScores,
 ) {
-  if (sheetKey === 'hits') return buildHitFadeRows(games, lineupMap, stats, bvp, matchups)
-  if (sheetKey === 'hr') return buildHrRows(games, lineupMap, stats, bvp, matchups)
-  if (sheetKey === 'tb') return buildTotalBaseRows(games, lineupMap, stats)
-  if (sheetKey === 'hot') return buildHotHitterRows(games, lineupMap, stats)
-  if (sheetKey === 'k') return buildStrikeoutRows(games, lineupMap, stats)
+  if (sheetKey === 'hits') return buildHitFadeRows(games, lineupMap, stats, bvp, matchups, sheetScores)
+  if (sheetKey === 'hr') return buildHrRows(games, lineupMap, stats, bvp, matchups, sheetScores)
+  if (sheetKey === 'tb') return buildTotalBaseRows(games, lineupMap, stats, sheetScores)
+  if (sheetKey === 'hot') return buildHotHitterRows(games, lineupMap, stats, sheetScores)
+  if (sheetKey === 'k') return buildStrikeoutRows(games, lineupMap, stats, sheetScores)
 
   const rows: SheetRow[] = []
 
@@ -1503,8 +1533,9 @@ function buildHotHitterRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
   stats: Record<number, any>,
+  sheetScores?: SheetScores,
 ) {
-  const rows: Array<SheetRow & { hotFactor: number; underOdds?: number; underBook?: string }> = []
+  const rows: Array<SheetRow & { hotFactor: number; streak: number; underOdds?: number; underBook?: string }> = []
 
   games.forEach((game) => {
     bestBookOutcomes(game, 'batter_hits').forEach((outcome) => {
@@ -1517,10 +1548,17 @@ function buildHotHitterRows(
       const l5 = getStat(playerStats, 'hits_per_game', 'l5')
       if (season <= 0 || l5 <= 0) return
 
+      // Server-first (matches the web sheet): "hot" = consecutive games with a
+      // hit, score = the dashboard hits edge. Local hotFactor (L5 vs season
+      // pace) is the offline fallback curation.
+      const srv = serverSheetScore(sheetScores, 'hot', game, outcome.player, outcome.line)
+      const streak = Number(srv?.streak) || 0
       const hotFactor = l5 / season
-      if (hotFactor < 1.20) return
+      if (srv) {
+        if (streak < 3) return
+      } else if (hotFactor < 1.20) return
 
-      const edge = webEdgeLabel(outcome.line, season, l10, l5)
+      const edge = typeof srv?.score === 'number' ? probTierEdge(srv.score) : webEdgeLabel(outcome.line, season, l10, l5)
       rows.push({
         player: outcome.player,
         matchup: `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`,
@@ -1533,16 +1571,19 @@ function buildHotHitterRows(
         l10,
         l5,
         hitRate: '-',
-        reason: `L5 is ${(hotFactor * 100).toFixed(0)}% of season pace (${fmt(l5)} vs ${fmt(season)}).`,
+        reason: srv
+          ? `${streak} straight games with a hit (L5 ${fmt(l5)} vs season ${fmt(season)}).`
+          : `L5 is ${(hotFactor * 100).toFixed(0)}% of season pace (${fmt(l5)} vs ${fmt(season)}).`,
         edge,
         hotFactor,
+        streak,
         pickLabel: `Over ${outcome.line} Hits`,
       })
     })
   })
 
   return dedupeBestOdds(rows)
-    .sort((a, b) => b.hotFactor - a.hotFactor || b.l10 - a.l10)
+    .sort((a, b) => b.streak - a.streak || b.hotFactor - a.hotFactor || b.l10 - a.l10)
     .slice(0, 10)
 }
 
@@ -1552,6 +1593,7 @@ function buildHrRows(
   stats: Record<number, any>,
   bvp: Record<string, any> = {},
   matchups: BvpMatchup[] = [],
+  sheetScores?: SheetScores,
 ) {
   const rows: Array<SheetRow & { vsSpHrRate: number; underOdds?: number; underBook?: string }> = []
   const bvpMap = bvpByBatterId(bvp, matchups)
@@ -1571,7 +1613,11 @@ function buildHrRows(
       const vsSpHr = Number(matchupBvp?.hr || 0)
       const vsSpHrRate = vsSpAb > 0 ? vsSpHr / vsSpAb : 0
       const marketChance = impliedProbability(outcome.overOdds || 0)
-      const score = Math.round(
+      // Server-first: THE HR number — the dashboard's P(homers today) model
+      // score, with its receipts line ("xSLG .520 · bats L vs RHP · park HR
+      // 118"). The power blend below is the offline fallback only.
+      const srv = serverSheetScore(sheetScores, 'hr', game, outcome.player, outcome.line)
+      const score = typeof srv?.score === 'number' ? srv.score : Math.round(
         (vsSpAb >= 3 ? Math.min(vsSpHrRate / 0.12, 1.8) * 42 : 8) +
         Math.min(l5 / 0.45, 1.5) * 28 +
         Math.min(l10 / 0.35, 1.4) * 12 +
@@ -1584,7 +1630,7 @@ function buildHrRows(
           : score >= 42
             ? { label: `Neutral ${score}`, color: colors.textSecondary, score }
             : { label: `Fade ${score}`, color: colors.red, score }
-      const tier = score >= 72 ? 'Top Target' : score >= 58 ? 'Lean HR' : 'Long Shot'
+      const tier = srv?.tier || (score >= 72 ? 'Top Target' : score >= 58 ? 'Lean HR' : 'Long Shot')
 
       rows.push({
         player: outcome.player,
@@ -1598,9 +1644,11 @@ function buildHrRows(
         l10,
         l5,
         hitRate: '-',
-        reason: vsSpAb >= 3
-          ? `${tier}: ${vsSpHr} HR in ${vsSpAb} AB vs today's starter.`
-          : `${tier}: recent power and market price drive this look.`,
+        reason: srv?.detail
+          ? `${tier}: ${srv.detail}.`
+          : vsSpAb >= 3
+            ? `${tier}: ${vsSpHr} HR in ${vsSpAb} AB vs today's starter.`
+            : `${tier}: recent power and market price drive this look.`,
         edge,
         vsSpHrRate,
         pickLabel: `Over ${outcome.line} HR`,
@@ -1623,6 +1671,7 @@ function buildTotalBaseRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
   stats: Record<number, any>,
+  sheetScores?: SheetScores,
 ) {
   const rows: Array<SheetRow & { l5Hits: number; l10Hits: number }> = []
 
@@ -1642,13 +1691,16 @@ function buildTotalBaseRows(
       const l10Hits = l10Games.filter((raw: any) => Number(raw?.tb || 0) >= Number(outcome.line || 0)).length
       const l5HitRate = l5Games.length ? l5Hits / l5Games.length : 0
       const l10HitRate = l10Games.length ? l10Hits / l10Games.length : 0
-      const score = Math.round(
+      // Server-first: the dashboard batter_total_bases edge (P(clears) × 100;
+      // TB O 0.5 reads the hits distribution there — same bet, same number).
+      const srv = serverSheetScore(sheetScores, 'tb', game, outcome.player, outcome.line)
+      const score = typeof srv?.score === 'number' ? srv.score : Math.round(
         Math.min(l5HitRate, 1) * 42 +
         Math.min(l10HitRate, 1) * 18 +
         Math.min((l5 || 0) / Math.max(Number(outcome.line || 0.5), 0.5), 1.6) * 24 +
         impliedProbability(outcome.overOdds || 0) * 16
       )
-      const edge = score >= 76
+      const edge = typeof srv?.score === 'number' ? probTierEdge(score, 'Watch', 'Pass') : score >= 76
         ? { label: `Strong ${score}`, color: colors.green, score }
         : score >= 62
           ? { label: `Lean ${score}`, color: colors.gold, score }
@@ -1691,6 +1743,7 @@ function buildStrikeoutRows(
   games: Game[],
   lineupMap: Record<string, LineupPlayer>,
   stats: Record<number, any>,
+  sheetScores?: SheetScores,
 ) {
   const rows: Array<SheetRow & { underOdds?: number; underBook?: string }> = []
 
@@ -1703,7 +1756,9 @@ function buildStrikeoutRows(
       const season = getStat(playerStats, 'strikeouts_per_game', 'season')
       const l10 = getStat(playerStats, 'strikeouts_per_game', 'l10')
       const l5 = getStat(playerStats, 'strikeouts_per_game', 'l5')
-      const edge = webEdgeLabel(outcome.line, season, l10, l5)
+      // Server-first: P(clears this K line) × 100 from the shared model.
+      const srv = serverSheetScore(sheetScores, 'k', game, outcome.player, outcome.line)
+      const edge = typeof srv?.edge?.score === 'number' ? probTierEdge(srv.edge.score) : webEdgeLabel(outcome.line, season, l10, l5)
 
       rows.push({
         player: outcome.player,
@@ -1789,7 +1844,7 @@ export default function CheatSheetsScreen() {
 
   const sheetQuery = useQuery({
     queryKey: ['cheat-sheet', activeSheet.type],
-    queryFn: () => kingfishFetch<{ data: Game[]; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
+    queryFn: () => kingfishFetch<{ data: Game[]; sheet_scores?: SheetScores; updated_at?: string; published_at?: string; sheet_date?: string }>(`/api/statsheet-data?type=${activeSheet.type}`),
     // NRFI renders entirely from its own /api/mlb-nrfi snapshot (nrfiQuery below) —
     // statsheet-data has no 'nrfi' type (the server would serve the full PROPS
     // snapshot, the largest sheet payload, for nothing). Worse, on the NRFI sheet
@@ -1952,7 +2007,7 @@ export default function CheatSheetsScreen() {
   })
 
   const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
-    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups)
+    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups, sheetQuery.data?.sheet_scores)
     : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []

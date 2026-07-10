@@ -345,3 +345,14 @@ data* it didn't know about before.
   users on web or app. When ready, it ships server-side and rides the same generic
   `kingfishModel` rendering as the 🔵 item above (so still just one app update,
   already covered).
+
+### 2026-07-09 — 🔵 IMPLEMENTED: cheat sheets adopt server `sheet_scores` (rides the next build)
+- `app/(tabs)/cheat-sheets.tsx`: Hits (+fades), HR Targets, Total Bases, Hot
+  Hitters, and Safe Alt K now render the server's `sheet_scores` numbers when
+  present (same server-first pattern as the prop boards); the local formulas are
+  kept strictly as the offline fallback. Hot Hitters ranks by the server STREAK
+  (≥3 straight games with a hit, matching web); HR rows show the P(homer)
+  receipts line; tier chips re-bucket on the server probability scale (80/55/35;
+  HR keeps 72/58/42, which already matched).
+- **What the reviewer sees:** cheat-sheet scores on iPhone now match the website
+  exactly. No new screens, no new permissions.
