@@ -22,6 +22,29 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 PENDING — next build (not yet submitted)
+
+- **[2026-07-11] Grade My Slip now reads the screenshot on our server, not on-device.**
+  - **What the reviewer sees:** Same flow — pick a sport, choose a bet-slip
+    screenshot, confirm the legs, get the grade. Under the hood the screenshot is
+    now **uploaded to KingFish** and read by our server; the app no longer does
+    on-device text recognition. A one-line note under the picker tells the user
+    "Your screenshot is sent to KingFish to read the legs."
+  - **Why:** The old on-device reader (Apple Vision text recognition + a rules
+    parser) misread bet slips because every sportsbook lays them out differently,
+    so it often couldn't find the player or team and couldn't grade the slip. Our
+    server now reads the image directly and pulls out the legs far more reliably,
+    and we can improve it for new sportsbooks **without another app update**.
+  - **Privacy note for the label:** this is the one behavior change reviewers/users
+    should know — the bet-slip image now leaves the device (sent to KingFish to
+    read the legs). Update the privacy nutrition label accordingly (user content /
+    photo sent to our server for processing; not used for tracking).
+  - **Code:** `app/grade-slip.tsx` now uploads the image (base64) to
+    `/api/grade-slip`; the on-device `Visionocr` module + `lib/slip/parseSlip.ts`
+    are no longer used (left in the repo, unreferenced).
+
+---
+
 ## ✅ 1.0.3 (build 19) — APPROVED + LIVE 2026-07-08 (submitted 2026-07-07; builds 16/17/18 were TestFlight iterations)
 
 > _1.0.3 (16) uploaded 2026-07-07 and put on TestFlight (NOT submitted — Brian tests

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import Visionocr from '@/modules/visionocr/src/VisionocrModule'
 import { Screen } from '@/components/Screen'
 import { Card } from '@/components/Card'
 import { AppText } from '@/components/Text'
@@ -10,10 +9,15 @@ import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
 import { colors, spacing } from '@/lib/theme'
-import { parseSlip, type DetectedLeg } from '@/lib/slip/parseSlip'
 
+// KingFish reads the slip on the server now (Sonnet 5 vision) — the on-device
+// Apple Vision OCR + regex parser broke on every book's layout. The screenshot
+// is uploaded to /api/grade-slip (extract mode); book/prompt fixes ship without
+// an App Store build. Server-side-scores law is unaffected — grades still come
+// from KingFish's own numbers in the grade step.
 const SPORTS = ['NFL', 'MLB', 'NBA', 'WNBA', 'NHL'] as const
 type Sport = (typeof SPORTS)[number]
+type Leg = { id: string; selection: string; market: string; line: string; odds: string }
 
 export default function GradeSlipScreen() {
   const { profile } = useAuth()
@@ -22,8 +26,7 @@ export default function GradeSlipScreen() {
   const [sport, setSport] = useState<Sport | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [rawText, setRawText] = useState('')
-  const [legs, setLegs] = useState<DetectedLeg[]>([])
+  const [legs, setLegs] = useState<Leg[]>([])
   const [isSGP, setIsSGP] = useState(false)
   const [matchup, setMatchup] = useState('')
   const [grading, setGrading] = useState(false)
@@ -32,9 +35,8 @@ export default function GradeSlipScreen() {
   const [showImprovement, setShowImprovement] = useState(false)
   const [gradeError, setGradeError] = useState('')
 
-  async function pickAndRead() {
+  async function pickAndExtract() {
     setError('')
-    setRawText('')
     setLegs([])
     setIsSGP(false)
     setMatchup('')
@@ -46,22 +48,47 @@ export default function GradeSlipScreen() {
       setError('Pick a sport first.')
       return
     }
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
+    // quality<1 re-encodes to a compressed JPEG; slips are flat UI so the base64
+    // stays well under the server's body cap without a resize dependency.
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      base64: true,
+    })
     if (picked.canceled || !picked.assets?.length) return
+    const asset = picked.assets[0]
+    if (!asset.base64) {
+      setError('Could not read that image. Try a different screenshot.')
+      return
+    }
 
     setBusy(true)
     try {
-      const text = (await Visionocr.recognizeText(picked.assets[0].uri)) || ''
-      setRawText(text)
-      const parsed = parseSlip(text)
-      setLegs(parsed.legs)
-      setIsSGP(parsed.isSGP)
-      setMatchup(parsed.matchup)
-      if (!text.trim()) {
-        setError('Could not read any text from that image. Try a clearer screenshot.')
+      const mime = asset.mimeType || 'image/jpeg'
+      const data = await kingfishFetch<{
+        legs?: Array<{ selection: string; market: string; line: string; odds: string }>
+        isSGP?: boolean
+        matchup?: string
+        error?: string
+      }>('/api/grade-slip', {
+        method: 'POST',
+        body: JSON.stringify({ sport, image: `data:${mime};base64,${asset.base64}` }),
+      })
+      if (data.legs?.length) {
+        setLegs(data.legs.map((l, i) => ({
+          id: `l_${i}`,
+          selection: l.selection,
+          market: l.market,
+          line: l.line,
+          odds: l.odds,
+        })))
+        setIsSGP(data.isSGP === true)
+        setMatchup(data.matchup || '')
+      } else {
+        setError(data.error || 'KingFish couldn’t read that screenshot. Try a clearer one.')
       }
     } catch (e: any) {
-      setError(e?.message || 'Could not read that image. Try a clearer screenshot.')
+      setError(e?.message || 'Could not reach KingFish. Try again in a moment.')
     } finally {
       setBusy(false)
     }
@@ -141,10 +168,13 @@ export default function GradeSlipScreen() {
               </View>
 
               <View style={styles.pickBtn}>
-                <Button onPress={pickAndRead} disabled={!sport || busy} loading={busy}>
-                  {rawText || legs.length ? 'Choose a different screenshot' : 'Choose screenshot'}
+                <Button onPress={pickAndExtract} disabled={!sport || busy} loading={busy}>
+                  {legs.length ? 'Choose a different screenshot' : 'Choose screenshot'}
                 </Button>
               </View>
+              <AppText variant="muted" style={styles.privacy}>
+                Your screenshot is sent to KingFish to read the legs.
+              </AppText>
               {error ? <AppText style={styles.error}>{error}</AppText> : null}
             </Card>
 
@@ -164,7 +194,7 @@ export default function GradeSlipScreen() {
                     <View style={styles.legBody}>
                       <AppText style={styles.legSel}>{leg.selection || '(unread)'}</AppText>
                       <AppText variant="muted" style={styles.legMeta}>
-                        {[leg.market, leg.line, leg.odds].filter(Boolean).join('   ·   ') || leg.raw}
+                        {[leg.market, leg.line, leg.odds].filter(Boolean).join('   ·   ')}
                       </AppText>
                     </View>
                     <Pressable onPress={() => removeLeg(leg.id)} hitSlop={10}>
@@ -175,12 +205,6 @@ export default function GradeSlipScreen() {
                 <View style={styles.gradeBtn}>
                   <Button onPress={gradeSlip} loading={grading} disabled={grading}>Grade my slip</Button>
                 </View>
-              </Card>
-            ) : rawText ? (
-              <Card>
-                <AppText variant="muted" style={styles.copy}>
-                  We read text from the image but couldn't pick out clear legs. Try a clearer screenshot.
-                </AppText>
               </Card>
             ) : (
               <Card>
@@ -251,6 +275,7 @@ const styles = StyleSheet.create({
   chipText: { color: colors.textSecondary, fontWeight: '800', fontSize: 15 },
   chipTextActive: { color: colors.bgPrimary },
   pickBtn: { marginTop: spacing.xl },
+  privacy: { fontSize: 12, marginTop: spacing.sm },
   gradeBtn: { marginTop: spacing.lg },
   feedbackText: { color: colors.textPrimary, fontSize: 15, lineHeight: 22, marginTop: spacing.sm },
   resultsHeader: { marginTop: spacing.xl, marginBottom: spacing.sm },
