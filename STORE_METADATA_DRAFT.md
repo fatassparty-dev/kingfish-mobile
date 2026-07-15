@@ -92,6 +92,9 @@ The app may use:
 - Name and optional state for account context
 - App activity related to product usage and subscription status
 - Chat messages when the user uses Ask KingFish
+- A bet-slip screenshot the user explicitly selects for Grade My Slip; it is sent
+  to KingFish and an AI processing provider to extract wager details and is not
+  used for advertising or tracking
 
 The app does not sell personal data. Payment details for iOS in-app purchases are handled by Apple and are not stored directly in the mobile app. Web payment details are handled outside the app by the web checkout provider.
 

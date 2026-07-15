@@ -39,6 +39,9 @@ data* it didn't know about before.
     should know — the bet-slip image now leaves the device (sent to KingFish to
     read the legs). Update the privacy nutrition label accordingly (user content /
     photo sent to our server for processing; not used for tracking).
+    The website Privacy Policy was updated with this disclosure on 2026-07-15;
+    the App Store privacy nutrition label still needs the matching update before
+    this build is submitted.
   - **Code:** `app/grade-slip.tsx` now uploads the image (base64) to
     `/api/grade-slip`; the on-device `Visionocr` module + `lib/slip/parseSlip.ts`
     are no longer used (left in the repo, unreferenced).
@@ -119,19 +122,17 @@ data* it didn't know about before.
     on-device. Local math stays only as an offline fallback.
   - **Why:** Cross-platform consistency law — one number, computed once, everywhere.
 
-### ⚠️ MUST be in the next shipped build — signup name capture
+### ✅ Shipped — signup name capture
 
-- **Signup must send the name in auth metadata.** The current source (build 10+,
-  commit `7df389f`) already does: `signUp({ options: { data: { first_name,
-  last_name, full_name, state } } })`. The **shipped 1.0.0 store build predates this**
-  and sends only `{ email, password }` — which made every account from it nameless in
-  HQ (and, while email confirmation was on, also un-signin-able). **Do not ship a
-  build that regresses this.** Background: `kingfish-bets/docs/auth-signup.md`.
+- **Signup sends the name in auth metadata.** This shipped after the old 1.0.0
+  incident and remains in the current source: `signUp({ options: { data: {
+  first_name, last_name, full_name, state } } })`. **Do not regress this contract
+  in future iOS or Android builds.** Background:
+  `kingfish-bets/docs/auth-signup.md`.
 - Context (server-side, already done, no app change): the DB name guard was dropped
   and **email confirmation was turned OFF** so the 1.0.0 build's post-signup profile
-  write succeeds and names save without an app update. Once this metadata-sending
-  build is the universal shipped build, name capture no longer depends on that
-  workaround.
+  write could succeed without an app update. Current builds also send metadata, so
+  the server trigger can create a complete profile directly.
 
 ### Build 1.0.2 (15) — 2026-06-25 — emergency fix build — ✅ SHIPPED (live store build)
 
