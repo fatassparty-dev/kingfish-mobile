@@ -24,6 +24,21 @@ data* it didn't know about before.
 
 ## 🔵 PENDING — next build (not yet submitted)
 
+- **[2026-07-16] Server-managed Game Factors, game-line calls, NFL sheets, and sportsbooks.**
+  - **What the user sees:** The same Game Factors boards, KingFish line calls, NFL
+    streak sheets, and sportsbook controls, kept consistent with the website.
+  - **Why:** The installed app now renders these server responses instead of
+    maintaining its own scoring/ranking rules. Game Factors, game-line verdicts,
+    NFL sheet rows, and supported sportsbook configuration can be updated with a
+    server deployment instead of another App Store release.
+
+- **[2026-07-16] Native privacy disclosure updated; retired OCR code removed.**
+  - **What the reviewer sees:** The in-app Privacy Policy now says a selected bet-slip
+    screenshot is sent to KingFish for processing. The obsolete Apple Vision OCR
+    module and on-device slip parser are no longer included in the project.
+  - **Why:** The disclosure now matches the live Grade My Slip behavior and the
+    App Store privacy label.
+
 - **[2026-07-16] New WNBA Role Movers cheat sheet.**
   - **What the user sees:** A compact daily shortlist of up to five rising and five
     falling WNBA rotation roles, with season/L10/L5 minutes, minute change, and the
@@ -64,7 +79,7 @@ data* it didn't know about before.
     this build is submitted.
   - **Code:** `app/grade-slip.tsx` now uploads the image (base64) to
     `/api/grade-slip`; the on-device `Visionocr` module + `lib/slip/parseSlip.ts`
-    are no longer used (left in the repo, unreferenced).
+    have been removed.
 
 ---
 

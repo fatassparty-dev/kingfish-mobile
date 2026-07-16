@@ -9,7 +9,7 @@ import { spacing } from '@/lib/theme'
 const sections = [
   {
     title: '1. Information We Collect',
-    body: 'When you create an account, we collect your email address, first and last name, optional state of residence, encrypted password credentials, subscription status, support requests, account communications, and Ask KingFish chat messages when you use that feature.',
+    body: 'When you create an account, we collect your email address, first and last name, optional state of residence, encrypted password credentials, subscription status, support requests, account communications, and Ask KingFish chat messages when you use that feature. If you use Grade My Slip, the bet-slip screenshot you select is sent to KingFish and an AI processing provider to extract wager details. It is used only to provide that feature and is not used for advertising or tracking.',
   },
   {
     title: '2. How We Use Your Information',
@@ -58,7 +58,7 @@ export default function PrivacyScreen() {
     <Screen>
       <AppText variant="eyebrow">// Legal</AppText>
       <AppText variant="title" style={styles.title}>Privacy Policy</AppText>
-      <AppText variant="muted" style={styles.updated}>Last updated: May 30, 2026</AppText>
+      <AppText variant="muted" style={styles.updated}>Last updated: July 16, 2026</AppText>
 
       <View style={styles.sections}>
         {sections.map((section) => (

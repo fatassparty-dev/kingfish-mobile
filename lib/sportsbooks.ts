@@ -1,7 +1,7 @@
 import type { Bookmaker } from '@/types'
 import { isOutsideUsLocation, normalizeLocation } from '@/lib/locations'
 
-const SUPPORTED_BOOK_KEYS = new Set([
+let SUPPORTED_BOOK_KEYS = new Set([
   'barstool',
   'ballybet',
   'bet365',
@@ -24,12 +24,12 @@ const SUPPORTED_BOOK_KEYS = new Set([
   'wynnbet',
 ])
 
-const CORE_BOOK_KEYS = new Set(['fanduel', 'draftkings', 'betmgm', 'betrivers', 'williamhill_us', 'espnbet'])
+let CORE_BOOK_KEYS = new Set(['fanduel', 'draftkings', 'betmgm', 'betrivers', 'williamhill_us', 'espnbet'])
 export const OPTIONAL_BOOK_KEYS = ['betparx', 'fanatics', 'bet365', 'pointsbetus', 'unibet_us', 'barstool', 'ballybet']
 const HARD_ROCK_BOOK_KEYS = new Set(['hardrockbet', 'hardrockbet_az', 'hardrockbet_fl', 'hardrockbet_oh'])
 const NEVADA_REGIONAL_BOOK_KEYS = new Set(['superbook', 'wynnbet'])
-const REGIONAL_BOOK_KEYS = new Set([...HARD_ROCK_BOOK_KEYS, ...NEVADA_REGIONAL_BOOK_KEYS])
-const HARD_ROCK_STATE_BOOKS: Record<string, string[]> = {
+let REGIONAL_BOOK_KEYS = new Set([...HARD_ROCK_BOOK_KEYS, ...NEVADA_REGIONAL_BOOK_KEYS])
+let HARD_ROCK_STATE_BOOKS: Record<string, string[]> = {
   IN: ['hardrockbet'],
   AZ: ['hardrockbet_az'],
   FL: ['hardrockbet_fl'],
@@ -78,7 +78,7 @@ export const BOOK_DISPLAY_NAMES: Record<string, string> = {
   wynnbet: 'WynnBET',
 }
 
-export const SPORTSBOOK_PREFERENCE_OPTIONS = [
+export const SPORTSBOOK_PREFERENCE_OPTIONS: Array<{ key: string; label: string; bookKeys: string[] }> = [
   { key: 'fanduel', label: 'FanDuel', bookKeys: ['fanduel'] },
   { key: 'draftkings', label: 'DraftKings', bookKeys: ['draftkings'] },
   { key: 'betmgm', label: 'BetMGM', bookKeys: ['betmgm'] },
@@ -95,7 +95,29 @@ export const SPORTSBOOK_PREFERENCE_OPTIONS = [
   { key: 'hardrockbet', label: 'Hard Rock Bet', bookKeys: ['hardrockbet', 'hardrockbet_az', 'hardrockbet_fl', 'hardrockbet_oh'] },
   { key: 'wynnbet', label: 'WynnBET', bookKeys: ['wynnbet'] },
   { key: 'superbook', label: 'SuperBook', bookKeys: ['superbook'] },
-] as const
+]
+
+export type SportsbookServerConfig = {
+  preference_options: Array<{ key: string; label: string; bookKeys: string[] }>
+  display_names: Record<string, string>
+  core_keys: string[]
+  regional_keys: string[]
+  hard_rock_state_books: Record<string, string[]>
+  nevada_regional_keys?: string[]
+  prop_keys?: string[]
+}
+
+export function configureSportsbooks(config?: SportsbookServerConfig) {
+  if (!config?.preference_options?.length) return
+  SPORTSBOOK_PREFERENCE_OPTIONS.splice(0, SPORTSBOOK_PREFERENCE_OPTIONS.length, ...config.preference_options)
+  Object.keys(BOOK_DISPLAY_NAMES).forEach((key) => delete BOOK_DISPLAY_NAMES[key])
+  Object.assign(BOOK_DISPLAY_NAMES, config.display_names)
+  SUPPORTED_BOOK_KEYS = new Set(config.preference_options.flatMap((option) => option.bookKeys))
+  CORE_BOOK_KEYS = new Set(config.core_keys)
+  REGIONAL_BOOK_KEYS = new Set(config.regional_keys)
+  HARD_ROCK_STATE_BOOKS = config.hard_rock_state_books
+  if (config.prop_keys?.length) PROP_BOOK_KEYS.splice(0, PROP_BOOK_KEYS.length, ...config.prop_keys)
+}
 
 export function isSupportedSportsbook(bookmaker: Pick<Bookmaker, 'key'>) {
   return SUPPORTED_BOOK_KEYS.has(bookmaker.key)

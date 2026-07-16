@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -9,20 +9,18 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { colors, spacing } from '@/lib/theme'
-import type { Game } from '@/types'
 import {
   FactorMeta,
   FactorMetric,
   FactorWeatherVisual,
   WindArrow,
-  buildFactorCheatRows,
-  buildFactorRows,
   factorImpactTone,
   isNeutralFactorText,
   shortSurface,
   stadiumProfileForRow,
   type BallparkProfilePayload,
-  type FactorOfficial,
+  type FactorCheatRow,
+  type FactorRow,
   type FactorSport,
   type FactorView,
   type FootballStadiumProfilePayload,
@@ -40,58 +38,11 @@ export default function GameFactorsScreen() {
   const [factorView, setFactorView] = useState<FactorView>(params.view === 'cheat' ? 'cheat' : 'board')
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
 
-  const factorGamesQuery = useQuery({
-    queryKey: ['mobile-game-factors-games', factorSport],
-    queryFn: async () => {
-      if (factorSport === 'MLB') {
-        const schedule = await kingfishFetch<{ games?: any[] }>('/api/mlb-schedule')
-        return (schedule.games || []).map((game: any) => ({
-          id: String(game.gamePk),
-          commence_time: game.gameDate,
-          away_team: game?.teams?.away?.team?.name || '',
-          home_team: game?.teams?.home?.team?.name || '',
-          dayNight: game.dayNight,
-          doubleHeader: game.doubleHeader,
-          status: game?.status?.detailedState || game?.status?.abstractGameState,
-          statusReason: game?.status?.reason || '',
-          neutralSite: game.neutralSite === true,
-          venueName: game?.venue?.name || '',
-          gameNumber: Number(game.gameNumber) || undefined,
-          bookmakers: [],
-        })).filter((game: Game) => game.away_team && game.home_team)
-      }
-
-      const nflGames = await kingfishFetch<Game[]>('/api/nfl-odds')
-      return nflGames.filter((game) => game.away_team && game.home_team)
-    },
+  const factorQuery = useQuery({
+    queryKey: ['mobile-game-factors', factorSport],
+    queryFn: () => kingfishFetch<{ rows: FactorRow[]; cheatRows: FactorCheatRow[]; generated_at?: string }>(`/api/game-factors?sport=${factorSport}`),
     enabled: isPremium,
-    staleTime: 60 * 60 * 1000,
-  })
-
-  const factorGames = useMemo(() => factorGamesQuery.data || [], [factorGamesQuery.data])
-
-  const factorWeatherQuery = useQuery({
-    queryKey: ['mobile-game-factors-weather', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
-    queryFn: () =>
-      kingfishFetch<Record<string, any>>(factorSport === 'MLB' ? '/api/mlb-weather' : '/api/nfl-weather', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: factorGames }),
-      }),
-    enabled: isPremium && factorGames.length > 0,
-    staleTime: 60 * 60 * 1000,
-  })
-
-  const factorOfficialQuery = useQuery({
-    queryKey: ['mobile-game-factors-officials', factorSport, factorGames.map((game: Game) => game.id || game.game_id).join(',')],
-    queryFn: () =>
-      kingfishFetch<Record<string, FactorOfficial>>(factorSport === 'MLB' ? '/api/mlb-officials' : '/api/nfl-officials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: factorGames }),
-      }),
-    enabled: isPremium && factorGames.length > 0,
-    staleTime: 60 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
   })
 
   const ballparkProfileQuery = useQuery({
@@ -108,8 +59,8 @@ export default function GameFactorsScreen() {
     staleTime: 30 * 60 * 1000,
   })
 
-  const factorRows = buildFactorRows(factorGames, factorWeatherQuery.data, factorSport, factorOfficialQuery.data)
-  const factorCheatRows = factorSport === 'MLB' ? buildFactorCheatRows(factorGames, factorWeatherQuery.data) : []
+  const factorRows = factorQuery.data?.rows || []
+  const factorCheatRows = factorSport === 'MLB' ? factorQuery.data?.cheatRows || [] : []
 
   return (
     <Screen>
@@ -166,14 +117,14 @@ export default function GameFactorsScreen() {
             </View>
           ) : null}
 
-          {(factorGamesQuery.isLoading || factorWeatherQuery.isLoading) && (
+          {factorQuery.isLoading && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading game factors...</AppText>
             </View>
           )}
 
-          {!factorGamesQuery.isLoading && factorRows.length === 0 && (
+          {!factorQuery.isLoading && factorRows.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Game Factors</AppText>
               <AppText style={styles.cardTitle}>No Games Posted</AppText>

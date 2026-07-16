@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { kingfishFetch } from './api'
+import { configureSportsbooks, type SportsbookServerConfig } from './sportsbooks'
 
 // A home-screen tile: deep-links into a screen in the app. The list is
 // server-driven (/api/mobile-config home_tiles, defaults in kingfish-bets
@@ -34,6 +35,7 @@ export type MobileConfig = {
   } | null
   dashboard_sport_order: string[]
   home_tiles: HomeTile[]
+  sportsbooks?: SportsbookServerConfig
   flags: {
     fantasy_hub: boolean
     nfl_props: boolean
@@ -178,25 +180,27 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
 
 export async function fetchMobileConfig() {
   try {
-    const config = await kingfishFetch<MobileConfig>('/api/mobile-config')
-    return {
+    const remoteConfig = await kingfishFetch<MobileConfig>('/api/mobile-config')
+    const config = {
       ...DEFAULT_MOBILE_CONFIG,
-      ...config,
+      ...remoteConfig,
       links: {
         ...DEFAULT_MOBILE_CONFIG.links,
-        ...config.links,
+        ...remoteConfig.links,
       },
       flags: {
         ...DEFAULT_MOBILE_CONFIG.flags,
-        ...config.flags,
+        ...remoteConfig.flags,
       },
-      dashboard_sport_order: Array.isArray(config.dashboard_sport_order)
-        ? config.dashboard_sport_order
+      dashboard_sport_order: Array.isArray(remoteConfig.dashboard_sport_order)
+        ? remoteConfig.dashboard_sport_order
         : DEFAULT_MOBILE_CONFIG.dashboard_sport_order,
-      home_tiles: Array.isArray(config.home_tiles) && config.home_tiles.length
-        ? config.home_tiles
+      home_tiles: Array.isArray(remoteConfig.home_tiles) && remoteConfig.home_tiles.length
+        ? remoteConfig.home_tiles
         : DEFAULT_MOBILE_CONFIG.home_tiles,
     }
+    configureSportsbooks(config.sportsbooks)
+    return config
   } catch {
     return DEFAULT_MOBILE_CONFIG
   }

@@ -9,7 +9,7 @@ import { GameLineCard } from '@/components/dashboard/GameLineCard'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
-import { API_BASE_URL, kingfishFetch } from '@/lib/api'
+import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fmtOdds, normalizeName } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
@@ -424,24 +424,6 @@ interface TdStreakRow {
   two_td_games?: number
   games?: number
   two_td_rate?: string
-}
-
-interface NflFantasyPlayer {
-  player_name: string
-  team: string
-  position: string
-  games?: number
-  passing_yards_per_game?: number
-  raw_games?: Array<{
-    label?: string
-    passing_yards?: number
-    passing_attempts?: number
-  }>
-}
-
-interface NflFantasySummary {
-  latest_season?: number
-  players?: NflFantasyPlayer[]
 }
 
 interface QbYardsRow {
@@ -950,84 +932,6 @@ export function buildFactorCheatRows(games: Game[] = [], weatherData: Record<str
       }
     })
     .sort((a, b) => b.gameTotalPct - a.gameTotalPct || b.hrPct - a.hrPct)
-}
-
-function parseTdStreakCsv(csv: string): TdStreakRow[] {
-  return csv
-    .trim()
-    .split(/\r?\n/)
-    .slice(1)
-    .map((line) => {
-      const [player, team, position, streakGames] = line.split(',').map((value) => value.trim())
-      return {
-        player,
-        team,
-        position,
-        streak_games: Number(streakGames) || 0,
-      }
-    })
-    .filter((row) => row.player && row.team && row.position && row.streak_games > 0)
-    .sort((a, b) => b.streak_games - a.streak_games || a.player.localeCompare(b.player))
-}
-
-function parseQbTdCsv(csv: string): TdStreakRow[] {
-  return csv
-    .trim()
-    .split(/\r?\n/)
-    .slice(1)
-    .map((line) => {
-      const [player, team, position, streakGames, twoTdGames, games, twoTdRate] = line.split(',').map((value) => value.trim())
-      return {
-        player,
-        team,
-        position,
-        streak_games: Number(streakGames) || 0,
-        two_td_games: Number(twoTdGames) || 0,
-        games: Number(games) || 0,
-        two_td_rate: twoTdRate,
-      }
-    })
-    .filter((row) => row.player && row.team && row.position && row.streak_games >= 2)
-    .sort((a, b) => b.streak_games - a.streak_games || (b.two_td_games || 0) - (a.two_td_games || 0) || a.player.localeCompare(b.player))
-}
-
-function buildQb200Rows(data?: NflFantasySummary): QbYardsRow[] {
-  return (data?.players || [])
-    .filter((player) => player.position === 'QB' && Array.isArray(player.raw_games) && player.raw_games.length >= 5)
-    .map((player) => {
-      const games = (player.raw_games || [])
-        .filter((game) => Number(game.passing_attempts || 0) > 0 || Number(game.passing_yards || 0) > 0)
-      const hits = games.filter((game) => Number(game.passing_yards || 0) >= 200)
-      const l5 = games.slice(0, 5)
-      const l10 = games.slice(0, 10)
-      let streak = 0
-      for (const game of games) {
-        if (Number(game.passing_yards || 0) < 200) break
-        streak += 1
-      }
-
-      return {
-        player: player.player_name,
-        team: player.team,
-        games: games.length,
-        hitGames: hits.length,
-        hitRate: `${hits.length}/${games.length}`,
-        l5Hits: l5.filter((game) => Number(game.passing_yards || 0) >= 200).length,
-        l10Hits: l10.filter((game) => Number(game.passing_yards || 0) >= 200).length,
-        l5Avg: l5.length ? l5.reduce((sum, game) => sum + Number(game.passing_yards || 0), 0) / l5.length : 0,
-        l10Avg: l10.length ? l10.reduce((sum, game) => sum + Number(game.passing_yards || 0), 0) / l10.length : 0,
-        seasonAvg: Number(player.passing_yards_per_game || 0),
-        streak_games: streak,
-      }
-    })
-    .filter((row) => row.games >= 5 && row.hitGames > 0)
-    .sort((a, b) =>
-      b.streak_games - a.streak_games ||
-      b.l10Hits - a.l10Hits ||
-      b.l5Avg - a.l5Avg ||
-      b.seasonAvg - a.seasonAvg ||
-      a.player.localeCompare(b.player)
-    )
 }
 
 function fmtMoney(value: number) {
@@ -1941,32 +1845,10 @@ export default function CheatSheetsScreen() {
     staleTime: 60 * 60 * 1000,
   })
 
-  const tdStreaksQuery = useQuery({
-    queryKey: ['nfl-td-streaks-2026'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/data/nfl/td-streaks-2026.csv`)
-      if (!response.ok) throw new Error(`Request failed: ${response.status}`)
-      return parseTdStreakCsv(await response.text())
-    },
-    enabled: canLoadData && activeKey === 'td',
-    staleTime: 24 * 60 * 60 * 1000,
-  })
-
-  const qbTdStreaksQuery = useQuery({
-    queryKey: ['nfl-qb-2td-streaks-2026'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/data/nfl/qb-2td-streaks-2026.csv`)
-      if (!response.ok) throw new Error(`Request failed: ${response.status}`)
-      return parseQbTdCsv(await response.text())
-    },
-    enabled: canLoadData && activeKey === 'qbtd',
-    staleTime: 24 * 60 * 60 * 1000,
-  })
-
-  const nflFantasyQuery = useQuery({
-    queryKey: ['nfl-player-fantasy-summary-qb200'],
-    queryFn: () => kingfishFetch<NflFantasySummary>('/data/nfl/player-fantasy-summary.json'),
-    enabled: canLoadData && activeKey === 'qb200',
+  const nflCheatSheetsQuery = useQuery({
+    queryKey: ['nfl-cheat-sheets'],
+    queryFn: () => kingfishFetch<{ td: TdStreakRow[]; qbtd: TdStreakRow[]; qb200: QbYardsRow[] }>('/api/nfl-cheat-sheets'),
+    enabled: canLoadData && (activeKey === 'td' || activeKey === 'qbtd' || activeKey === 'qb200'),
     staleTime: 24 * 60 * 60 * 1000,
   })
 
@@ -2053,9 +1935,9 @@ export default function CheatSheetsScreen() {
     : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
-  const tdStreakRows = activeKey === 'td' ? tdStreaksQuery.data || [] : []
-  const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
-  const qb200Rows = activeKey === 'qb200' ? buildQb200Rows(nflFantasyQuery.data) : []
+  const tdStreakRows = activeKey === 'td' ? nflCheatSheetsQuery.data?.td || [] : []
+  const qbTdRows = activeKey === 'qbtd' ? nflCheatSheetsQuery.data?.qbtd || [] : []
+  const qb200Rows = activeKey === 'qb200' ? nflCheatSheetsQuery.data?.qb200 || [] : []
   const shareText = useMemo(
     () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows, wnbaRoleRows),
     [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows, wnbaRoleRows],
@@ -2414,7 +2296,7 @@ export default function CheatSheetsScreen() {
             ? topLeansQuery.isLoading
             : activeKey === 'wnba_roles'
             ? wnbaRoleMoversQuery.isLoading
-            : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading)) && (
+            : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || nflCheatSheetsQuery.isLoading)) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
@@ -2507,7 +2389,7 @@ export default function CheatSheetsScreen() {
             )
           )}
 
-          {(sheetQuery.isError || wnbaRoleMoversQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFantasyQuery.isError) && (
+          {(sheetQuery.isError || wnbaRoleMoversQuery.isError || nflCheatSheetsQuery.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
@@ -2515,12 +2397,8 @@ export default function CheatSheetsScreen() {
                   ? sheetQuery.error.message
                   : wnbaRoleMoversQuery.error instanceof Error
                     ? wnbaRoleMoversQuery.error.message
-                  : tdStreaksQuery.error instanceof Error
-                    ? tdStreaksQuery.error.message
-                  : qbTdStreaksQuery.error instanceof Error
-                    ? qbTdStreaksQuery.error.message
-                  : nflFantasyQuery.error instanceof Error
-                    ? nflFantasyQuery.error.message
+                  : nflCheatSheetsQuery.error instanceof Error
+                    ? nflCheatSheetsQuery.error.message
                     : 'Could not load this sheet.'}
               </AppText>
             </Card>
@@ -2741,19 +2619,19 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey === 'td' && !tdStreaksQuery.isLoading && !tdStreaksQuery.isError && tdStreakRows.length === 0 && (
+          {activeKey === 'td' && !nflCheatSheetsQuery.isLoading && !nflCheatSheetsQuery.isError && tdStreakRows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No NFL touchdown streak rows are available yet.
             </AppText>
           )}
 
-          {activeKey === 'qbtd' && !qbTdStreaksQuery.isLoading && !qbTdStreaksQuery.isError && qbTdRows.length === 0 && (
+          {activeKey === 'qbtd' && !nflCheatSheetsQuery.isLoading && !nflCheatSheetsQuery.isError && qbTdRows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No NFL QB 2+ TD streak rows are available yet.
             </AppText>
           )}
 
-          {activeKey === 'qb200' && !nflFantasyQuery.isLoading && !nflFantasyQuery.isError && qb200Rows.length === 0 && (
+          {activeKey === 'qb200' && !nflCheatSheetsQuery.isLoading && !nflCheatSheetsQuery.isError && qb200Rows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No NFL QB 200+ yard rows are available yet.
             </AppText>
