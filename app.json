@@ -3,7 +3,7 @@
     "name": "KingFish Bets",
     "slug": "kingfish-bets",
     "scheme": "kingfish",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ]
       },
-      "buildNumber": "19"
+      "buildNumber": "20"
     },
     "android": {
       "package": "com.kingfishbets.app",

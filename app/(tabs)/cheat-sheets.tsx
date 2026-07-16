@@ -17,7 +17,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'td' | 'qbtd' | 'qb200'
+type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -40,7 +40,7 @@ type NrfiRow = {
 type ToolTile = {
   key: SheetKey
   label: string
-  sport: 'ALL' | 'MLB' | 'NFL'
+  sport: 'ALL' | 'MLB' | 'WNBA' | 'NFL'
 }
 type ToolMode = 'sheets' | 'calculators' | 'more'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
@@ -70,11 +70,31 @@ type TopLeanGameLine = {
 }
 type TopLeansData = { props: TopLeanProp[]; game_line: TopLeanGameLine | null }
 
+type WnbaRoleMover = {
+  player: string
+  matchup: string
+  seasonMin: number
+  l10Min: number
+  l5Min: number
+  currentMin: number
+  change: number
+  changePct: number
+  production: string
+  role: 'New Role' | 'Rising' | 'Falling'
+  direction: 'rising' | 'falling'
+}
+
+type WnbaRoleMoversPayload = {
+  generated_at?: string | null
+  source_updated_at?: string | null
+  rows: WnbaRoleMover[]
+}
+
 const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'td' | 'nrfi' | 'topleans'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans'
   market?: string
   statField?: string
   trend?: boolean
@@ -88,6 +108,7 @@ const SHEETS: Array<{
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
+  { key: 'wnba_roles', label: 'WNBA Role Movers', desc: "Five rising and five falling rotation roles from today's prop-player pool.", type: 'wnba_roles' },
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
   { key: 'qb200', label: 'QB 200+ Yard Games', desc: 'Quarterbacks clearing 200 passing yards by recent form and season rate.', type: 'td' },
@@ -103,6 +124,7 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
   { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
+  { key: 'wnba_roles', label: 'Role Movers', sport: 'WNBA' },
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
   { key: 'qb200', label: 'QB 200+ Yards', sport: 'NFL' },
@@ -1468,6 +1490,7 @@ function buildShareText(
   tdRows: TdStreakRow[],
   qbTdRows: TdStreakRow[],
   qb200Rows: QbYardsRow[],
+  wnbaRoleRows: WnbaRoleMover[],
 ) {
   const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const header = [`KINGFISH BETS`, sheet.label.toUpperCase(), date]
@@ -1511,6 +1534,17 @@ function buildShareText(
       '',
       'QB | TEAM | 200+ RATE | L5 | L10 | STREAK',
       ...qb200Rows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.hitRate} | ${row.l5Hits}/5 | ${row.l10Hits}/10 | ${row.streak_games}`),
+      '',
+      'kingfishbets.com',
+    ].join('\n')
+  }
+
+  if (activeKey === 'wnba_roles' && wnbaRoleRows.length) {
+    return [
+      ...header,
+      '',
+      'PLAYER | MATCHUP | MIN CHANGE | PRODUCTION | ROLE',
+      ...wnbaRoleRows.map(row => `${row.player} | ${row.matchup} | ${row.change >= 0 ? '+' : ''}${row.change.toFixed(1)} | ${row.production} | ${row.role}`),
       '',
       'kingfishbets.com',
     ].join('\n')
@@ -1824,7 +1858,8 @@ export default function CheatSheetsScreen() {
   const hasOpenSheet = selectedKey !== null
   const canLoadData = canUseCheatSheets && toolMode === 'sheets' && hasOpenSheet
   const isTdSheet = activeSheet.type === 'td'
-  const canLoadMlbSheetData = canLoadData && !isTdSheet
+  const isWnbaRoleSheet = activeSheet.type === 'wnba_roles'
+  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isWnbaRoleSheet
 
   useEffect(() => {
     if (mode === 'calculators' || mode === 'sheets' || mode === 'more') {
@@ -1872,6 +1907,13 @@ export default function CheatSheetsScreen() {
   })
   const topLeansData = topLeansQuery.data?.data
   const topLeanProps = topLeansData?.props ?? []
+  const wnbaRoleMoversQuery = useQuery({
+    queryKey: ['cheat-sheet-wnba-role-movers'],
+    queryFn: () => kingfishFetch<WnbaRoleMoversPayload>('/api/wnba-role-movers'),
+    enabled: canLoadData && activeKey === 'wnba_roles',
+    staleTime: 5 * 60 * 1000,
+  })
+  const wnbaRoleRows = wnbaRoleMoversQuery.data?.rows ?? []
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
@@ -2015,8 +2057,8 @@ export default function CheatSheetsScreen() {
   const qbTdRows = activeKey === 'qbtd' ? qbTdStreaksQuery.data || [] : []
   const qb200Rows = activeKey === 'qb200' ? buildQb200Rows(nflFantasyQuery.data) : []
   const shareText = useMemo(
-    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows),
-    [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows],
+    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows, wnbaRoleRows),
+    [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows, wnbaRoleRows],
   )
 
   async function shareSheet() {
@@ -2344,7 +2386,7 @@ export default function CheatSheetsScreen() {
           <Card>
             <View style={styles.reportTitleRow}>
               <View style={styles.reportTitleWrap}>
-                <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : activeSheet.label}</AppText>
+                <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : isWnbaRoleSheet ? 'WNBA' : activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
               {shareText ? (
@@ -2359,6 +2401,8 @@ export default function CheatSheetsScreen() {
                   ? formatSavedAt(nrfiQuery.data?.published_at || nrfiQuery.data?.updated_at, nrfiQuery.data?.sheet_date)
                   : activeKey === 'topleans'
                   ? formatSavedAt(topLeansQuery.data?.published_at || topLeansQuery.data?.updated_at, topLeansQuery.data?.sheet_date)
+                  : activeKey === 'wnba_roles'
+                  ? formatSavedAt(wnbaRoleMoversQuery.data?.source_updated_at || wnbaRoleMoversQuery.data?.generated_at || undefined)
                   : formatSavedAt(sheetQuery.data?.published_at || sheetQuery.data?.updated_at, sheetQuery.data?.sheet_date)}
               </AppText>
             ) : null}
@@ -2368,6 +2412,8 @@ export default function CheatSheetsScreen() {
             ? nrfiQuery.isLoading
             : activeKey === 'topleans'
             ? topLeansQuery.isLoading
+            : activeKey === 'wnba_roles'
+            ? wnbaRoleMoversQuery.isLoading
             : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || tdStreaksQuery.isLoading || qbTdStreaksQuery.isLoading || nflFantasyQuery.isLoading)) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
@@ -2461,12 +2507,14 @@ export default function CheatSheetsScreen() {
             )
           )}
 
-          {(sheetQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFantasyQuery.isError) && (
+          {(sheetQuery.isError || wnbaRoleMoversQuery.isError || tdStreaksQuery.isError || qbTdStreaksQuery.isError || nflFantasyQuery.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
                 {sheetQuery.error instanceof Error
                   ? sheetQuery.error.message
+                  : wnbaRoleMoversQuery.error instanceof Error
+                    ? wnbaRoleMoversQuery.error.message
                   : tdStreaksQuery.error instanceof Error
                     ? tdStreaksQuery.error.message
                   : qbTdStreaksQuery.error instanceof Error
@@ -2501,6 +2549,50 @@ export default function CheatSheetsScreen() {
               </View>
               <AppText variant="muted" style={styles.cardCopy}>
                 Rushing, receiving, return, and fumble-recovery touchdowns only. Passing touchdowns are excluded.
+              </AppText>
+            </>
+          )}
+
+          {activeKey === 'wnba_roles' && !wnbaRoleMoversQuery.isLoading && !wnbaRoleMoversQuery.isError && (
+            <>
+              {(['rising', 'falling'] as const).map(direction => {
+                const sectionRows = wnbaRoleRows.filter(row => row.direction === direction)
+                const tone = direction === 'rising' ? colors.green : colors.red
+                return (
+                  <View key={direction} style={styles.roleSection}>
+                    <AppText variant="eyebrow" style={{ color: tone }}>
+                      {direction === 'rising' ? 'Rising Roles' : 'Falling Roles'}
+                    </AppText>
+                    {sectionRows.length === 0 ? (
+                      <AppText variant="muted" style={styles.cardCopy}>No {direction} roles qualified today.</AppText>
+                    ) : (
+                      <View style={styles.reportRows}>
+                        {sectionRows.map((row, index) => (
+                          <View key={`${direction}-${row.player}`} style={styles.reportRow}>
+                            <View style={[styles.rankBadge, { borderColor: tone, backgroundColor: `${tone}18` }]}>
+                              <AppText style={[styles.rankText, { color: tone }]}>{index + 1}</AppText>
+                            </View>
+                            <View style={styles.rowMain}>
+                              <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
+                              <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>{row.matchup}</AppText>
+                              <AppText variant="mono" style={styles.compactMeta}>
+                                MIN {row.seasonMin.toFixed(1)} season · {row.l10Min.toFixed(1)} L10 · {row.l5Min.toFixed(1)} L5
+                              </AppText>
+                              <AppText style={styles.reasonText}>{row.production}</AppText>
+                            </View>
+                            <View style={styles.rowNumbers}>
+                              <AppText style={[styles.compactEdge, { color: tone }]}>{row.change >= 0 ? '+' : ''}{row.change.toFixed(1)}</AppText>
+                              <AppText style={[styles.roleLabel, { color: tone }]}>{row.role}</AppText>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )
+              })}
+              <AppText variant="muted" style={styles.cardCopy}>
+                Current role blends 60% L5 minutes and 40% L10 minutes, then compares that estimate with the season average.
               </AppText>
             </>
           )}
@@ -2606,7 +2698,7 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && rows.length > 0 && (
+          {activeKey !== 'lines' && activeKey !== 'bvp' && activeKey !== 'wnba_roles' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && rows.length > 0 && (
             <View style={styles.reportRows}>
               {(activeKey === 'hits' ? rows : rows.slice(0, 10)).map((row, index) => row.divider ? (
                 <View key={`divider-${row.label}-${index}`} style={styles.reportDivider}>
@@ -2667,7 +2759,13 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && activeKey !== 'nrfi' && activeKey !== 'topleans' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey === 'wnba_roles' && !wnbaRoleMoversQuery.isLoading && !wnbaRoleMoversQuery.isError && wnbaRoleRows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No WNBA role changes qualified from today's posted prop-player pool.
+            </AppText>
+          )}
+
+          {activeKey !== 'wnba_roles' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && activeKey !== 'nrfi' && activeKey !== 'topleans' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
@@ -3516,6 +3614,9 @@ const styles = StyleSheet.create({
   reportDividerText: {
     color: colors.gold,
   },
+  roleSection: {
+    marginTop: spacing.lg,
+  },
   rankBadge: {
     width: 30,
     height: 30,
@@ -3549,6 +3650,7 @@ const styles = StyleSheet.create({
   compactEdge: { fontSize: 22, lineHeight: 26, fontWeight: '900' },
   compactEdgeLarge: { fontSize: 34, lineHeight: 38, fontWeight: '900' },
   compactOdds: { marginTop: 2, color: colors.gold, fontSize: 12, fontWeight: '900' },
+  roleLabel: { marginTop: 2, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   profileLink: { color: colors.gold },
   bvpMetricRow: {
     flexDirection: 'row',

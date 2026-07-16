@@ -125,7 +125,7 @@ Use these as guardrails when matching mobile on web or when touching nearby mobi
   - Parlay: combined payout and profit before tying legs together.
   - Hedge: other-side stake to lock or reduce risk.
 - Cheat Sheet tiles should stay clean and intentional: compact two-column cards, sport eyebrow, strong title, subtle gold top accent, no repeated descriptions.
-- The current sheet set includes MLB sheets plus NFL TD Streaks, NFL QB 2+ TD Streaks, and QB 200+ Yard Games.
+- The current sheet set includes MLB sheets, WNBA Role Movers, NFL TD Streaks, NFL QB 2+ TD Streaks, and QB 200+ Yard Games.
 - Game Factors should explain itself as a scoring-volume grade built from stadium, weather, officials, and matchup context. Avoid customer-facing terms such as "setup" when "volume" or "grade" is clearer.
 - Hide neutral Game Factors tags. Keep useful tags such as HR Props, Power-Friendly, Cold Suppress, Rain/Wind Risk, Totals/Passing, and similar signals.
 - Do not remove Game Factors data without explicit approval. Venue, weather, weather icons, umpire/referee, market read, and useful tags are the point of the tool.

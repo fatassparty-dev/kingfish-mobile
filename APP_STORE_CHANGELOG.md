@@ -24,6 +24,14 @@ data* it didn't know about before.
 
 ## 🔵 PENDING — next build (not yet submitted)
 
+- **[2026-07-16] New WNBA Role Movers cheat sheet.**
+  - **What the user sees:** A compact daily shortlist of up to five rising and five
+    falling WNBA rotation roles, with season/L10/L5 minutes, minute change, and the
+    strongest recent production change.
+  - **Why:** Brings the website's WNBA sheet to iPhone. The shortlist is calculated
+    on the KingFish server and shared by web and mobile, so thresholds and ranking
+    logic can improve without another App Store build.
+
 - **[2026-07-16] Fantasy rankings now use one live server-managed ADP source.**
   - **What the user sees:** Home League, Best Ball, and the Draft Picker refresh
     from the current KingFish rankings. PPR, Half PPR, and Standard selections use
