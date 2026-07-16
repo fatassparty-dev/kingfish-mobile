@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 PENDING — next build (not yet submitted)
 
+- **[2026-07-16] Fantasy rankings now use one live server-managed ADP source.**
+  - **What the user sees:** Home League, Best Ball, and the Draft Picker refresh
+    from the current KingFish rankings. PPR, Half PPR, and Standard selections use
+    server-produced views of that same player pool.
+  - **Why:** The prior mobile contract still exposed separately maintained Home
+    League and Best Ball sheets. The server now derives every view from the one
+    canonical ADP file, so future ranking refreshes reach iPhone and iPad without
+    another store build.
+  - **Compatibility:** Existing saved-team player IDs remain stable. The app resets
+    only board orders saved under the retired two-file system; future custom My
+    Board orders remain separate from the live KingFish ranking.
+
 - **[2026-07-11] Grade My Slip now reads the screenshot on our server, not on-device.**
   - **What the reviewer sees:** Same flow — pick a sport, choose a bet-slip
     screenshot, confirm the legs, get the grade. Under the hood the screenshot is

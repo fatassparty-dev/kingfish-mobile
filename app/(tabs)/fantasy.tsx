@@ -67,6 +67,14 @@ type ManualTeam = {
 type FantasyPayload = {
   generated_at?: string | null
   latest_season?: number | null
+  ranking_version?: string | null
+  ranking_source?: string | null
+  ranking_views?: {
+    ppr?: DraftPlayer[]
+    half_ppr?: DraftPlayer[]
+    standard?: DraftPlayer[]
+    best_ball?: DraftPlayer[]
+  }
   players: DraftPlayer[]
   bestBallPlayers?: DraftPlayer[]
   sleeper?: {
@@ -87,7 +95,10 @@ type FantasyPayload = {
 const STORAGE_KEY = 'kingfish_sleeper_connect_v1'
 const MANUAL_TEAMS_STORAGE_KEY = 'kingfish_fantasy_manual_teams_v1'
 const HIDDEN_STORAGE_KEY = 'kingfish_fantasy_hidden_v1'
-const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v1'
+// v2 intentionally clears board orders saved against the retired two-file ADP
+// system. New custom orders remain a user-owned "My Board" layered over the
+// live server rankings.
+const BOARD_ORDER_STORAGE_KEY = 'kingfish_fantasy_board_order_v2'
 const PLANNER_STORAGE_KEY = 'kingfish_fantasy_planner_v1'
 const POSITIONS: Position[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST']
 const FLEX = new Set(['RB', 'WR', 'TE'])
@@ -409,9 +420,13 @@ export default function FantasyToolScreen() {
     },
   })
 
-  const players = fantasyQuery.data?.players || []
-  const bestBallPlayers = fantasyQuery.data?.bestBallPlayers || []
+  const players = fantasyQuery.data?.ranking_views?.ppr || fantasyQuery.data?.players || []
+  const halfPprPlayers = fantasyQuery.data?.ranking_views?.half_ppr || players
+  const standardPlayers = fantasyQuery.data?.ranking_views?.standard || players
+  const bestBallPlayers = fantasyQuery.data?.ranking_views?.best_ball || fantasyQuery.data?.bestBallPlayers || []
   const orderedHomePlayers = useMemo(() => applySavedOrder(players, boardOrder.home), [boardOrder.home, players])
+  const orderedHalfPprPlayers = useMemo(() => applySavedOrder(halfPprPlayers, boardOrder.home), [boardOrder.home, halfPprPlayers])
+  const orderedStandardPlayers = useMemo(() => applySavedOrder(standardPlayers, boardOrder.home), [boardOrder.home, standardPlayers])
   const orderedBestBallPlayers = useMemo(
     () => applySavedOrder(bestBallPlayers.filter(player => player.position !== 'K' && player.position !== 'DST'), boardOrder.bestball),
     [bestBallPlayers, boardOrder.bestball],
@@ -449,7 +464,13 @@ export default function FantasyToolScreen() {
   const activeHiddenCount = mode === 'bestball' ? hiddenIds.bestball.length : hiddenIds.home.length
   const activeBoardMode: BoardMode = mode === 'bestball' ? 'bestball' : 'home'
   const boardDirty = (mode === 'home' || mode === 'bestball') && boardOrder[activeBoardMode].join('|') !== savedBoardOrder[activeBoardMode].join('|')
-  const plannerSourcePlayers = plannerLeague === 'bestball' ? orderedBestBallPlayers : orderedHomePlayers
+  const plannerSourcePlayers = plannerLeague === 'bestball'
+    ? orderedBestBallPlayers
+    : draftFormat === 'Half PPR'
+      ? orderedHalfPprPlayers
+      : draftFormat === 'Standard'
+        ? orderedStandardPlayers
+        : orderedHomePlayers
   const currentDraftTargets = draftTargets[plannerLeague]
   const bestBallStackTeams = useMemo(() => getStackTeams(orderedBestBallPlayers), [orderedBestBallPlayers])
   const allRankedPlayers = useMemo(() => {
@@ -1069,7 +1090,7 @@ export default function FantasyToolScreen() {
           <Card style={styles.metaCard}>
             <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
             <AppText variant="muted" style={styles.cardCopy}>
-              Move players into your order, then save the board for draft day.
+              Live KingFish rankings update from the server. Move players and save only when you want a separate My Board for draft day.
             </AppText>
             {mode === 'bestball' ? (
               <View style={styles.boardToggleRow}>
