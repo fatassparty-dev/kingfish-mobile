@@ -93,7 +93,7 @@ export function gameMarkets(game: Game, userState?: string | null, preferences?:
 }
 
 function serverLean(game: Game) {
-  return (game as any).kingfishLean as { side?: string; type?: string; detail?: string; grade_for?: number; grade_against?: number } | undefined
+  return (game as any).kingfishLean as { side?: string; team?: string; type?: string; detail?: string; grade_for?: number; grade_against?: number } | undefined
 }
 function serverEdge(game: Game) {
   return (game as any).kingfishEdge as { score?: number; label?: string; drivers?: string[] } | undefined
@@ -113,12 +113,17 @@ function edgeColor(score?: number) {
   return n >= 75 ? colors.green : n >= 60 ? EDGE_YELLOW : colors.textSecondary
 }
 
-// The column header already says "ML Lean" — the trailing " ML" is doubled
-// context, and the city is implied by the matchup column, so "Atlanta Braves
-// ML" renders as just "Braves" (same last-word rule as the matchup names).
-function leanSideDisplay(side?: string) {
-  const noMl = String(side || '').replace(/\s+ML$/i, '').trim()
-  const nickname = noMl.split(' ').pop() || noMl
+// The compact column is strictly the MONEYLINE team. MLB dog leans can arrive
+// with their posted run line appended to `side` ("Cincinnati Reds +1.5"), while
+// newer payloads also carry the clean team name in `team`. Prefer that field and
+// defensively strip market suffixes from older/cached payloads so the phone
+// never shows an orphaned "+1.5" under "ML Lean".
+function leanSideDisplay(lean?: { side?: string; team?: string }) {
+  const team = String(lean?.team || lean?.side || '')
+    .replace(/\s+ML$/i, '')
+    .replace(/\s+[+-]\d+(?:\.\d+)?$/i, '')
+    .trim()
+  const nickname = team.split(' ').pop() || team
   // One line, no silly mid-word wraps ("Athletic\ns"): long nicknames fall
   // back to the same 3-letter code the Run Line column already uses (GUA/DIA).
   return nickname.length > 8 ? nickname.slice(0, 3).toUpperCase() : nickname
@@ -236,7 +241,7 @@ export function GamePropsTable({
         <Header label="Matchup" flex={compact ? 1.9 : 1.7} align="left" />
         {!compact && <Header label="Time" target="time" flex={0.9} />}
         {showWeather && <Header label="Wthr" flex={0.9} />}
-        <Header label="ML Lean" flex={1.2} />
+        {!compact && <Header label="ML Lean" flex={1.2} />}
         {!compact && <Header label="Grade" target="grade" flex={0.9} />}
         {!compact && <Header label="Away" flex={1} />}
         {!compact && <Header label="Home" flex={1} />}
@@ -245,6 +250,7 @@ export function GamePropsTable({
         <Header label="Total" flex={compact ? 1 : 0.9} />
         {!compact && <Header label="Over" flex={1} />}
         {!compact && <Header label="Under" flex={1} />}
+        {compact && <Header label="ML Lean" flex={1.2} />}
         <Header label="Edge" target="edge" flex={1.2} />
       </View>
 
@@ -284,11 +290,13 @@ export function GamePropsTable({
                 </AppText>
               </View>
             )}
-            <View style={[styles.cell, { flex: 1.2 }]}>
-              {lean?.side
-                ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean.side)}</AppText>
-                : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
-            </View>
+            {!compact && (
+              <View style={[styles.cell, { flex: 1.2 }]}>
+                {lean?.side
+                  ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean)}</AppText>
+                  : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
+              </View>
+            )}
             {!compact && (
               <View style={[styles.cell, { flex: 0.9 }]}>
                 {lean && lean.grade_for != null && lean.grade_against != null
@@ -318,6 +326,13 @@ export function GamePropsTable({
             </View>
             {!compact && <PriceCell line={mk.bestOverTotal} />}
             {!compact && <PriceCell line={mk.bestUnderTotal} />}
+            {compact && (
+              <View style={[styles.cell, { flex: 1.2 }]}>
+                {lean?.side
+                  ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean)}</AppText>
+                  : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
+              </View>
+            )}
             <View style={[styles.cell, { flex: 1.2 }]}>
               {edge?.label ? (
                 // Player-props-style verdict cell: big bold score, tier under it.
