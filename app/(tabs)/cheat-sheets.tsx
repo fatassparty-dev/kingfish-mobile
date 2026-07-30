@@ -17,7 +17,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'k' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200'
+type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -104,7 +104,10 @@ const SHEETS: Array<{
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
+  { key: 'alt_hits', label: '10/10 Alt Hits', desc: 'Posted alternate hit lines cleared in all 10 recent games.', type: 'props', market: 'batter_hits_alternate', statField: 'hits_per_game' },
+  { key: 'alt_tb', label: '10/10 Alt Total Bases', desc: 'Posted alternate total-base lines cleared in all 10 recent games.', type: 'props', market: 'batter_total_bases_alternate', statField: 'tb_per_game' },
   { key: 'k', label: '10/10 Alt K', desc: 'Posted alternate strikeout lines cleared in all 10 recent starts.', type: 'k', market: 'pitcher_strikeouts_alternate', statField: 'strikeouts_per_game' },
+  { key: 'alt_outs', label: '10/10 Alt Pitcher Outs', desc: 'Posted alternate pitcher-out lines cleared in all 10 recent starts.', type: 'props', market: 'pitcher_outs_alternate', statField: 'outs_per_game' },
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
@@ -120,7 +123,10 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
   { key: 'tb', label: 'Total Bases', sport: 'MLB' },
+  { key: 'alt_hits', label: '10/10 Alt Hits', sport: 'MLB' },
+  { key: 'alt_tb', label: '10/10 Alt Bases', sport: 'MLB' },
   { key: 'k', label: '10/10 Alt K', sport: 'MLB' },
+  { key: 'alt_outs', label: '10/10 Alt Outs', sport: 'MLB' },
   { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
   { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
@@ -1146,6 +1152,31 @@ function bvpByBatterId(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = [
 // stay strictly as the offline fallback (backups are kept, never deleted).
 type SheetScores = Record<string, Record<string, any>>
 
+function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'): SheetRow[] {
+  const rows = sheetScores?.altLines?.[sheet]
+  if (!Array.isArray(rows)) return []
+  return rows.map((row: any) => ({
+    player: row.player,
+    matchup: row.matchup,
+    line: row.line,
+    odds: row.odds,
+    book: row.book,
+    season: 0,
+    l10: 0,
+    l5: 0,
+    hitRate: `${row.l10Hits}/${row.l10Games}`,
+    l10Hits: row.l10Hits,
+    l10Games: row.l10Games,
+    l20Hits: row.l20Hits,
+    l20Games: row.l20Games,
+    streak: row.streak,
+    qualifies: true,
+    reason: `${row.l10Hits}/${row.l10Games} L10 · ${row.l20Hits}/${row.l20Games} L20 · ${row.streak} straight`,
+    edge: row.edge,
+    pickLabel: row.pickLabel,
+  }))
+}
+
 function serverSheetScore(sheetScores: SheetScores | undefined, sheet: string, game: Game, player: string, line: number) {
   const gameId = (game as any).game_id ?? (game as any).id
   return sheetScores?.[sheet]?.[`${gameId}|${player}|${line}`]
@@ -1984,9 +2015,14 @@ export default function CheatSheetsScreen() {
     staleTime: 30 * 60 * 1000,
   })
 
-  const rows = activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
-    ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups, sheetQuery.data?.sheet_scores)
-    : []
+  const altLineKey = ['alt_hits', 'alt_tb', 'alt_outs', 'k'].includes(activeKey)
+    ? activeKey as 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'
+    : null
+  const rows = altLineKey
+    ? serverAltLineRows(sheetQuery.data?.sheet_scores, altLineKey)
+    : activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
+      ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups, sheetQuery.data?.sheet_scores)
+      : []
 
   const bvpRows = activeKey === 'bvp' ? buildBvpRows(bvpQuery.data?.bvp, bvpMatchups) : []
   const tdStreakRows = activeKey === 'td' ? nflCheatSheetsQuery.data?.td || [] : []
@@ -2665,9 +2701,9 @@ export default function CheatSheetsScreen() {
             </View>
           )}
 
-          {activeKey === 'k' && !sheetQuery.isLoading && !statsQuery.isLoading && sheetGames.length > 0 && rows.length === 0 && (
+          {altLineKey && !sheetQuery.isLoading && sheetGames.length > 0 && rows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
-              No posted alternate strikeout line has a qualifying 10/10 record and playable price today.
+              No posted alternate line has a qualifying 10/10 record and playable price today.
             </AppText>
           )}
 
