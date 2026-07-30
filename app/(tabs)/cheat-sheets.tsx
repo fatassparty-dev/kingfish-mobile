@@ -104,7 +104,7 @@ const SHEETS: Array<{
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
-  { key: 'k', label: 'Safe Alt K', desc: 'Pitcher strikeout looks ranked by recent K form.', type: 'k', market: 'pitcher_strikeouts', statField: 'strikeouts_per_game' },
+  { key: 'k', label: '10/10 Alt K', desc: 'Posted alternate strikeout lines cleared in all 10 recent starts.', type: 'k', market: 'pitcher_strikeouts_alternate', statField: 'strikeouts_per_game' },
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
@@ -120,7 +120,7 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
   { key: 'tb', label: 'Total Bases', sport: 'MLB' },
-  { key: 'k', label: 'Safe Alt K', sport: 'MLB' },
+  { key: 'k', label: '10/10 Alt K', sport: 'MLB' },
   { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
   { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
@@ -294,6 +294,12 @@ interface SheetRow {
   reason: string
   edge: { label: string; color: string; score: number }
   pickLabel?: string
+  l10Hits?: number
+  l10Games?: number
+  l20Hits?: number
+  l20Games?: number
+  streak?: number
+  qualifies?: boolean
 }
 
 interface BvpMatchup {
@@ -1068,7 +1074,8 @@ function bestHitFadeOutcomes(game: Game, bookKeys = eligiblePropBookKeys()) {
   return Object.values(map)
 }
 
-function bestBookOutcomes(game: Game, marketKey: string, bookKeys = eligiblePropBookKeys()) {
+function bestBookOutcomes(game: Game, marketKey: string | string[], bookKeys = eligiblePropBookKeys()) {
+  const marketKeys = Array.isArray(marketKey) ? marketKey : [marketKey]
   const map: Record<string, {
     player: string
     line: number
@@ -1080,8 +1087,8 @@ function bestBookOutcomes(game: Game, marketKey: string, bookKeys = eligibleProp
 
   game.bookmakers?.forEach((bookmaker) => {
     if (!bookKeys.includes(bookmaker.key)) return
-    const market = bookmaker.markets?.find((item) => item.key === marketKey)
-    market?.outcomes?.forEach((outcome) => {
+    const markets = bookmaker.markets?.filter((item) => marketKeys.includes(item.key)) || []
+    markets.flatMap((market) => market.outcomes || []).forEach((outcome) => {
       if (!outcome.description) return
       if (typeof outcome.price !== 'number' || outcome.price > 700 || outcome.price < -10000) return
       const line = outcome.point || 0.5
@@ -1686,7 +1693,11 @@ function buildStrikeoutRows(
   const rows: Array<SheetRow & { underOdds?: number; underBook?: string }> = []
 
   games.forEach((game) => {
-    bestBookOutcomes(game, 'pitcher_strikeouts').forEach((outcome) => {
+    bestBookOutcomes(
+      game,
+      ['pitcher_strikeouts', 'pitcher_strikeouts_alternate'],
+      Object.keys(BOOK_DISPLAY_NAMES),
+    ).forEach((outcome) => {
       const lineup = findLineupPlayer(lineupMap, outcome.player)
       const playerStats = lineup ? stats[lineup.id] : undefined
       if (!playerStats) return
@@ -1697,6 +1708,24 @@ function buildStrikeoutRows(
       // Server-first: P(clears this K line) × 100 from the shared model.
       const srv = serverSheetScore(sheetScores, 'k', game, outcome.player, outcome.line)
       const edge = typeof srv?.edge?.score === 'number' ? probTierEdge(srv.edge.score) : webEdgeLabel(outcome.line, season, l10, l5)
+      const values = (Array.isArray(playerStats.raw_games) ? playerStats.raw_games : [])
+        .map((item: any) => Number(item?.strikeouts))
+        .filter(Number.isFinite)
+      const hits = (size: number) => values.slice(0, size).filter((value: number) => value > outcome.line).length
+      const l10Games = Math.min(values.length, 10)
+      const l20Games = Math.min(values.length, 20)
+      const l10Hits = srv?.l10Hits ?? hits(10)
+      const l20Hits = srv?.l20Hits ?? hits(20)
+      let streak = 0
+      for (const value of values) {
+        if (value > outcome.line) streak += 1
+        else break
+      }
+      const qualifies = srv?.qualifies ?? (
+        l10Games === 10 &&
+        l10Hits === 10 &&
+        (l20Games < 15 || l20Hits / l20Games >= 0.85)
+      )
 
       rows.push({
         player: outcome.player,
@@ -1709,17 +1738,42 @@ function buildStrikeoutRows(
         season,
         l10,
         l5,
-        hitRate: '-',
-        reason: l10 > outcome.line ? 'Recent K form clears this number.' : 'Strikeout profile fits this number.',
+        hitRate: `${l10Hits}/${l10Games}`,
+        l10Hits,
+        l10Games,
+        l20Hits,
+        l20Games,
+        streak: srv?.streak ?? streak,
+        qualifies,
+        reason: `${l10Hits}/${l10Games} L10 · ${l20Hits}/${l20Games} L20 · ${srv?.streak ?? streak} straight`,
         edge,
         pickLabel: `Over ${outcome.line} Strikeouts`,
       })
     })
   })
 
-  return dedupeBestOdds(rows)
-    .filter((row) => row.season > 0)
-    .sort((a, b) => b.edge.score - a.edge.score || b.l5 - a.l5)
+  const qualified = dedupeBestOdds(rows)
+    .filter((row) => row.season > 0 && row.qualifies && typeof row.odds === 'number' && row.odds >= -350)
+    .sort((a, b) =>
+      Number(b.l20Hits) - Number(a.l20Hits) ||
+      Number(b.streak) - Number(a.streak) ||
+      b.line - a.line ||
+      Number(b.odds) - Number(a.odds))
+
+  const bestByPitcher = new Map<string, typeof qualified[number]>()
+  qualified.forEach((row) => {
+    const key = `${row.player}_${row.matchup}`
+    const existing = bestByPitcher.get(key)
+    if (!existing || row.line > existing.line || (row.line === existing.line && Number(row.odds) > Number(existing.odds))) {
+      bestByPitcher.set(key, row)
+    }
+  })
+  return Array.from(bestByPitcher.values())
+    .sort((a, b) =>
+      Number(b.l20Hits) - Number(a.l20Hits) ||
+      Number(b.streak) - Number(a.streak) ||
+      b.line - a.line ||
+      Number(b.odds) - Number(a.odds))
     .slice(0, 10)
 }
 
@@ -2601,9 +2655,7 @@ export default function CheatSheetsScreen() {
                     {(activeKey === 'k' || row.pickLabel) && (
                       <AppText style={styles.pickLine}>{row.pickLabel || `Over ${row.line} Strikeouts`}</AppText>
                     )}
-                    <AppText style={styles.reasonText}>
-                      {row.reason}
-                    </AppText>
+                    <AppText style={styles.reasonText}>{row.reason}</AppText>
                   </View>
                   <View style={styles.rowNumbers}>
                     <AppText style={styles.compactOdds}>{row.odds ? fmtOdds(row.odds) : '-'} {row.book || ''}</AppText>
@@ -2611,6 +2663,12 @@ export default function CheatSheetsScreen() {
                 </View>
               ))}
             </View>
+          )}
+
+          {activeKey === 'k' && !sheetQuery.isLoading && !statsQuery.isLoading && sheetGames.length > 0 && rows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No posted alternate strikeout line has a qualifying 10/10 record and playable price today.
+            </AppText>
           )}
 
           {activeKey === 'bvp' && !sheetQuery.isLoading && !lineupsQuery.isLoading && !scheduleQuery.isLoading && !bvpQuery.isLoading && sheetGames.length > 0 && bvpRows.length === 0 && (
