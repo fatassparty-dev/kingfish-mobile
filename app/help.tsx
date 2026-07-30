@@ -89,6 +89,11 @@ const cheatSheets = [
   { title: 'NFL TD Streaks', body: 'Regular-season touchdown scoring streaks by player for quick NFL scoring-form research.' },
   { title: 'NFL QB 2+ TD Streaks', body: 'Quarterbacks on recent streaks of 2+ passing touchdown games.' },
   { title: 'QB 200+ Yard Games', body: 'Quarterbacks clearing 200 passing yards, ranked by active streak, L5 and L10 hit rate, and recent yardage form.' },
+  { title: '10/10 Alt Passing Yards', body: 'Posted alternate passing-yard lines cleared in all 10 saved recent games.' },
+  { title: '10/10 Alt Rushing Yards', body: 'Posted alternate rushing-yard lines cleared in all 10 saved recent games.' },
+  { title: '10/10 Alt Receiving Yards', body: 'Posted alternate receiving-yard lines cleared in all 10 saved recent games.' },
+  { title: '10/10 Alt Receptions', body: 'Posted alternate reception lines cleared in all 10 saved recent games.' },
+  { title: '10/10 Alt Completions', body: 'Posted alternate completion lines cleared in all 10 saved recent games.' },
 ]
 
 const sportNotes = [

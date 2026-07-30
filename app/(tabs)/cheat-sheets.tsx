@@ -17,7 +17,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200'
+type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -115,6 +115,11 @@ const SHEETS: Array<{
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
   { key: 'qb200', label: 'QB 200+ Yard Games', desc: 'Quarterbacks clearing 200 passing yards by recent form and season rate.', type: 'td' },
+  { key: 'nfl_alt_pass_yds', label: '10/10 Alt Passing Yards', desc: 'Posted alternate passing-yard lines cleared in all 10 saved recent games.', type: 'td' },
+  { key: 'nfl_alt_rush_yds', label: '10/10 Alt Rushing Yards', desc: 'Posted alternate rushing-yard lines cleared in all 10 saved recent games.', type: 'td' },
+  { key: 'nfl_alt_rec_yds', label: '10/10 Alt Receiving Yards', desc: 'Posted alternate receiving-yard lines cleared in all 10 saved recent games.', type: 'td' },
+  { key: 'nfl_alt_receptions', label: '10/10 Alt Receptions', desc: 'Posted alternate reception lines cleared in all 10 saved recent games.', type: 'td' },
+  { key: 'nfl_alt_completions', label: '10/10 Alt Completions', desc: 'Posted alternate completion lines cleared in all 10 saved recent games.', type: 'td' },
 ]
 
 const TOOL_TILES: ToolTile[] = [
@@ -134,6 +139,11 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
   { key: 'qb200', label: 'QB 200+ Yards', sport: 'NFL' },
+  { key: 'nfl_alt_pass_yds', label: '10/10 Alt Pass', sport: 'NFL' },
+  { key: 'nfl_alt_rush_yds', label: '10/10 Alt Rush', sport: 'NFL' },
+  { key: 'nfl_alt_rec_yds', label: '10/10 Alt Rec Yds', sport: 'NFL' },
+  { key: 'nfl_alt_receptions', label: '10/10 Alt Rec', sport: 'NFL' },
+  { key: 'nfl_alt_completions', label: '10/10 Alt Comp', sport: 'NFL' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -1177,6 +1187,28 @@ function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hit
   }))
 }
 
+function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => ({
+    player: row.player,
+    matchup: row.matchup,
+    line: row.line,
+    odds: row.odds,
+    book: row.book,
+    season: 0,
+    l10: 0,
+    l5: 0,
+    hitRate: `${row.l10Hits}/${row.l10Games}`,
+    l10Hits: row.l10Hits,
+    l10Games: row.l10Games,
+    streak: row.streak,
+    qualifies: true,
+    reason: `${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
+    edge: { label: '10/10', color: colors.green, score: 0 },
+    pickLabel: row.pickLabel,
+  }))
+}
+
 function serverSheetScore(sheetScores: SheetScores | undefined, sheet: string, game: Game, player: string, line: number) {
   const gameId = (game as any).game_id ?? (game as any).id
   return sheetScores?.[sheet]?.[`${gameId}|${player}|${line}`]
@@ -1932,8 +1964,8 @@ export default function CheatSheetsScreen() {
 
   const nflCheatSheetsQuery = useQuery({
     queryKey: ['nfl-cheat-sheets'],
-    queryFn: () => kingfishFetch<{ td: TdStreakRow[]; qbtd: TdStreakRow[]; qb200: QbYardsRow[] }>('/api/nfl-cheat-sheets'),
-    enabled: canLoadData && (activeKey === 'td' || activeKey === 'qbtd' || activeKey === 'qb200'),
+    queryFn: () => kingfishFetch<{ td: TdStreakRow[]; qbtd: TdStreakRow[]; qb200: QbYardsRow[]; altLines?: Record<string, any[]> }>('/api/nfl-cheat-sheets'),
+    enabled: canLoadData && (activeKey === 'td' || activeKey === 'qbtd' || activeKey === 'qb200' || activeKey.startsWith('nfl_alt_')),
     staleTime: 24 * 60 * 60 * 1000,
   })
 
@@ -2018,7 +2050,10 @@ export default function CheatSheetsScreen() {
   const altLineKey = ['alt_hits', 'alt_tb', 'alt_outs', 'k'].includes(activeKey)
     ? activeKey as 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'
     : null
-  const rows = altLineKey
+  const nflAltLineKey = activeKey.startsWith('nfl_alt_') ? activeKey.replace(/^nfl_/, '') : null
+  const rows = nflAltLineKey
+    ? serverNflAltLineRows(nflCheatSheetsQuery.data?.altLines?.[nflAltLineKey])
+    : altLineKey
     ? serverAltLineRows(sheetQuery.data?.sheet_scores, altLineKey)
     : activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
       ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups, sheetQuery.data?.sheet_scores)
@@ -2704,6 +2739,12 @@ export default function CheatSheetsScreen() {
           {altLineKey && !sheetQuery.isLoading && sheetGames.length > 0 && rows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No posted alternate line has a qualifying 10/10 record and playable price today.
+            </AppText>
+          )}
+
+          {nflAltLineKey && !nflCheatSheetsQuery.isLoading && rows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No posted NFL alternate line has a qualifying 10/10 record and playable price yet.
             </AppText>
           )}
 
