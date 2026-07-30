@@ -17,7 +17,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
+type SheetKey = 'perfect_l10' | 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -94,11 +94,12 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans' | 'perfect'
   market?: string
   statField?: string
   trend?: boolean
 }> = [
+  { key: 'perfect_l10', label: '100% L10 — All Sports', desc: 'Every current posted line that cashed in all 10 of the player’s last 10 valid games.', type: 'perfect' },
   { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
@@ -123,6 +124,7 @@ const SHEETS: Array<{
 ]
 
 const TOOL_TILES: ToolTile[] = [
+  { key: 'perfect_l10', label: '100% L10', sport: 'ALL' },
   { key: 'topleans', label: 'Top 5 Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
@@ -1209,6 +1211,30 @@ function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
   }))
 }
 
+function serverPerfectL10Rows(rows: any[] | undefined): SheetRow[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => ({
+    player: `${row.player} · ${row.sport}`,
+    matchup: row.matchup,
+    line: row.line,
+    odds: row.odds,
+    book: row.book,
+    season: 0,
+    l10: 0,
+    l5: 0,
+    hitRate: '10/10',
+    l10Hits: 10,
+    l10Games: 10,
+    l20Hits: row.l20Hits,
+    l20Games: row.l20Games,
+    streak: row.streak,
+    qualifies: true,
+    reason: `10/10 L10${row.l20Games ? ` · ${row.l20Hits}/${row.l20Games} L20` : ''} · ${row.streak} straight`,
+    edge: { label: '100% L10', color: colors.green, score: 0 },
+    pickLabel: row.pickLabel,
+  }))
+}
+
 function serverSheetScore(sheetScores: SheetScores | undefined, sheet: string, game: Game, player: string, line: number) {
   const gameId = (game as any).game_id ?? (game as any).id
   return sheetScores?.[sheet]?.[`${gameId}|${player}|${line}`]
@@ -1880,7 +1906,8 @@ export default function CheatSheetsScreen() {
   const canLoadData = canUseCheatSheets && toolMode === 'sheets' && hasOpenSheet
   const isTdSheet = activeSheet.type === 'td'
   const isWnbaRoleSheet = activeSheet.type === 'wnba_roles'
-  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isWnbaRoleSheet
+  const isPerfectSheet = activeSheet.type === 'perfect'
+  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isWnbaRoleSheet && !isPerfectSheet
 
   useEffect(() => {
     if (mode === 'calculators' || mode === 'sheets' || mode === 'more') {
@@ -1908,7 +1935,7 @@ export default function CheatSheetsScreen() {
     // the props payload could land in the NRFI board's cache slot — the root cause
     // of the old "NRFI opens blank until you switch sheets" bug and the slow open.
     // (Port of kingfish-studio 59cae72.)
-    enabled: canLoadMlbSheetData && activeKey !== 'nrfi' && activeKey !== 'topleans',
+    enabled: canLoadMlbSheetData && activeKey !== 'nrfi' && activeKey !== 'topleans' && activeKey !== 'perfect_l10',
     staleTime: 12 * 60 * 60 * 1000,
   })
   // NRFI/YRFI is premium, same tier as the other cheat sheets.
@@ -1967,6 +1994,13 @@ export default function CheatSheetsScreen() {
     queryFn: () => kingfishFetch<{ td: TdStreakRow[]; qbtd: TdStreakRow[]; qb200: QbYardsRow[]; altLines?: Record<string, any[]> }>('/api/nfl-cheat-sheets'),
     enabled: canLoadData && (activeKey === 'td' || activeKey === 'qbtd' || activeKey === 'qb200' || activeKey.startsWith('nfl_alt_')),
     staleTime: 24 * 60 * 60 * 1000,
+  })
+
+  const perfectL10Query = useQuery({
+    queryKey: ['perfect-l10-all-sports'],
+    queryFn: () => kingfishFetch<{ rows?: any[] }>('/api/perfect-l10'),
+    enabled: canLoadData && activeKey === 'perfect_l10',
+    staleTime: 5 * 60 * 1000,
   })
 
   const sheetGames = useMemo(() => sheetQuery.data?.data || [], [sheetQuery.data?.data])
@@ -2051,7 +2085,9 @@ export default function CheatSheetsScreen() {
     ? activeKey as 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'
     : null
   const nflAltLineKey = activeKey.startsWith('nfl_alt_') ? activeKey.replace(/^nfl_/, '') : null
-  const rows = nflAltLineKey
+  const rows = activeKey === 'perfect_l10'
+    ? serverPerfectL10Rows(perfectL10Query.data?.rows)
+    : nflAltLineKey
     ? serverNflAltLineRows(nflCheatSheetsQuery.data?.altLines?.[nflAltLineKey])
     : altLineKey
     ? serverAltLineRows(sheetQuery.data?.sheet_scores, altLineKey)
@@ -2421,7 +2457,7 @@ export default function CheatSheetsScreen() {
             ? topLeansQuery.isLoading
             : activeKey === 'wnba_roles'
             ? wnbaRoleMoversQuery.isLoading
-            : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || nflCheatSheetsQuery.isLoading)) && (
+            : (sheetQuery.isLoading || lineupsQuery.isLoading || statsQuery.isLoading || scheduleQuery.isLoading || bvpQuery.isLoading || nflCheatSheetsQuery.isLoading || perfectL10Query.isLoading)) && (
             <View style={styles.loading}>
               <ActivityIndicator color={colors.gold} />
               <AppText variant="muted">Loading daily board...</AppText>
@@ -2514,7 +2550,7 @@ export default function CheatSheetsScreen() {
             )
           )}
 
-          {(sheetQuery.isError || wnbaRoleMoversQuery.isError || nflCheatSheetsQuery.isError) && (
+          {(sheetQuery.isError || wnbaRoleMoversQuery.isError || nflCheatSheetsQuery.isError || perfectL10Query.isError) && (
             <Card>
               <AppText variant="eyebrow">// Error</AppText>
               <AppText variant="muted" style={styles.errorText}>
@@ -2524,7 +2560,9 @@ export default function CheatSheetsScreen() {
                     ? wnbaRoleMoversQuery.error.message
                   : nflCheatSheetsQuery.error instanceof Error
                     ? nflCheatSheetsQuery.error.message
-                    : 'Could not load this sheet.'}
+                  : perfectL10Query.error instanceof Error
+                    ? perfectL10Query.error.message
+                  : 'Could not load this sheet.'}
               </AppText>
             </Card>
           )}
@@ -2745,6 +2783,12 @@ export default function CheatSheetsScreen() {
           {nflAltLineKey && !nflCheatSheetsQuery.isLoading && rows.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No posted NFL alternate line has a qualifying 10/10 record and playable price yet.
+            </AppText>
+          )}
+
+          {activeKey === 'perfect_l10' && !perfectL10Query.isLoading && rows.length === 0 && (
+            <AppText variant="muted" style={styles.cardCopy}>
+              No current posted line has a qualifying 10/10 record and playable price yet.
             </AppText>
           )}
 
