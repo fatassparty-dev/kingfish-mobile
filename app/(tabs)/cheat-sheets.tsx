@@ -99,16 +99,16 @@ const SHEETS: Array<{
   statField?: string
   trend?: boolean
 }> = [
-  { key: 'perfect_l10', label: '100% L10 — All Sports', desc: 'Every current posted line that cashed in all 10 of the player’s last 10 valid games.', type: 'perfect' },
+  { key: 'perfect_l10', label: '100% Hit Rate — All Sports', desc: 'Current posted lines with a perfect L10 or recent L5 record.', type: 'perfect' },
   { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
   { key: 'hr', label: 'HR Targets', desc: 'Home run targets with power form and playable prices.', type: 'props', market: 'batter_home_runs', statField: 'hr_per_game' },
   { key: 'tb', label: 'Hot Total Bases', desc: 'Total bases targets with season and recent production.', type: 'props', market: 'batter_total_bases', statField: 'tb_per_game' },
-  { key: 'alt_hits', label: '10/10 Alt Hits', desc: 'Posted alternate hit lines cleared in all 10 recent games.', type: 'props', market: 'batter_hits_alternate', statField: 'hits_per_game' },
-  { key: 'alt_tb', label: '10/10 Alt Total Bases', desc: 'Posted alternate total-base lines cleared in all 10 recent games.', type: 'props', market: 'batter_total_bases_alternate', statField: 'tb_per_game' },
-  { key: 'k', label: '10/10 Alt K', desc: 'Posted alternate strikeout lines cleared in all 10 recent starts.', type: 'k', market: 'pitcher_strikeouts_alternate', statField: 'strikeouts_per_game' },
-  { key: 'alt_outs', label: '10/10 Alt Pitcher Outs', desc: 'Posted alternate pitcher-out lines cleared in all 10 recent starts.', type: 'props', market: 'pitcher_outs_alternate', statField: 'outs_per_game' },
+  { key: 'alt_hits', label: '100% Alt Hits', desc: 'Posted alternate hit lines with a perfect L10 or recent L5 record.', type: 'props', market: 'batter_hits_alternate', statField: 'hits_per_game' },
+  { key: 'alt_tb', label: '100% Alt Total Bases', desc: 'Posted alternate total-base lines with a perfect L10 or recent L5 record.', type: 'props', market: 'batter_total_bases_alternate', statField: 'tb_per_game' },
+  { key: 'k', label: '100% Alt K', desc: 'Posted alternate strikeout lines with a perfect L10 or recent L5 record.', type: 'k', market: 'pitcher_strikeouts_alternate', statField: 'strikeouts_per_game' },
+  { key: 'alt_outs', label: '100% Alt Pitcher Outs', desc: 'Posted alternate pitcher-out lines with a perfect L10 or recent L5 record.', type: 'props', market: 'pitcher_outs_alternate', statField: 'outs_per_game' },
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
@@ -116,24 +116,24 @@ const SHEETS: Array<{
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
   { key: 'qb200', label: 'QB 200+ Yard Games', desc: 'Quarterbacks clearing 200 passing yards by recent form and season rate.', type: 'td' },
-  { key: 'nfl_alt_pass_yds', label: '10/10 Alt Passing Yards', desc: 'Posted alternate passing-yard lines cleared in all 10 saved recent games.', type: 'td' },
-  { key: 'nfl_alt_rush_yds', label: '10/10 Alt Rushing Yards', desc: 'Posted alternate rushing-yard lines cleared in all 10 saved recent games.', type: 'td' },
-  { key: 'nfl_alt_rec_yds', label: '10/10 Alt Receiving Yards', desc: 'Posted alternate receiving-yard lines cleared in all 10 saved recent games.', type: 'td' },
-  { key: 'nfl_alt_receptions', label: '10/10 Alt Receptions', desc: 'Posted alternate reception lines cleared in all 10 saved recent games.', type: 'td' },
-  { key: 'nfl_alt_completions', label: '10/10 Alt Completions', desc: 'Posted alternate completion lines cleared in all 10 saved recent games.', type: 'td' },
+  { key: 'nfl_alt_pass_yds', label: '100% Alt Passing Yards', desc: 'Posted alternate passing-yard lines with a perfect L10 or recent L5 record.', type: 'td' },
+  { key: 'nfl_alt_rush_yds', label: '100% Alt Rushing Yards', desc: 'Posted alternate rushing-yard lines with a perfect L10 or recent L5 record.', type: 'td' },
+  { key: 'nfl_alt_rec_yds', label: '100% Alt Receiving Yards', desc: 'Posted alternate receiving-yard lines with a perfect L10 or recent L5 record.', type: 'td' },
+  { key: 'nfl_alt_receptions', label: '100% Alt Receptions', desc: 'Posted alternate reception lines with a perfect L10 or recent L5 record.', type: 'td' },
+  { key: 'nfl_alt_completions', label: '100% Alt Completions', desc: 'Posted alternate completion lines with a perfect L10 or recent L5 record.', type: 'td' },
 ]
 
 const TOOL_TILES: ToolTile[] = [
-  { key: 'perfect_l10', label: '100% L10', sport: 'ALL' },
+  { key: 'perfect_l10', label: '100% Hit Rate', sport: 'ALL' },
   { key: 'topleans', label: 'Top 5 Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
   { key: 'hr', label: 'HR Targets', sport: 'MLB' },
   { key: 'tb', label: 'Total Bases', sport: 'MLB' },
-  { key: 'alt_hits', label: '10/10 Alt Hits', sport: 'MLB' },
-  { key: 'alt_tb', label: '10/10 Alt Bases', sport: 'MLB' },
-  { key: 'k', label: '10/10 Alt K', sport: 'MLB' },
-  { key: 'alt_outs', label: '10/10 Alt Outs', sport: 'MLB' },
+  { key: 'alt_hits', label: '100% Alt Hits', sport: 'MLB' },
+  { key: 'alt_tb', label: '100% Alt Bases', sport: 'MLB' },
+  { key: 'k', label: '100% Alt K', sport: 'MLB' },
+  { key: 'alt_outs', label: '100% Alt Outs', sport: 'MLB' },
   { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
   { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
@@ -141,11 +141,11 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
   { key: 'qb200', label: 'QB 200+ Yards', sport: 'NFL' },
-  { key: 'nfl_alt_pass_yds', label: '10/10 Alt Pass', sport: 'NFL' },
-  { key: 'nfl_alt_rush_yds', label: '10/10 Alt Rush', sport: 'NFL' },
-  { key: 'nfl_alt_rec_yds', label: '10/10 Alt Rec Yds', sport: 'NFL' },
-  { key: 'nfl_alt_receptions', label: '10/10 Alt Rec', sport: 'NFL' },
-  { key: 'nfl_alt_completions', label: '10/10 Alt Comp', sport: 'NFL' },
+  { key: 'nfl_alt_pass_yds', label: '100% Alt Pass', sport: 'NFL' },
+  { key: 'nfl_alt_rush_yds', label: '100% Alt Rush', sport: 'NFL' },
+  { key: 'nfl_alt_rec_yds', label: '100% Alt Rec Yds', sport: 'NFL' },
+  { key: 'nfl_alt_receptions', label: '100% Alt Rec', sport: 'NFL' },
+  { key: 'nfl_alt_completions', label: '100% Alt Comp', sport: 'NFL' },
 ]
 
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -1167,7 +1167,10 @@ type SheetScores = Record<string, Record<string, any>>
 function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'): SheetRow[] {
   const rows = sheetScores?.altLines?.[sheet]
   if (!Array.isArray(rows)) return []
-  return rows.map((row: any) => ({
+  return rows.map((row: any) => {
+    const perfectHits = row.qualifyingHits ?? (row.l10Hits === row.l10Games ? row.l10Hits : row.l5Hits)
+    const perfectGames = row.qualifyingGames ?? (row.l10Hits === row.l10Games ? row.l10Games : row.l5Games)
+    return ({
     player: row.player,
     matchup: row.matchup,
     line: row.line,
@@ -1176,22 +1179,25 @@ function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hit
     season: 0,
     l10: 0,
     l5: 0,
-    hitRate: `${row.l10Hits}/${row.l10Games}`,
+    hitRate: `${perfectHits}/${perfectGames}`,
     l10Hits: row.l10Hits,
     l10Games: row.l10Games,
     l20Hits: row.l20Hits,
     l20Games: row.l20Games,
     streak: row.streak,
     qualifies: true,
-    reason: `${row.l10Hits}/${row.l10Games} L10 · ${row.l20Hits}/${row.l20Games} L20 · ${row.streak} straight`,
+    reason: `${perfectHits}/${perfectGames} perfect · ${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
     edge: row.edge,
     pickLabel: row.pickLabel,
-  }))
+  })})
 }
 
 function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
   if (!Array.isArray(rows)) return []
-  return rows.map((row) => ({
+  return rows.map((row) => {
+    const perfectHits = row.qualifyingHits ?? (row.l10Hits === row.l10Games ? row.l10Hits : row.l5Hits)
+    const perfectGames = row.qualifyingGames ?? (row.l10Hits === row.l10Games ? row.l10Games : row.l5Games)
+    return ({
     player: row.player,
     matchup: row.matchup,
     line: row.line,
@@ -1200,20 +1206,23 @@ function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
     season: 0,
     l10: 0,
     l5: 0,
-    hitRate: `${row.l10Hits}/${row.l10Games}`,
+    hitRate: `${perfectHits}/${perfectGames}`,
     l10Hits: row.l10Hits,
     l10Games: row.l10Games,
     streak: row.streak,
     qualifies: true,
-    reason: `${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
-    edge: { label: '10/10', color: colors.green, score: 0 },
+    reason: `${perfectHits}/${perfectGames} perfect · ${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
+    edge: { label: '100%', color: colors.green, score: 0 },
     pickLabel: row.pickLabel,
-  }))
+  })})
 }
 
 function serverPerfectL10Rows(rows: any[] | undefined): SheetRow[] {
   if (!Array.isArray(rows)) return []
-  return rows.map((row) => ({
+  return rows.map((row) => {
+    const perfectHits = row.qualifyingHits ?? (row.l10Hits === row.l10Games ? row.l10Hits : row.l5Hits)
+    const perfectGames = row.qualifyingGames ?? (row.l10Hits === row.l10Games ? row.l10Games : row.l5Games)
+    return ({
     player: `${row.player} · ${row.sport}`,
     matchup: row.matchup,
     line: row.line,
@@ -1222,17 +1231,17 @@ function serverPerfectL10Rows(rows: any[] | undefined): SheetRow[] {
     season: 0,
     l10: 0,
     l5: 0,
-    hitRate: '10/10',
-    l10Hits: 10,
-    l10Games: 10,
+    hitRate: `${perfectHits}/${perfectGames}`,
+    l10Hits: row.l10Hits,
+    l10Games: row.l10Games,
     l20Hits: row.l20Hits,
     l20Games: row.l20Games,
     streak: row.streak,
     qualifies: true,
-    reason: `10/10 L10${row.l20Games ? ` · ${row.l20Hits}/${row.l20Games} L20` : ''} · ${row.streak} straight`,
-    edge: { label: '100% L10', color: colors.green, score: 0 },
+    reason: `${perfectHits}/${perfectGames} perfect${row.l20Games ? ` · ${row.l20Hits}/${row.l20Games} L20` : ''} · ${row.streak} straight`,
+    edge: { label: '100% Hit Rate', color: colors.green, score: 0 },
     pickLabel: row.pickLabel,
-  }))
+  })})
 }
 
 function serverSheetScore(sheetScores: SheetScores | undefined, sheet: string, game: Game, player: string, line: number) {

@@ -76,25 +76,25 @@ const edgePieces = [
 ]
 
 const cheatSheets = [
-  { title: '100% L10 — All Sports', body: 'One board of posted MLB and NFL alternate lines that cleared their exact line in all 10 recent games. Historical 10/10 performance does not guarantee the next result.' },
+  { title: '100% Hit Rate — All Sports', body: 'One board of posted MLB and NFL alternate lines with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
   { title: 'Hits Bet/Fade', body: '0.5 hit props ranked by recent hit form, price, and history against today\'s starter.' },
   { title: 'HR Targets', body: 'Home run candidates based on starter history, recent power form, and available odds.' },
   { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },
-  { title: '10/10 Alt Hits', body: 'Posted alternate hit lines cleared in all 10 recent games, with longer-form and price checks.' },
-  { title: '10/10 Alt Total Bases', body: 'Posted alternate total-base lines cleared in all 10 recent games, with longer-form and price checks.' },
-  { title: '10/10 Alt K', body: 'Posted pitcher strikeout lines cleared in all 10 recent starts, with longer-form and price checks.' },
-  { title: '10/10 Alt Pitcher Outs', body: 'Posted alternate pitcher-out lines cleared in all 10 recent starts, with longer-form and price checks.' },
+  { title: '100% Alt Hits', body: 'Posted alternate hit lines with a perfect L10 or recent L5 record and a playable price.' },
+  { title: '100% Alt Total Bases', body: 'Posted alternate total-base lines with a perfect L10 or recent L5 record and a playable price.' },
+  { title: '100% Alt K', body: 'Posted pitcher strikeout lines with a perfect L10 or recent L5 record and a playable price.' },
+  { title: '100% Alt Pitcher Outs', body: 'Posted alternate pitcher-out lines with a perfect L10 or recent L5 record and a playable price.' },
   { title: 'Hot Hitters', body: 'Recent form first: last 5, last 10, and streak-style momentum.' },
   { title: 'Batter vs Pitcher', body: "Career batter history against today's probable starter, with sample size shown up front." },
   { title: 'Game Lines & Edge', body: 'A game-level view of odds, totals, and context such as MLB weather.' },
   { title: 'NFL TD Streaks', body: 'Regular-season touchdown scoring streaks by player for quick NFL scoring-form research.' },
   { title: 'NFL QB 2+ TD Streaks', body: 'Quarterbacks on recent streaks of 2+ passing touchdown games.' },
   { title: 'QB 200+ Yard Games', body: 'Quarterbacks clearing 200 passing yards, ranked by active streak, L5 and L10 hit rate, and recent yardage form.' },
-  { title: '10/10 Alt Passing Yards', body: 'Posted alternate passing-yard lines cleared in all 10 saved recent games.' },
-  { title: '10/10 Alt Rushing Yards', body: 'Posted alternate rushing-yard lines cleared in all 10 saved recent games.' },
-  { title: '10/10 Alt Receiving Yards', body: 'Posted alternate receiving-yard lines cleared in all 10 saved recent games.' },
-  { title: '10/10 Alt Receptions', body: 'Posted alternate reception lines cleared in all 10 saved recent games.' },
-  { title: '10/10 Alt Completions', body: 'Posted alternate completion lines cleared in all 10 saved recent games.' },
+  { title: '100% Alt Passing Yards', body: 'Posted alternate passing-yard lines with a perfect L10 or recent L5 record.' },
+  { title: '100% Alt Rushing Yards', body: 'Posted alternate rushing-yard lines with a perfect L10 or recent L5 record.' },
+  { title: '100% Alt Receiving Yards', body: 'Posted alternate receiving-yard lines with a perfect L10 or recent L5 record.' },
+  { title: '100% Alt Receptions', body: 'Posted alternate reception lines with a perfect L10 or recent L5 record.' },
+  { title: '100% Alt Completions', body: 'Posted alternate completion lines with a perfect L10 or recent L5 record.' },
 ]
 
 const sportNotes = [
