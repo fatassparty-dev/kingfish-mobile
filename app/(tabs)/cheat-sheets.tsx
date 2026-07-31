@@ -99,7 +99,7 @@ const SHEETS: Array<{
   statField?: string
   trend?: boolean
 }> = [
-  { key: 'perfect_l10', label: '100% Hit Rate — All Sports', desc: 'Current posted lines with a perfect L10 or recent L5 record.', type: 'perfect' },
+  { key: 'perfect_l10', label: '100% Hit Rate — All Sports', desc: 'The top 10 posted lines across sports with a perfect L10 or recent L5 record.', type: 'perfect' },
   { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },

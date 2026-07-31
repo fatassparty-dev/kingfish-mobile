@@ -76,7 +76,7 @@ const edgePieces = [
 ]
 
 const cheatSheets = [
-  { title: '100% Hit Rate — All Sports', body: 'One board of posted MLB and NFL alternate lines with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
+  { title: '100% Hit Rate — All Sports', body: 'The top 10 posted alternate lines across sports with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
   { title: 'Hits Bet/Fade', body: '0.5 hit props ranked by recent hit form, price, and history against today\'s starter.' },
   { title: 'HR Targets', body: 'Home run candidates based on starter history, recent power form, and available odds.' },
   { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },
