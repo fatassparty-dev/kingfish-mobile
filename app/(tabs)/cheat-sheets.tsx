@@ -1164,18 +1164,23 @@ function bvpByBatterId(bvp: Record<string, any> = {}, matchups: BvpMatchup[] = [
 // stay strictly as the offline fallback (backups are kept, never deleted).
 type SheetScores = Record<string, Record<string, any>>
 
-function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'): SheetRow[] {
+function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k', bookKeys: string[]): SheetRow[] {
   const rows = sheetScores?.altLines?.[sheet]
   if (!Array.isArray(rows)) return []
-  return rows.map((row: any) => {
+  const allowed = new Set(bookKeys)
+  return rows.flatMap((row: any) => {
+    const preferred = (Array.isArray(row.bookOptions) ? row.bookOptions : [])
+      .filter((option: any) => allowed.has(String(option.bookKey)))
+      .sort((a: any, b: any) => Number(b.odds) - Number(a.odds))[0]
+    if (!preferred) return []
     const perfectHits = row.qualifyingHits ?? (row.l10Hits === row.l10Games ? row.l10Hits : row.l5Hits)
     const perfectGames = row.qualifyingGames ?? (row.l10Hits === row.l10Games ? row.l10Games : row.l5Games)
-    return ({
+    return [{
     player: row.player,
     matchup: row.matchup,
     line: row.line,
-    odds: row.odds,
-    book: row.book,
+    odds: preferred.odds,
+    book: preferred.book,
     season: 0,
     l10: 0,
     l5: 0,
@@ -1189,20 +1194,26 @@ function serverAltLineRows(sheetScores: SheetScores | undefined, sheet: 'alt_hit
     reason: `${perfectHits}/${perfectGames} perfect · ${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
     edge: row.edge,
     pickLabel: row.pickLabel,
-  })})
+  }]
+  })
 }
 
-function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
+function serverNflAltLineRows(rows: any[] | undefined, bookKeys: string[]): SheetRow[] {
   if (!Array.isArray(rows)) return []
-  return rows.map((row) => {
+  const allowed = new Set(bookKeys)
+  return rows.flatMap((row) => {
+    const preferred = (Array.isArray(row.bookOptions) ? row.bookOptions : [])
+      .filter((option: any) => allowed.has(String(option.bookKey)))
+      .sort((a: any, b: any) => Number(b.odds) - Number(a.odds))[0]
+    if (!preferred) return []
     const perfectHits = row.qualifyingHits ?? (row.l10Hits === row.l10Games ? row.l10Hits : row.l5Hits)
     const perfectGames = row.qualifyingGames ?? (row.l10Hits === row.l10Games ? row.l10Games : row.l5Games)
-    return ({
+    return [{
     player: row.player,
     matchup: row.matchup,
     line: row.line,
-    odds: row.odds,
-    book: row.book,
+    odds: preferred.odds,
+    book: preferred.book,
     season: 0,
     l10: 0,
     l5: 0,
@@ -1214,7 +1225,8 @@ function serverNflAltLineRows(rows: any[] | undefined): SheetRow[] {
     reason: `${perfectHits}/${perfectGames} perfect · ${row.l10Hits}/${row.l10Games} L10 · ${row.streak} straight`,
     edge: { label: '100%', color: colors.green, score: 0 },
     pickLabel: row.pickLabel,
-  })})
+  }]
+  })
 }
 
 function serverPerfectL10Rows(rows: any[] | undefined): SheetRow[] {
@@ -2094,12 +2106,13 @@ export default function CheatSheetsScreen() {
     ? activeKey as 'alt_hits' | 'alt_tb' | 'alt_outs' | 'k'
     : null
   const nflAltLineKey = activeKey.startsWith('nfl_alt_') ? activeKey.replace(/^nfl_/, '') : null
+  const preferredAltBookKeys = eligiblePropBookKeys(profile?.state, profile?.sportsbook_preferences)
   const rows = activeKey === 'perfect_l10'
     ? serverPerfectL10Rows(perfectL10Query.data?.rows)
     : nflAltLineKey
-    ? serverNflAltLineRows(nflCheatSheetsQuery.data?.altLines?.[nflAltLineKey])
+    ? serverNflAltLineRows(nflCheatSheetsQuery.data?.altLines?.[nflAltLineKey], preferredAltBookKeys)
     : altLineKey
-    ? serverAltLineRows(sheetQuery.data?.sheet_scores, altLineKey)
+    ? serverAltLineRows(sheetQuery.data?.sheet_scores, altLineKey, preferredAltBookKeys)
     : activeSheet.market && activeSheet.statField && lineupsQuery.data?.players && statsQuery.data?.stats && sheetGames.length > 0
       ? buildRows(sheetGames, activeSheet.market, activeSheet.statField, lineupsQuery.data.players, statsQuery.data.stats, activeKey, activeSheet.trend, bvpQuery.data?.bvp, bvpMatchups, sheetQuery.data?.sheet_scores)
       : []
