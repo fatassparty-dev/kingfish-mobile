@@ -1560,6 +1560,53 @@ function pickOddsLabel(odds?: number | null) {
   return typeof odds === 'number' && Number.isFinite(odds) ? fmtOdds(odds) : '—'
 }
 
+// ── Share-card text shorteners ───────────────────────────────────────────────
+// The card is a fixed 360pt canvas, so a cell has room for roughly 7 characters
+// outside the first column. These trim ONLY the copied image — the on-screen
+// sheets keep their full wording (Brian, 2026-08-19: words were getting cut off).
+
+// "San Diego Padres @ Toronto Blue Jays" -> "PAD@JAY". Uses the nickname (last
+// word) rather than city initials, which collide badly across leagues.
+function shareMatchup(text?: string) {
+  const raw = String(text || '').trim()
+  if (!raw) return '—'
+  const code = (team: string) => {
+    const nickname = team.trim().split(/\s+/).pop() || team
+    return nickname.slice(0, 3).toUpperCase()
+  }
+  const parts = raw.split(/\s*@\s*|\s+vs\.?\s+/i)
+  if (parts.length < 2) return raw.slice(0, 7)
+  return `${code(parts[0])}@${code(parts[1])}`
+}
+
+// "Over 3.5 Strikeouts" -> "O 3.5"
+function shareLine(text?: string) {
+  const raw = String(text || '').trim()
+  if (!raw) return '—'
+  const match = raw.match(/^(Over|Under|O|U)\s*([\d.]+)/i)
+  if (match) return `${match[1][0].toUpperCase()} ${match[2]}`
+  return raw.slice(0, 7)
+}
+
+// "100% Hit Rate" -> "100%"; "Strong Lean" -> "Strong"
+function shareEdge(text?: string) {
+  const raw = String(text || '').trim()
+  if (!raw) return '—'
+  if (raw.startsWith('100%')) return '100%'
+  return raw.split(/\s+/)[0].slice(0, 8)
+}
+
+// "Jake Cronenworth · MLB" -> "J. Cronenworth · MLB" once it stops fitting.
+function sharePlayer(name?: string, suffix?: string) {
+  let who = String(name || '').trim()
+  const tail = suffix ? ` \u00B7 ${suffix}` : ''
+  if (who.length + tail.length > 20) {
+    const parts = who.split(/\s+/)
+    if (parts.length > 1) who = `${parts[0][0]}. ${parts.slice(1).join(' ')}`
+  }
+  return `${who}${tail}`
+}
+
 type ShareTable = { columns: string[]; rows: string[][] }
 
 // Branded clipboard card. Fixed 360x450 canvas captured at 1080x1350, matching
@@ -1671,7 +1718,9 @@ function buildShareTable(
       const line = picksData.game_line
       out.push([
         line.team || line.side || '',
-        `${line.sport} game line`,
+        // The market IS the moneyline (MLB leans are ML-only), so name it that
+        // way rather than the vaguer "game line" (Brian, 2026-08-19).
+        'ML',
         pickOddsLabel(line.odds),
       ])
     }
@@ -1681,14 +1730,14 @@ function buildShareTable(
   if (activeKey === 'topleans') {
     const out = (topLeansData?.props || []).map((row, index) => [
       `#${index + 1} ${row.player}`,
-      `${row.sport} ${row.market_label}${row.line != null ? ` O ${row.line}` : ''}`,
+      `${row.sport} ${shareLine(`${row.market_label} ${row.line != null ? `O ${row.line}` : ''}`)}`,
       `${Math.round(row.edge_score)}`,
       fmtOdds(row.odds),
     ])
     if (topLeansData?.game_line) {
       out.push([
         topLeansData.game_line.side,
-        `${topLeansData.game_line.sport} game line`,
+        `${topLeansData.game_line.sport} ML`,
         topLeansData.game_line.type === 'Strong Lean' ? 'STRONG' : 'LEAN',
         fmtOdds(topLeansData.game_line.odds),
       ])
@@ -1708,7 +1757,7 @@ function buildShareTable(
   }
 
   if (activeKey === 'bvp') {
-    const out = bvpRows.map(row => [row.player, row.pitcher, `${row.ab}`, row.avg, `${row.hr}`, row.ops])
+    const out = bvpRows.map(row => [sharePlayer(row.player), sharePlayer(row.pitcher), `${row.ab}`, row.avg, `${row.hr}`, row.ops])
     return out.length ? { columns: ['BATTER', 'VS PITCHER', 'AB', 'AVG', 'HR', 'OPS'], rows: out } : null
   }
 
@@ -1739,11 +1788,11 @@ function buildShareTable(
 
   const cleanRows = rows.filter(row => !row.divider)
   const out = cleanRows.map(row => [
-    row.player,
-    row.matchup,
-    row.pickLabel || `Over ${row.line}`,
+    sharePlayer(row.player),
+    shareMatchup(row.matchup),
+    shareLine(row.pickLabel || `Over ${row.line}`),
     row.odds ? fmtOdds(row.odds) : '—',
-    row.edge.label,
+    shareEdge(row.edge.label),
   ])
   return out.length ? { columns: ['PLAYER', 'MATCHUP', 'LINE', 'ODDS', 'EDGE'], rows: out } : null
 }
