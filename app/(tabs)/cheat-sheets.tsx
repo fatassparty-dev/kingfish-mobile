@@ -2084,6 +2084,9 @@ export default function CheatSheetsScreen() {
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle')
   const shareCardRef = useRef<View>(null)
+  // Capture height follows the card's real height so short sheets don't ship
+  // an image that is mostly empty black.
+  const [shareCardHeight, setShareCardHeight] = useState(450)
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
     unitBankroll: '1000',
     unitPct: '1.5',
@@ -2332,7 +2335,7 @@ export default function CheatSheetsScreen() {
           quality: 1,
           result: 'base64',
           width: 1080,
-          height: 1350,
+          height: Math.round((1080 / 360) * shareCardHeight),
         })
         await Clipboard.setImageAsync(base64)
         setCopyState('copied')
@@ -2570,6 +2573,14 @@ export default function CheatSheetsScreen() {
             <View style={styles.featureToolCopy}>
               <AppText variant="eyebrow">// NFL Tracking Data</AppText>
               <AppText style={styles.featureToolTitle}>The Scout</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+
+          <Pressable onPress={() => router.push('/ref-report' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// NFL Officials</AppText>
+              <AppText style={styles.featureToolTitle}>The Ref Report</AppText>
             </View>
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>
@@ -3183,7 +3194,12 @@ export default function CheatSheetsScreen() {
 
           {shareTable ? (
             <View pointerEvents="none" style={styles.shareCaptureStage}>
-              <View ref={shareCardRef} collapsable={false} style={styles.shareCaptureCard}>
+              <View
+                ref={shareCardRef}
+                collapsable={false}
+                style={styles.shareCaptureCard}
+                onLayout={(event) => setShareCardHeight(event.nativeEvent.layout.height)}
+              >
                 <SheetShareCard label={activeSheet.label} table={shareTable} />
               </View>
             </View>
@@ -4016,9 +4032,9 @@ const styles = StyleSheet.create({
   linePreview: { gap: spacing.md, marginTop: spacing.md },
   // Parked off-screen with real dimensions — NOT opacity:0, which can capture
   // blank on iOS. Mirrors the player profile card's working stage.
-  shareCaptureStage: { position: 'absolute', left: -10000, top: 0, width: 360, height: 450 },
-  shareCaptureCard: { width: 360, height: 450 },
-  shareCard: { width: 360, height: 450, backgroundColor: '#080A0F', overflow: 'hidden' },
+  shareCaptureStage: { position: 'absolute', left: -10000, top: 0, width: 360 },
+  shareCaptureCard: { width: 360 },
+  shareCard: { width: 360, backgroundColor: '#080A0F', overflow: 'hidden' },
   shareTicker: {
     height: 18,
     flexDirection: 'row',
@@ -4027,7 +4043,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
   },
   shareTickerText: { color: '#080A0F', fontSize: 7, lineHeight: 10, fontWeight: '900', fontStyle: 'italic' },
-  shareCardBody: { flex: 1, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  shareCardBody: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 },
   shareCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   shareCardTitleWrap: { flex: 1 },
   shareCardBrand: { color: colors.gold, fontSize: 9, letterSpacing: 1.4 },
@@ -4061,7 +4077,7 @@ const styles = StyleSheet.create({
   shareCardCellLead: { color: colors.textPrimary, fontWeight: '700' },
   shareCardCellWide: { flex: 2.1 },
   shareCardFooter: {
-    marginTop: 'auto',
+    marginTop: 14,
     paddingTop: 8,
     flexDirection: 'row',
     alignItems: 'center',

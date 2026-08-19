@@ -22,7 +22,13 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.0.5 (build 21) — IN PROGRESS (not yet submitted)
+## 🔵 1.0.5 (build 22) — IN PROGRESS (not yet submitted)
+
+> Build 21 went to TestFlight only. On-device testing found two things, fixed in
+> build 22: The Ref Report screen shipped with no way to reach it (no Pro Tools
+> entry), and the cheat-sheet copy image used a fixed-height canvas, so a short
+> sheet produced a card that was mostly empty black space. The card now sizes to
+> its content.
 
 - **[2026-08-18] New cheat sheet: Dashboard Picks.**
   - **What the user sees:** A new first tile in Cheat Sheets opens today's cash
