@@ -21,7 +21,7 @@ import of a package already in `Podfile.lock` does not require it.
 ## 1. Archive (unsigned)
 
 ```bash
-cd /Users/briandelancey/Developer/KingFishBetsLLC/kingfish-mobile/ios && export LANG=en_US.UTF-8 && SENTRY_DISABLE_AUTO_UPLOAD=true xcodebuild -workspace KingFishBets.xcworkspace -scheme KingFishBets -configuration Release -sdk iphoneos -archivePath ~/Desktop/KingFishBets-<VERSION>.xcarchive archive CODE_SIGNING_ALLOWED=NO ENABLE_USER_SCRIPT_SANDBOXING=NO 2>&1 | tee ~/Desktop/kfb-build.log
+cd /Users/briandelancey/Developer/KingFishBetsLLC/kingfish-mobile/ios && export LANG=en_US.UTF-8 && SENTRY_DISABLE_AUTO_UPLOAD=true xcodebuild -workspace KingFishBets.xcworkspace -scheme KingFishBets -configuration Release -sdk iphoneos -archivePath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive archive CODE_SIGNING_ALLOWED=NO ENABLE_USER_SCRIPT_SANDBOXING=NO 2>&1 | tee ~/Developer/KingFishBetsLLC/builds/kfb-build.log
 ```
 
 **Why each flag:**
@@ -47,10 +47,10 @@ Ends with `** ARCHIVE SUCCEEDED **`.
 ## 2. Export the signed .ipa
 
 ```bash
-cd ~/Desktop && xcodebuild -exportArchive -archivePath ~/Desktop/KingFishBets-<VERSION>.xcarchive -exportOptionsPlist ~/Desktop/ExportOptions.plist -exportPath ~/Desktop/KingFishBets-<VERSION>-export
+cd ~/Desktop && xcodebuild -exportArchive -archivePath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive -exportOptionsPlist ~/Developer/KingFishBetsLLC/builds/ExportOptions.plist -exportPath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>-export
 ```
 
-`~/Desktop/ExportOptions.plist` holds `method=app-store`, `teamID=3275YRB2Q7`,
+`~/Developer/KingFishBetsLLC/builds/ExportOptions.plist` holds `method=app-store`, `teamID=3275YRB2Q7`,
 `signingStyle=automatic`, `uploadSymbols=true`.
 
 **Deprecation warning, seen every export since Xcode 26:**
@@ -61,7 +61,7 @@ IDEDistribution: Command line name "app-store" is deprecated. Use "app-store-con
 
 Harmless today — the export still succeeds and the .ipa is valid. But Apple will
 drop the old name eventually, and it will fail an export at the worst moment. To
-retire it, change one line in `~/Desktop/ExportOptions.plist`:
+retire it, change one line in `~/Developer/KingFishBetsLLC/builds/ExportOptions.plist`:
 
 ```xml
 <key>method</key><string>app-store-connect</string>
@@ -77,11 +77,19 @@ Needs network — it resolves the distribution certificate and profile from Appl
 Open **Transporter**, drag the `.ipa` in (do NOT double-click it), then Deliver.
 Processing takes ~10–30 minutes before the build shows up in TestFlight.
 
+## Housekeeping
+
+Builds live in `~/Developer/KingFishBetsLLC/builds/`, never the Desktop
+(Brian, 2026-08-19). Keep the archive for the build you submitted until Apple
+approves it — it holds the dSYMs and is what you would re-export from. Once
+approved, delete the archive, the export folder, and the log; App Store Connect
+keeps the binary. `ExportOptions.plist` stays permanently.
+
 ## Verifying before upload
 
 ```bash
-/usr/libexec/PlistBuddy -c "Print :ApplicationProperties:CFBundleShortVersionString" ~/Desktop/KingFishBets-<VERSION>.xcarchive/Info.plist
-ls -lh ~/Desktop/KingFishBets-<VERSION>.xcarchive/Products/Applications/KingFishBets.app/main.jsbundle
+/usr/libexec/PlistBuddy -c "Print :ApplicationProperties:CFBundleShortVersionString" ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive/Info.plist
+ls -lh ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive/Products/Applications/KingFishBets.app/main.jsbundle
 ```
 
 `main.jsbundle` must be present and a few MB. If it is missing, the JS never made
