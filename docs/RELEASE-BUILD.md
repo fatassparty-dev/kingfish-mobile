@@ -51,9 +51,24 @@ cd ~/Desktop && xcodebuild -exportArchive -archivePath ~/Desktop/KingFishBets-<V
 ```
 
 `~/Desktop/ExportOptions.plist` holds `method=app-store`, `teamID=3275YRB2Q7`,
-`signingStyle=automatic`, `uploadSymbols=true`. Xcode 26 warns that the
-`app-store` method name is deprecated in favour of `app-store-connect`; it still
-works, and changing it is a separate, deliberate edit.
+`signingStyle=automatic`, `uploadSymbols=true`.
+
+**Deprecation warning, seen every export since Xcode 26:**
+
+```
+IDEDistribution: Command line name "app-store" is deprecated. Use "app-store-connect" instead.
+```
+
+Harmless today — the export still succeeds and the .ipa is valid. But Apple will
+drop the old name eventually, and it will fail an export at the worst moment. To
+retire it, change one line in `~/Desktop/ExportOptions.plist`:
+
+```xml
+<key>method</key><string>app-store-connect</string>
+```
+
+Do that between releases, not mid-submission, and confirm one export succeeds
+before relying on it.
 
 Needs network — it resolves the distribution certificate and profile from Apple.
 
