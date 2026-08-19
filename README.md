@@ -12,6 +12,14 @@ Expo app shell for KingFish Bets.
   the same ADP, sports data, scoring decisions, configuration, and account services
   as web and iOS instead of creating device-managed copies.
 
+## Shipping a build to the App Store
+
+See **[docs/RELEASE-BUILD.md](docs/RELEASE-BUILD.md)** for the exact archive /
+export / upload commands. The two flags it documents
+(`SENTRY_DISABLE_AUTO_UPLOAD=true`, `ENABLE_USER_SCRIPT_SANDBOXING=NO`) are not
+optional — without them the bundle phase fails in ways whose error messages point
+somewhere else entirely.
+
 ## First Local Setup
 
 When npm can reach the registry, install dependencies:
