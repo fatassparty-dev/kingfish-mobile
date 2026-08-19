@@ -555,7 +555,7 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Sports</AppText>
         <AppText style={styles.webTitle}>Sports You Follow</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Turn off a sport and it leaves your dashboard and cheat sheets. Leave them all on to see everything KingFish covers.
+          Turn off a sport and it leaves your dashboard and cheat sheets. Cross-sport boards like Top 5 Leans still show every sport.
         </AppText>
         <View style={styles.notificationList}>
           {offeredSports.map((option) => {

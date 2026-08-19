@@ -12,6 +12,12 @@ export type SportPreferences = {
  * user preference can only ever hide a sport KingFish already offers, and can
  * never switch on one we have turned off.
  *
+ * DECISION (Brian, 2026-08-19): this narrows the sport TAB ROW and the
+ * cheat-sheet TILES only. It deliberately does NOT filter the rows inside
+ * cross-sport boards — Top 5 Leans and 100% Hit Rate keep meaning "the best
+ * plays anywhere", and filtering them would leave a football-only user staring
+ * at an empty board through the whole baseball season.
+ *
  * An empty or unrecognised selection falls back to everything visible. Someone
  * who unticks every sport should see the normal app, not an empty dashboard.
  */
