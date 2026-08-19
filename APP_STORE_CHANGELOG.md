@@ -22,7 +22,56 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 PENDING — next build (not yet submitted)
+## 🔵 1.0.5 (build 21) — IN PROGRESS (not yet submitted)
+
+- **[2026-08-18] New cheat sheet: Dashboard Picks.**
+  - **What the user sees:** A new first tile in Cheat Sheets opens today's cash
+    card — the plays with the strongest recent hit rate at a playable price, the
+    day's game line, and a bonus long shot, with yesterday's record above them.
+    It is laid out as cards rather than the compact table the other sheets use.
+  - **Why:** Brings the website's /picks card to iPhone. Selection is calculated
+    on the KingFish server and is deliberately different from Top 5 Leans —
+    empirical recent hit rate inside a price band, not raw edge — so the
+    standards can change without another App Store release.
+
+- **[2026-08-18] Cheat sheet Copy button now copies a branded image.**
+  - **What the user sees:** The Copy button on any cheat sheet puts a KingFish
+    card image on the clipboard — sheet name, date, and the board — ready to
+    paste into a message. Plain text is still used if the image can't be made.
+  - **Why:** The button previously opened the system share sheet with plain
+    text, and on the NRFI and Top 5 Leans sheets it produced nothing at all and
+    hid itself. Both are fixed: every sheet now copies, and the image and text
+    are generated from the same table so they cannot disagree.
+
+- **[2026-08-18] New Pro Tool screen: The Ref Report.**
+  - **What the user sees:** NFL crew-chief tendencies — games worked, average
+    game total, over/under split, home win rate, and flags per game — sortable,
+    with a crew-chief search. Same Premium gating as the other Pro Tools.
+  - **Why:** The iPad app has had this; the iPhone did not. The data is served
+    by KingFish and uploaded through HQ, so it refreshes with no app update.
+    Laid out for phone widths rather than porting the iPad's wide table.
+
+- **[2026-08-18] Ask KingFish suggestions are no longer baseball-specific.**
+  - **What the user sees:** The two starter questions read "top player props"
+    and "best matchup" instead of naming hit props and pitcher matchups.
+  - **Why:** KingFish is multi-sport year-round; the old wording read as stale
+    outside the MLB season.
+
+- **[2026-08-18] 🟢 Server-only, no app update: MLB game leans are moneyline.**
+  - MLB leans on the Game Props board now always name the team with "ML".
+    Previously certain underdog leans showed the posted run line, which left the
+    compact column reading "+1.5" with the team crowded out. Already live for
+    users on 1.0.4. NFL is unchanged — it has separate moneyline and spread
+    calls, and shows both.
+
+---
+
+## 🟡 1.0.4 (build 20) — SUBMITTED FOR APP REVIEW 2026-07-16
+
+> Tested on-device through TestFlight, uploaded through Transporter, and submitted
+> to Apple on 2026-07-16. App Store privacy information was updated before
+> submission. The version is configured to release automatically to all users once
+> Apple approves it.
 
 - **[2026-07-16] Server-managed Game Factors, game-line calls, NFL sheets, and sportsbooks.**
   - **What the user sees:** The same Game Factors boards, KingFish line calls, NFL
@@ -74,9 +123,9 @@ data* it didn't know about before.
     should know — the bet-slip image now leaves the device (sent to KingFish to
     read the legs). Update the privacy nutrition label accordingly (user content /
     photo sent to our server for processing; not used for tracking).
-    The website Privacy Policy was updated with this disclosure on 2026-07-15;
-    the App Store privacy nutrition label still needs the matching update before
-    this build is submitted.
+    The website Privacy Policy was updated with this disclosure on 2026-07-15, and
+    the matching App Store privacy information was completed before build 20 was
+    submitted on 2026-07-16.
   - **Code:** `app/grade-slip.tsx` now uploads the image (base64) to
     `/api/grade-slip`; the on-device `Visionocr` module + `lib/slip/parseSlip.ts`
     have been removed.

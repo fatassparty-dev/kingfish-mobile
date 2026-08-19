@@ -25,9 +25,12 @@ import type { ChatMessage } from '@/types'
 
 const FREE_DAILY_LIMIT = 3
 
+// Sport-agnostic on purpose. These render year-round in a multi-sport app, so
+// baseball-specific starters ("hit props", "pitcher matchup") read as stale for
+// most of the calendar and undersell the product outside the MLB season.
 const STARTERS = [
-  'What are the top 3 hit props today?',
-  'Who has the best pitcher matchup today?',
+  'What are the top player props today?',
+  'Who has the best matchup today?',
 ]
 
 function todayKey() {

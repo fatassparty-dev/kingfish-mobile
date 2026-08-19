@@ -2,6 +2,16 @@
 
 Expo app shell for KingFish Bets.
 
+## Current Release Status
+
+- iOS 1.0.4 (build 20) was approved and is live on the App Store.
+- iOS 1.0.5 (build 21) is in progress and NOT yet submitted. See
+  APP_STORE_CHANGELOG.md for what it contains.
+- The next major mobile phase is Android planning and implementation. Start by
+  preserving the server-driven architecture documented below so Android consumes
+  the same ADP, sports data, scoring decisions, configuration, and account services
+  as web and iOS instead of creating device-managed copies.
+
 ## First Local Setup
 
 When npm can reach the registry, install dependencies:

@@ -1,6 +1,8 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import { captureRef } from 'react-native-view-shot'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -17,7 +19,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = 'perfect_l10' | 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
+type SheetKey = 'picks' | 'perfect_l10' | 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -70,6 +72,53 @@ type TopLeanGameLine = {
 }
 type TopLeansData = { props: TopLeanProp[]; game_line: TopLeanGameLine | null }
 
+// Dashboard Picks — the /picks daily card, rendered as a cheat sheet. Selection
+// is server-side and deliberately DIFFERENT from Top 5 Leans: empirical L10/L20
+// hit rate inside a price band, not raw edge (lib/scoring/picksCashSelection.ts).
+type PicksLean = {
+  sport: string
+  player: string
+  market_label: string
+  line?: number | null
+  odds?: number | null
+  edge_score?: number | null
+  proj?: number | null
+  home_team?: string | null
+  away_team?: string | null
+  edge_label?: string | null
+  book_label?: string | null
+}
+type PicksGameLine = {
+  sport: string
+  side?: string | null
+  team?: string | null
+  type?: string | null
+  detail?: string | null
+  odds?: number | null
+  home_team?: string | null
+  away_team?: string | null
+}
+type PicksPayload = {
+  access: 'public' | 'free' | 'premium'
+  sheet_date?: string | null
+  updated_at?: string | null
+  before_daily_publish: boolean
+  leans: PicksLean[]
+  game_line: PicksGameLine | null
+  bonus_longshot: PicksLean | null
+  hidden_count: number
+  total_count: number
+  yesterday?: {
+    date: string
+    wins: number
+    losses: number
+    voids: number
+    pending: number
+    total: number
+    status: 'no_slate' | 'pending' | 'final'
+  }
+}
+
 type WnbaRoleMover = {
   player: string
   matchup: string
@@ -94,11 +143,12 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans' | 'perfect'
+  type: 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans' | 'perfect' | 'picks'
   market?: string
   statField?: string
   trend?: boolean
 }> = [
+  { key: 'picks', label: 'Dashboard Picks', desc: "Today's cash card — the plays with the strongest recent hit rate at a playable price, plus the day's game line. Locks 9:05 AM CT.", type: 'picks' },
   { key: 'perfect_l10', label: '100% Hit Rate — All Sports', desc: 'The top 10 posted lines across sports with a perfect L10 or recent L5 record.', type: 'perfect' },
   { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
@@ -124,6 +174,7 @@ const SHEETS: Array<{
 ]
 
 const TOOL_TILES: ToolTile[] = [
+  { key: 'picks', label: 'Dashboard Picks', sport: 'ALL' },
   { key: 'perfect_l10', label: '100% Hit Rate', sport: 'ALL' },
   { key: 'topleans', label: 'Top 5 Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
@@ -1503,8 +1554,88 @@ function buildRows(
     .slice(0, 30)
 }
 
-function buildShareText(
-  sheet: { label: string },
+// The picks payload marks odds optional (a lean can post before a price is
+// scraped), so it can't go straight into fmtOdds.
+function pickOddsLabel(odds?: number | null) {
+  return typeof odds === 'number' && Number.isFinite(odds) ? fmtOdds(odds) : '—'
+}
+
+type ShareTable = { columns: string[]; rows: string[][] }
+
+// Branded clipboard card. Fixed 360x450 canvas captured at 1080x1350, matching
+// the player profile card so every KingFish image shares one look.
+function SheetShareCard({ label, table }: { label: string; table: ShareTable }) {
+  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Cap the rows so type never shrinks past readable on the fixed canvas.
+  const rows = table.rows.slice(0, 10)
+  const hidden = table.rows.length - rows.length
+  return (
+    <View style={styles.shareCard}>
+      <View style={styles.shareTicker}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <AppText key={index} variant="mono" style={styles.shareTickerText}>KINGFISH BETS</AppText>
+        ))}
+      </View>
+      <View style={styles.shareCardBody}>
+        <View style={styles.shareCardTop}>
+          <View style={styles.shareCardTitleWrap}>
+            <AppText variant="mono" style={styles.shareCardBrand}>KINGFISH BETS</AppText>
+            <AppText style={styles.shareCardTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
+              {label.toUpperCase()}
+            </AppText>
+          </View>
+          <AppText style={styles.shareCardMark}>KFB</AppText>
+        </View>
+        <AppText variant="mono" style={styles.shareCardDate}>{date.toUpperCase()}</AppText>
+
+        <View style={styles.shareCardHead}>
+          {table.columns.map((column, index) => (
+            <AppText
+              key={column}
+              variant="mono"
+              style={[styles.shareCardHeadCell, index === 0 && styles.shareCardCellWide]}
+              numberOfLines={1}
+            >
+              {column}
+            </AppText>
+          ))}
+        </View>
+
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.shareCardRow}>
+            {row.map((cell, cellIndex) => (
+              <AppText
+                key={cellIndex}
+                variant="mono"
+                style={[
+                  styles.shareCardCell,
+                  cellIndex === 0 && styles.shareCardCellWide,
+                  cellIndex === 0 && styles.shareCardCellLead,
+                ]}
+                numberOfLines={1}
+              >
+                {cell}
+              </AppText>
+            ))}
+          </View>
+        ))}
+
+        <View style={styles.shareCardFooter}>
+          <AppText variant="mono" style={styles.shareCardFootMuted}>
+            {hidden > 0 ? `+${hidden} more on the app` : 'Model lean. Lines move.'}
+          </AppText>
+          <AppText variant="mono" style={styles.shareCardFootBrand}>KINGFISHBETS.COM</AppText>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+// ONE source for both copy formats: the clipboard image and the plain-text
+// fallback render from the same table, so they can never disagree. Every sheet
+// gets a branch — before this, NRFI and Top 5 Leans fell through to the MLB
+// props table, produced an empty string, and the Copy button silently vanished.
+function buildShareTable(
   activeKey: SheetKey,
   rows: SheetRow[],
   bvpRows: BvpRow[],
@@ -1512,73 +1643,120 @@ function buildShareText(
   qbTdRows: TdStreakRow[],
   qb200Rows: QbYardsRow[],
   wnbaRoleRows: WnbaRoleMover[],
-) {
+  nrfiRows: NrfiRow[],
+  topLeansData: TopLeansData | undefined,
+  picksData: PicksPayload | undefined,
+): ShareTable | null {
+  if (activeKey === 'picks') {
+    const out: string[][] = []
+    for (const [index, row] of (picksData?.leans || []).entries()) {
+      out.push([
+        `#${index + 1} ${row.player}`,
+        `${row.market_label}${typeof row.line === 'number' ? ` O ${row.line}` : ''}`,
+        pickOddsLabel(row.odds),
+      ])
+    }
+    if (picksData?.bonus_longshot) {
+      const bonus = picksData.bonus_longshot
+      out.push([
+        `BONUS ${bonus.player}`,
+        `${bonus.market_label}${typeof bonus.line === 'number' ? ` O ${bonus.line}` : ''}`,
+        pickOddsLabel(bonus.odds),
+      ])
+    }
+    if (picksData?.game_line) {
+      const line = picksData.game_line
+      out.push([
+        line.team || line.side || '',
+        `${line.sport} game line`,
+        pickOddsLabel(line.odds),
+      ])
+    }
+    return out.length ? { columns: ['PICK', 'MARKET', 'ODDS'], rows: out } : null
+  }
+
+  if (activeKey === 'topleans') {
+    const out = (topLeansData?.props || []).map((row, index) => [
+      `#${index + 1} ${row.player}`,
+      `${row.sport} ${row.market_label}${row.line != null ? ` O ${row.line}` : ''}`,
+      `${Math.round(row.edge_score)}`,
+      fmtOdds(row.odds),
+    ])
+    if (topLeansData?.game_line) {
+      out.push([
+        topLeansData.game_line.side,
+        `${topLeansData.game_line.sport} game line`,
+        topLeansData.game_line.type === 'Strong Lean' ? 'STRONG' : 'LEAN',
+        fmtOdds(topLeansData.game_line.odds),
+      ])
+    }
+    return out.length ? { columns: ['LEAN', 'MARKET', 'EDGE', 'ODDS'], rows: out } : null
+  }
+
+  if (activeKey === 'nrfi') {
+    const pct = (n: number | null) => (typeof n === 'number' ? `${Math.round(n * 100)}%` : '—')
+    const out = nrfiRows.map(row => [
+      `${row.away_abbr || row.away_team} @ ${row.home_abbr || row.home_team}`,
+      row.lean?.label || '—',
+      pct(row.model_nrfi_prob),
+      pct(row.market_nrfi_prob),
+    ])
+    return out.length ? { columns: ['GAME', 'LEAN', 'MODEL', 'MARKET'], rows: out } : null
+  }
+
+  if (activeKey === 'bvp') {
+    const out = bvpRows.map(row => [row.player, row.pitcher, `${row.ab}`, row.avg, `${row.hr}`, row.ops])
+    return out.length ? { columns: ['BATTER', 'VS PITCHER', 'AB', 'AVG', 'HR', 'OPS'], rows: out } : null
+  }
+
+  if (activeKey === 'td') {
+    const out = tdRows.map(row => [row.player, row.team, row.position, `${row.streak_games} games`])
+    return out.length ? { columns: ['PLAYER', 'TEAM', 'POS', 'STREAK'], rows: out } : null
+  }
+
+  if (activeKey === 'qbtd') {
+    const out = qbTdRows.map(row => [row.player, row.team, `${row.two_td_games || 0}/${row.games || 0}`, `${row.streak_games}`])
+    return out.length ? { columns: ['QB', 'TEAM', '2+ TD', 'STREAK'], rows: out } : null
+  }
+
+  if (activeKey === 'qb200') {
+    const out = qb200Rows.map(row => [row.player, row.team, row.hitRate, `${row.l5Hits}/5`, `${row.l10Hits}/10`])
+    return out.length ? { columns: ['QB', 'TEAM', '200+ RATE', 'L5', 'L10'], rows: out } : null
+  }
+
+  if (activeKey === 'wnba_roles') {
+    const out = wnbaRoleRows.map(row => [
+      row.player,
+      row.matchup,
+      `${row.change >= 0 ? '+' : ''}${row.change.toFixed(1)}`,
+      row.role,
+    ])
+    return out.length ? { columns: ['PLAYER', 'MATCHUP', 'MIN CHG', 'ROLE'], rows: out } : null
+  }
+
+  const cleanRows = rows.filter(row => !row.divider)
+  const out = cleanRows.map(row => [
+    row.player,
+    row.matchup,
+    row.pickLabel || `Over ${row.line}`,
+    row.odds ? fmtOdds(row.odds) : '—',
+    row.edge.label,
+  ])
+  return out.length ? { columns: ['PLAYER', 'MATCHUP', 'LINE', 'ODDS', 'EDGE'], rows: out } : null
+}
+
+// Plain-text fallback — used when the image copy fails, and by the OS share
+// sheet. Capped shorter than the image so it stays pasteable in a message.
+function shareTableToText(sheet: { label: string }, table: ShareTable | null) {
+  if (!table) return ''
   const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const header = [`KINGFISH BETS`, sheet.label.toUpperCase(), date]
-
-  if (activeKey === 'bvp' && bvpRows.length) {
-    return [
-      ...header,
-      '',
-      'BATTER | VS PITCHER | AB | AVG | HR | RBI | OPS',
-      ...bvpRows.slice(0, 12).map(row => `${row.player} | ${row.pitcher} | ${row.ab} | ${row.avg} | ${row.hr} | ${row.rbi} | ${row.ops}`),
-      '',
-      'kingfishbets.com',
-    ].join('\n')
-  }
-
-  if (activeKey === 'td' && tdRows.length) {
-    return [
-      ...header,
-      '',
-      'PLAYER | TEAM | POS | STREAK',
-      ...tdRows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.position} | ${row.streak_games} games`),
-      '',
-      'kingfishbets.com',
-    ].join('\n')
-  }
-
-  if (activeKey === 'qbtd' && qbTdRows.length) {
-    return [
-      ...header,
-      '',
-      'QB | TEAM | 2+ TD GAMES | STREAK',
-      ...qbTdRows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.two_td_games || 0}/${row.games || 0} | ${row.streak_games}`),
-      '',
-      'kingfishbets.com',
-    ].join('\n')
-  }
-
-  if (activeKey === 'qb200' && qb200Rows.length) {
-    return [
-      ...header,
-      '',
-      'QB | TEAM | 200+ RATE | L5 | L10 | STREAK',
-      ...qb200Rows.slice(0, 12).map(row => `${row.player} | ${row.team} | ${row.hitRate} | ${row.l5Hits}/5 | ${row.l10Hits}/10 | ${row.streak_games}`),
-      '',
-      'kingfishbets.com',
-    ].join('\n')
-  }
-
-  if (activeKey === 'wnba_roles' && wnbaRoleRows.length) {
-    return [
-      ...header,
-      '',
-      'PLAYER | MATCHUP | MIN CHANGE | PRODUCTION | ROLE',
-      ...wnbaRoleRows.map(row => `${row.player} | ${row.matchup} | ${row.change >= 0 ? '+' : ''}${row.change.toFixed(1)} | ${row.production} | ${row.role}`),
-      '',
-      'kingfishbets.com',
-    ].join('\n')
-  }
-
-  const cleanRows = rows.filter(row => !row.divider).slice(0, 12)
-  if (!cleanRows.length) return ''
-
   return [
-    ...header,
+    'KINGFISH BETS',
+    sheet.label.toUpperCase(),
+    date,
     '',
-    'PLAYER | MATCHUP | LINE | ODDS | EDGE',
-    ...cleanRows.map(row => `${row.player} | ${row.matchup} | ${row.pickLabel || `Over ${row.line}`} | ${row.odds ? fmtOdds(row.odds) : '-'} ${row.book || ''} | ${row.edge.label}`),
+    table.columns.join(' | '),
+    ...table.rows.slice(0, 12).map(row => row.join(' | ')),
     '',
     'kingfishbets.com',
   ].join('\n')
@@ -1904,6 +2082,8 @@ export default function CheatSheetsScreen() {
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle')
+  const shareCardRef = useRef<View>(null)
   const [calcInputs, setCalcInputs] = useState<Record<string, string>>({
     unitBankroll: '1000',
     unitPct: '1.5',
@@ -1928,7 +2108,8 @@ export default function CheatSheetsScreen() {
   const isTdSheet = activeSheet.type === 'td'
   const isWnbaRoleSheet = activeSheet.type === 'wnba_roles'
   const isPerfectSheet = activeSheet.type === 'perfect'
-  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isWnbaRoleSheet && !isPerfectSheet
+  const isPicksSheet = activeSheet.type === 'picks'
+  const canLoadMlbSheetData = canLoadData && !isTdSheet && !isWnbaRoleSheet && !isPerfectSheet && !isPicksSheet
 
   useEffect(() => {
     if (mode === 'calculators' || mode === 'sheets' || mode === 'more') {
@@ -1956,7 +2137,7 @@ export default function CheatSheetsScreen() {
     // the props payload could land in the NRFI board's cache slot — the root cause
     // of the old "NRFI opens blank until you switch sheets" bug and the slow open.
     // (Port of kingfish-studio 59cae72.)
-    enabled: canLoadMlbSheetData && activeKey !== 'nrfi' && activeKey !== 'topleans' && activeKey !== 'perfect_l10',
+    enabled: canLoadMlbSheetData && activeKey !== 'nrfi' && activeKey !== 'topleans' && activeKey !== 'perfect_l10' && activeKey !== 'picks',
     staleTime: 12 * 60 * 60 * 1000,
   })
   // NRFI/YRFI is premium, same tier as the other cheat sheets.
@@ -1976,6 +2157,17 @@ export default function CheatSheetsScreen() {
   })
   const topLeansData = topLeansQuery.data?.data
   const topLeanProps = topLeansData?.props ?? []
+  // Dashboard Picks — /api/picks/leans tiers itself by the caller's token
+  // (anon sees none, free sees one, premium sees the card), so the app just
+  // renders whatever comes back and reports hidden_count.
+  const picksQuery = useQuery({
+    queryKey: ['cheat-sheet-picks'],
+    queryFn: () => kingfishFetch<PicksPayload>('/api/picks/leans'),
+    enabled: canUseCheatSheets && toolMode === 'sheets' && activeKey === 'picks',
+    staleTime: 5 * 60 * 1000,
+  })
+  const picksData = picksQuery.data
+  const picksLeans = picksData?.leans ?? []
   const wnbaRoleMoversQuery = useQuery({
     queryKey: ['cheat-sheet-wnba-role-movers'],
     queryFn: () => kingfishFetch<WnbaRoleMoversPayload>('/api/wnba-role-movers'),
@@ -1986,7 +2178,7 @@ export default function CheatSheetsScreen() {
   const lineupsQuery = useQuery({
     queryKey: ['mlb-lineups-cheat-sheets'],
     queryFn: () => kingfishFetch<{ players: Record<string, LineupPlayer> }>('/api/mlb-lineups'),
-    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && activeKey !== 'nrfi' && activeKey !== 'topleans',
+    enabled: canLoadMlbSheetData && activeSheet.type !== 'lines' && activeKey !== 'nrfi' && activeKey !== 'topleans' && activeKey !== 'picks',
     staleTime: 12 * 60 * 60 * 1000,
   })
 
@@ -2121,14 +2313,36 @@ export default function CheatSheetsScreen() {
   const tdStreakRows = activeKey === 'td' ? nflCheatSheetsQuery.data?.td || [] : []
   const qbTdRows = activeKey === 'qbtd' ? nflCheatSheetsQuery.data?.qbtd || [] : []
   const qb200Rows = activeKey === 'qb200' ? nflCheatSheetsQuery.data?.qb200 || [] : []
-  const shareText = useMemo(
-    () => buildShareText(activeSheet, activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows, wnbaRoleRows),
-    [activeKey, activeSheet, bvpRows, qb200Rows, qbTdRows, rows, tdStreakRows, wnbaRoleRows],
+  const shareTable = useMemo(
+    () => buildShareTable(activeKey, rows, bvpRows, tdStreakRows, qbTdRows, qb200Rows, wnbaRoleRows, nrfiRows, topLeansData, picksData),
+    [activeKey, bvpRows, nrfiRows, picksData, qb200Rows, qbTdRows, rows, tdStreakRows, topLeansData, wnbaRoleRows],
   )
+  const shareText = useMemo(() => shareTableToText(activeSheet, shareTable), [activeSheet, shareTable])
 
+  // Copy the branded card as an IMAGE (same treatment as the player profile
+  // card) so a shared sheet is recognisably KingFish. Text is the fallback.
   async function shareSheet() {
-    if (!shareText) return
-    await Share.share({ message: shareText })
+    if (!shareTable) return
+    if (shareCardRef.current) {
+      try {
+        setCopyState('copying')
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+        const base64 = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'base64',
+          width: 1080,
+          height: 1350,
+        })
+        await Clipboard.setImageAsync(base64)
+        setCopyState('copied')
+        setTimeout(() => setCopyState('idle'), 1600)
+        return
+      } catch {
+        setCopyState('idle')
+      }
+    }
+    if (shareText) await Share.share({ message: shareText })
   }
 
   function openPlayerProfile(player: string, row?: SheetRow) {
@@ -2454,15 +2668,19 @@ export default function CheatSheetsScreen() {
                 <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : isWnbaRoleSheet ? 'WNBA' : activeSheet.label}</AppText>
                 <AppText style={styles.reportTitle}>{activeSheet.label}</AppText>
               </View>
-              {shareText ? (
-                <Pressable onPress={shareSheet} style={styles.shareButton}>
-                  <AppText style={styles.shareButtonText}>Copy</AppText>
+              {shareTable ? (
+                <Pressable onPress={shareSheet} disabled={copyState === 'copying'} style={styles.shareButton}>
+                  <AppText style={styles.shareButtonText}>
+                    {copyState === 'copied' ? 'Copied' : copyState === 'copying' ? '...' : 'Copy'}
+                  </AppText>
                 </Pressable>
               ) : null}
             </View>
             {!isTdSheet ? (
               <AppText style={styles.reportDate}>
-                {activeKey === 'nrfi'
+                {activeKey === 'picks'
+                  ? formatSavedAt(picksData?.updated_at || undefined, picksData?.sheet_date || undefined)
+                  : activeKey === 'nrfi'
                   ? formatSavedAt(nrfiQuery.data?.published_at || nrfiQuery.data?.updated_at, nrfiQuery.data?.sheet_date)
                   : activeKey === 'topleans'
                   ? formatSavedAt(topLeansQuery.data?.published_at || topLeansQuery.data?.updated_at, topLeansQuery.data?.sheet_date)
@@ -2473,7 +2691,9 @@ export default function CheatSheetsScreen() {
             ) : null}
             <AppText variant="muted" style={styles.reportCopy}>{activeSheet.desc}</AppText>
 
-          {(activeKey === 'nrfi'
+          {(activeKey === 'picks'
+            ? picksQuery.isLoading
+            : activeKey === 'nrfi'
             ? nrfiQuery.isLoading
             : activeKey === 'topleans'
             ? topLeansQuery.isLoading
@@ -2517,6 +2737,117 @@ export default function CheatSheetsScreen() {
                     )
                   })}
                 </View>
+                <AppText variant="muted" style={styles.cardCopy}>
+                  Model lean, not a guarantee. For entertainment only — please bet responsibly.
+                </AppText>
+              </>
+            )
+          )}
+
+          {activeKey === 'picks' && !picksQuery.isLoading && (
+            picksLeans.length === 0 && !picksData?.game_line ? (
+              <AppText variant="muted" style={styles.errorText}>
+                {picksData?.before_daily_publish
+                  ? "Today's card locks at 9:05 AM CT — check back then."
+                  : "Nothing cleared today's standards."}
+              </AppText>
+            ) : (
+              <>
+                {picksData?.yesterday && picksData.yesterday.status !== 'no_slate' ? (
+                  <View style={styles.picksRecord}>
+                    <AppText variant="mono" style={styles.picksRecordLabel}>YESTERDAY</AppText>
+                    <AppText style={styles.picksRecordValue}>
+                      {picksData.yesterday.wins}-{picksData.yesterday.losses}
+                      {picksData.yesterday.voids ? `-${picksData.yesterday.voids}` : ''}
+                      {picksData.yesterday.pending ? ` · ${picksData.yesterday.pending} pending` : ''}
+                    </AppText>
+                  </View>
+                ) : null}
+
+                <View style={styles.pickCards}>
+                  {picksLeans.map((row, index) => (
+                    <Pressable
+                      key={`${row.player}-${index}`}
+                      onPress={() => openPlayerProfile(row.player)}
+                      style={styles.pickCard}
+                    >
+                      <View style={styles.pickTop}>
+                        <AppText variant="mono" style={styles.pickEyebrow} numberOfLines={1}>
+                          #{index + 1} {row.sport} PICK
+                        </AppText>
+                        <AppText variant="mono" style={styles.pickOdds}>{pickOddsLabel(row.odds)}</AppText>
+                      </View>
+                      <AppText style={styles.pickName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        {row.player}
+                      </AppText>
+                      <AppText variant="mono" style={styles.pickMeta} numberOfLines={1}>
+                        {row.market_label}{typeof row.line === 'number' ? ` · Over ${row.line}` : ''}
+                      </AppText>
+                      {row.away_team && row.home_team ? (
+                        <AppText variant="mono" style={styles.pickMeta} numberOfLines={1}>
+                          {row.away_team} @ {row.home_team}
+                        </AppText>
+                      ) : null}
+                      <AppText variant="mono" style={styles.pickProof} numberOfLines={1}>
+                        KingFish {row.edge_label || 'Lean'}
+                        {typeof row.proj === 'number' ? ` · Proj ${row.proj}` : ''}
+                        {row.book_label ? ` · ${row.book_label}` : ''}
+                      </AppText>
+                    </Pressable>
+                  ))}
+
+                  {picksData?.bonus_longshot ? (
+                    <Pressable
+                      onPress={() => openPlayerProfile(picksData.bonus_longshot!.player)}
+                      style={[styles.pickCard, styles.pickCardBonus]}
+                    >
+                      <View style={styles.pickTop}>
+                        <AppText variant="mono" style={styles.pickEyebrow} numberOfLines={1}>BONUS LONG SHOT</AppText>
+                        <AppText variant="mono" style={styles.pickOdds}>{pickOddsLabel(picksData.bonus_longshot.odds)}</AppText>
+                      </View>
+                      <AppText style={styles.pickName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        {picksData.bonus_longshot.player}
+                      </AppText>
+                      <AppText variant="mono" style={styles.pickMeta} numberOfLines={1}>
+                        {picksData.bonus_longshot.market_label}
+                        {typeof picksData.bonus_longshot.line === 'number' ? ` · Over ${picksData.bonus_longshot.line}` : ''}
+                      </AppText>
+                      <AppText variant="mono" style={styles.pickProof} numberOfLines={1}>
+                        Plus-money play · tracked apart from today's card
+                      </AppText>
+                    </Pressable>
+                  ) : null}
+
+                  {picksData?.game_line ? (
+                    <View style={[styles.pickCard, styles.pickCardGame]}>
+                      <View style={styles.pickTop}>
+                        <AppText variant="mono" style={styles.pickEyebrow} numberOfLines={1}>
+                          {picksData.game_line.sport} GAME LINE
+                        </AppText>
+                        <AppText variant="mono" style={styles.pickOdds}>{pickOddsLabel(picksData.game_line.odds)}</AppText>
+                      </View>
+                      <AppText style={styles.pickName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        {picksData.game_line.team || picksData.game_line.side || ''}
+                      </AppText>
+                      {picksData.game_line.away_team && picksData.game_line.home_team ? (
+                        <AppText variant="mono" style={styles.pickMeta} numberOfLines={1}>
+                          {picksData.game_line.away_team} @ {picksData.game_line.home_team}
+                        </AppText>
+                      ) : null}
+                      <AppText variant="mono" style={styles.pickProof} numberOfLines={2}>
+                        KingFish {picksData.game_line.type || 'Lean'}
+                        {picksData.game_line.detail ? ` · ${picksData.game_line.detail}` : ''}
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+
+                {picksData && picksData.hidden_count > 0 ? (
+                  <AppText variant="muted" style={styles.cardCopy}>
+                    {picksData.hidden_count} more play{picksData.hidden_count === 1 ? '' : 's'} on today's card {picksData.hidden_count === 1 ? 'is' : 'are'} available with Premium.
+                  </AppText>
+                ) : null}
+
                 <AppText variant="muted" style={styles.cardCopy}>
                   Model lean, not a guarantee. For entertainment only — please bet responsibly.
                 </AppText>
@@ -2844,11 +3175,19 @@ export default function CheatSheetsScreen() {
             </AppText>
           )}
 
-          {activeKey !== 'wnba_roles' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && activeKey !== 'nrfi' && activeKey !== 'topleans' && !sheetQuery.isLoading && sheetGames.length === 0 && (
+          {activeKey !== 'wnba_roles' && activeKey !== 'td' && activeKey !== 'qbtd' && activeKey !== 'qb200' && activeKey !== 'nrfi' && activeKey !== 'topleans' && activeKey !== 'picks' && !sheetQuery.isLoading && sheetGames.length === 0 && (
             <AppText variant="muted" style={styles.cardCopy}>
               No MLB markets were available when this daily board was saved.
             </AppText>
           )}
+
+          {shareTable ? (
+            <View pointerEvents="none" style={styles.shareCaptureStage}>
+              <View ref={shareCardRef} collapsable={false} style={styles.shareCaptureCard}>
+                <SheetShareCard label={activeSheet.label} table={shareTable} />
+              </View>
+            </View>
+          ) : null}
 
           <PlayerProfileModal
             playerName={selectedPlayer}
@@ -3675,6 +4014,103 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   errorText: { color: colors.red, marginTop: spacing.sm },
   linePreview: { gap: spacing.md, marginTop: spacing.md },
+  // Parked off-screen with real dimensions — NOT opacity:0, which can capture
+  // blank on iOS. Mirrors the player profile card's working stage.
+  shareCaptureStage: { position: 'absolute', left: -10000, top: 0, width: 360, height: 450 },
+  shareCaptureCard: { width: 360, height: 450 },
+  shareCard: { width: 360, height: 450, backgroundColor: '#080A0F', overflow: 'hidden' },
+  shareTicker: {
+    height: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: colors.gold,
+  },
+  shareTickerText: { color: '#080A0F', fontSize: 7, lineHeight: 10, fontWeight: '900', fontStyle: 'italic' },
+  shareCardBody: { flex: 1, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  shareCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  shareCardTitleWrap: { flex: 1 },
+  shareCardBrand: { color: colors.gold, fontSize: 9, letterSpacing: 1.4 },
+  shareCardTitle: { fontSize: 24, lineHeight: 26, fontWeight: '900', color: colors.textPrimary, marginTop: 2 },
+  shareCardMark: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(198,145,50,.45)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  shareCardDate: { color: colors.textSecondary, fontSize: 9, letterSpacing: 1.2, marginTop: 4, marginBottom: 10 },
+  shareCardHead: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(198,145,50,.35)',
+  },
+  shareCardHeadCell: { flex: 1, color: colors.gold, fontSize: 7.5, letterSpacing: 0.8 },
+  shareCardRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,.06)',
+  },
+  shareCardCell: { flex: 1, color: colors.textSecondary, fontSize: 9 },
+  shareCardCellLead: { color: colors.textPrimary, fontWeight: '700' },
+  shareCardCellWide: { flex: 2.1 },
+  shareCardFooter: {
+    marginTop: 'auto',
+    paddingTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  shareCardFootMuted: { color: colors.textSecondary, fontSize: 8 },
+  shareCardFootBrand: { color: colors.gold, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  picksRecord: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  picksRecordLabel: { color: colors.textSecondary, fontSize: 10, letterSpacing: 1.2 },
+  picksRecordValue: { color: colors.textPrimary, fontWeight: '900' },
+  pickCards: { gap: spacing.sm, marginTop: spacing.md },
+  pickCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderRadius: 10,
+    padding: spacing.md,
+    backgroundColor: 'rgba(198,145,50,.04)',
+  },
+  pickCardBonus: {
+    borderColor: 'rgba(198,145,50,.45)',
+    backgroundColor: 'rgba(198,145,50,.10)',
+  },
+  pickCardGame: {
+    borderLeftColor: colors.textSecondary,
+    backgroundColor: 'transparent',
+  },
+  pickTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  pickEyebrow: { color: colors.gold, fontSize: 10, letterSpacing: 1.2, flexShrink: 1 },
+  pickOdds: { color: colors.gold, fontSize: 15, fontWeight: '900' },
+  pickName: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, marginBottom: 4 },
+  pickMeta: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  pickProof: { color: colors.textSecondary, fontSize: 11, marginTop: spacing.xs },
   reportRows: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm },
   reportRow: {
     flexDirection: 'row',

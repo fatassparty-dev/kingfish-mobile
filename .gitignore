@@ -15,3 +15,6 @@ android/
 expo-env.d.ts
 # @end expo-cli
 .vercel
+
+# Build artifacts — archived .ipa exports are large binaries, not source.
+*.ipa
