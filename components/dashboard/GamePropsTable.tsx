@@ -118,7 +118,11 @@ function edgeColor(score?: number) {
 // newer payloads also carry the clean team name in `team`. Prefer that field and
 // defensively strip market suffixes from older/cached payloads so the phone
 // never shows an orphaned "+1.5" under "ML Lean".
-function leanSideDisplay(lean?: { side?: string; team?: string }) {
+function leanSideDisplay(lean?: { side?: string; team?: string; type?: string }) {
+  // A Tossup carries no side, and its headline is "Even Matchup" — taking the
+  // last word rendered the bare word "Matchup" in the team column, which reads
+  // as a glitch rather than a call (Brian, 2026-08-19).
+  if (lean?.type === 'Tossup' || /^even\b/i.test(String(lean?.side || ''))) return 'Even'
   const team = String(lean?.team || lean?.side || '')
     .replace(/\s+ML$/i, '')
     .replace(/\s+[+-]\d+(?:\.\d+)?$/i, '')
@@ -267,12 +271,13 @@ export function GamePropsTable({
             style={styles.row}
           >
             <View style={[styles.cell, { flex: compact ? 1.9 : 1.7, alignItems: 'flex-start' }]}>
-              {/* Away-over-home stack — buys back the width one long line ate. */}
-              <AppText style={styles.matchupText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                {shortName(game.away_team)} @
-              </AppText>
-              <AppText style={styles.matchupText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                {shortName(game.home_team)}
+              {/* Away-over-home stack — buys back the width one long line ate.
+                  ONE text node, not two: iOS scales each adjustsFontSizeToFit
+                  node independently, so a short away team ("Giants @") shrank to
+                  a fraction of the home team's size and the cell read as broken
+                  (Brian, 2026-08-19). One node = one scale for both lines. */}
+              <AppText style={styles.matchupText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {shortName(game.away_team)} @{'\n'}{shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
             </View>
