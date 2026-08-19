@@ -47,7 +47,7 @@ Ends with `** ARCHIVE SUCCEEDED **`.
 ## 2. Export the signed .ipa
 
 ```bash
-cd ~/Desktop && xcodebuild -exportArchive -archivePath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive -exportOptionsPlist ~/Developer/KingFishBetsLLC/builds/ExportOptions.plist -exportPath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>-export
+cd ~/Developer/KingFishBetsLLC/builds && xcodebuild -exportArchive -archivePath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive -exportOptionsPlist ~/Developer/KingFishBetsLLC/builds/ExportOptions.plist -exportPath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>-export
 ```
 
 `~/Developer/KingFishBetsLLC/builds/ExportOptions.plist` holds `method=app-store`, `teamID=3275YRB2Q7`,
