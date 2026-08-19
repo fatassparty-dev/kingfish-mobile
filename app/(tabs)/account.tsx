@@ -20,6 +20,7 @@ import { restorePurchases } from '@/lib/purchases'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
+import { hasCustomHomeTiles, resolveHomeTiles } from '@/lib/homeTilePrefs'
 import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
 
 const NOTIFICATION_OPTIONS: Array<{
@@ -62,6 +63,9 @@ export default function AccountScreen() {
   const [sportsbookMessage, setSportsbookMessage] = useState('')
   const [savingSportsbooks, setSavingSportsbooks] = useState(false)
   const [showSportsbookManager, setShowSportsbookManager] = useState(false)
+  const [showHomeManager, setShowHomeManager] = useState(false)
+  const [savingHomeTiles, setSavingHomeTiles] = useState(false)
+  const [homeTilesMessage, setHomeTilesMessage] = useState('')
   const isPremium = profile?.is_premium === true
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
@@ -69,6 +73,15 @@ export default function AccountScreen() {
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
+  // Home tiles: the server list is what EXISTS; the user's list is which of
+  // those they want and in what order. Untouched accounts keep the server list.
+  const serverHomeTiles = mobileConfig.home_tiles
+  const homeTilePreferences = profile?.home_tile_preferences
+  const chosenHomeTiles = resolveHomeTiles(serverHomeTiles, homeTilePreferences)
+  const chosenHomeKeys = hasCustomHomeTiles(homeTilePreferences)
+    ? chosenHomeTiles.map((tile) => tile.key)
+    : []
+  const availableHomeTiles = serverHomeTiles.filter((tile) => !chosenHomeKeys.includes(tile.key))
   const sportsbookPreferences = profile?.sportsbook_preferences || {}
   const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
   const disabledBookKeys = new Set(sportsbookPreferences.disabledBookKeys || [])
@@ -185,6 +198,57 @@ export default function AccountScreen() {
     await refreshProfile()
     setSportsbookMessage('Sportsbook settings saved.')
     setSavingSportsbooks(false)
+  }
+
+  async function saveHomeTileKeys(nextKeys: string[]) {
+    if (!user?.id) {
+      setHomeTilesMessage('Sign in again to update your home screen.')
+      return
+    }
+    setSavingHomeTiles(true)
+    setHomeTilesMessage('')
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        home_tile_preferences: nextKeys.length ? { keys: nextKeys, updated_at: new Date().toISOString() } : null,
+      })
+      .eq('user_id', user.id)
+    if (error) {
+      // The column ships with supabase-home-tile-preferences.sql. Say so plainly
+      // rather than showing a raw Postgres error if it has not been run yet.
+      setHomeTilesMessage(
+        /home_tile_preferences/.test(error.message || '')
+          ? 'Home screen settings are not available yet. Try again later.'
+          : error.message || 'Home screen settings could not be saved.',
+      )
+      setSavingHomeTiles(false)
+      return
+    }
+    await refreshProfile()
+    setHomeTilesMessage(nextKeys.length ? 'Home screen saved.' : 'Home screen reset to the KingFish default.')
+    setSavingHomeTiles(false)
+  }
+
+  function addHomeTile(key: string) {
+    // First edit starts from what they are looking at today, so turning one tile
+    // on does not silently drop the other seven.
+    const base = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
+    if (base.includes(key)) return
+    void saveHomeTileKeys([...base, key])
+  }
+
+  function removeHomeTile(key: string) {
+    const base = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
+    void saveHomeTileKeys(base.filter((tileKey) => tileKey !== key))
+  }
+
+  function moveHomeTile(key: string, direction: -1 | 1) {
+    const base = chosenHomeKeys.length ? [...chosenHomeKeys] : serverHomeTiles.map((tile) => tile.key)
+    const index = base.indexOf(key)
+    const nextIndex = index + direction
+    if (index < 0 || nextIndex < 0 || nextIndex >= base.length) return
+    base.splice(nextIndex, 0, base.splice(index, 1)[0])
+    void saveHomeTileKeys(base)
   }
 
   function toggleSportsbookOption(bookKeys: readonly string[]) {
@@ -543,6 +607,21 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
+        <AppText variant="eyebrow">// Home Screen</AppText>
+        <AppText style={styles.webTitle}>Your Shortcuts</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          {hasCustomHomeTiles(homeTilePreferences)
+            ? `Home is showing your ${chosenHomeKeys.length} chosen shortcut${chosenHomeKeys.length === 1 ? '' : 's'}.`
+            : 'Home shows the KingFish default shortcuts. Pick your own — handy between seasons, when half the board is a sport you do not follow.'}
+        </AppText>
+        <View style={styles.cardAction}>
+          <Button variant="secondary" onPress={() => setShowHomeManager(true)}>Customize Home</Button>
+        </View>
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
         <AppText variant="eyebrow">// Controls</AppText>
         <AppText style={styles.webTitle}>Account</AppText>
         <AppText variant="muted" style={styles.copy}>
@@ -571,6 +650,79 @@ export default function AccountScreen() {
           </AppText>
         </View>
       </Card>
+      <Modal visible={showHomeManager} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowHomeManager(false)}>
+        <View style={styles.modalScreen}>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <AppText variant="eyebrow">// Home Screen</AppText>
+            <AppText variant="title" style={styles.modalTitle}>Your Shortcuts</AppText>
+            <AppText variant="muted" style={styles.copy}>
+              Choose which shortcuts appear on Home and the order they appear in.
+            </AppText>
+
+            <AppText variant="eyebrow" style={styles.homeGroupLabel}>On Home</AppText>
+            <View style={styles.notificationList}>
+              {chosenHomeTiles.map((tile, index) => (
+                <View key={tile.key} style={[styles.bookOption, styles.bookOptionActive]}>
+                  <AppText style={[styles.bookOptionText, styles.bookOptionTextActive]} numberOfLines={1}>
+                    {tile.label}
+                  </AppText>
+                  <View style={styles.homeRowActions}>
+                    <Pressable
+                      onPress={() => moveHomeTile(tile.key, -1)}
+                      disabled={savingHomeTiles || index === 0}
+                      style={styles.homeMoveButton}
+                    >
+                      <AppText style={[styles.homeMoveText, index === 0 && styles.homeMoveTextDisabled]}>↑</AppText>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => moveHomeTile(tile.key, 1)}
+                      disabled={savingHomeTiles || index === chosenHomeTiles.length - 1}
+                      style={styles.homeMoveButton}
+                    >
+                      <AppText style={[styles.homeMoveText, index === chosenHomeTiles.length - 1 && styles.homeMoveTextDisabled]}>↓</AppText>
+                    </Pressable>
+                    <Pressable onPress={() => removeHomeTile(tile.key)} disabled={savingHomeTiles} style={styles.homeMoveButton}>
+                      <AppText variant="mono" style={styles.homeRemoveText}>Remove</AppText>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {availableHomeTiles.length ? (
+              <>
+                <AppText variant="eyebrow" style={styles.homeGroupLabel}>Available</AppText>
+                <View style={styles.notificationList}>
+                  {availableHomeTiles.map((tile) => (
+                    <Pressable
+                      key={tile.key}
+                      onPress={() => addHomeTile(tile.key)}
+                      disabled={savingHomeTiles}
+                      style={styles.bookOption}
+                    >
+                      <AppText style={styles.bookOptionText} numberOfLines={1}>{tile.label}</AppText>
+                      <AppText variant="mono">Add</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {homeTilesMessage ? <AppText style={styles.noticeText}>{homeTilesMessage}</AppText> : null}
+
+            {hasCustomHomeTiles(homeTilePreferences) ? (
+              <View style={styles.cardAction}>
+                <Button variant="outline" loading={savingHomeTiles} onPress={() => saveHomeTileKeys([])}>
+                  Reset to KingFish Default
+                </Button>
+              </View>
+            ) : null}
+            <View style={styles.cardAction}>
+              <Button onPress={() => setShowHomeManager(false)}>Done</Button>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
       <Modal visible={showSportsbookManager} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSportsbookManager(false)}>
         <View style={styles.modalScreen}>
           <ScrollView contentContainerStyle={styles.modalContent}>
@@ -781,6 +933,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     color: colors.gold,
   },
+  homeGroupLabel: { marginTop: spacing.lg, marginBottom: spacing.xs },
+  homeRowActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  homeMoveButton: { paddingHorizontal: 8, paddingVertical: 4 },
+  homeMoveText: { color: colors.gold, fontSize: 17, fontWeight: '900' },
+  homeMoveTextDisabled: { color: colors.textMuted, opacity: 0.45 },
+  homeRemoveText: { color: colors.textSecondary, fontSize: 12 },
   modalScreen: {
     flex: 1,
     backgroundColor: colors.bgPrimary,

@@ -23,6 +23,13 @@ export interface UserProfile {
     betting?: boolean
     offers?: boolean
   } | null
+  // Ordered tile keys the user chose for Home. Absent/null = use the server
+  // list. Own column by convention (see sportsbook_preferences above), added by
+  // supabase-home-tile-preferences.sql.
+  home_tile_preferences?: {
+    keys?: string[]
+    updated_at?: string
+  } | null
 }
 
 export interface Outcome {

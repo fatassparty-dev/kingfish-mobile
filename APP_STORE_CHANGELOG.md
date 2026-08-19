@@ -22,7 +22,23 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.0.5 (build 22) — IN PROGRESS (not yet submitted)
+## 🔵 1.0.5 (build 25) — IN PROGRESS (not yet submitted)
+
+- **[2026-08-19] Customize your Home screen shortcuts.**
+  - **What the user sees:** Account → Home Screen → Your Shortcuts lets them
+    choose which shortcuts appear on Home and reorder them, with a reset back to
+    the KingFish default.
+  - **Why:** One list has to serve every user, so between seasons somebody is
+    always scrolling past a sport they do not follow. A football-only user can
+    now put football tools on Home.
+  - **No change for anyone who does nothing.** Home keeps the KingFish list
+    exactly as today unless the user opts in. Their choices are stored on their
+    KingFish account, so they follow a reinstall.
+
+> Builds 21-24 went to TestFlight only. Testing found: The Ref Report shipped
+> with no way to reach it; the copy image used a fixed canvas and was mostly
+> empty for a short sheet; its ticker ran the words together; the Game Props
+> matchup column shrank and wrapped team names inconsistently.
 
 > Build 21 went to TestFlight only. On-device testing found two things, fixed in
 > build 22: The Ref Report screen shipped with no way to reach it (no Pro Tools

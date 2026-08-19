@@ -4,13 +4,19 @@ import { router } from 'expo-router'
 import { AppText } from '@/components/Text'
 import { Screen } from '@/components/Screen'
 import { useMobileConfig, type HomeTile } from '@/lib/mobileConfig'
+import { useAuth } from '@/lib/auth'
+import { resolveHomeTiles } from '@/lib/homeTilePrefs'
 import { colors, spacing } from '@/lib/theme'
 
 export default function HomeScreen() {
   // Server-driven deep-link tiles (fallback list baked into DEFAULT_MOBILE_CONFIG).
   // Home offers destinations inside the app; the tab bar already covers the
   // categories (Dashboard/Tools/Ask/Account), so tiles never duplicate it.
-  const homeTiles = useMobileConfig().home_tiles
+  // ...then narrowed to the user's own picks, if they made any in Account →
+  // Home Screen. resolveHomeTiles filters their list against this one, so a
+  // retired tile can never strand itself on someone's home screen.
+  const { profile } = useAuth()
+  const homeTiles = resolveHomeTiles(useMobileConfig().home_tiles, profile?.home_tile_preferences)
   const openTile = (tile: HomeTile) => {
     if (tile.params && Object.keys(tile.params).length) {
       router.push({ pathname: tile.route, params: tile.params } as any)
