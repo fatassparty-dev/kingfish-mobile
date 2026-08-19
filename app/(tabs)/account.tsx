@@ -76,12 +76,20 @@ export default function AccountScreen() {
   // Home tiles: the server list is what EXISTS; the user's list is which of
   // those they want and in what order. Untouched accounts keep the server list.
   const serverHomeTiles = mobileConfig.home_tiles
+  // The picker offers the whole catalogue, not just the tiles we happen to ship
+  // on Home — the point is that a user can add tools we did not choose for them
+  // (Brian, 2026-08-19). Older servers send no catalogue; the defaults stand in.
+  const homeTileCatalog = mobileConfig.home_tile_catalog?.length
+    ? mobileConfig.home_tile_catalog
+    : serverHomeTiles
   const homeTilePreferences = profile?.home_tile_preferences
-  const chosenHomeTiles = resolveHomeTiles(serverHomeTiles, homeTilePreferences)
+  const chosenHomeTiles = resolveHomeTiles(serverHomeTiles, homeTilePreferences, homeTileCatalog)
   const chosenHomeKeys = hasCustomHomeTiles(homeTilePreferences)
     ? chosenHomeTiles.map((tile) => tile.key)
     : []
-  const availableHomeTiles = serverHomeTiles.filter((tile) => !chosenHomeKeys.includes(tile.key))
+  const effectiveHomeKeys = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
+  const effectiveHomeTiles = chosenHomeKeys.length ? chosenHomeTiles : serverHomeTiles
+  const availableHomeTiles = homeTileCatalog.filter((tile) => !effectiveHomeKeys.includes(tile.key))
   const sportsbookPreferences = profile?.sportsbook_preferences || {}
   const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
   const disabledBookKeys = new Set(sportsbookPreferences.disabledBookKeys || [])
@@ -232,18 +240,17 @@ export default function AccountScreen() {
   function addHomeTile(key: string) {
     // First edit starts from what they are looking at today, so turning one tile
     // on does not silently drop the other seven.
-    const base = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
+    const base = [...effectiveHomeKeys]
     if (base.includes(key)) return
     void saveHomeTileKeys([...base, key])
   }
 
   function removeHomeTile(key: string) {
-    const base = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
-    void saveHomeTileKeys(base.filter((tileKey) => tileKey !== key))
+    void saveHomeTileKeys(effectiveHomeKeys.filter((tileKey) => tileKey !== key))
   }
 
   function moveHomeTile(key: string, direction: -1 | 1) {
-    const base = chosenHomeKeys.length ? [...chosenHomeKeys] : serverHomeTiles.map((tile) => tile.key)
+    const base = [...effectiveHomeKeys]
     const index = base.indexOf(key)
     const nextIndex = index + direction
     if (index < 0 || nextIndex < 0 || nextIndex >= base.length) return
@@ -661,7 +668,7 @@ export default function AccountScreen() {
 
             <AppText variant="eyebrow" style={styles.homeGroupLabel}>On Home</AppText>
             <View style={styles.notificationList}>
-              {chosenHomeTiles.map((tile, index) => (
+              {effectiveHomeTiles.map((tile, index) => (
                 <View key={tile.key} style={[styles.bookOption, styles.bookOptionActive]}>
                   <AppText style={[styles.bookOptionText, styles.bookOptionTextActive]} numberOfLines={1}>
                     {tile.label}
@@ -676,10 +683,10 @@ export default function AccountScreen() {
                     </Pressable>
                     <Pressable
                       onPress={() => moveHomeTile(tile.key, 1)}
-                      disabled={savingHomeTiles || index === chosenHomeTiles.length - 1}
+                      disabled={savingHomeTiles || index === effectiveHomeTiles.length - 1}
                       style={styles.homeMoveButton}
                     >
-                      <AppText style={[styles.homeMoveText, index === chosenHomeTiles.length - 1 && styles.homeMoveTextDisabled]}>↓</AppText>
+                      <AppText style={[styles.homeMoveText, index === effectiveHomeTiles.length - 1 && styles.homeMoveTextDisabled]}>↓</AppText>
                     </Pressable>
                     <Pressable onPress={() => removeHomeTile(tile.key)} disabled={savingHomeTiles} style={styles.homeMoveButton}>
                       <AppText variant="mono" style={styles.homeRemoveText}>Remove</AppText>

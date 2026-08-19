@@ -35,6 +35,9 @@ export type MobileConfig = {
   } | null
   dashboard_sport_order: string[]
   home_tiles: HomeTile[]
+  // Everything the user may choose from in Account → Home Screen. Older servers
+  // will not send it; the app then offers the default tiles only.
+  home_tile_catalog?: HomeTile[]
   sportsbooks?: SportsbookServerConfig
   flags: {
     fantasy_hub: boolean
@@ -198,6 +201,9 @@ export async function fetchMobileConfig() {
       home_tiles: Array.isArray(remoteConfig.home_tiles) && remoteConfig.home_tiles.length
         ? remoteConfig.home_tiles
         : DEFAULT_MOBILE_CONFIG.home_tiles,
+      home_tile_catalog: Array.isArray(remoteConfig.home_tile_catalog) && remoteConfig.home_tile_catalog.length
+        ? remoteConfig.home_tile_catalog
+        : undefined,
     }
     configureSportsbooks(config.sportsbooks)
     return config

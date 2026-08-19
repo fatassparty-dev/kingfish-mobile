@@ -23,11 +23,21 @@ export function homeTilePrefsStorageKey(userId?: string | null) {
  * No saved list means today's behaviour, untouched: the server order, as picked
  * in HQ.
  */
-export function resolveHomeTiles(serverTiles: HomeTile[], preferences: HomeTilePreferences): HomeTile[] {
-  const available = Array.isArray(serverTiles) ? serverTiles : []
+export function resolveHomeTiles(
+  serverTiles: HomeTile[],
+  preferences: HomeTilePreferences,
+  catalog?: HomeTile[],
+): HomeTile[] {
+  const defaults = Array.isArray(serverTiles) ? serverTiles : []
+  // A user can pick from the whole catalogue, so resolution has to look there
+  // too — otherwise choosing The Ref Report would save and then vanish, because
+  // it is not one of the default tiles.
+  const available = Array.isArray(catalog) && catalog.length
+    ? [...defaults, ...catalog.filter((tile) => !defaults.some((d) => d.key === tile.key))]
+    : defaults
   const savedKeys = preferences?.keys
 
-  if (!Array.isArray(savedKeys) || savedKeys.length === 0) return available
+  if (!Array.isArray(savedKeys) || savedKeys.length === 0) return defaults
 
   const byKey = new Map(available.map((tile) => [tile.key, tile]))
   const chosen: HomeTile[] = []
@@ -42,7 +52,7 @@ export function resolveHomeTiles(serverTiles: HomeTile[], preferences: HomeTileP
 
   // Every saved tile has since been retired server-side — fall back rather than
   // render an empty Home.
-  return chosen.length ? chosen : available
+  return chosen.length ? chosen : defaults
 }
 
 /** True when the user has actively chosen a set, as opposed to inheriting ours. */

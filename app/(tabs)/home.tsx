@@ -16,7 +16,12 @@ export default function HomeScreen() {
   // Home Screen. resolveHomeTiles filters their list against this one, so a
   // retired tile can never strand itself on someone's home screen.
   const { profile } = useAuth()
-  const homeTiles = resolveHomeTiles(useMobileConfig().home_tiles, profile?.home_tile_preferences)
+  const mobileConfig = useMobileConfig()
+  const homeTiles = resolveHomeTiles(
+    mobileConfig.home_tiles,
+    profile?.home_tile_preferences,
+    mobileConfig.home_tile_catalog,
+  )
   const openTile = (tile: HomeTile) => {
     if (tile.params && Object.keys(tile.params).length) {
       router.push({ pathname: tile.route, params: tile.params } as any)
