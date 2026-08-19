@@ -66,6 +66,7 @@ export default function AccountScreen() {
   const [showHomeManager, setShowHomeManager] = useState(false)
   const [savingHomeTiles, setSavingHomeTiles] = useState(false)
   const [homeTilesMessage, setHomeTilesMessage] = useState('')
+  const [homeTileSport, setHomeTileSport] = useState<'ALL' | 'MLB' | 'NFL' | 'WNBA'>('ALL')
   const isPremium = profile?.is_premium === true
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
@@ -89,7 +90,11 @@ export default function AccountScreen() {
     : []
   const effectiveHomeKeys = chosenHomeKeys.length ? chosenHomeKeys : serverHomeTiles.map((tile) => tile.key)
   const effectiveHomeTiles = chosenHomeKeys.length ? chosenHomeTiles : serverHomeTiles
-  const availableHomeTiles = homeTileCatalog.filter((tile) => !effectiveHomeKeys.includes(tile.key))
+  const availableHomeTiles = homeTileCatalog
+    .filter((tile) => !effectiveHomeKeys.includes(tile.key))
+    // 'ALL' tiles stay visible under every filter — Ask, Dashboard and Grade My
+    // Slip are useful whatever the season.
+    .filter((tile) => homeTileSport === 'ALL' || !tile.sport || tile.sport === 'ALL' || tile.sport === homeTileSport)
   const sportsbookPreferences = profile?.sportsbook_preferences || {}
   const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
   const disabledBookKeys = new Set(sportsbookPreferences.disabledBookKeys || [])
@@ -699,6 +704,19 @@ export default function AccountScreen() {
             {availableHomeTiles.length ? (
               <>
                 <AppText variant="eyebrow" style={styles.homeGroupLabel}>Available</AppText>
+                <View style={styles.homeFilterRow}>
+                  {(['ALL', 'MLB', 'NFL', 'WNBA'] as const).map((sport) => (
+                    <Pressable
+                      key={sport}
+                      onPress={() => setHomeTileSport(sport)}
+                      style={[styles.homeFilterChip, homeTileSport === sport && styles.homeFilterChipActive]}
+                    >
+                      <AppText style={[styles.homeFilterText, homeTileSport === sport && styles.homeFilterTextActive]}>
+                        {sport === 'ALL' ? 'All' : sport}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
                 <View style={styles.notificationList}>
                   {availableHomeTiles.map((tile) => (
                     <Pressable
@@ -941,6 +959,17 @@ const styles = StyleSheet.create({
     color: colors.gold,
   },
   homeGroupLabel: { marginTop: spacing.lg, marginBottom: spacing.xs },
+  homeFilterRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  homeFilterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  homeFilterChipActive: { borderColor: colors.gold, backgroundColor: 'rgba(198,145,50,.14)' },
+  homeFilterText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  homeFilterTextActive: { color: colors.gold },
   homeRowActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   homeMoveButton: { paddingHorizontal: 8, paddingVertical: 4 },
   homeMoveText: { color: colors.gold, fontSize: 17, fontWeight: '900' },

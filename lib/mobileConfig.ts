@@ -13,6 +13,9 @@ export type HomeTile = {
   body: string
   route: string
   params?: Record<string, string>
+  // Drives the sport filter in Account → Home Screen. Absent or 'ALL' means the
+  // tile shows under every filter.
+  sport?: 'ALL' | 'MLB' | 'NFL' | 'WNBA'
 }
 
 export type MobileConfig = {

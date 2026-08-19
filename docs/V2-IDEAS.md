@@ -37,3 +37,26 @@ exactly the failure The Ref Report hit in build 21 (screen with no route to it).
 
 **Applies to Studio too** — same argument on iPad, where there is more room and
 the home screen matters more.
+
+---
+
+## Per-user sport preferences ("hide the sports I don't follow")
+Brian, 2026-08-19, while building the Home shortcut picker: *"some people really
+just don't like other sports."*
+
+Distinct from the Home picker that shipped in 1.0.5 — that only decides which
+shortcuts sit on Home. This is bigger: a user picks the sports they follow, and
+the whole app respects it — dashboard sport tabs, cheat-sheet lists, Top 5 Leans
+sport mix, notifications.
+
+**Why it is a separate job:** the Home picker touches two screens. This touches
+every screen that enumerates sports, and it interacts with the existing
+server-side `dashboard_tab_*` flags — those decide what KingFish OFFERS, and a
+user preference would have to narrow that without ever widening it (a user must
+not be able to switch on a sport we have turned off).
+
+**Open question:** whether an empty selection means "all sports" (safest) or
+should be prevented in the UI.
+
+Would reuse the same pattern as the Home picker: its own jsonb column on
+user_profiles, filtered against the server's live list.
