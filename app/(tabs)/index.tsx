@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
+import { applySportPreferences } from '@/lib/sportPrefs'
 import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtOdds, fmtTime } from '@/lib/format'
@@ -1183,7 +1184,13 @@ export default function DashboardScreen() {
   const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
-  const visibleSports = orderedDashboardSports(mobileConfig.dashboard_sport_order).filter((item) => mobileFlag(item.visibilityFlag, true))
+  // Server flags decide what KingFish OFFERS; the user's own list then narrows
+  // it to what they follow. Order matters — the preference is applied second, so
+  // it can only ever hide a sport, never reveal one we have switched off.
+  const visibleSports = applySportPreferences(
+    orderedDashboardSports(mobileConfig.dashboard_sport_order).filter((item) => mobileFlag(item.visibilityFlag, true)),
+    profile?.sport_preferences,
+  )
   const selectedSport = visibleSports.find((item) => item.key === sport) || visibleSports[0] || SPORTS[0]
   const isSelectedSportActive = mobileFlag(selectedSport.flag, selectedSport.status === 'Live')
   const getSportActive = (item: (typeof SPORTS)[number]) => mobileFlag(item.flag, item.status === 'Live')

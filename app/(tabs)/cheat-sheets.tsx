@@ -13,6 +13,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { tileMatchesSportPreferences } from '@/lib/sportPrefs'
 import { fmtOdds, normalizeName } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
@@ -2685,7 +2686,10 @@ export default function CheatSheetsScreen() {
       ) : !hasOpenSheet ? (
         <>
           <View style={styles.sheetGrid}>
-            {(canUseCheatSheets ? TOOL_TILES : []).map((sheet) => (
+            {(canUseCheatSheets
+              ? TOOL_TILES.filter((tile) => tileMatchesSportPreferences(tile.sport, profile?.sport_preferences))
+              : []
+            ).map((sheet) => (
               <Pressable
                 key={sheet.key}
                 onPress={() => {

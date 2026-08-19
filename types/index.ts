@@ -30,6 +30,13 @@ export interface UserProfile {
     keys?: string[]
     updated_at?: string
   } | null
+  // Sports the user follows. Absent/empty = all of them. Only ever narrows what
+  // the server's dashboard_tab_* flags already allow. Added by
+  // supabase-sport-preferences.sql.
+  sport_preferences?: {
+    sports?: string[]
+    updated_at?: string
+  } | null
 }
 
 export interface Outcome {

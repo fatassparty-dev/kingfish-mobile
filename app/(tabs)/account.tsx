@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locations'
 import { hasCustomHomeTiles, resolveHomeTiles } from '@/lib/homeTilePrefs'
+import { SPORT_OPTIONS, hasSportPreferences } from '@/lib/sportPrefs'
 import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
 
 const NOTIFICATION_OPTIONS: Array<{
@@ -70,6 +71,8 @@ export default function AccountScreen() {
   const [savingHomeTiles, setSavingHomeTiles] = useState(false)
   const [homeTilesMessage, setHomeTilesMessage] = useState('')
   const [homeTileSport, setHomeTileSport] = useState<'ALL' | 'MLB' | 'NFL' | 'WNBA'>('ALL')
+  const [savingSports, setSavingSports] = useState(false)
+  const [sportsMessage, setSportsMessage] = useState('')
 
   useEffect(() => {
     if (customize === 'home') setShowHomeManager(true)
@@ -102,6 +105,13 @@ export default function AccountScreen() {
     // 'ALL' tiles stay visible under every filter — Ask, Dashboard and Grade My
     // Slip are useful whatever the season.
     .filter((tile) => homeTileSport === 'ALL' || !tile.sport || tile.sport === 'ALL' || tile.sport === homeTileSport)
+  // Only offer sports KingFish actually runs — the user narrows our list, never
+  // widens it.
+  const offeredSports = SPORT_OPTIONS.filter((option) => mobileConfig.flags[option.visibilityFlag] ?? true)
+  const sportPreferences = profile?.sport_preferences
+  const followedSports = hasSportPreferences(sportPreferences)
+    ? offeredSports.filter((option) => sportPreferences!.sports!.includes(option.key))
+    : offeredSports
   const sportsbookPreferences = profile?.sportsbook_preferences || {}
   const selectedExtraBooks = new Set(sportsbookPreferences.extraBookKeys || [])
   const disabledBookKeys = new Set(sportsbookPreferences.disabledBookKeys || [])
@@ -218,6 +228,39 @@ export default function AccountScreen() {
     await refreshProfile()
     setSportsbookMessage('Sportsbook settings saved.')
     setSavingSportsbooks(false)
+  }
+
+  async function toggleFollowedSport(key: (typeof SPORT_OPTIONS)[number]['key']) {
+    if (!user?.id) {
+      setSportsMessage('Sign in again to update your sports.')
+      return
+    }
+    const current = followedSports.map((option) => option.key)
+    const next = current.includes(key) ? current.filter((sport) => sport !== key) : [...current, key]
+    setSavingSports(true)
+    setSportsMessage('')
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        // Everything selected is the same as no preference — store null so the
+        // user simply inherits whatever KingFish offers from then on.
+        sport_preferences:
+          next.length === 0 || next.length === offeredSports.length
+            ? null
+            : { sports: next, updated_at: new Date().toISOString() },
+      })
+      .eq('user_id', user.id)
+    if (error) {
+      setSportsMessage(
+        /sport_preferences/.test(error.message || '')
+          ? 'Sport settings are not available yet. Try again later.'
+          : error.message || 'Sport settings could not be saved.',
+      )
+      setSavingSports(false)
+      return
+    }
+    await refreshProfile()
+    setSavingSports(false)
   }
 
   async function saveHomeTileKeys(nextKeys: string[]) {
@@ -504,6 +547,35 @@ export default function AccountScreen() {
             </>
           ) : null}
         </View>
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
+        <AppText variant="eyebrow">// Sports</AppText>
+        <AppText style={styles.webTitle}>Sports You Follow</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          Turn off a sport and it leaves your dashboard and cheat sheets. Leave them all on to see everything KingFish covers.
+        </AppText>
+        <View style={styles.notificationList}>
+          {offeredSports.map((option) => {
+            const active = followedSports.some((item) => item.key === option.key)
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => toggleFollowedSport(option.key)}
+                disabled={savingSports}
+                style={[styles.bookOption, active && styles.bookOptionActive]}
+              >
+                <AppText style={[styles.bookOptionText, active && styles.bookOptionTextActive]}>
+                  {option.label}
+                </AppText>
+                <AppText variant="mono">{active ? 'On' : 'Off'}</AppText>
+              </Pressable>
+            )
+          })}
+        </View>
+        {sportsMessage ? <AppText style={styles.noticeText}>{sportsMessage}</AppText> : null}
       </Card>
 
       <View style={styles.sectionGap} />
