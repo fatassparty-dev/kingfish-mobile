@@ -1572,8 +1572,11 @@ function SheetShareCard({ label, table }: { label: string; table: ShareTable }) 
   return (
     <View style={styles.shareCard}>
       <View style={styles.shareTicker}>
-        {Array.from({ length: 6 }).map((_, index) => (
-          <AppText key={index} variant="mono" style={styles.shareTickerText}>KINGFISH BETS</AppText>
+        {/* 5 repeats in the default face, matching the player profile card's
+            ticker. Six in `mono` overflowed the 360pt canvas, which left
+            space-around no room and ran the words together. */}
+        {Array.from({ length: 5 }).map((_, index) => (
+          <AppText key={index} style={styles.shareTickerText}>KINGFISH BETS</AppText>
         ))}
       </View>
       <View style={styles.shareCardBody}>
@@ -4040,6 +4043,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    paddingHorizontal: 6,
     backgroundColor: colors.gold,
   },
   shareTickerText: { color: '#080A0F', fontSize: 7, lineHeight: 10, fontWeight: '900', fontStyle: 'italic' },
