@@ -191,8 +191,20 @@ function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.8 }: { awayAbbr: 
 // single node wrapped mid-word ("Diamondback / s @") or shrank the whole cell to
 // unreadable. Guaranteeing the text FITS is the fix; the type size then never
 // varies row to row. Matches the ML Lean column's existing GUA/DIA convention.
+// Nicknames that collide once you take the last word: both Sox teams read
+// "Sox", which is genuinely ambiguous on a board showing several Chicago and
+// Boston games (Brian, 2026-08-19). These use their real codes instead.
+const AMBIGUOUS_TEAM_CODES: Array<[RegExp, string]> = [
+  [/white sox/i, 'CWS'],
+  [/red sox/i, 'BOS'],
+]
+
 function shortName(team: string) {
-  const nickname = String(team || '').split(' ').pop() || team
+  const full = String(team || '')
+  for (const [pattern, code] of AMBIGUOUS_TEAM_CODES) {
+    if (pattern.test(full)) return code
+  }
+  const nickname = full.split(' ').pop() || team
   return nickname.length > 8 ? nickname.slice(0, 3).toUpperCase() : nickname
 }
 

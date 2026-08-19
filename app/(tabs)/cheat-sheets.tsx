@@ -1571,6 +1571,9 @@ function shareMatchup(text?: string) {
   const raw = String(text || '').trim()
   if (!raw) return '—'
   const code = (team: string) => {
+    // Both Sox teams reduce to "SOX" on the last word — use their real codes.
+    if (/white sox/i.test(team)) return 'CWS'
+    if (/red sox/i.test(team)) return 'BOS'
     const nickname = team.trim().split(/\s+/).pop() || team
     return nickname.slice(0, 3).toUpperCase()
   }
@@ -2885,7 +2888,7 @@ export default function CheatSheetsScreen() {
                     <View style={[styles.pickCard, styles.pickCardGame]}>
                       <View style={styles.pickTop}>
                         <AppText variant="mono" style={styles.pickEyebrow} numberOfLines={1}>
-                          {picksData.game_line.sport} GAME LINE
+                          {picksData.game_line.sport} MONEYLINE
                         </AppText>
                         <AppText variant="mono" style={styles.pickOdds}>{pickOddsLabel(picksData.game_line.odds)}</AppText>
                       </View>
