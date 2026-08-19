@@ -185,8 +185,15 @@ function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.8 }: { awayAbbr: 
   )
 }
 
+// Nickname, and a 3-letter code once the nickname is too long for the column.
+// Auto-shrinking text was tried twice and failed both times: separate nodes
+// scaled independently ("Giants @" tiny over a full-size "Guardians"), and a
+// single node wrapped mid-word ("Diamondback / s @") or shrank the whole cell to
+// unreadable. Guaranteeing the text FITS is the fix; the type size then never
+// varies row to row. Matches the ML Lean column's existing GUA/DIA convention.
 function shortName(team: string) {
-  return String(team || '').split(' ').pop() || team
+  const nickname = String(team || '').split(' ').pop() || team
+  return nickname.length > 8 ? nickname.slice(0, 3).toUpperCase() : nickname
 }
 
 export function GamePropsTable({
@@ -276,7 +283,7 @@ export function GamePropsTable({
                   node independently, so a short away team ("Giants @") shrank to
                   a fraction of the home team's size and the cell read as broken
                   (Brian, 2026-08-19). One node = one scale for both lines. */}
-              <AppText style={styles.matchupText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
+              <AppText style={styles.matchupText} numberOfLines={2}>
                 {shortName(game.away_team)} @{'\n'}{shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
