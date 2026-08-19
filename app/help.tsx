@@ -14,6 +14,7 @@ const quickStart = [
   'Use the category buttons to narrow the board.',
   'Tap player names for profiles, recent form, and available props.',
   'Open Tools when you want cheat sheets, calculators, or Pro Tools.',
+  'Choose your own Home shortcuts in Account, or tap Customize on the Home screen.',
 ]
 
 const tools = [
@@ -43,7 +44,7 @@ const tools = [
   },
   {
     title: 'Pro Tools',
-    body: 'Find Fantasy Hub and Game Factors inside the Pro Tools tab in Tools.',
+    body: 'Open the Pro Tools tab in Tools for Fantasy Hub, Game Factors, The Scout, The Ref Report, Game Lines, and Grade My Slip.',
   },
   {
     title: 'Fantasy Hub',
@@ -52,6 +53,22 @@ const tools = [
   {
     title: 'Ballpark Profiles',
     body: 'In MLB Game Factors, tap a venue to see the home team, home record when available, capacity, altitude, roof, surface, weather, and the KingFish park read.',
+  },
+  {
+    title: 'The Scout',
+    body: 'NFL tracking data by position: separation for receivers, pressure and time to throw for quarterbacks, and yards over expected for rushers.',
+  },
+  {
+    title: 'The Ref Report',
+    body: 'NFL crew chief tendencies — games worked, average game total, over/under split, home win rate, and flags per game. Search for a crew or sort any column.',
+  },
+  {
+    title: 'Grade My Slip',
+    body: 'Pick a sport and choose a bet slip screenshot. KingFish reads the legs on our server, grades the slip A-F, and explains each leg. Your screenshot is sent to KingFish to be read.',
+  },
+  {
+    title: 'Your Home Shortcuts',
+    body: 'Home starts with the KingFish shortcuts. To choose your own, tap Customize on the Home screen or open Account and use Your Shortcuts — handy between seasons when half the board is a sport you do not follow.',
   },
   {
     title: 'Ask KingFish',
@@ -76,6 +93,9 @@ const edgePieces = [
 ]
 
 const cheatSheets = [
+  { title: 'Dashboard Picks', body: "Today's cash card: the plays with the strongest recent hit rate at a playable price, the day's game line, and a bonus long shot. Locks at 9:05 AM CT." },
+  { title: 'Top 5 KingFish Leans', body: "The five highest prop edges across every sport plus the top game-line lean, locked at 9:05 AM CT so the board cannot be reshuffled later in the day." },
+  { title: 'WNBA Role Movers', body: 'Up to five rising and five falling rotation roles, with season, last 10, and last 5 minutes plus the strongest recent production change.' },
   { title: '100% Hit Rate — All Sports', body: 'The top 10 posted alternate lines across sports with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
   { title: 'Hits Bet/Fade', body: '0.5 hit props ranked by recent hit form, price, and history against today\'s starter.' },
   { title: 'HR Targets', body: 'Home run candidates based on starter history, recent power form, and available odds.' },

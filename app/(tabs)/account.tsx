@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { useEffect, useState } from 'react'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
@@ -47,6 +47,9 @@ const NOTIFICATION_OPTIONS: Array<{
 
 export default function AccountScreen() {
   const { user, profile, loading, profileError, refreshProfile, signOut } = useAuth()
+  // Home deep-links here with ?customize=home so the shortcut picker opens
+  // directly, rather than dropping the user at the top of Account to hunt.
+  const { customize } = useLocalSearchParams<{ customize?: string }>()
   const mobileConfig = useMobileConfig()
   const [restoreMessage, setRestoreMessage] = useState('')
   const [restoring, setRestoring] = useState(false)
@@ -67,6 +70,10 @@ export default function AccountScreen() {
   const [savingHomeTiles, setSavingHomeTiles] = useState(false)
   const [homeTilesMessage, setHomeTilesMessage] = useState('')
   const [homeTileSport, setHomeTileSport] = useState<'ALL' | 'MLB' | 'NFL' | 'WNBA'>('ALL')
+
+  useEffect(() => {
+    if (customize === 'home') setShowHomeManager(true)
+  }, [customize])
   const isPremium = profile?.is_premium === true
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
@@ -502,6 +509,21 @@ export default function AccountScreen() {
       <View style={styles.sectionGap} />
 
       <Card>
+        <AppText variant="eyebrow">// Home Screen</AppText>
+        <AppText style={styles.webTitle}>Your Shortcuts</AppText>
+        <AppText variant="muted" style={styles.copy}>
+          {hasCustomHomeTiles(homeTilePreferences)
+            ? `Home is showing your ${chosenHomeKeys.length} chosen shortcut${chosenHomeKeys.length === 1 ? '' : 's'}.`
+            : 'Home shows the KingFish default shortcuts. Pick your own — handy between seasons, when half the board is a sport you do not follow.'}
+        </AppText>
+        <View style={styles.cardAction}>
+          <Button variant="secondary" onPress={() => setShowHomeManager(true)}>Customize Home</Button>
+        </View>
+      </Card>
+
+      <View style={styles.sectionGap} />
+
+      <Card>
         <AppText variant="eyebrow">// Sportsbooks</AppText>
         <View style={styles.compactHeader}>
           <View style={styles.compactCopy}>
@@ -614,21 +636,6 @@ export default function AccountScreen() {
           ))}
         </View>
         {notificationMessage ? <AppText style={styles.noticeText}>{notificationMessage}</AppText> : null}
-      </Card>
-
-      <View style={styles.sectionGap} />
-
-      <Card>
-        <AppText variant="eyebrow">// Home Screen</AppText>
-        <AppText style={styles.webTitle}>Your Shortcuts</AppText>
-        <AppText variant="muted" style={styles.copy}>
-          {hasCustomHomeTiles(homeTilePreferences)
-            ? `Home is showing your ${chosenHomeKeys.length} chosen shortcut${chosenHomeKeys.length === 1 ? '' : 's'}.`
-            : 'Home shows the KingFish default shortcuts. Pick your own — handy between seasons, when half the board is a sport you do not follow.'}
-        </AppText>
-        <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={() => setShowHomeManager(true)}>Customize Home</Button>
-        </View>
       </Card>
 
       <View style={styles.sectionGap} />

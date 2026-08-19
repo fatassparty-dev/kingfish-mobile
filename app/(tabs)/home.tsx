@@ -109,6 +109,17 @@ export default function HomeScreen() {
               />
             ))}
           </View>
+
+          {/* The picker lives in Account, which nobody scrolls to looking for
+              shortcuts. Surfaced here because this is where you are standing
+              when you notice the tiles are not the ones you want (Brian,
+              2026-08-19). Deep-links straight into the manager. */}
+          <Pressable
+            onPress={() => router.push({ pathname: '/account', params: { customize: 'home' } } as any)}
+            style={styles.customizeLink}
+          >
+            <AppText style={styles.customizeText}>Customize these shortcuts</AppText>
+          </Pressable>
         </View>
       </View>
     </Screen>
@@ -212,5 +223,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     fontSize: 12,
     lineHeight: 17,
+  },
+  customizeLink: {
+    marginTop: spacing.md,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  customizeText: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '800',
   },
 })
