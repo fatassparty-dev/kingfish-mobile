@@ -22,7 +22,10 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.0.5 (build 25) — IN PROGRESS (not yet submitted)
+## 🟡 1.0.5 (build 27) — SUBMITTED FOR APP REVIEW 2026-08-19
+
+> Tested through TestFlight and submitted 2026-08-19. Builds 21-26 were
+> TestFlight iterations. Set to release automatically on approval.
 
 - **[2026-08-19] Customize your Home screen shortcuts.**
   - **What the user sees:** Account → Home Screen → Your Shortcuts lets them
