@@ -383,7 +383,61 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 PENDING — next build (not yet submitted)
+
+- **[2026-08-20] Longshot props are no longer hidden, and long boards get a
+  "Show all".**
+  - **What the reviewer sees:** The touchdown boards show more players. First TD
+    and Last TD in particular were nearly empty because anything priced above
+    +700 was being discarded before it was ever scored — and in those markets
+    +700 is the *favourite*. Boards now show the top 40 by edge with a button to
+    expand.
+  - **Why:** A price cutoff written when Anytime TD was the only touchdown market
+    was still being applied to markets where it made no sense.
+- **[2026-08-20] Anytime TD leads the prop tabs, and "TDs Over" became its
+  Standard / 2+ TDs toggle.**
+  - **What the reviewer sees:** Prop tabs are ordered by how much they are
+    actually bet — Anytime TD first, then Rec Yards and Receptions, and so on.
+    The old "TDs Over" tab is gone; it is now the "2+ TDs" option under
+    Anytime TD.
+  - **Why:** No sportsbook posts "TDs Over" at 0.5, because that bet *is* Anytime
+    TD — it is an alternate line, not a market of its own. The Over 2.5 version
+    (a three-touchdown game) is no longer shown at all.
+  - **Note:** live on web since 2026-08-20; this entry is the port.
+
+---
+
 ## 🟢 Server/web changes — no app update needed (for your records)
+
+### 2026-08-20 — NFL props correctness + Odds API cost work (`kingfish-bets`)
+
+All of the following are **already live** in the current app — the server sends
+better data to the same screens.
+
+- **Team defenses no longer show up twice on the TD board.** DraftKings calls it
+  "Seattle Seahawks D/ST", FanDuel calls it "Seattle Seahawks Defense", so the
+  same defense rendered as two rows at two different prices. The server now
+  normalizes the name before sending, so it is one row — and best-price actually
+  compares the two books instead of showing both.
+- **Player teams are current again.** The stats bundle the apps download was
+  built from last season, so 127 players showed the wrong team and 393 (mostly
+  2026 rookies) were missing entirely — A.J. Brown read PHI in a Patriots game,
+  and rookies had no team, no matchup and no edge. Refreshed from the live
+  nflverse depth chart. The apps fetch that file from kingfishbets.com, so this
+  fixed itself with no build.
+- **Boards stop going blank.** Once every cached game had kicked off, the server
+  could serve an empty board for hours; a failed partial refresh could pin a
+  three-game board in place. Both fixed, plus a lock so a burst of traffic can
+  only trigger one refresh.
+- **Props appear as soon as books post them.** The server now re-checks games
+  that are still missing props every 20 minutes instead of waiting for a fixed
+  refresh window. MLB books hold props until probable pitchers are set, so the
+  morning board used to sit half-empty.
+- **Odds refresh on a fixed daily schedule** (MLB and WNBA) instead of a rolling
+  timer. Prices are reference odds, not live execution prices, and the schedule
+  keeps data costs flat as the user base grows.
+- **TDs Over is scored correctly.** It was using "chance of scoring at least
+  one" for a 2+ touchdown bet — roughly three times the true number.
 
 ### 2026-07-09
 - **ONE number per prop — every cheat sheet now renders DASHBOARD edges**
