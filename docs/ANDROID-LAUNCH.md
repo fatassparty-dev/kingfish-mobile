@@ -1,6 +1,7 @@
 # Android launch plan
 
-Written 2026-08-20. Organized into phases. Phase 1 is DONE; start at Phase 2.
+Written 2026-08-20, updated 2026-08-21. Organized into phases. Phase 1 is DONE
+and the developer account is APPROVED; start at Phase 2.
 
 ## Correcting an assumption from planning
 
@@ -29,13 +30,13 @@ Done in one sitting, the same day the iOS apps went to Apple.
 - ✅ App categories declared at signup: **None of the above** — see the
   gambling note below, this was a consequential answer
 - ✅ Organization website verified — `https://kingfishbets.com`
-- ⏳ Organization documents — IN REVIEW by Google
-- ⏳ Authorized representative — IN REVIEW by Google
-- 🔒 Phone number verification — locked by Google until the two reviews above
-  clear. Nothing to do; the step appears on its own.
+- ✅ Organization documents — **APPROVED by Google 2026-08-21**
+- ✅ Authorized representative — **APPROVED by Google 2026-08-21**
+- ✅ App record created in Play Console for `com.kingfishbets.app`
 
-**Expected turnaround: a few days.** Submitted Thursday 2026-08-20, so realistically
-Monday 2026-08-24, same rhythm as Apple. If it clears early, Phase 2 starts early.
+**Turnaround was ~1 day**, not the "few days" Google warned about — submitted
+Thursday afternoon 2026-08-20, approved Friday 2026-08-21. Much faster than
+Apple. Phase 2 is unblocked as of now; nothing in it is waiting on Google.
 
 ### The closed-testing question — RESOLVED, and it's good news
 
@@ -87,11 +88,15 @@ remain owners — the original verifier was deliberately not removed.
 
 ---
 
-## PHASE 2 — Credentials + first build (starts when verification clears)
+## PHASE 2 — Credentials + first build ← **START HERE**
 
-Nothing here depends on Google's document review EXCEPT the RevenueCat and
-subscription steps, which need a usable Play Console. Firebase can be done any
-time, including during the wait.
+Unblocked as of 2026-08-21: the developer account is approved and the app
+record exists, so every step below can proceed.
+
+**Every step in this phase except the code work needs Brian signed into a
+console (Firebase, RevenueCat, Play Console, Google payments). None of it can
+be done unattended — the deliverables Claude needs back from it are two
+credentials: `google-services.json` and the `goog_...` RevenueCat key.**
 
 1. **Firebase project + `google-services.json`** — free, ~10 minutes. Create a
    Firebase project, add an **Android** app inside it with package
