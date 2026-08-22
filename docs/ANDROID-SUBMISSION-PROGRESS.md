@@ -148,15 +148,18 @@ attestations.
 
 - [x] Add a Google Play app for `com.kingfishbets.app` to the existing KingFish
       RevenueCat project.
-- [ ] Create a dedicated Google Cloud service account for RevenueCat.
-- [ ] Enable required Google Play and Pub/Sub APIs.
-- [ ] Invite the service-account email in Play Console.
-- [ ] Grant only the required Play permissions:
+- [x] Create a dedicated Google Cloud service account for RevenueCat.
+- [x] Enable the Google Play Android Developer, Google Play Developer
+      Reporting, and Cloud Pub/Sub APIs.
+- [x] Invite the service-account email in Play Console.
+- [x] Grant only the required Play permissions:
   - View app information and download bulk reports (read-only)
   - View financial data, orders, and cancellation survey responses
   - Manage orders and subscriptions
-- [ ] Upload the private service-account key to RevenueCat.
-- [ ] Confirm RevenueCat reports valid Play credentials.
+- [x] Upload the private service-account key to RevenueCat.
+- [ ] Confirm RevenueCat reports fully valid Play credentials. Product and
+      subscription/base-plan catalog access validates; purchase validation is
+      waiting for Google Play financial/order permission propagation.
 - [ ] Configure Google Real-Time Developer Notifications / Pub/Sub.
 - [ ] Send and verify the test real-time notification.
 - [x] Record the Android public SDK key in the production build
@@ -572,6 +575,15 @@ Do not submit until every required gate is checked.
   who have never had any subscription in the app. Its verified sequence is a
   3-day free trial, one month for $0.99 as a single-payment phase, then automatic
   renewal on the $4.99 monthly base plan.
+- Created a dedicated RevenueCat Google Cloud service account with Pub/Sub
+  Editor and Monitoring Viewer roles, enabled the required Google Play and
+  Pub/Sub APIs, and granted the minimum Play Console app and account
+  permissions. Uploaded its private JSON credential directly to RevenueCat;
+  no key contents are stored in this repository. After correcting an accidental
+  leading dash in the RevenueCat package-name field, RevenueCat successfully
+  validated access to the in-app product catalog and subscription/base-plan
+  catalog. Purchase validation remains pending while Google's financial/order
+  permissions propagate.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
