@@ -30,7 +30,7 @@ credentials here.
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
 | First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
-| Android testing | External device test pending | An external Android owner was added to the internal-test list; enrollment, installation, and test results remain |
+| Android testing | Owner-led emulator test pending | Brian will perform the primary test pass on a Google Play-enabled emulator; the external physical-device tester is supplemental only |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
 | App-content declarations | Not started | Data Safety, App Access, IARC, target audience, ads, financial features |
@@ -313,18 +313,17 @@ Test environment:
 
 | Field | Value |
 |---|---|
-| Device or emulator | External tester's physical Android device; model pending |
+| Device or emulator | Primary: Brian's Google Play-enabled Android emulator; supplemental: external tester's physical device |
 | Android version | Pending |
 | Play test track | Internal testing |
 | Tester Google account | Do not record email here |
 | Build version/code | Bootstrap `1.0.5` / code `1`; final test build will be code `2` or later |
 
-Brian does not currently own an Android phone. Brian must initiate any emulator
-or device session. Use a Google Play-enabled Android emulator for initial app
-testing. An external tester with a physical Android phone has been added to the
-internal-test list; complete installation and baseline testing on that device,
-then repeat purchase, restore, and push-notification checks after the finalized
-code `2` or later build is published.
+Brian does not currently own an Android phone and must initiate any emulator or
+device session. Use a Google Play-enabled Android emulator for the primary test
+pass, including Play-installed purchase and restore testing. An external tester
+with a physical Android phone is on the internal-test list but is supplemental
+only and is not part of the submission schedule or critical path.
 
 ## Store Listing
 
@@ -568,14 +567,16 @@ Do not submit until every required gate is checked.
   `https://play.google.com/apps/internaltest/4701575429319244731`.
 - Added an external Android-device owner to the internal-test email list without
   granting Play Console administrative access. Their email address is not stored
-  in this tracker. Enrollment, installation, and test results remain pending.
+  in this tracker. Their physical-device test is optional supplemental coverage
+  and is not a submission dependency.
 - Created Google Play subscription product `kingfish_bets_pro_monthly` with the
   customer-facing name `KingFish Bets Pro Monthly`, four truthful Pro benefit
   labels, and a matching description. Set its tax/compliance classification to
   Digital app sales / Service and its product age rating to 18+.
 - Confirmed Brian does not currently have a physical Android phone. Initial
-  testing will use a Google Play-enabled emulator; physical-device testing is
-  still required before the production gate when a device is available.
+  and final owner-led testing will use a Google Play-enabled emulator. A
+  physical-device pass remains recommended when convenient but is not a
+  production gate.
 - Approved the new monthly launch pricing goal: 3 days free, then $0.99 for the
   first month, then $4.99/month until canceled. Added coordinated Google Play,
   RevenueCat, iOS App Store, mobile paywall, website, feature-gating, disclosure,
@@ -619,9 +620,10 @@ Do not submit until every required gate is checked.
 3. Restore the intended Premium feature gates and update the shared Android
    paywall to show only the finalized monthly offer; remove or hide the yearly
    selection for the initial release.
-4. Produce version code `2`, then verify the monthly purchase, restore,
-   Firebase push delivery, account deletion, login, and core app behavior on a
-   Play-installed Android device.
+4. Produce version code `2`, then have Brian verify the monthly purchase,
+   restore, Firebase push delivery, account deletion, login, and core behavior
+   using a Play-installed build on a Google Play-enabled Android emulator. Treat
+   the friend's physical-device test as supplemental coverage only.
 5. Complete the Google Play store listing, graphics, Data Safety, App Access,
    content-rating, target-audience, ads, and financial-feature declarations.
 6. Update the iOS subscription configuration and website to the approved
