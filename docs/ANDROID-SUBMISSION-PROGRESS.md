@@ -52,8 +52,8 @@ credentials here.
 - Do not include gambling ads or calls to action to place a wager.
 - Android digital subscriptions must use Google Play Billing through RevenueCat.
 - Do not place any outside purchase call to action in the Android app.
-- Do not submit a production build until monthly purchase, yearly purchase,
-  restore, entitlement sync, and subscription-management behavior have been
+- Do not submit a production build until the monthly purchase, restore,
+  entitlement sync, and subscription-management behavior have been
   tested in a Play-installed build.
 - Do not use browser automation, launch a local build, or start an emulator from
   an agent session on this computer. Brian initiates builds and performs visual
@@ -221,13 +221,13 @@ then introductory price) followed by the regular monthly base-plan price.
 | Plan | Intended product ID | Regular price | Introductory offer | Status |
 |---|---|---:|---|---|
 | Monthly | `kingfish_bets_pro_monthly` | $4.99/month | 3 days free, then $0.99 for month one | Active in Google Play |
-| Yearly | `kingfish_bets_pro_yearly` | Decision pending | Decision pending | Do not create yet |
+| Yearly | `kingfish_bets_pro_yearly` | Deferred | Deferred | Post-launch option; do not create for the initial release |
 
 - [x] Confirm product IDs before creation; Play product IDs cannot be renamed or
       reused after creation.
 - [x] Create and activate monthly base plan `monthly` at $4.99/month.
-- [ ] Do not create or change the yearly plan until its price and offer are
-      explicitly approved.
+- [x] Defer the yearly plan until after the initial launch. Do not create or
+      advertise an Android yearly product in the initial release.
 - [x] Create and activate new-customer offer `launch-offer` with a 3-day
       free-trial phase followed by one $0.99 single-payment month.
 - [x] Confirm the offer is limited to customers who have never had any
@@ -235,16 +235,15 @@ then introductory price) followed by the regular monthly base-plan price.
 - [x] Confirm US pricing and automatic regional availability across 174
       countries/regions.
 - [x] Import Google Play monthly product/base plan into RevenueCat as
-      `kingfish_bets_pro_monthly:monthly`. Do not import a yearly product until
-      its commercial terms are approved.
+      `kingfish_bets_pro_monthly:monthly`. Do not import a yearly product for
+      the initial release.
 - [x] Attach the Android monthly product to the existing KingFish Bets Pro
       entitlement.
 - [x] Add the Android monthly product to `$rc_monthly` in the active `default`
-      offering. Leave Android unmapped in `$rc_annual` and `$rc_lifetime` until
-      corresponding Android products are intentionally created.
+      offering. Leave Android unmapped in `$rc_annual` and `$rc_lifetime` for
+      the initial release.
 - [ ] Confirm the Android SDK retrieves the approved monthly package with the
-      intended price, periods, and trial terms. Add a yearly package only after
-      its commercial terms are approved.
+      intended price, periods, and trial terms.
 
 ## Cross-Platform Pricing Rollout
 
@@ -602,6 +601,9 @@ Do not submit until every required gate is checked.
   existing Pro entitlement, and mapped it only to `$rc_monthly` in the active
   `default` offering. Android remains intentionally unmapped in the annual and
   lifetime packages.
+- Chose a monthly-only initial launch. The yearly Android product and
+  `$rc_annual` mapping are deferred until after launch and are not submission
+  blockers.
 - Connected RevenueCat Google developer notifications to the generated Google
   Cloud Pub/Sub topic `Play-Store-Notifications`, added its full topic path to
   Google Play Monetization setup, and successfully delivered a Google Play test
@@ -614,16 +616,15 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Decide the yearly price and introductory terms, then create the Google Play
-   yearly product/base plan and map it to RevenueCat's `$rc_annual` package.
-4. Restore the intended Premium feature gates and update the shared Android
-   paywall to the finalized monthly and yearly terms.
-5. Produce version code `2`, then verify monthly and yearly purchases, restore,
+3. Restore the intended Premium feature gates and update the shared Android
+   paywall to show only the finalized monthly offer; remove or hide the yearly
+   selection for the initial release.
+4. Produce version code `2`, then verify the monthly purchase, restore,
    Firebase push delivery, account deletion, login, and core app behavior on a
    Play-installed Android device.
-6. Complete the Google Play store listing, graphics, Data Safety, App Access,
+5. Complete the Google Play store listing, graphics, Data Safety, App Access,
    content-rating, target-audience, ads, and financial-feature declarations.
-7. Update the iOS subscription configuration and website to the approved
+6. Update the iOS subscription configuration and website to the approved
    pricing without displaying terms that differ from either store's checkout.
-8. Resolve all Play Console dashboard blockers, promote the verified build to
+7. Resolve all Play Console dashboard blockers, promote the verified build to
    production, and submit it for Google review.
