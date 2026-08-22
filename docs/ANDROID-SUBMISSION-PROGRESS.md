@@ -29,8 +29,8 @@ credentials here.
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
-| Cross-platform pricing | Stripe configuration and redeploy pending | Apple prices are scheduled and Android monthly is active. Website code now requires the $0.99 introductory month; create the validated one-use Stripe coupon, set its production environment value, deploy, and verify Checkout. |
-| First Android build | Complete | Bootstrap AAB `1.0.5` / code `1` was published internally; local version code is now `2` for the pricing test build |
+| Cross-platform pricing | Complete; store/device QA remains | Website live Checkout was verified at 3 days free, $0.99 for month one, then $4.99/month. Apple prices are scheduled and Android monthly is active. |
+| Android builds | Build 2 queued | Bootstrap AAB `1.0.5` / code `1` is published internally; code `2` was uploaded to EAS at 14:00 CDT for the pricing test build |
 | Android testing | Owner-led emulator test pending | Brian will perform the primary test pass on a Google Play-enabled emulator; the external physical-device tester is supplemental only |
 | Store listing copy | Draft complete | Ready-to-paste Android copy is in `docs/GOOGLE-PLAY-LISTING.md`; Play Console entry and final review remain |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
@@ -179,8 +179,8 @@ checked.
 ## Build and Release Configuration
 
 - [x] Use `1.0.5` as the first Android marketing version.
-- [x] Set Android `versionCode` to `1` (every later
-      upload must be higher).
+- [x] Set the bootstrap Android `versionCode` to `1`; current test build uses
+      code `2` (every later upload must be higher).
 - [x] Configure the production profile to create an Android App Bundle (`.aab`).
 - [x] Configure the preview profile to create an installable Android APK.
 - [ ] Confirm production build includes:
@@ -208,6 +208,16 @@ Build record:
 | Build date | 2026-08-22 (finished 09:40 CDT) |
 | AAB upload status | Published to internal testing 2026-08-22 09:54 CDT |
 | Play App Signing | Enabled; Google-managed app signing key in use |
+
+Pricing test build:
+
+| Field | Value |
+|---|---|
+| Marketing version | 1.0.5 |
+| Android version code | 2 |
+| EAS build ID | `2dc94643-ccc5-48da-8ecd-2cc657072d68` |
+| Build submitted | 2026-08-22 approximately 14:00 CDT |
+| Build status | Queued/running in EAS; upload to the Play internal track pending |
 
 ## Google Play Subscription Products
 
@@ -523,6 +533,11 @@ Do not submit until every required gate is checked.
 
 ### 2026-08-22
 
+- Verified live Stripe Checkout now shows the finalized website sequence: 3
+  days free, $0.99 for the first month, then $4.99/month. The production coupon
+  environment value and corrected website deployment are complete.
+- Uploaded Android `1.0.5` / version code `2` to EAS Build for the Play pricing
+  test. Build ID: `2dc94643-ccc5-48da-8ecd-2cc657072d68`.
 - Corrected the website launch-offer plan after live Stripe Checkout exposed
   that the previous implementation would charge $4.99 immediately after the
   trial. Website monthly checkout now requires and validates a one-use $4.00
@@ -688,20 +703,18 @@ Do not submit until every required gate is checked.
 
 ## Next Actions
 
-1. Create or confirm Stripe's one-use $4.00 USD coupon, set production
-   `STRIPE_LAUNCH_COUPON_ID`, deploy the corrected website code, and verify the
-   complete 3-day/$0.99/$4.99 sequence in live Checkout.
-2. Brian: check for Google's bank micro-deposit Monday through Wednesday and
+1. When EAS build 2 finishes, upload it to the Google Play internal track and
+   install it from Google Play on the emulator.
+2. Temporarily turn off the HQ Free Access Promo overrides, then test the
+   paywall, monthly purchase, restore, and entitlement sync with a fresh test
+   account. Re-enable the desired promo overrides after testing.
+3. Brian: check for Google's bank micro-deposit Monday through Wednesday and
    enter the exact amount on the Play payment-methods page.
-3. Brian: wait for Google to approve the submitted W-9; no further tax action
+4. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-4. Disable the live promotional access flags so free accounts see the intended
-   Premium gates. The code defaults are already gated and the Android paywall
-   update is complete.
-5. Produce version code `2`, then have Brian verify the monthly purchase,
-   restore, Firebase push delivery, account deletion, login, and core behavior
-   using a Play-installed build on a Google Play-enabled Android emulator. Treat
-   the friend's physical-device test as supplemental coverage only.
+5. Complete the remaining Android test matrix: Firebase push delivery, account
+   deletion, login, core navigation, and billing management. Treat the friend's
+   physical-device test as supplemental coverage only.
 6. Complete the Google Play store listing, graphics, Data Safety, App Access,
    content-rating, target-audience, ads, and financial-feature declarations.
 7. Verify the live annual Stripe checkout signed out and confirm it shows
