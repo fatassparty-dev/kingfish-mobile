@@ -28,7 +28,7 @@ credentials here.
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
-| RevenueCat Android | RTDN pending | Credentials validate; Android monthly product is imported, entitled, and mapped to `$rc_monthly` |
+| RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
 | First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
 | Android testing | External device test pending | An external Android owner was added to the internal-test list; enrollment, installation, and test results remain |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
@@ -160,8 +160,11 @@ attestations.
 - [x] Confirm RevenueCat reports fully valid Play credentials, including
       purchase validation, in-app product catalog access, and subscription/base-
       plan catalog access.
-- [ ] Configure Google Real-Time Developer Notifications / Pub/Sub.
-- [ ] Send and verify the test real-time notification.
+- [x] Configure Google Real-Time Developer Notifications / Pub/Sub. RevenueCat
+      created and connected `Play-Store-Notifications` in the `kingfish-bets`
+      Google Cloud project.
+- [x] Send and verify the test real-time notification. RevenueCat reported a
+      successful receipt at 2026-08-22 5:02 p.m. UTC.
 - [x] Record the Android public SDK key in the production build
       environment as `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`.
 
@@ -586,7 +589,7 @@ Do not submit until every required gate is checked.
   3-day free trial, one month for $0.99 as a single-payment phase, then automatic
   renewal on the $4.99 monthly base plan.
 - Created a dedicated RevenueCat Google Cloud service account with Pub/Sub
-  Editor and Monitoring Viewer roles, enabled the required Google Play and
+  Admin and Monitoring Viewer roles, enabled the required Google Play and
   Pub/Sub APIs, and granted the minimum Play Console app and account
   permissions. Uploaded its private JSON credential directly to RevenueCat;
   no key contents are stored in this repository. After correcting an accidental
@@ -599,6 +602,10 @@ Do not submit until every required gate is checked.
   existing Pro entitlement, and mapped it only to `$rc_monthly` in the active
   `default` offering. Android remains intentionally unmapped in the annual and
   lifetime packages.
+- Connected RevenueCat Google developer notifications to the generated Google
+  Cloud Pub/Sub topic `Play-Store-Notifications`, added its full topic path to
+  Google Play Monetization setup, and successfully delivered a Google Play test
+  notification to RevenueCat at 2026-08-22 5:02 p.m. UTC.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
