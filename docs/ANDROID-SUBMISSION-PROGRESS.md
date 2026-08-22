@@ -28,7 +28,7 @@ credentials here.
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
-| RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
+| RevenueCat Android | RTDN pending | Credentials validate; Android monthly product is imported, entitled, and mapped to `$rc_monthly` |
 | First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
 | Android testing | External device test pending | An external Android owner was added to the internal-test list; enrollment, installation, and test results remain |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
@@ -231,9 +231,14 @@ then introductory price) followed by the regular monthly base-plan price.
       subscription in the app.
 - [x] Confirm US pricing and automatic regional availability across 174
       countries/regions.
-- [ ] Import or attach both Play products in RevenueCat.
-- [ ] Attach both products to the existing KingFish Bets Pro entitlement.
-- [ ] Add monthly and annual packages to the current RevenueCat offering.
+- [x] Import Google Play monthly product/base plan into RevenueCat as
+      `kingfish_bets_pro_monthly:monthly`. Do not import a yearly product until
+      its commercial terms are approved.
+- [x] Attach the Android monthly product to the existing KingFish Bets Pro
+      entitlement.
+- [x] Add the Android monthly product to `$rc_monthly` in the active `default`
+      offering. Leave Android unmapped in `$rc_annual` and `$rc_lifetime` until
+      corresponding Android products are intentionally created.
 - [ ] Confirm the Android SDK retrieves the approved monthly package with the
       intended price, periods, and trial terms. Add a yearly package only after
       its commercial terms are approved.
@@ -589,6 +594,11 @@ Do not submit until every required gate is checked.
   validated access to the in-app product catalog and subscription/base-plan
   catalog. A subsequent credential check also validated subscription purchases,
   completing all three RevenueCat Google Play credential checks.
+- Imported published Google Play product/base plan
+  `kingfish_bets_pro_monthly:monthly` into RevenueCat, attached it to the
+  existing Pro entitlement, and mapped it only to `$rc_monthly` in the active
+  `default` offering. Android remains intentionally unmapped in the annual and
+  lifetime packages.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
