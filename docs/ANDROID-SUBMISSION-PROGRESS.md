@@ -157,9 +157,9 @@ attestations.
   - View financial data, orders, and cancellation survey responses
   - Manage orders and subscriptions
 - [x] Upload the private service-account key to RevenueCat.
-- [ ] Confirm RevenueCat reports fully valid Play credentials. Product and
-      subscription/base-plan catalog access validates; purchase validation is
-      waiting for Google Play financial/order permission propagation.
+- [x] Confirm RevenueCat reports fully valid Play credentials, including
+      purchase validation, in-app product catalog access, and subscription/base-
+      plan catalog access.
 - [ ] Configure Google Real-Time Developer Notifications / Pub/Sub.
 - [ ] Send and verify the test real-time notification.
 - [x] Record the Android public SDK key in the production build
@@ -582,8 +582,8 @@ Do not submit until every required gate is checked.
   no key contents are stored in this repository. After correcting an accidental
   leading dash in the RevenueCat package-name field, RevenueCat successfully
   validated access to the in-app product catalog and subscription/base-plan
-  catalog. Purchase validation remains pending while Google's financial/order
-  permissions propagate.
+  catalog. A subsequent credential check also validated subscription purchases,
+  completing all three RevenueCat Google Play credential checks.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
