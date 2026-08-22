@@ -27,7 +27,7 @@ credentials here.
 | Android app configuration | Complete | Version code, build profiles, Firebase config, and RevenueCat Android public SDK key added |
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
-| Google Play subscriptions | Ready to configure | First signed bundle accepted on the internal track; create the approved monthly product and offer |
+| Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
 | First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
 | Android testing | Device needed | Tester enrollment verified; use a Google Play-enabled emulator initially and a physical Android device before production if available |
@@ -214,17 +214,20 @@ then introductory price) followed by the regular monthly base-plan price.
 
 | Plan | Intended product ID | Regular price | Introductory offer | Status |
 |---|---|---:|---|---|
-| Monthly | `kingfish_bets_pro_monthly` | $4.99/month | 3 days free, then $0.99 for month one | Approved; not created |
+| Monthly | `kingfish_bets_pro_monthly` | $4.99/month | 3 days free, then $0.99 for month one | Active in Google Play |
 | Yearly | `kingfish_bets_pro_yearly` | Decision pending | Decision pending | Do not create yet |
 
-- [ ] Confirm product IDs before creation; Play product IDs cannot be renamed or
+- [x] Confirm product IDs before creation; Play product IDs cannot be renamed or
       reused after creation.
-- [ ] Create and activate a monthly base plan.
+- [x] Create and activate monthly base plan `monthly` at $4.99/month.
 - [ ] Do not create or change the yearly plan until its price and offer are
       explicitly approved.
-- [ ] Create the eligible-new-subscriber monthly offer with a 3-day free-trial
-      phase followed by one $0.99 monthly introductory-price phase.
-- [ ] Confirm pricing and regional availability.
+- [x] Create and activate new-customer offer `launch-offer` with a 3-day
+      free-trial phase followed by one $0.99 single-payment month.
+- [x] Confirm the offer is limited to customers who have never had any
+      subscription in the app.
+- [x] Confirm US pricing and automatic regional availability across 174
+      countries/regions.
 - [ ] Import or attach both Play products in RevenueCat.
 - [ ] Attach both products to the existing KingFish Bets Pro entitlement.
 - [ ] Add monthly and annual packages to the current RevenueCat offering.
@@ -241,7 +244,7 @@ The approved customer-facing goal is the same monthly sequence everywhere:
       Premium features are currently enabled for free accounts.
 - [ ] Update the shared mobile paywall price, trial, renewal disclosure, and
       eligibility-aware presentation.
-- [ ] Update Google Play using the exact two-phase introductory offer described
+- [x] Update Google Play using the exact two-phase introductory offer described
       above.
 - [ ] Update RevenueCat products, packages, offering, and entitlement mappings
       to the new Google Play configuration.
@@ -551,6 +554,10 @@ Do not submit until every required gate is checked.
   saved the track configuration, and verified the Google Play opt-in page shows
   the signed-in account as a tester. The internal-test enrollment link is
   `https://play.google.com/apps/internaltest/4701575429319244731`.
+- Created Google Play subscription product `kingfish_bets_pro_monthly` with the
+  customer-facing name `KingFish Bets Pro Monthly`, four truthful Pro benefit
+  labels, and a matching description. Set its tax/compliance classification to
+  Digital app sales / Service and its product age rating to 18+.
 - Confirmed Brian does not currently have a physical Android phone. Initial
   testing will use a Google Play-enabled emulator; physical-device testing is
   still required before the production gate when a device is available.
@@ -559,6 +566,12 @@ Do not submit until every required gate is checked.
   RevenueCat, iOS App Store, mobile paywall, website, feature-gating, disclosure,
   and testing tasks. Yearly pricing remains undecided and must not be created or
   changed yet.
+- Created and activated Google Play monthly base plan `monthly` at $4.99/month
+  with automatic regional pricing and availability in 174 countries/regions.
+  Created and activated new-customer offer `launch-offer`, limited to customers
+  who have never had any subscription in the app. Its verified sequence is a
+  3-day free trial, one month for $0.99 as a single-payment phase, then automatic
+  renewal on the $4.99 monthly base plan.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
@@ -567,8 +580,8 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Configure the approved monthly Google Play offer and RevenueCat service
-   credentials/products.
+3. Configure dedicated RevenueCat Google Play service credentials, import the
+   active monthly product/base plan, and attach it to the entitlement/offering.
 4. Implement and verify the cross-platform pricing rollout for Android, iOS,
    and web; decide the yearly plan and Apple's introductory-offer equivalent.
 5. Produce version code `2` with the Android RevenueCat key and finalized
