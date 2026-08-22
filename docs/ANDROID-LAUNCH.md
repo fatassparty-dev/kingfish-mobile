@@ -4,6 +4,14 @@
 > [`ANDROID-SUBMISSION-PROGRESS.md`](ANDROID-SUBMISSION-PROGRESS.md). This file
 > remains the background launch plan and account-setup history.
 
+> **Status update — 2026-08-22:** Account-side setup, the first internal AAB,
+> Google Play monthly subscription, RevenueCat validation, and Google developer
+> notifications are complete. Android launches monthly-only; Apple and web keep
+> annual. The website base prices are $4.99/month and $49.99/year; the monthly
+> checkout is being aligned to the Android launch sequence of 3 days free,
+> $0.99 for month one, then $4.99/month. Current testing and submission work is tracked only in the living
+> progress file linked above.
+
 Written 2026-08-20, updated 2026-08-21. Organized into phases. Phase 1 is DONE
 and the developer account is APPROVED; start at Phase 2.
 

@@ -29,15 +29,15 @@ const APP_STORE_PLANS: PlanOption[] = [
   {
     id: 'monthly',
     eyebrow: '// Monthly',
-    price: '$9.99/mo',
-    sub: '7 days free, then $9.99/month. Automatically renews unless canceled.',
+    price: '$4.99/mo',
+    sub: '3 days free, then $4.99/month. Automatically renews unless canceled.',
     badge: 'Start here',
   },
   {
     id: 'yearly',
     eyebrow: '// Yearly',
-    price: '$99/yr',
-    sub: '7 days free, then $99/year. Automatically renews unless canceled.',
+    price: '$49.99/yr',
+    sub: '7 days free, then $49.99/year. Automatically renews unless canceled.',
     badge: 'Best value',
   },
 ]

@@ -8,7 +8,7 @@ Living tracker for the first Google Play release of **KingFish Bets**.
 - Play Console account ID: `8423832205415622500`
 - Started: 2026-08-22
 - Target: Submit the first production release for Google Play review
-- Current stage: Android preparation
+- Current stage: Android testing and Play listing preparation
 
 Update this file as work is completed. Do not store passwords, private keys,
 service-account JSON contents, banking details, tax information, or reviewer
@@ -29,9 +29,10 @@ credentials here.
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
-| First Android build | Complete | Bootstrap AAB `1.0.5` / code `1` was published internally; pricing test build code `2` is next |
+| Cross-platform pricing | Stripe configuration and redeploy pending | Apple prices are scheduled and Android monthly is active. Website code now requires the $0.99 introductory month; create the validated one-use Stripe coupon, set its production environment value, deploy, and verify Checkout. |
+| First Android build | Complete | Bootstrap AAB `1.0.5` / code `1` was published internally; local version code is now `2` for the pricing test build |
 | Android testing | Owner-led emulator test pending | Brian will perform the primary test pass on a Google Play-enabled emulator; the external physical-device tester is supplemental only |
-| Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
+| Store listing copy | Draft complete | Ready-to-paste Android copy is in `docs/GOOGLE-PLAY-LISTING.md`; Play Console entry and final review remain |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
 | App-content declarations | Not started | Data Safety, App Access, IARC, target audience, ads, financial features |
 | Account-deletion web path | Complete | Public page deployed and verified signed out at `https://kingfishbets.com/account-deletion` |
@@ -52,9 +53,9 @@ credentials here.
 - Do not include gambling ads or calls to action to place a wager.
 - Android digital subscriptions must use Google Play Billing through RevenueCat.
 - Do not place any outside purchase call to action in the Android app.
-- Keep Apple's existing annual subscription active and unchanged. Android is
-  monthly-only for the initial launch; this does not require removing the
-  already-configured Apple annual product or its RevenueCat mapping.
+- Keep Apple's existing annual subscription active at the new $49.99 annual
+  price. Android is monthly-only for the initial launch; this does not require
+  removing the already-configured Apple annual product or its RevenueCat mapping.
 - Do not submit a production build until the monthly purchase, restore,
   entitlement sync, and subscription-management behavior have been
   tested in a Play-installed build.
@@ -250,8 +251,24 @@ then introductory price) followed by the regular monthly base-plan price.
 
 ## Cross-Platform Pricing Rollout
 
-The approved customer-facing goal is the same monthly sequence everywhere:
-3 days free, then $0.99 for the first month, then $4.99/month until canceled.
+The approved pricing is intentionally platform-specific because Apple supports
+only one ordinary introductory offer per subscription at a time:
+
+- Android monthly: 3 days free, then $0.99 for the first month, then
+  $4.99/month until canceled.
+- Apple monthly: 3 days free, then $4.99/month until canceled.
+- Apple annual: $49.99/year; retain the existing annual product.
+- Website monthly via Stripe: 3 days free, then $0.99 for the first month, then
+  $4.99/month until canceled.
+- Website annual via Stripe: 3 days free, then $49.99/year.
+
+Live website price records:
+
+| Term | Stripe price ID | Production status |
+|---|---|---|
+| Monthly, $4.99 | `price_1U7JFPIFfjvM9immXqnF5Ldh` | Active production environment value |
+| Annual, $49.99 | `price_1U7JChIFfjvM9immzSApbgMx` | Active production environment value and Stripe default |
+| Superseded annual, $99 | `price_1TOOSeIFfjvM9immNnkZsvLF` | Historical only; no longer referenced by the website |
 
 - [ ] Disable the live promotional access flags before charging. The app's
       offline/default `pro_tools_free` value is already `false`, but the current
@@ -264,21 +281,30 @@ The approved customer-facing goal is the same monthly sequence everywhere:
       above.
 - [x] Update RevenueCat products, packages, offering, and entitlement mappings
       to the new Google Play monthly configuration.
-- [ ] Change the iOS monthly base subscription price to $4.99 in App Store
-      Connect.
-- [ ] Choose and configure the compliant iOS introductory path. Apple permits
-      one standard introductory offer type per subscription at a time, so its
-      ordinary setup cannot automatically combine both a 3-day free trial and
-      a $0.99 first month. Decide between the two as the standard iOS intro or
-      use an additional Apple-supported offer mechanism.
-- [ ] Update the iOS paywall only after its App Store offer is finalized; the
-      displayed sequence must exactly match Apple's purchase sheet.
-- [x] Retain the existing Apple annual subscription. Do not delete, deactivate,
-      or reprice it as part of the Android monthly-only launch.
-- [ ] Update website pricing, checkout/billing behavior, pricing page, Help,
-      Terms, Refund, and marketing copy to the finalized web sequence.
-- [ ] Replace all remaining $9.99/month and 7-day-trial references across the
-      app, website, store metadata, review notes, and screenshots.
+- [x] Schedule the iOS monthly base subscription price at $4.99 in App Store
+      Connect, effective Monday, August 24, 2026.
+- [x] Replace the iOS monthly introductory offer with a 3-day free trial. Apple
+      monthly renews at $4.99 and does not include Android's $0.99 first month.
+- [x] Update the iOS paywall to match the finalized App Store purchase terms.
+- [x] Retain the existing Apple annual subscription and schedule its new
+      $49.99 annual price for Monday, August 24, 2026.
+- [x] Update the website pricing, checkout/billing behavior, pricing page,
+      Refund copy, marketing copy, and internal revenue estimates locally for
+      the 3-day/$0.99 first month/$4.99 monthly and 3-day/$49.99 annual Stripe
+      model. Monthly checkout fails closed if the required launch coupon is
+      absent or is not a valid one-use $4.00 USD discount.
+- [x] In live Stripe, create the recurring $4.99 monthly and $49.99 annual
+      prices and place their `price_...` IDs in the production website
+      environment.
+- [ ] In live Stripe, create or confirm a valid $4.00-off coupon with duration
+      `once`, set its ID as production `STRIPE_LAUNCH_COUPON_ID`, and redeploy.
+- [ ] Verify the live monthly Stripe checkout signed out: it must show 3 days
+      free, then $0.99 for the first month, then $4.99/month.
+- [ ] Verify the live annual Stripe checkout signed out: it must show a 3-day
+      trial followed by $49.99/year.
+- [ ] Replace remaining legacy pricing or trial references in store metadata,
+      review notes, screenshots, and any material not covered by the app and
+      website code updates.
 - [ ] Decide how existing free users are notified or given a grace period before
       Premium feature gates are restored.
 - [ ] Test the complete new-customer sequence, renewal disclosure, cancellation,
@@ -325,7 +351,7 @@ Test environment:
 | Android version | Pending |
 | Play test track | Internal testing |
 | Tester Google account | Do not record email here |
-| Build version/code | Bootstrap `1.0.5` / code `1`; final test build will be code `2` or later |
+| Build version/code | Bootstrap `1.0.5` / code `1`; local final-test configuration is code `2` |
 
 Brian does not currently own an Android phone and must initiate any emulator or
 device session. Use a Google Play-enabled Android emulator for the primary test
@@ -336,6 +362,8 @@ only and is not part of the submission schedule or critical path.
 ## Store Listing
 
 ### Copy
+
+Draft source: [`GOOGLE-PLAY-LISTING.md`](GOOGLE-PLAY-LISTING.md)
 
 - [ ] App name: KingFish Bets
 - [ ] Short description (maximum 80 characters)
@@ -495,6 +523,16 @@ Do not submit until every required gate is checked.
 
 ### 2026-08-22
 
+- Corrected the website launch-offer plan after live Stripe Checkout exposed
+  that the previous implementation would charge $4.99 immediately after the
+  trial. Website monthly checkout now requires and validates a one-use $4.00
+  USD coupon, producing 3 days free, then $0.99 for month one, then $4.99/month.
+  Stripe coupon creation, production environment configuration, redeploy, and
+  live Checkout verification remain external-console tasks.
+- Updated remaining website disclosures and Apple renewal text to the finalized
+  base prices, and advanced the local Android version code to `2` for the next
+  Play-installed test build.
+
 - Confirmed Google approved the KingFish Bets, LLC organization developer
   account and authorized representative.
 - Confirmed the Play Console app record exists for `com.kingfishbets.app`.
@@ -626,28 +664,47 @@ Do not submit until every required gate is checked.
 - Confirmed the external Android tester remains optional supplemental coverage.
   Brian's Google Play-enabled emulator is the owner-controlled critical test
   path and the submission schedule does not depend on the friend's availability.
-- Decided to keep Apple's existing annual subscription active and unchanged.
+- Decided to keep Apple's existing annual subscription active at $49.99/year.
   The monthly-only decision applies to the initial Android launch only; Android
   remains unmapped in `$rc_annual` while the existing Apple annual mapping stays
   in place.
+- Scheduled Apple monthly at $4.99 and annual at $49.99 for August 24, 2026,
+  and replaced the Apple monthly introductory offer with a 3-day free trial.
+- Updated and deployed the website base prices and 3-day trial. Production now
+  uses monthly price
+  `price_1U7JFPIFfjvM9immXqnF5Ldh` and annual price
+  `price_1U7JChIFfjvM9immzSApbgMx`; the former $99 annual price
+  `price_1TOOSeIFfjvM9immNnkZsvLF` is no longer referenced.
+- Deployed the pricing update to Vercel as deployment
+  `dpl_Ng3ZknNMywCWWrM2P6QtRG7g4nyw`, with the production alias
+  `https://kingfishbets.com`. Live annual signed-out checkout verification remains.
+- Verified the live signed-out Stripe monthly Checkout: it displays 3 days
+  free followed immediately by $4.99 per month. This exposed the missing $0.99
+  introductory month and left monthly web pricing QA incomplete.
+- Re-ran the website and mobile TypeScript checks; both pass. The website
+  production build compiled successfully and stopped later during page-data
+  collection only because this local session does not contain the live
+  Supabase key.
 
 ## Next Actions
 
-1. Brian: check for Google's bank micro-deposit Monday through Wednesday and
+1. Create or confirm Stripe's one-use $4.00 USD coupon, set production
+   `STRIPE_LAUNCH_COUPON_ID`, deploy the corrected website code, and verify the
+   complete 3-day/$0.99/$4.99 sequence in live Checkout.
+2. Brian: check for Google's bank micro-deposit Monday through Wednesday and
    enter the exact amount on the Play payment-methods page.
-2. Brian: wait for Google to approve the submitted W-9; no further tax action
+3. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Disable the live promotional access flags so free accounts see the intended
+4. Disable the live promotional access flags so free accounts see the intended
    Premium gates. The code defaults are already gated and the Android paywall
    update is complete.
-4. Produce version code `2`, then have Brian verify the monthly purchase,
+5. Produce version code `2`, then have Brian verify the monthly purchase,
    restore, Firebase push delivery, account deletion, login, and core behavior
    using a Play-installed build on a Google Play-enabled Android emulator. Treat
    the friend's physical-device test as supplemental coverage only.
-5. Complete the Google Play store listing, graphics, Data Safety, App Access,
+6. Complete the Google Play store listing, graphics, Data Safety, App Access,
    content-rating, target-audience, ads, and financial-feature declarations.
-6. Update the iOS monthly subscription configuration and website to the
-   approved pricing without displaying terms that differ from either store's
-   checkout. Preserve Apple's existing annual subscription unchanged.
-7. Resolve all Play Console dashboard blockers, promote the verified build to
+7. Verify the live annual Stripe checkout signed out and confirm it shows
+   3 days free followed by $49.99/year.
+8. Resolve all Play Console dashboard blockers, promote the verified build to
    production, and submit it for Google review.
