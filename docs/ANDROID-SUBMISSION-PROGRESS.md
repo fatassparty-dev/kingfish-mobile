@@ -30,7 +30,7 @@ credentials here.
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
 | Cross-platform pricing | Complete; store/device QA remains | Website live Checkout was verified at 3 days free, $0.99 for month one, then $4.99/month. Apple prices are scheduled and Android monthly is active. |
-| Android builds | Build 2 queued | Bootstrap AAB `1.0.5` / code `1` is published internally; code `2` was uploaded to EAS at 14:00 CDT for the pricing test build |
+| Android builds | Build 2 complete | Bootstrap AAB `1.0.5` / code `1` is published internally; code `2` finished successfully at 14:09 CDT and its Play internal-track upload remains |
 | Android testing | Owner-led emulator test pending | Brian will perform the primary test pass on a Google Play-enabled emulator; the external physical-device tester is supplemental only |
 | Store listing copy | Draft complete | Ready-to-paste Android copy is in `docs/GOOGLE-PLAY-LISTING.md`; Play Console entry and final review remain |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
@@ -217,7 +217,7 @@ Pricing test build:
 | Android version code | 2 |
 | EAS build ID | `2dc94643-ccc5-48da-8ecd-2cc657072d68` |
 | Build submitted | 2026-08-22 approximately 14:00 CDT |
-| Build status | Queued/running in EAS; upload to the Play internal track pending |
+| Build status | Finished successfully 2026-08-22 at 14:09 CDT; upload to the Play internal track pending |
 
 ## Google Play Subscription Products
 
@@ -538,6 +538,10 @@ Do not submit until every required gate is checked.
   environment value and corrected website deployment are complete.
 - Uploaded Android `1.0.5` / version code `2` to EAS Build for the Play pricing
   test. Build ID: `2dc94643-ccc5-48da-8ecd-2cc657072d68`.
+- EAS build 2 finished successfully at 14:09 CDT. Automated non-interactive
+  submission stopped safely because an EAS Google Play submission service key
+  has not been configured; upload the generated AAB manually to the existing
+  internal track, as with bootstrap build 1.
 - Corrected the website launch-offer plan after live Stripe Checkout exposed
   that the previous implementation would charge $4.99 immediately after the
   trial. Website monthly checkout now requires and validates a one-use $4.00
