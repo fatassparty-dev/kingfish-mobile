@@ -46,9 +46,9 @@ const GOOGLE_PLAY_PLANS: PlanOption[] = [
   {
     id: 'monthly',
     eyebrow: '// Monthly',
-    price: '$4.99/mo',
-    sub: '3 days free, then $0.99 for your first month, then $4.99/month until canceled.',
-    badge: 'Launch offer',
+    price: '$0.99 first month',
+    sub: 'Start with 3 days free. Your introductory first month is $0.99, then renews at $4.99/month until canceled.',
+    badge: 'Intro offer',
   },
 ]
 
