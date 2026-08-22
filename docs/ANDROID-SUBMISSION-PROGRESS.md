@@ -27,10 +27,10 @@ credentials here.
 | Android app configuration | Complete | Version code, build profiles, Firebase config, and RevenueCat Android public SDK key added |
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
-| Google Play subscriptions | Not started | Requires first signed bundle upload before full product setup/testing |
+| Google Play subscriptions | Ready to configure | First signed bundle accepted on the internal track; create the approved monthly product and offer |
 | RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
-| First Android build | Complete | Production AAB `1.0.5` / code `1` finished successfully; internal-track upload remains |
-| Android testing | Not started | Test on a real device or emulator with Google Play services |
+| First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
+| Android testing | Device needed | Tester enrollment verified; use a Google Play-enabled emulator initially and a physical Android device before production if available |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
 | App-content declarations | Not started | Data Safety, App Access, IARC, target audience, ads, financial features |
@@ -181,11 +181,11 @@ checked.
   - Sentry configuration as intended
   - Firebase app configuration
 - [x] Generate and securely store the Android upload key through EAS.
-- [ ] Enable Google Play App Signing during the first release.
+- [x] Enable Google Play App Signing during the first release.
 - [x] Produce the first signed AAB.
 - [x] Record build ID and version here after completion.
-- [ ] Upload the AAB to an internal test release.
-- [ ] Confirm Play Console accepts package name, signing, version code, and
+- [x] Upload the AAB to an internal test release.
+- [x] Confirm Play Console accepts package name, signing, version code, and
       target API level.
 
 Build record:
@@ -196,8 +196,8 @@ Build record:
 | Android version code | 1 |
 | EAS build ID | `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` |
 | Build date | 2026-08-22 (finished 09:40 CDT) |
-| AAB upload status | AAB generated; Play Console upload pending |
-| Play App Signing | Pending |
+| AAB upload status | Published to internal testing 2026-08-22 09:54 CDT |
+| Play App Signing | Enabled; Google-managed app signing key in use |
 
 ## Google Play Subscription Products
 
@@ -305,6 +305,11 @@ Test environment:
 | Play test track | Pending |
 | Tester Google account | Do not record email here |
 | Build version/code | Pending |
+
+Brian does not currently own an Android phone. Brian must initiate any emulator
+or device session. Use a Google Play-enabled Android emulator for initial app
+testing; complete purchase, restore, and push-notification checks on a physical
+Android device before production when one is available.
 
 ## Store Listing
 
@@ -538,6 +543,17 @@ Do not submit until every required gate is checked.
   test build (version code `2`) will be the first Android build containing it.
 - EAS build `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` finished successfully and
   produced the first signed Android App Bundle for version `1.0.5` / code `1`.
+- Google Play accepted version `1.0.5` / code `1`, target SDK 36, enabled Play
+  App Signing, and published release `1.0.5 (1) – Bootstrap internal` to the
+  internal test track at 09:54 CDT. The track remains inactive only until a
+  tester email list is attached.
+- Created and attached the `KingFish Internal Testers` list with two accounts,
+  saved the track configuration, and verified the Google Play opt-in page shows
+  the signed-in account as a tester. The internal-test enrollment link is
+  `https://play.google.com/apps/internaltest/4701575429319244731`.
+- Confirmed Brian does not currently have a physical Android phone. Initial
+  testing will use a Google Play-enabled emulator; physical-device testing is
+  still required before the production gate when a device is available.
 - Approved the new monthly launch pricing goal: 3 days free, then $0.99 for the
   first month, then $4.99/month until canceled. Added coordinated Google Play,
   RevenueCat, iOS App Store, mobile paywall, website, feature-gating, disclosure,
@@ -551,12 +567,11 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Upload the finished signed bundle to a Google Play internal test track.
-4. Configure the approved monthly Google Play offer and RevenueCat service
+3. Configure the approved monthly Google Play offer and RevenueCat service
    credentials/products.
-5. Implement and verify the cross-platform pricing rollout for Android, iOS,
+4. Implement and verify the cross-platform pricing rollout for Android, iOS,
    and web; decide the yearly plan and Apple's introductory-offer equivalent.
-6. Produce version code `2` with the Android RevenueCat key and finalized
+5. Produce version code `2` with the Android RevenueCat key and finalized
    pricing, then test Firebase push delivery and the rest of the Play-installed
    app before
    completing the production submission.
