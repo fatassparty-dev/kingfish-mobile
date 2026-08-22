@@ -22,14 +22,14 @@ credentials here.
 | Play Console app record | Complete | App exists for `com.kingfishbets.app` |
 | Closed-test prerequisite | Not required | New-personal-account 12-testers/14-days rule does not apply to this organization account |
 | Source audit | Complete | Shared Expo app confirmed; Android-specific gaps identified |
-| TypeScript verification | Passing | `npm run typecheck` passed 2026-08-22 |
-| Android code adaptation | Complete | Shared platform-aware store behavior implemented; device testing remains |
+| TypeScript verification | Passing | `npm run typecheck` passed after the monthly-only Android paywall update on 2026-08-22 |
+| Android code adaptation | Complete for build 2 | Android paywall is monthly-only with the approved launch terms; device testing remains |
 | Android app configuration | Complete | Version code, build profiles, Firebase config, and RevenueCat Android public SDK key added |
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | Complete; device test pending | Credentials validate; monthly product is mapped to `$rc_monthly`; Google Pub/Sub is connected and its test notification was received |
-| First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
+| First Android build | Complete | Bootstrap AAB `1.0.5` / code `1` was published internally; pricing test build code `2` is next |
 | Android testing | Owner-led emulator test pending | Brian will perform the primary test pass on a Google Play-enabled emulator; the external physical-device tester is supplemental only |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
@@ -250,14 +250,17 @@ then introductory price) followed by the regular monthly base-plan price.
 The approved customer-facing goal is the same monthly sequence everywhere:
 3 days free, then $0.99 for the first month, then $4.99/month until canceled.
 
-- [ ] Restore the intended free-versus-Premium feature gates before charging;
-      Premium features are currently enabled for free accounts.
-- [ ] Update the shared mobile paywall price, trial, renewal disclosure, and
-      eligibility-aware presentation.
+- [ ] Disable the live promotional access flags before charging. The app's
+      offline/default `pro_tools_free` value is already `false`, but the current
+      server-delivered promotion must be turned off deliberately.
+- [x] Update the shared mobile paywall so Android shows only the monthly plan,
+      the approved launch price sequence, the 3-day trial CTA, and the matching
+      Google Play renewal disclosure. iOS retains its existing presentation
+      until its App Store configuration is changed.
 - [x] Update Google Play using the exact two-phase introductory offer described
       above.
-- [ ] Update RevenueCat products, packages, offering, and entitlement mappings
-      to the new Google Play configuration.
+- [x] Update RevenueCat products, packages, offering, and entitlement mappings
+      to the new Google Play monthly configuration.
 - [ ] Change the iOS monthly base subscription price to $4.99 in App Store
       Connect.
 - [ ] Choose and configure the compliant iOS introductory path. Apple permits
@@ -298,7 +301,7 @@ Record device/OS/build details when testing begins.
 | Notification permission | Not tested | |
 | Push notification receipt | Not tested | |
 | Monthly purchase | Not tested | |
-| Yearly purchase | Not tested | |
+| Yearly purchase | Not applicable | Deferred until after the initial Android launch |
 | Restore purchases | Not tested | |
 | Premium backend entitlement sync | Not tested | |
 | Manage Google Play Subscription | Not tested | |
@@ -470,7 +473,7 @@ Do not submit until every required gate is checked.
 - [ ] No blocking issues in Play pre-launch or bundle analysis
 - [ ] Internal Play-installed build tested
 - [ ] Monthly purchase tested
-- [ ] Yearly purchase tested
+- [x] Yearly purchase removed from the initial Android launch scope
 - [ ] Restore and entitlement sync tested
 - [ ] Android billing/refund/subscription-management language verified
 - [ ] Store listing complete
@@ -610,6 +613,14 @@ Do not submit until every required gate is checked.
   Google Play Monetization setup, and successfully delivered a Google Play test
   notification to RevenueCat at 2026-08-22 5:02 p.m. UTC.
 - Re-ran mobile and web TypeScript checks; both passed.
+- Updated the Android paywall for the monthly-only launch: it now displays the
+  exact 3-day free trial, $0.99 first month, and $4.99 monthly renewal sequence;
+  hides the yearly option; and uses a matching Google Play renewal disclosure.
+  Tightened package selection so a requested monthly purchase can never fall
+  back silently to an annual or unrelated package. Mobile TypeScript passes.
+- Confirmed the external Android tester remains optional supplemental coverage.
+  Brian's Google Play-enabled emulator is the owner-controlled critical test
+  path and the submission schedule does not depend on the friend's availability.
 
 ## Next Actions
 
@@ -617,9 +628,9 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Restore the intended Premium feature gates and update the shared Android
-   paywall to show only the finalized monthly offer; remove or hide the yearly
-   selection for the initial release.
+3. Disable the live promotional access flags so free accounts see the intended
+   Premium gates. The code defaults are already gated and the Android paywall
+   update is complete.
 4. Produce version code `2`, then have Brian verify the monthly purchase,
    restore, Firebase push delivery, account deletion, login, and core behavior
    using a Play-installed build on a Google Play-enabled Android emulator. Treat

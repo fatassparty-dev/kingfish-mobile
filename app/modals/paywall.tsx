@@ -11,18 +11,21 @@ import type { PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 import {
   billingManagementCopy,
+  isGooglePlayBuild,
   manageSubscriptionLabel,
   openMobileSubscriptionManagement,
   paywallRenewalTerms,
 } from '@/lib/mobileStore'
 
-const PLANS: {
+type PlanOption = {
   id: PurchasePlan
   eyebrow: string
   price: string
   sub: string
   badge?: string
-}[] = [
+}
+
+const APP_STORE_PLANS: PlanOption[] = [
   {
     id: 'monthly',
     eyebrow: '// Monthly',
@@ -38,6 +41,18 @@ const PLANS: {
     badge: 'Best value',
   },
 ]
+
+const GOOGLE_PLAY_PLANS: PlanOption[] = [
+  {
+    id: 'monthly',
+    eyebrow: '// Monthly',
+    price: '$4.99/mo',
+    sub: '3 days free, then $0.99 for your first month, then $4.99/month until canceled.',
+    badge: 'Launch offer',
+  },
+]
+
+const PLANS = isGooglePlayBuild ? GOOGLE_PLAY_PLANS : APP_STORE_PLANS
 
 const FEATURES = [
   'Live props, game lines, and best odds',
@@ -174,7 +189,7 @@ export default function PaywallScreen() {
       ) : null}
 
       <Button loading={loadingAction === 'purchase'} onPress={handlePurchase}>
-        Start Premium
+        {isGooglePlayBuild ? 'Start 3-Day Free Trial' : 'Start Premium'}
       </Button>
       <View style={styles.gap} />
       <Button variant="secondary" loading={loadingAction === 'restore'} onPress={handleRestore}>

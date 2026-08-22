@@ -132,7 +132,7 @@ function choosePackage(offerings: any, plan?: PurchasePlan) {
   const availablePackages = offerings?.current?.availablePackages || []
   if (!availablePackages.length) return null
 
-  const priority = plan ? [...PLAN_PACKAGE_IDS[plan], ...PRODUCT_PRIORITY] : PRODUCT_PRIORITY
+  const priority = plan ? PLAN_PACKAGE_IDS[plan] : PRODUCT_PRIORITY
 
   for (const productId of priority) {
     const match = availablePackages.find((pkg: any) =>
@@ -141,7 +141,9 @@ function choosePackage(offerings: any, plan?: PurchasePlan) {
     if (match) return match
   }
 
-  return availablePackages[0]
+  // Never substitute a different billing period for the plan the customer
+  // selected. This is especially important for the monthly-only Android launch.
+  return plan ? null : availablePackages[0]
 }
 
 export async function purchasePremium(appUserID?: string | null, plan?: PurchasePlan): Promise<PurchaseResult> {
