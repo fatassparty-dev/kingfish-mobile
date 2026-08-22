@@ -30,7 +30,7 @@ credentials here.
 | Google Play subscriptions | Monthly launch offer active | Monthly product, base plan, regional pricing, and new-customer launch offer are active |
 | RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
 | First Android build | Complete | Production AAB `1.0.5` / code `1` finished and was published to the internal track |
-| Android testing | Device needed | Tester enrollment verified; use a Google Play-enabled emulator initially and a physical Android device before production if available |
+| Android testing | External device test pending | An external Android owner was added to the internal-test list; enrollment, installation, and test results remain |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
 | App-content declarations | Not started | Data Safety, App Access, IARC, target audience, ads, financial features |
@@ -306,16 +306,18 @@ Test environment:
 
 | Field | Value |
 |---|---|
-| Device or emulator | Pending |
+| Device or emulator | External tester's physical Android device; model pending |
 | Android version | Pending |
-| Play test track | Pending |
+| Play test track | Internal testing |
 | Tester Google account | Do not record email here |
-| Build version/code | Pending |
+| Build version/code | Bootstrap `1.0.5` / code `1`; final test build will be code `2` or later |
 
 Brian does not currently own an Android phone. Brian must initiate any emulator
 or device session. Use a Google Play-enabled Android emulator for initial app
-testing; complete purchase, restore, and push-notification checks on a physical
-Android device before production when one is available.
+testing. An external tester with a physical Android phone has been added to the
+internal-test list; complete installation and baseline testing on that device,
+then repeat purchase, restore, and push-notification checks after the finalized
+code `2` or later build is published.
 
 ## Store Listing
 
@@ -557,6 +559,9 @@ Do not submit until every required gate is checked.
   saved the track configuration, and verified the Google Play opt-in page shows
   the signed-in account as a tester. The internal-test enrollment link is
   `https://play.google.com/apps/internaltest/4701575429319244731`.
+- Added an external Android-device owner to the internal-test email list without
+  granting Play Console administrative access. Their email address is not stored
+  in this tracker. Enrollment, installation, and test results remain pending.
 - Created Google Play subscription product `kingfish_bets_pro_monthly` with the
   customer-facing name `KingFish Bets Pro Monthly`, four truthful Pro benefit
   labels, and a matching description. Set its tax/compliance classification to
