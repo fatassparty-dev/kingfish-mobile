@@ -29,7 +29,7 @@ credentials here.
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Not started | Requires first signed bundle upload before full product setup/testing |
 | RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
-| First Android build | In progress | Production AAB build `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` is running |
+| First Android build | Complete | Production AAB `1.0.5` / code `1` finished successfully; internal-track upload remains |
 | Android testing | Not started | Test on a real device or emulator with Google Play services |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
@@ -168,7 +168,7 @@ checked.
 
 ## Build and Release Configuration
 
-- [ ] Decide first Android marketing version (currently app version `1.0.5`).
+- [x] Use `1.0.5` as the first Android marketing version.
 - [x] Set Android `versionCode` to `1` (every later
       upload must be higher).
 - [x] Configure the production profile to create an Android App Bundle (`.aab`).
@@ -180,10 +180,10 @@ checked.
   - Android RevenueCat public SDK key
   - Sentry configuration as intended
   - Firebase app configuration
-- [ ] Generate or select the Android upload key through EAS credentials.
+- [x] Generate and securely store the Android upload key through EAS.
 - [ ] Enable Google Play App Signing during the first release.
-- [ ] Produce the first signed AAB.
-- [ ] Record build ID and version here after completion.
+- [x] Produce the first signed AAB.
+- [x] Record build ID and version here after completion.
 - [ ] Upload the AAB to an internal test release.
 - [ ] Confirm Play Console accepts package name, signing, version code, and
       target API level.
@@ -195,31 +195,74 @@ Build record:
 | Marketing version | 1.0.5 |
 | Android version code | 1 |
 | EAS build ID | `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` |
-| Build date | 2026-08-22 (in progress) |
-| AAB upload status | EAS build in progress |
+| Build date | 2026-08-22 (finished 09:40 CDT) |
+| AAB upload status | AAB generated; Play Console upload pending |
 | Play App Signing | Pending |
 
 ## Google Play Subscription Products
 
-Target commercial terms currently shown by the iOS app; confirm before creating
-immutable Play product identifiers.
+Approved launch pricing for new monthly subscribers:
 
-| Plan | Intended product ID | Price | Trial | Status |
-|---|---|---:|---:|---|
-| Monthly | `kingfish_bets_pro_monthly` | $9.99/month | 7 days | Not created |
-| Yearly | `kingfish_bets_pro_yearly` | $99/year | 7 days | Not created |
+- 3-day free trial
+- $0.99 for the first month
+- $4.99/month afterward until canceled
+- Required paywall wording: “3 days free, then $0.99 for your first month, then
+  $4.99/month until canceled.”
+
+Google Play supports this as a new-customer offer with two phases (free trial,
+then introductory price) followed by the regular monthly base-plan price.
+
+| Plan | Intended product ID | Regular price | Introductory offer | Status |
+|---|---|---:|---|---|
+| Monthly | `kingfish_bets_pro_monthly` | $4.99/month | 3 days free, then $0.99 for month one | Approved; not created |
+| Yearly | `kingfish_bets_pro_yearly` | Decision pending | Decision pending | Do not create yet |
 
 - [ ] Confirm product IDs before creation; Play product IDs cannot be renamed or
       reused after creation.
 - [ ] Create and activate a monthly base plan.
-- [ ] Create and activate a yearly base plan.
-- [ ] Create eligible-new-subscriber trial offers.
+- [ ] Do not create or change the yearly plan until its price and offer are
+      explicitly approved.
+- [ ] Create the eligible-new-subscriber monthly offer with a 3-day free-trial
+      phase followed by one $0.99 monthly introductory-price phase.
 - [ ] Confirm pricing and regional availability.
 - [ ] Import or attach both Play products in RevenueCat.
 - [ ] Attach both products to the existing KingFish Bets Pro entitlement.
 - [ ] Add monthly and annual packages to the current RevenueCat offering.
-- [ ] Confirm the Android SDK retrieves both packages with the intended price,
-      period, and trial terms.
+- [ ] Confirm the Android SDK retrieves the approved monthly package with the
+      intended price, periods, and trial terms. Add a yearly package only after
+      its commercial terms are approved.
+
+## Cross-Platform Pricing Rollout
+
+The approved customer-facing goal is the same monthly sequence everywhere:
+3 days free, then $0.99 for the first month, then $4.99/month until canceled.
+
+- [ ] Restore the intended free-versus-Premium feature gates before charging;
+      Premium features are currently enabled for free accounts.
+- [ ] Update the shared mobile paywall price, trial, renewal disclosure, and
+      eligibility-aware presentation.
+- [ ] Update Google Play using the exact two-phase introductory offer described
+      above.
+- [ ] Update RevenueCat products, packages, offering, and entitlement mappings
+      to the new Google Play configuration.
+- [ ] Change the iOS monthly base subscription price to $4.99 in App Store
+      Connect.
+- [ ] Choose and configure the compliant iOS introductory path. Apple permits
+      one standard introductory offer type per subscription at a time, so its
+      ordinary setup cannot automatically combine both a 3-day free trial and
+      a $0.99 first month. Decide between the two as the standard iOS intro or
+      use an additional Apple-supported offer mechanism.
+- [ ] Update the iOS paywall only after its App Store offer is finalized; the
+      displayed sequence must exactly match Apple's purchase sheet.
+- [ ] Update website pricing, checkout/billing behavior, pricing page, Help,
+      Terms, Refund, and marketing copy to the finalized web sequence.
+- [ ] Replace all remaining $9.99/month and 7-day-trial references across the
+      app, website, store metadata, review notes, and screenshots.
+- [ ] Decide how existing free users are notified or given a grace period before
+      Premium feature gates are restored.
+- [ ] Test the complete new-customer sequence, renewal disclosure, cancellation,
+      restore, entitlement sync, and ineligible/returning-customer price display
+      independently on Google Play, iOS, and web.
 
 ## Android Test Matrix
 
@@ -493,6 +536,13 @@ Do not submit until every required gate is checked.
   The value is intentionally not copied into this tracker. Because the first
   AAB was already uploaded to EAS before this change, the later subscription-
   test build (version code `2`) will be the first Android build containing it.
+- EAS build `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` finished successfully and
+  produced the first signed Android App Bundle for version `1.0.5` / code `1`.
+- Approved the new monthly launch pricing goal: 3 days free, then $0.99 for the
+  first month, then $4.99/month until canceled. Added coordinated Google Play,
+  RevenueCat, iOS App Store, mobile paywall, website, feature-gating, disclosure,
+  and testing tasks. Yearly pricing remains undecided and must not be created or
+  changed yet.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
@@ -501,8 +551,12 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Codex + Brian: prepare and initiate the first EAS Android build.
-4. Upload the first signed bundle to an internal test track.
-5. Configure Google Play subscriptions and RevenueCat.
-6. Test Firebase push delivery and the rest of the Play-installed app before
+3. Upload the finished signed bundle to a Google Play internal test track.
+4. Configure the approved monthly Google Play offer and RevenueCat service
+   credentials/products.
+5. Implement and verify the cross-platform pricing rollout for Android, iOS,
+   and web; decide the yearly plan and Apple's introductory-offer equivalent.
+6. Produce version code `2` with the Android RevenueCat key and finalized
+   pricing, then test Firebase push delivery and the rest of the Play-installed
+   app before
    completing the production submission.
