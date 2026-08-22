@@ -24,12 +24,12 @@ credentials here.
 | Source audit | Complete | Shared Expo app confirmed; Android-specific gaps identified |
 | TypeScript verification | Passing | `npm run typecheck` passed 2026-08-22 |
 | Android code adaptation | Complete | Shared platform-aware store behavior implemented; device testing remains |
-| Android app configuration | In progress | Version code, build profiles, and Firebase app config added; RevenueCat remains |
+| Android app configuration | Complete | Version code, build profiles, Firebase config, and RevenueCat Android public SDK key added |
 | Firebase / notifications | Ready for device test | Android app, owners, public config, private FCM V1 credential, and sender project verified |
 | Google payments profile | Verification pending | Organization profile and bank added; W-9 submitted and in review; bank micro-deposit remains |
 | Google Play subscriptions | Not started | Requires first signed bundle upload before full product setup/testing |
-| RevenueCat Android | Not started | Add Play app, credentials, products, offering, and Android public SDK key |
-| First Android build | Not started | Prepare production AAB and installable test build |
+| RevenueCat Android | In progress | Google Play app and public Android SDK key added; Play credentials, products, and offering remain |
+| First Android build | In progress | Production AAB build `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` is running |
 | Android testing | Not started | Test on a real device or emulator with Google Play services |
 | Store listing copy | Draft needed | Adapt the iOS metadata for Google Play |
 | Store graphics | Not started | Feature graphic, icon verification, and Android screenshots |
@@ -79,7 +79,8 @@ credentials here.
 
 - [x] Add an explicit Android `versionCode`.
 - Add `android.googleServicesFile` after Firebase registration.
-- Add the Android RevenueCat public SDK key to the production EAS environment.
+- [x] Add the Android RevenueCat public SDK key to the production build
+  environment.
 - [x] Add a safe draft internal Android submit profile.
 - [x] Make the paywall platform-aware:
   - Google Play subscription-management wording and URL on Android.
@@ -145,7 +146,7 @@ attestations.
 
 ### RevenueCat / Google Play
 
-- [ ] Add a Google Play app for `com.kingfishbets.app` to the existing KingFish
+- [x] Add a Google Play app for `com.kingfishbets.app` to the existing KingFish
       RevenueCat project.
 - [ ] Create a dedicated Google Cloud service account for RevenueCat.
 - [ ] Enable required Google Play and Pub/Sub APIs.
@@ -158,7 +159,7 @@ attestations.
 - [ ] Confirm RevenueCat reports valid Play credentials.
 - [ ] Configure Google Real-Time Developer Notifications / Pub/Sub.
 - [ ] Send and verify the test real-time notification.
-- [ ] Record the Android public SDK key in the protected EAS production
+- [x] Record the Android public SDK key in the production build
       environment as `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`.
 
 Credential propagation may take up to 36 hours. Do not interpret an initial
@@ -191,11 +192,11 @@ Build record:
 
 | Field | Value |
 |---|---|
-| Marketing version | Pending |
+| Marketing version | 1.0.5 |
 | Android version code | 1 |
-| EAS build ID | Pending |
-| Build date | Pending |
-| AAB upload status | Pending |
+| EAS build ID | `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` |
+| Build date | 2026-08-22 (in progress) |
+| AAB upload status | EAS build in progress |
 | Play App Signing | Pending |
 
 ## Google Play Subscription Products
@@ -480,6 +481,18 @@ Do not submit until every required gate is checked.
   Privacy, and Refund updates in web commit `1fcaf20`. Verified a signed-out
   request to `https://kingfishbets.com/account-deletion` returns HTTP 200 and
   contains the deletion request and Google Play subscription guidance.
+- Created the RevenueCat Google Play app for `com.kingfishbets.app`. RevenueCat
+  generated custom URL scheme `rc-3790f27f90`; it is not needed for the current
+  custom paywall and is not being registered solely for dashboard paywall
+  previews. The Android public SDK key and Play service credentials remain.
+- Brian initiated the first production Android App Bundle build. EAS generated
+  and securely stored the Android keystore. Build
+  `c2cb3fcc-1dbe-48db-ad0a-f8db9d06c3fc` is running for version `1.0.5` / code
+  `1` from commit `366cc75`.
+- Added the RevenueCat Android public SDK key to the production build profile.
+  The value is intentionally not copied into this tracker. Because the first
+  AAB was already uploaded to EAS before this change, the later subscription-
+  test build (version code `2`) will be the first Android build containing it.
 - Re-ran mobile and web TypeScript checks; both passed.
 
 ## Next Actions
