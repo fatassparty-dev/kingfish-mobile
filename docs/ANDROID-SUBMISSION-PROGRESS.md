@@ -52,6 +52,9 @@ credentials here.
 - Do not include gambling ads or calls to action to place a wager.
 - Android digital subscriptions must use Google Play Billing through RevenueCat.
 - Do not place any outside purchase call to action in the Android app.
+- Keep Apple's existing annual subscription active and unchanged. Android is
+  monthly-only for the initial launch; this does not require removing the
+  already-configured Apple annual product or its RevenueCat mapping.
 - Do not submit a production build until the monthly purchase, restore,
   entitlement sync, and subscription-management behavior have been
   tested in a Play-installed build.
@@ -270,6 +273,8 @@ The approved customer-facing goal is the same monthly sequence everywhere:
       use an additional Apple-supported offer mechanism.
 - [ ] Update the iOS paywall only after its App Store offer is finalized; the
       displayed sequence must exactly match Apple's purchase sheet.
+- [x] Retain the existing Apple annual subscription. Do not delete, deactivate,
+      or reprice it as part of the Android monthly-only launch.
 - [ ] Update website pricing, checkout/billing behavior, pricing page, Help,
       Terms, Refund, and marketing copy to the finalized web sequence.
 - [ ] Replace all remaining $9.99/month and 7-day-trial references across the
@@ -621,6 +626,10 @@ Do not submit until every required gate is checked.
 - Confirmed the external Android tester remains optional supplemental coverage.
   Brian's Google Play-enabled emulator is the owner-controlled critical test
   path and the submission schedule does not depend on the friend's availability.
+- Decided to keep Apple's existing annual subscription active and unchanged.
+  The monthly-only decision applies to the initial Android launch only; Android
+  remains unmapped in `$rc_annual` while the existing Apple annual mapping stays
+  in place.
 
 ## Next Actions
 
@@ -637,7 +646,8 @@ Do not submit until every required gate is checked.
    the friend's physical-device test as supplemental coverage only.
 5. Complete the Google Play store listing, graphics, Data Safety, App Access,
    content-rating, target-audience, ads, and financial-feature declarations.
-6. Update the iOS subscription configuration and website to the approved
-   pricing without displaying terms that differ from either store's checkout.
+6. Update the iOS monthly subscription configuration and website to the
+   approved pricing without displaying terms that differ from either store's
+   checkout. Preserve Apple's existing annual subscription unchanged.
 7. Resolve all Play Console dashboard blockers, promote the verified build to
    production, and submit it for Google review.
