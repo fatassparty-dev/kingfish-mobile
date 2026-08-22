@@ -1,43 +1,46 @@
-import { Linking, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { colors, spacing } from '@/lib/theme'
+import {
+  manageSubscriptionLabel,
+  mobileStoreName,
+  openMobileRefundRequest,
+  openMobileSubscriptionManagement,
+  refundDetailCopy,
+  refundIntroCopy,
+  requestRefundLabel,
+} from '@/lib/mobileStore'
 
 export default function RefundScreen() {
-  function openUrl(primaryUrl: string, fallbackUrl?: string) {
-    Linking.openURL(primaryUrl).catch(() => {
-      if (fallbackUrl) Linking.openURL(fallbackUrl).catch(() => {})
-    })
-  }
-
   return (
     <Screen>
       <AppText variant="eyebrow">// Billing</AppText>
       <AppText variant="title" style={styles.title}>Refund Policy</AppText>
       <AppText variant="muted" style={styles.copy}>
-        KingFish subscriptions purchased in the iOS app are managed through Apple. Canceling turns off renewal, and access continues until the current billing period ends.
+        {refundIntroCopy}
       </AppText>
 
       <View style={styles.sections}>
         <Card>
-          <AppText style={styles.sectionTitle}>App Store Purchases</AppText>
+          <AppText style={styles.sectionTitle}>{mobileStoreName} Purchases</AppText>
           <AppText variant="muted" style={styles.body}>
-            Apple handles billing, cancellation, and refund requests for subscriptions purchased in the iOS app. KingFish cannot directly issue App Store refunds from inside the app.
+            {refundDetailCopy}
           </AppText>
           <View style={styles.cardAction}>
             <Button
               variant="secondary"
-              onPress={() => openUrl('itms-apps://apps.apple.com/account/subscriptions', 'https://apps.apple.com/account/subscriptions')}
+              onPress={() => void openMobileSubscriptionManagement()}
             >
-              Manage Apple Subscription
+              {manageSubscriptionLabel}
             </Button>
           </View>
           <View style={styles.gap} />
-          <Button variant="outline" onPress={() => openUrl('https://support.apple.com/en-us/118223')}>
-            Request Apple Refund
+          <Button variant="outline" onPress={() => void openMobileRefundRequest()}>
+            {requestRefundLabel}
           </Button>
         </Card>
 

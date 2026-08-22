@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
+import { billingManagementCopy, mobileStoreName } from '@/lib/mobileStore'
 
 const quickStart = [
   'Pick a sport on the Dashboard.',
@@ -251,7 +252,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>Plans & Refunds</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Manage or cancel App Store subscriptions from Account. Canceling turns off renewal, and access continues until the current billing period ends. Apple handles refund requests for iOS purchases.
+                {billingManagementCopy} Refund eligibility for mobile purchases is handled under {mobileStoreName} policies and applicable law.
               </AppText>
               <View style={styles.buttonGap}>
                 <Button variant="secondary" onPress={() => router.push('/refund')}>

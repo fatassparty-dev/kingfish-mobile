@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Linking, Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -9,6 +9,12 @@ import { useAuth } from '@/lib/auth'
 import { purchasePremium, restorePurchases } from '@/lib/purchases'
 import type { PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
+import {
+  billingManagementCopy,
+  manageSubscriptionLabel,
+  openMobileSubscriptionManagement,
+  paywallRenewalTerms,
+} from '@/lib/mobileStore'
 
 const PLANS: {
   id: PurchasePlan
@@ -103,11 +109,11 @@ export default function PaywallScreen() {
           <AppText variant="eyebrow">// Active</AppText>
           <AppText style={styles.noticeTitle}>You are already on KingFish Bets Pro.</AppText>
           <AppText variant="muted" style={styles.noticeCopy}>
-            Manage or cancel your plan in your Apple account settings. Access continues until the current billing period ends.
+            {billingManagementCopy}
           </AppText>
         </Card>
-        <Button variant="secondary" onPress={() => Linking.openURL('itms-apps://apps.apple.com/account/subscriptions')}>
-          Manage Apple Subscription
+        <Button variant="secondary" onPress={() => void openMobileSubscriptionManagement()}>
+          {manageSubscriptionLabel}
         </Button>
         <View style={styles.gap} />
         <Button variant="secondary" onPress={() => router.back()}>Close</Button>
@@ -177,7 +183,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        Eligible new monthly and yearly subscribers get 7 days free, then KingFish Bets Pro is $9.99 per month or $99 per year. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your Apple account is charged for renewal within 24 hours before the trial or current period ends. Manage or cancel subscriptions in your Apple account settings. KingFish is intended for users 18+ where permitted by law.
+        {paywallRenewalTerms}
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => router.push('/terms')}>

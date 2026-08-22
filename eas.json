@@ -10,12 +10,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "ios": {
         "simulator": true
       }
     },
     "production": {
       "autoIncrement": false,
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://kingfishbets.com/supabase-proxy",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Vz0BmofkcZz4g5-SOW31dA_M0Mn6fqF",
@@ -26,6 +32,12 @@
     }
   },
   "submit": {
+    "internal": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6776368371"

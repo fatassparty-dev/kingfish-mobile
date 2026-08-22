@@ -1,5 +1,9 @@
 # Android launch plan
 
+> The active, day-by-day submission checklist and status are maintained in
+> [`ANDROID-SUBMISSION-PROGRESS.md`](ANDROID-SUBMISSION-PROGRESS.md). This file
+> remains the background launch plan and account-setup history.
+
 Written 2026-08-20, updated 2026-08-21. Organized into phases. Phase 1 is DONE
 and the developer account is APPROVED; start at Phase 2.
 

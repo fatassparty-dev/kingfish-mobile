@@ -23,6 +23,12 @@ import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locatio
 import { hasCustomHomeTiles, resolveHomeTiles } from '@/lib/homeTilePrefs'
 import { SPORT_OPTIONS, hasSportPreferences } from '@/lib/sportPrefs'
 import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
+import {
+  billingManagementCopy,
+  deletionSubscriptionWarning,
+  manageSubscriptionLabel,
+  openMobileSubscriptionManagement,
+} from '@/lib/mobileStore'
 
 const NOTIFICATION_OPTIONS: Array<{
   key: NotificationPreferenceKey
@@ -342,12 +348,6 @@ export default function AccountScreen() {
     setRestoring(false)
   }
 
-  function openAppleSubscriptionManagement() {
-    Linking.openURL('itms-apps://apps.apple.com/account/subscriptions').catch(() => {
-      Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {})
-    })
-  }
-
   function confirmClearChatHistory() {
     Alert.alert(
       'Clear Chat History',
@@ -374,7 +374,7 @@ export default function AccountScreen() {
   function confirmDeleteAccount() {
     Alert.alert(
       'Delete Account?',
-      'This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. This cannot be undone and your account cannot be recovered. If you have an active App Store subscription, cancel it separately in your Apple account settings.',
+      `This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. This cannot be undone and your account cannot be recovered. ${deletionSubscriptionWarning}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete Forever', style: 'destructive', onPress: handleDeleteAccount },
@@ -618,11 +618,11 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Plan Management</AppText>
         <AppText style={styles.webTitle}>Billing</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Manage or cancel App Store subscriptions through your Apple account settings. Canceling turns off renewal, and Pro access continues until the current billing period ends.
+          {billingManagementCopy}
         </AppText>
         <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={openAppleSubscriptionManagement}>
-            Manage Apple Subscription
+          <Button variant="secondary" onPress={() => void openMobileSubscriptionManagement()}>
+            {manageSubscriptionLabel}
           </Button>
         </View>
         <View style={styles.buttonGap} />
@@ -881,7 +881,7 @@ function getAccessSource(profile: ReturnType<typeof useAuth>['profile']) {
   if (!profile) return 'KingFish account'
   if (profile.is_gifted) return 'Gifted access'
   if (profile.subscription_platform === 'ios') return 'App Store'
-  if (profile.subscription_platform === 'android') return 'Mobile app'
+  if (profile.subscription_platform === 'android') return 'Google Play'
   if (profile.subscription_platform === 'manual') return 'Manual access'
   if (profile.stripe_plan) return 'KingFishBets.com'
   return 'KingFish account'

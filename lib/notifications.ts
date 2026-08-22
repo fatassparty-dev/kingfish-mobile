@@ -41,6 +41,14 @@ async function getExpoPushToken() {
     }
   }
 
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'KingFish Alerts',
+      description: 'Account updates and the KingFish alerts you choose to receive.',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    })
+  }
+
   const existing = await Notifications.getPermissionsAsync()
   let status = existing.status
   if (status !== 'granted') {

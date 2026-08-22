@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1056884349791",
+    "project_id": "kingfish-bets",
+    "storage_bucket": "kingfish-bets.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1056884349791:android:9fd2fb633c1a891138f4ea",
+        "android_client_info": {
+          "package_name": "com.kingfishbets.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbutp2iIiF0n60b1hYYXFfeP5sLJP6BeE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
