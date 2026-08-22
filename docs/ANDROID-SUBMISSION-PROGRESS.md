@@ -614,11 +614,16 @@ Do not submit until every required gate is checked.
    enter the exact amount on the Play payment-methods page.
 2. Brian: wait for Google to approve the submitted W-9; no further tax action
    is currently shown.
-3. Configure dedicated RevenueCat Google Play service credentials, import the
-   active monthly product/base plan, and attach it to the entitlement/offering.
-4. Implement and verify the cross-platform pricing rollout for Android, iOS,
-   and web; decide the yearly plan and Apple's introductory-offer equivalent.
-5. Produce version code `2` with the Android RevenueCat key and finalized
-   pricing, then test Firebase push delivery and the rest of the Play-installed
-   app before
-   completing the production submission.
+3. Decide the yearly price and introductory terms, then create the Google Play
+   yearly product/base plan and map it to RevenueCat's `$rc_annual` package.
+4. Restore the intended Premium feature gates and update the shared Android
+   paywall to the finalized monthly and yearly terms.
+5. Produce version code `2`, then verify monthly and yearly purchases, restore,
+   Firebase push delivery, account deletion, login, and core app behavior on a
+   Play-installed Android device.
+6. Complete the Google Play store listing, graphics, Data Safety, App Access,
+   content-rating, target-audience, ads, and financial-feature declarations.
+7. Update the iOS subscription configuration and website to the approved
+   pricing without displaying terms that differ from either store's checkout.
+8. Resolve all Play Console dashboard blockers, promote the verified build to
+   production, and submit it for Google review.
