@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -6,8 +6,8 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
-import { purchasePremium, restorePurchases } from '@/lib/purchases'
-import type { PurchasePlan } from '@/lib/purchases'
+import { getPremiumPricing, purchasePremium, restorePurchases } from '@/lib/purchases'
+import type { PremiumPricing, PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 import {
   billingManagementCopy,
@@ -29,15 +29,15 @@ const APP_STORE_PLANS: PlanOption[] = [
   {
     id: 'monthly',
     eyebrow: '// Monthly',
-    price: '$4.99/mo',
-    sub: '3 days free, then $4.99/month. Automatically renews unless canceled.',
-    badge: 'Start here',
+    price: '$0.99 first month',
+    sub: 'Then $4.99/month until canceled. No free trial.',
+    badge: 'Intro offer',
   },
   {
     id: 'yearly',
     eyebrow: '// Yearly',
     price: '$49.99/yr',
-    sub: '7 days free, then $49.99/year. Automatically renews unless canceled.',
+    sub: '$49.99/year until canceled. No free trial.',
     badge: 'Best value',
   },
 ]
@@ -52,8 +52,6 @@ const GOOGLE_PLAY_PLANS: PlanOption[] = [
   },
 ]
 
-const PLANS = isGooglePlayBuild ? GOOGLE_PLAY_PLANS : APP_STORE_PLANS
-
 const FEATURES = [
   'Live props, game lines, and best odds',
   'Player profiles with recent form',
@@ -67,7 +65,63 @@ export default function PaywallScreen() {
   const [message, setMessage] = useState('')
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
+  const [pricing, setPricing] = useState<PremiumPricing>({})
+  const [pricingLoaded, setPricingLoaded] = useState(false)
   const isPremium = profile?.is_premium === true
+
+  useEffect(() => {
+    let active = true
+    void getPremiumPricing(user?.id).then((nextPricing) => {
+      if (active) {
+        setPricing(nextPricing)
+        setPricingLoaded(true)
+      }
+    })
+    return () => { active = false }
+  }, [user?.id])
+
+  const plans = useMemo<PlanOption[]>(() => {
+    if (isGooglePlayBuild) return GOOGLE_PLAY_PLANS
+
+    const monthly = pricing.monthly
+    const yearly = pricing.yearly
+    const monthlyBasePrice = monthly?.priceString || '$4.99'
+    const monthlyIntroPrice = monthly?.introPriceString
+    const hasConfirmedMonthlyPrice = pricingLoaded && Boolean(monthly?.priceString)
+    const showIntroOffer = monthlyIntroPrice || !hasConfirmedMonthlyPrice
+
+    return [
+      {
+        id: 'monthly',
+        eyebrow: '// Monthly',
+        price: showIntroOffer
+          ? `${monthlyIntroPrice || '$0.99'} first month`
+          : `${monthlyBasePrice}/mo`,
+        sub: showIntroOffer
+          ? `Then ${monthlyBasePrice}/month until canceled. No free trial.`
+          : `${monthlyBasePrice}/month until canceled. No introductory offer or free trial is currently available for this Apple account.`,
+        badge: showIntroOffer ? 'Intro offer' : undefined,
+      },
+      {
+        id: 'yearly',
+        eyebrow: '// Yearly',
+        price: `${yearly?.priceString || '$49.99'}/yr`,
+        sub: `${yearly?.priceString || '$49.99'}/year until canceled. No free trial.`,
+        badge: 'Best value',
+      },
+    ]
+  }, [pricing, pricingLoaded])
+
+  const renewalTerms = useMemo(() => {
+    if (isGooglePlayBuild) return paywallRenewalTerms
+    const monthlyBasePrice = pricing.monthly?.priceString || '$4.99'
+    const monthlyIntroPrice = pricing.monthly?.introPriceString
+    const yearlyPrice = pricing.yearly?.priceString || '$49.99'
+    const monthlyTerms = monthlyIntroPrice || !pricingLoaded || !pricing.monthly?.priceString
+      ? `Eligible new monthly subscribers pay ${monthlyIntroPrice || '$0.99'} for the first month, then ${monthlyBasePrice} per month.`
+      : `The monthly plan is ${monthlyBasePrice} per month.`
+    return `${monthlyTerms} The yearly plan is ${yearlyPrice} per year. There is no free trial. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your Apple account is charged when the purchase is confirmed and for renewal within 24 hours before the current period ends. Manage or cancel subscriptions in your Apple account settings. KingFish is intended for users 18+ where permitted by law.`
+  }, [pricing, pricingLoaded])
 
   async function handlePurchase() {
     setLoadingAction('purchase')
@@ -157,7 +211,7 @@ export default function PaywallScreen() {
       </View>
 
       <View style={styles.plans}>
-        {PLANS.map((plan) => {
+        {plans.map((plan) => {
           const selected = selectedPlan === plan.id
           return (
             <Pressable
@@ -198,7 +252,7 @@ export default function PaywallScreen() {
       <View style={styles.gap} />
       <Button variant="secondary" onPress={() => router.back()}>Close</Button>
       <AppText variant="muted" style={styles.terms}>
-        {paywallRenewalTerms}
+        {renewalTerms}
       </AppText>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => router.push('/terms')}>

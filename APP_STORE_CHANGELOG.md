@@ -22,6 +22,17 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 1.0.6 (build 28) — BUILDING 2026-08-23
+
+- **[2026-08-23] Updated Apple subscription pricing and introductory offer.**
+  - **What the user sees:** The upgrade screen shows $0.99 for the first monthly
+    billing period, then $4.99/month, or $49.99/year. Apple plans no longer
+    advertise a free trial.
+  - **Why:** Keeps the in-app upgrade screen consistent with the current App
+    Store subscription configuration. Prices and introductory-offer eligibility
+    are read from Apple through RevenueCat, with the approved US prices used as
+    a fallback if the store is temporarily unavailable.
+
 ## 🟡 1.0.5 (build 27) — SUBMITTED FOR APP REVIEW 2026-08-19
 
 > Tested through TestFlight and submitted 2026-08-19. Builds 21-26 were

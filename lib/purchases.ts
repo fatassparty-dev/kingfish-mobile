@@ -27,6 +27,15 @@ const PLAN_PACKAGE_IDS = {
 
 export type PurchasePlan = keyof typeof PLAN_PACKAGE_IDS
 
+export type PremiumPlanPricing = {
+  priceString: string
+  introPriceString: string | null
+  introCycles: number | null
+  introPeriod: string | null
+}
+
+export type PremiumPricing = Partial<Record<PurchasePlan, PremiumPlanPricing>>
+
 let configuredForUserId: string | null = null
 
 function getRevenueCatKey() {
@@ -144,6 +153,34 @@ function choosePackage(offerings: any, plan?: PurchasePlan) {
   // Never substitute a different billing period for the plan the customer
   // selected. This is especially important for the monthly-only Android launch.
   return plan ? null : availablePackages[0]
+}
+
+export async function getPremiumPricing(appUserID?: string | null): Promise<PremiumPricing> {
+  const configured = await configurePurchases(appUserID)
+  if (!configured.ok) return {}
+
+  try {
+    const offerings = await Purchases.getOfferings()
+    const pricing: PremiumPricing = {}
+
+    for (const plan of Object.keys(PLAN_PACKAGE_IDS) as PurchasePlan[]) {
+      const selectedPackage = choosePackage(offerings, plan)
+      if (!selectedPackage?.product?.priceString) continue
+
+      const product = selectedPackage.product
+      pricing[plan] = {
+        priceString: product.priceString,
+        introPriceString: product.introPrice?.priceString || null,
+        introCycles: product.introPrice?.cycles ?? null,
+        introPeriod: product.introPrice?.period || null,
+      }
+    }
+
+    return pricing
+  } catch {
+    // The paywall keeps safe store-specific fallbacks if pricing is temporarily unavailable.
+    return {}
+  }
 }
 
 export async function purchasePremium(appUserID?: string | null, plan?: PurchasePlan): Promise<PurchaseResult> {
