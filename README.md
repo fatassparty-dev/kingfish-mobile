@@ -5,12 +5,22 @@ Expo app shell for KingFish Bets.
 ## Current Release Status
 
 - iOS 1.0.4 (build 20) was approved and is live on the App Store.
-- iOS 1.0.5 (build 21) is in progress and NOT yet submitted. See
-  APP_STORE_CHANGELOG.md for what it contains.
-- The next major mobile phase is Android planning and implementation. Start by
-  preserving the server-driven architecture documented below so Android consumes
-  the same ADP, sports data, scoring decisions, configuration, and account services
-  as web and iOS instead of creating device-managed copies.
+- iOS App Version 1.0.5, using binary 1.0.6 (build 28), was submitted on
+  2026-08-23 and is **Waiting for Review**. See `APP_STORE_CHANGELOG.md`.
+- Android 1.0.5 (version code 2), the closed Alpha release, Google Play listing,
+  and required declarations were submitted on 2026-08-23. Google showed the
+  changes **in review**; this is not a public production release. See
+  `docs/ANDROID-SUBMISSION-PROGRESS.md`.
+
+Current platform pricing:
+
+- Apple monthly: $0.99 for the first month, then $4.99/month; no free trial.
+- Apple annual: $49.99/year; no free trial.
+- Google Play monthly: 3 days free, $0.99 for the first paid month, then
+  $4.99/month.
+- Web monthly: 3 days free, $0.99 for the first paid month, then $4.99/month.
+  Web annual is intended to be 3 days free, then $49.99/year; reconfirm the live
+  annual checkout before treating that flow as verified.
 
 ## Shipping a build to the App Store
 
@@ -70,7 +80,10 @@ Keep these rules in place:
 - Do not name third-party data providers in public mobile copy unless there is a legal or product reason, such as asking the user to connect an outside fantasy account.
 - It is okay to say "KingFish data" when describing KingFish dashboards, tools, cheat sheets, or Ask KingFish context. Do not use that language when it would imply an outside ranking, ADP list, or vendor feed originated with KingFish.
 - Run `npm run typecheck` before packaging an App Store build.
-- For iOS billing surfaces, keep the language Apple-specific: Manage Apple Subscription, App Store refund policy, and cancellation at the end of the current billing period.
+- Keep billing language platform-specific: Apple subscription management and
+  refund language on iOS, and Google Play subscription management on Android.
+  Do not imply the introductory terms are identical: Apple has no free trial,
+  while Google Play and the verified web monthly flow include 3 free days.
 - Edge color language is intentional: Strong is green, Lean is gold, Neutral is muted, Fade is red.
 
 ## Server-Driven Update Map
@@ -101,11 +114,14 @@ The goal is to keep seasonal sports content, weekly NFL updates, and admin launc
 - `preview` for internal simulator/device testing
 - `production` for App Store builds
 
-Do not run production submission until Apple Developer, RevenueCat Apple products, App Store Connect metadata, screenshots, and review notes are ready. Keep Google Play language out of the iOS app unless Android becomes an active release target.
+Do not submit a new production binary until the matching store metadata,
+screenshots, reviewer access, subscription configuration, and release notes are
+ready. Keep Apple and Google offer language platform-specific: Apple has no
+free trial, while the initial Google monthly offer includes a 3-day trial.
 
-## App Store Prep Checklist
+## Store Release Checklist
 
-Before the first real store build, confirm:
+Before each public store release, confirm:
 
 - Apple Developer organization enrollment is approved.
 - RevenueCat has Apple products attached to the KingFish Bets Pro entitlement.

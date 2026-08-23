@@ -1,5 +1,9 @@
 # Store release build — the working recipe
 
+> **Current status — 2026-08-23:** Binary 1.0.6 (build 28) is attached to iOS
+> App Version 1.0.5 and is Waiting for Review. This file remains the packaging
+> recipe, not the release-status tracker.
+
 The exact commands that produced **1.0.5 (build 21)** on 2026-08-19. Every flag
 here exists because leaving it out produced a real, confusing failure. Do not
 trim them.

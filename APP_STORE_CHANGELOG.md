@@ -22,7 +22,11 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.0.6 (build 28) — BUILDING 2026-08-23
+## 🟡 1.0.6 (build 28) — SUBMITTED FOR APP REVIEW 2026-08-23
+
+> Submitted under iOS App Version 1.0.5. The previous submission was removed
+> from review so build 28 could replace it; build 28 was then resubmitted and is
+> Waiting for Review.
 
 - **[2026-08-23] Updated Apple subscription pricing and introductory offer.**
   - **What the user sees:** The upgrade screen shows $0.99 for the first monthly

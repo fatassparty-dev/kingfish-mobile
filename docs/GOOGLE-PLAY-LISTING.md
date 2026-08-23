@@ -1,5 +1,9 @@
 # Google Play Listing Draft
 
+> **Submission status — 2026-08-23:** The listing, declarations, and Android
+> 1.0.5 (version code 2) closed Alpha release are in Google review. This is not
+> a public production release.
+
 Prepared for the first Android release of KingFish Bets. This copy is written
 for Google Play and contains no Apple-specific purchase language.
 
@@ -62,10 +66,10 @@ Do not put the test password in this tracked file.
 
 ## Release name and notes
 
-Release name: `1.0.5 (2) – Android launch candidate`
+Release name: `1.0.5 (2) – Closed testing Alpha`
 
 Release notes:
 
-Initial Android release of KingFish Bets with live odds research, player props,
+Initial closed-test release of KingFish Bets with live odds research, player props,
 game lines, cheat sheets, fantasy football tools, Ask KingFish, account
 management, and KingFish Bets Pro through Google Play.

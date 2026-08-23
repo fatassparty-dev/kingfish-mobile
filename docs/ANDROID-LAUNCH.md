@@ -4,16 +4,16 @@
 > [`ANDROID-SUBMISSION-PROGRESS.md`](ANDROID-SUBMISSION-PROGRESS.md). This file
 > remains the background launch plan and account-setup history.
 
-> **Status update — 2026-08-22:** Account-side setup, the first internal AAB,
-> Google Play monthly subscription, RevenueCat validation, and Google developer
-> notifications are complete. Android launches monthly-only; Apple and web keep
-> annual. The website base prices are $4.99/month and $49.99/year; the monthly
-> checkout is being aligned to the Android launch sequence of 3 days free,
-> $0.99 for month one, then $4.99/month. Current testing and submission work is tracked only in the living
-> progress file linked above.
+> **Status update — 2026-08-23:** Android 1.0.5 (version code 2), the closed
+> Alpha release, Play listing, and required declarations were submitted. Google
+> Play Console showed the changes **in review**. This is not a public production
+> release. Internal install/open and paywall-copy smoke tests passed. Real
+> purchase, restore, entitlement sync, subscription management, push, and broad
+> QA remain release gates. Google Payments still has the W-9 in review, a bank
+> microdeposit pending, and merchant activation pending.
 
-Written 2026-08-20, updated 2026-08-21. Organized into phases. Phase 1 is DONE
-and the developer account is APPROVED; start at Phase 2.
+Written 2026-08-20, updated 2026-08-23. Organized into phases. Phases 1 and 2
+are complete; Phase 3 is in review.
 
 ## Correcting an assumption from planning
 
@@ -100,10 +100,11 @@ remain owners — the original verifier was deliberately not removed.
 
 ---
 
-## PHASE 2 — Credentials + first build ← **START HERE**
+## PHASE 2 — Credentials + first build ✅ COMPLETE 2026-08-22
 
-Unblocked as of 2026-08-21: the developer account is approved and the app
-record exists, so every step below can proceed.
+The developer account, credentials, first builds, internal track, subscriptions,
+and RevenueCat integration were completed on 2026-08-22. The list below remains
+as setup history and a reference for future credential rotation.
 
 **Every step in this phase except the code work needs Brian signed into a
 console (Firebase, RevenueCat, Play Console, Google payments). None of it can
@@ -114,8 +115,9 @@ credentials: `google-services.json` and the `goog_...` RevenueCat key.**
    Firebase project, add an **Android** app inside it with package
    `com.kingfishbets.app` (must match exactly), download `google-services.json`.
    This is what makes Android push notifications work (FCM); nothing from the
-   Apple push setup carries over. **This file is a secret** — do not commit it;
-   same gitignore-and-keep-a-copy pattern as `.env`.
+   Apple push setup carries over. This is Firebase client configuration, not a
+   server credential. Restrict its API key and follow the repository's config
+   policy; never confuse it with a private service-account key.
 2. **Google payments profile** — required before subscriptions can be sold.
    Same LLC details, plus bank account and tax info (W-9 for a US LLC).
 3. **RevenueCat** — add a **Play Store** app to the existing KingFish
@@ -150,7 +152,12 @@ credentials: `google-services.json` and the `goog_...` RevenueCat key.**
 
 ---
 
-## PHASE 3 — Store listing + submission
+## PHASE 3 — Store listing + closed-test submission 🟡 IN REVIEW 2026-08-23
+
+The closed Alpha release, listing assets and copy, content declarations, Data
+Safety answers, and store settings were submitted on 2026-08-23. Google Play
+Console reported the changes in review. This step did **not** publish the app to
+production.
 
 **Scheduling note:** phone screenshots CANNOT be produced until Phase 2's first
 build runs in an emulator — they must be real Android screenshots, not the iOS
@@ -176,9 +183,11 @@ Asset requirements (verified 2026-08-20 against Google's spec):
 - **Content rating (IARC)** — answer honestly; see the gambling note in Phase 1.
   Expect a higher age rating and extra questions given the subject matter.
 
-Then: submit for production review. Google's review is typically faster than
-Apple's — often under 7 days, sometimes hours. With the Organization exemption
-in hand, there is no testing track standing between submission and production.
+After the closed-test review clears, Google Payments is fully activated, and
+the real purchase/restore/entitlement/subscription-management/push test pass is
+complete, create and submit the production release. The organization account is
+exempt from the personal-account 12-testers/14-days prerequisite, but KingFish's
+own release gates still apply.
 
 ---
 
