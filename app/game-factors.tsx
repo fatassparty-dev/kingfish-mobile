@@ -86,12 +86,12 @@ export default function GameFactorsScreen() {
       ) : (
         <>
           <View style={styles.factorToggle}>
-            {(['MLB', 'NFL'] as FactorSport[]).map((item) => (
+            {(['MLB', 'NFL', 'NCAAF'] as FactorSport[]).map((item) => (
               <Pressable
                 key={item}
                 onPress={() => {
                   setFactorSport(item)
-                  if (item === 'NFL') setFactorView('board')
+                  if (item !== 'MLB') setFactorView('board')
                 }}
                 style={[styles.factorToggleButton, factorSport === item && styles.factorToggleButtonActive]}
               >
@@ -129,7 +129,7 @@ export default function GameFactorsScreen() {
               <AppText variant="eyebrow">// Game Factors</AppText>
               <AppText style={styles.cardTitle}>No Games Posted</AppText>
               <AppText variant="muted" style={styles.cardCopy}>
-                {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : 'NFL factors will populate when game markets post.'}
+                {factorSport === 'MLB' ? 'No MLB games are available for today yet.' : `${factorSport} factors will populate when game markets post.`}
               </AppText>
             </Card>
           )}
@@ -213,12 +213,12 @@ export default function GameFactorsScreen() {
               <AppText variant="muted" style={styles.stadiumRecord}>Home record: {stadiumProfile?.homeRecord || 'Pending'}</AppText>
             ) : null}
             <View style={styles.stadiumGrid}>
-              <FactorMetric label={stadiumProfile?.sport === 'NFL' ? 'Stadium Grade' : 'Park Grade'} value={String(stadiumProfile?.score || '-')} tone={colors.gold} large />
+              <FactorMetric label={stadiumProfile?.sport === 'MLB' ? 'Park Grade' : stadiumProfile?.sport === 'NCAAF' ? 'Conditions Grade' : 'Stadium Grade'} value={String(stadiumProfile?.score || '-')} tone={colors.gold} large />
               <FactorMetric label="Surface" value={shortSurface(stadiumProfile?.surface)} />
               <FactorMetric label="Market" value={stadiumProfile?.market || '-'} />
               <FactorMetric label="Capacity" value={stadiumProfile?.capacity || '-'} />
               <FactorMetric label="Altitude" value={stadiumProfile?.altitudeFt ? `${stadiumProfile.altitudeFt} ft` : '-'} />
-              <FactorMetric label={stadiumProfile?.sport === 'NFL' ? 'Roof Status' : 'Roof'} value={stadiumProfile?.roofStatus || stadiumProfile?.roof || '-'} />
+              <FactorMetric label={stadiumProfile?.sport === 'MLB' ? 'Roof' : 'Roof Status'} value={stadiumProfile?.roofStatus || stadiumProfile?.roof || '-'} />
               {stadiumProfile?.sport === 'NFL' ? (
                 <>
                   <FactorMetric label="Wind Impact" value={stadiumProfile?.windImpact || '-'} />

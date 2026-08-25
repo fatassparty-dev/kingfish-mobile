@@ -14,6 +14,14 @@ Props & Odds Analytics
 
 Player props, game lines, matchup context, cheat sheets, fantasy tools, and Ask KingFish analysis in one sports analytics app.
 
+## What's New — Next NCAA Football Release
+
+Use the same customer-facing copy in App Store Connect and Google Play:
+
+> College football is here. This update adds current AP Top 25 rankings,
+> improved conference filtering, matchup weather, refreshed game-line and edge
+> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+
 ## Full Description
 
 KingFish Bets is a sports analytics and odds research platform built for faster, clearer research across the sports calendar.
@@ -65,9 +73,16 @@ Add these credentials in App Store Connect Review Notes before submission:
 Recommended reviewer path:
 
 1. Sign in with the demo account.
-2. Review Dashboard, Game Lines, Player Props, Cheat Sheets, Fantasy Hub, Ask KingFish, Account, Help, Terms, Privacy, Refund Policy, and Support.
-3. Confirm Restore Purchases and Manage Apple Subscription are visible from Account and the paywall.
-4. Confirm Delete Account is visible from Account. Use a separate disposable account if Apple wants to test actual deletion.
+2. On Dashboard, select NCAAF and review Game Props, Game Matchups, and League
+   View. Confirm conference selection filters by actual team conference,
+   Matchups displays weather instead of Status, and League View shows the
+   current AP Top 25.
+3. Review Game Lines, Player Props, Cheat Sheets, Fantasy Hub, Ask KingFish,
+   Account, Help, Terms, Privacy, Refund Policy, and Support.
+4. Confirm Restore Purchases and Manage Apple Subscription are visible from
+   Account and the paywall.
+5. Confirm Delete Account is visible from Account. Use a separate disposable
+   account if Apple wants to test actual deletion.
 
 ## Screenshot Plan
 

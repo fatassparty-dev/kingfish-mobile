@@ -47,7 +47,7 @@ type ToolTile = {
 }
 type ToolMode = 'sheets' | 'calculators' | 'more'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
-export type FactorSport = 'MLB' | 'NFL'
+export type FactorSport = 'MLB' | 'NFL' | 'NCAAF'
 export type FactorView = 'board' | 'cheat'
 
 type TopLeanProp = {
@@ -407,6 +407,8 @@ export interface FactorRow {
   lean: string
   tone: string
   tags: string[]
+  capacity?: number | null
+  location?: string
 }
 
 export type StadiumProfile = {
@@ -848,6 +850,21 @@ export function stadiumProfileForRow(
   footballData?: FootballStadiumProfilePayload,
 ): StadiumProfile {
   const baseline = factorBaseline(row.homeTeam, sport)
+  if (sport === 'NCAAF') {
+    return {
+      sport,
+      venue: row.venue,
+      homeTeam: row.homeTeam,
+      city: row.location,
+      environment: row.environment || 'Venue and weather context',
+      market: row.tags[0] || 'Totals context',
+      score: row.score,
+      capacity: row.capacity ? Number(row.capacity).toLocaleString('en-US') : undefined,
+      weather: row.weather,
+      wind: row.weatherRaw?.windStr,
+      blurb: `${row.venue} capacity is shown as venue context only. KingFish does not score capacity as a betting signal.`,
+    }
+  }
   const staticProfile = sport === 'MLB'
     ? ballparkData?.profilesByVenue?.[row.venue] || ballparkData?.profilesByTeam?.[row.homeTeam]
     : footballData?.profilesByVenue?.[row.venue] || footballData?.profilesByTeam?.[row.homeTeam]

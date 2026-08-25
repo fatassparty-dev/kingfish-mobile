@@ -4,6 +4,21 @@
 > App Version 1.0.5 and is Waiting for Review. This file remains the packaging
 > recipe, not the release-status tracker.
 
+## 1.0.7 submission scope — NCAA football + fantasy season transition
+
+The next iOS and Android packages require a new native binary. Before starting
+the archive/build, confirm the app uses exact backend conference fields, renders
+NCAAF weather instead of Status, reads League View from
+`/api/ncaaf-rankings`, and no longer labels current data as the 2025 baseline.
+Run the NCAAF regression checklist in `README.md` on TestFlight and on a
+Play-installed Android build. Use the approved release note recorded in
+`APP_STORE_CHANGELOG.md` and `STORE_METADATA_DRAFT.md`.
+
+Release identifiers: iOS build `29`; Android version code `3`.
+
+OTA is deliberately out of scope for this release; do not add `expo-updates` or
+runtime/update configuration during packaging.
+
 The exact commands that produced **1.0.5 (build 21)** on 2026-08-19. Every flag
 here exists because leaving it out produced a real, confusing failure. Do not
 trim them.

@@ -3,7 +3,7 @@
     "name": "KingFish Bets",
     "slug": "kingfish-bets",
     "scheme": "kingfish",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
@@ -28,11 +28,11 @@
           "UIInterfaceOrientationLandscapeRight"
         ]
       },
-      "buildNumber": "28"
+      "buildNumber": "29"
     },
     "android": {
       "package": "com.kingfishbets.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",

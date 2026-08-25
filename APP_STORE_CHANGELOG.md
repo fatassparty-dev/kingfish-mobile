@@ -22,6 +22,56 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 1.0.7 (iOS build 29 / Android code 3) — NCAA FOOTBALL + FANTASY SEASON TRANSITION
+
+> Planned for the week of 2026-08-24. This release requires a new native binary;
+> the website/backend changes are already deployed. Do not submit until the
+> NCAAF parity checks pass on both platforms.
+
+- **Current official AP Top 25 in League View.**
+  - **What the user sees:** The college-football league table shows the current
+    AP poll, its week/source, and rank movement instead of the static 2025
+    season-ending outlook.
+  - **Why:** The app will consume `/api/ncaaf-rankings`, which refreshes weekly
+    on the server and also feeds current ranking context into KingFish edges.
+
+- **Exact college-football conference filtering.**
+  - **What the user sees:** Selecting SEC, Big Ten, ACC, or another conference
+    returns games involving teams from that conference only.
+  - **Why:** The app will use the backend's canonical conference fields instead
+    of partial team-name matching, which could mistake teams such as West
+    Georgia or Georgia Tech for SEC members.
+
+- **Matchup weather replaces Status.**
+  - **What the user sees:** Game Matchups shows useful forecast context rather
+    than a redundant "Lines posted" status.
+  - **Why:** Weather affects college-football matchup context; the status column
+    did not help users evaluate a game.
+
+- **Refreshed NCAAF game-line and edge context.**
+  - **What the user sees:** Current rankings and matchup context flow through
+    the existing college-football lean, grade, and edge presentation.
+  - **Why:** Calculations stay server-managed, allowing weekly data/model
+  updates without another native release.
+
+- **Fantasy Hub changes with the NFL season.**
+  - **What the user sees:** Draft rankings remain available through preseason,
+    then the hub shifts to player updates and connected-team tools at kickoff.
+  - **Why:** KingFish Bets does not yet offer daily fantasy, so stale draft
+    rankings should not remain the focus after the regular season begins.
+
+**App Store / Google Play release note:**
+
+> College football is here. This update adds current AP Top 25 rankings,
+> improved conference filtering, matchup weather, refreshed game-line and edge
+> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+
+**Release decision:** OTA is not part of this release. Revisit `expo-updates`
+after the separate NCAA baseball release or when store-review latency becomes a
+real operating constraint.
+
+---
+
 ## 🟡 1.0.6 (build 28) — SUBMITTED FOR APP REVIEW 2026-08-23
 
 > Submitted under iOS App Version 1.0.5. The previous submission was removed

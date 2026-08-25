@@ -74,6 +74,24 @@ export interface Game {
   commence_time: string
   bookmakers: Bookmaker[]
   kingfishModel?: ModelLean | null
+  homeConference?: string
+  awayConference?: string
+  homeRecord?: string
+  awayRecord?: string
+  venue?: {
+    name: string
+    city: string
+    state?: string
+    country?: string
+    indoor?: boolean
+    capacity?: number
+    espnVenueId?: string
+    capacitySourceLabel?: string
+    capacitySourceUrl?: string
+    capacityVerifiedAt?: string
+  }
+  oddsUpdatedAt?: string
+  oddsStale?: boolean
 }
 
 export interface WeatherInfo {

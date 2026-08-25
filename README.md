@@ -22,6 +22,36 @@ Current platform pricing:
   Web annual is intended to be 3 days free, then $49.99/year; reconfirm the live
   annual checkout before treating that flow as verified.
 
+## Next Store Release — NCAA Football
+
+The next Apple and Google binaries are planned as the NCAA football update.
+Before packaging either store build, bring the native NCAAF board into parity
+with the deployed website:
+
+- Use `/api/ncaaf-rankings` for League View so the app shows the current
+  official AP Top 25 and receives the server's weekly refreshes.
+- Filter Game Props and Game Matchups by the exact `homeConference` and
+  `awayConference` values returned by the backend. Do not infer conference from
+  partial team-name matches.
+- Show NCAAF matchup weather from `/api/ncaaf-weather` in place of Status.
+- Replace stale 2025 rank, record, and baseline labels with current-season AP
+  rank/source/movement context.
+- Keep using the server-calculated NCAAF edge, grade, and lean values so future
+  model and ranking changes do not require another store build.
+
+Approved Apple and Google release note:
+
+> College football is here. This update adds current AP Top 25 rankings,
+> improved conference filtering, matchup weather, refreshed game-line and edge
+> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+
+OTA updates are intentionally deferred for now. With no paid users and NCAA
+baseball the only remaining planned sport, the cost and release complexity are
+not justified yet. Revisit `expo-updates` after NCAA baseball or when store
+review delays begin blocking time-sensitive fixes. NCAA baseball should be a
+separate scoped release closer to its 2027 season, whose first permissible
+contest date is February 19, 2027.
+
 ## Shipping a build to the App Store
 
 See **[docs/RELEASE-BUILD.md](docs/RELEASE-BUILD.md)** for the exact archive /
@@ -130,6 +160,15 @@ Before each public store release, confirm:
 - Terms, Privacy, Refund, Help, and support links are live on `kingfishbets.com`.
 - Screenshots show Dashboard, Game Lines, Player Props, Tools/Cheat Sheets, Fantasy Hub, Ask KingFish, Account, Paywall, and support/legal account links.
 - Export compliance can answer that the app does not use non-exempt encryption beyond standard platform HTTPS/security.
+- NCAAF Game Props and Game Matchups return only the selected conference,
+  including a regression check that SEC does not include West Georgia, Georgia
+  Tech, or Georgia State merely because their names contain "Georgia."
+- NCAAF Matchups shows weather rather than Status, and handles indoor venues or
+  unavailable forecasts cleanly.
+- NCAAF League View matches the live AP Top 25 response and no longer displays
+  the static 2025 outlook.
+- The same NCAAF smoke test passes in an iOS TestFlight build and a Play-installed
+  Android build before either release is submitted.
 
 ## Tomorrow Test Pass
 

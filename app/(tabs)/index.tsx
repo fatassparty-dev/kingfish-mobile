@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { Ionicons } from '@expo/vector-icons'
 import { Card } from '@/components/Card'
-import { GamePropsTable } from '@/components/dashboard/GamePropsTable'
+import { GamePropsTable, gameMarkets } from '@/components/dashboard/GamePropsTable'
 import { MLBPropsTable } from '@/components/dashboard/MLBPropsTable'
 import { PropsList } from '@/components/dashboard/PropCard'
 import { Screen } from '@/components/Screen'
@@ -14,7 +15,7 @@ import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtOdds, fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
-import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers } from '@/lib/sportsbooks'
+import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
@@ -208,23 +209,32 @@ type NFLCommandData = {
   }
 }
 
+type NCAAFTeam = {
+  rank: number
+  team: string
+  conference: string
+  lastRecord: string
+  priorRecord?: string
+  power: string
+  schedule: string
+  profile: string
+  lean: string
+  currentRecord?: string
+  conferenceRecord?: string
+  pointsForPerGame?: number
+  pointsAllowedPerGame?: number
+  recentForm?: string
+}
+
 type NCAAFOutlookData = {
   season: string
-  teams: Array<{
-    rank: number
-    team: string
-    conference: string
-    lastRecord: string
-    power: string
-    schedule: string
-    profile: string
-    lean: string
-    currentRecord?: string
-    conferenceRecord?: string
-    pointsForPerGame?: number
-    pointsAllowedPerGame?: number
-    recentForm?: string
-  }>
+  baselineSeason?: string
+  poll?: string
+  week?: string
+  updatedAt?: string
+  source_note?: string
+  isFallback?: boolean
+  teams: NCAAFTeam[]
 }
 
 type NCAABBaselineData = {
@@ -252,6 +262,13 @@ type NCAAFMatchup = {
   spread?: number | null
   total: number | null
   status: string
+  homeConference?: string
+  awayConference?: string
+  homeRecord?: string
+  awayRecord?: string
+  venue?: Game['venue']
+  oddsUpdatedAt?: string
+  oddsStale?: boolean
 }
 
 type WeekOption<T extends { commence_time: string }> = {
@@ -1159,6 +1176,145 @@ function SoccerTeamProfileModal({
   )
 }
 
+function recordGames(record?: string) {
+  const match = String(record || '').match(/(\d+)\s*-\s*(\d+)/)
+  return match ? Number(match[1]) + Number(match[2]) : 0
+}
+
+function ncaafRecordLabel(
+  currentRecord: string | undefined,
+  team: NCAAFTeam | undefined,
+  rankings: NCAAFOutlookData | undefined,
+) {
+  const season = rankings?.season || '2026'
+  const baselineSeason = rankings?.baselineSeason || '2025'
+  const current = currentRecord || team?.currentRecord
+  if (recordGames(current) > 0) return `${season} ${current}`
+  const prior = team?.priorRecord || (rankings?.isFallback ? team?.lastRecord : undefined)
+  if (prior) return `${baselineSeason} ${prior}`
+  return current ? `${season} ${current}` : 'Record unavailable'
+}
+
+function ncaafWeatherIcon(sky?: string, indoor?: boolean): keyof typeof Ionicons.glyphMap {
+  if (indoor) return 'home-outline'
+  const value = String(sky || '').toLowerCase()
+  if (value.includes('storm')) return 'thunderstorm-outline'
+  if (value.includes('rain') || value.includes('drizzle')) return 'rainy-outline'
+  if (value.includes('partly')) return 'partly-sunny-outline'
+  if (value.includes('cloud')) return 'cloudy-outline'
+  return 'sunny-outline'
+}
+
+function linePoint(point?: number) {
+  if (typeof point !== 'number') return '—'
+  return `${point > 0 ? '+' : ''}${point}`
+}
+
+function lineCopy(line: { book: string; price: number; point?: number } | null, includePoint = false) {
+  if (!line) return '—'
+  return `${includePoint ? `${linePoint(line.point)} ` : ''}${fmtOdds(line.price)} · ${displayBookName(line.book, line.book)}`
+}
+
+function NcaafGameDetailsModal({
+  game,
+  weather,
+  awayTeam,
+  homeTeam,
+  rankings,
+  userState,
+  sportsbookPreferences,
+  onClose,
+}: {
+  game: Game | null
+  weather?: WeatherInfo
+  awayTeam?: NCAAFTeam
+  homeTeam?: NCAAFTeam
+  rankings?: NCAAFOutlookData
+  userState?: string | null
+  sportsbookPreferences?: SportsbookPreferences | null
+  onClose: () => void
+}) {
+  const markets = game ? gameMarkets(game, userState, sportsbookPreferences) : null
+  const venue = game?.venue
+  const location = venue ? [venue.city, venue.state || venue.country].filter(Boolean).join(', ') : ''
+  return (
+    <Modal visible={Boolean(game)} animationType="slide" transparent supportedOrientations={['portrait', 'landscape-left', 'landscape-right']} onRequestClose={onClose}>
+      <View style={styles.ncaafDetailsOverlay}>
+        <Pressable style={styles.ncaafDetailsBackdrop} onPress={onClose} />
+        {game && markets ? (
+          <View style={styles.ncaafDetailsSheet}>
+            <View style={styles.ncaafDetailsHeader}>
+              <View style={styles.ncaafDetailsTitleBlock}>
+                <AppText variant="eyebrow">// Game Lines</AppText>
+                <AppText style={styles.ncaafDetailsTime}>{fmtTime(game.commence_time)}</AppText>
+              </View>
+              <Pressable onPress={onClose} style={styles.closeTeamProfile} hitSlop={8} accessibilityLabel="Close game details">
+                <AppText style={styles.closeTeamProfileText}>×</AppText>
+              </Pressable>
+            </View>
+
+            <View style={styles.ncaafDetailsTeams}>
+              <View style={styles.ncaafDetailsTeamRow}>
+                <View style={styles.ncaafDetailsTeamCopy}>
+                  <AppText style={styles.ncaafDetailsTeamName}>{game.away_team}</AppText>
+                  <AppText variant="muted" style={styles.ncaafDetailsRecord}>{ncaafRecordLabel(game.awayRecord, awayTeam, rankings)}</AppText>
+                </View>
+                <View style={styles.ncaafDetailsLineCopy}>
+                  <AppText variant="mono">ML {lineCopy(markets.bestAwayMoneyline)}</AppText>
+                  <AppText variant="mono">Spread {lineCopy(markets.bestAwaySpread, true)}</AppText>
+                </View>
+              </View>
+              <View style={styles.ncaafDetailsDivider} />
+              <View style={styles.ncaafDetailsTeamRow}>
+                <View style={styles.ncaafDetailsTeamCopy}>
+                  <AppText style={styles.ncaafDetailsTeamName}>{game.home_team}</AppText>
+                  <AppText variant="muted" style={styles.ncaafDetailsRecord}>{ncaafRecordLabel(game.homeRecord, homeTeam, rankings)}</AppText>
+                </View>
+                <View style={styles.ncaafDetailsLineCopy}>
+                  <AppText variant="mono">ML {lineCopy(markets.bestHomeMoneyline)}</AppText>
+                  <AppText variant="mono">Spread {lineCopy(markets.bestHomeSpread, true)}</AppText>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.ncaafDetailsMetaRow}>
+              <View style={styles.ncaafDetailsMetaCopy}>
+                <AppText variant="mono">Venue</AppText>
+                <AppText style={styles.ncaafDetailsVenue}>{venue?.name || 'Venue pending'}</AppText>
+                {location ? <AppText variant="muted" style={styles.ncaafDetailsSmall}>{location}</AppText> : null}
+                {venue?.capacity ? (
+                  <AppText variant="muted" style={styles.ncaafDetailsSmall}>
+                    Capacity {venue.capacity.toLocaleString('en-US')}
+                    {venue.capacityVerifiedAt ? ` · verified ${new Date(`${venue.capacityVerifiedAt}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : ''}
+                  </AppText>
+                ) : null}
+              </View>
+              <View style={styles.ncaafDetailsWeather}>
+                <Ionicons name={ncaafWeatherIcon(weather?.sky, weather?.indoor)} size={25} color={colors.gold} />
+                <AppText style={styles.ncaafDetailsTemp}>{weather?.tempF != null ? `${weather.tempF}°` : weather?.indoor ? 'Indoor' : '—'}</AppText>
+              </View>
+            </View>
+
+            <View style={styles.ncaafDetailsTotals}>
+              <AppText variant="mono">Total</AppText>
+              <AppText style={styles.ncaafDetailsTotalLine}>Over {lineCopy(markets.bestOverTotal, true)}</AppText>
+              <AppText style={styles.ncaafDetailsTotalLine}>Under {lineCopy(markets.bestUnderTotal, true)}</AppText>
+            </View>
+            {game.oddsUpdatedAt ? (
+              <AppText
+                variant="muted"
+                style={[styles.ncaafDetailsFreshness, game.oddsStale && styles.ncaafDetailsFreshnessStale]}
+              >
+                {game.oddsStale ? 'Odds may be stale · ' : ''}Updated {new Date(game.oddsUpdatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })} CT
+              </AppText>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </Modal>
+  )
+}
+
 export default function DashboardScreen() {
   const { profile, session } = useAuth()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
@@ -1172,6 +1328,7 @@ export default function DashboardScreen() {
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
   const [selectedBallpark, setSelectedBallpark] = useState<DashboardBallparkProfile | null>(null)
+  const [selectedNcaafGame, setSelectedNcaafGame] = useState<Game | null>(null)
   const [soccerLeague, setSoccerLeague] = useState('soccer_epl')
   const [selectedSoccerTeam, setSelectedSoccerTeam] = useState<SoccerTeamInfo | null>(null)
   const [collegeScope, setCollegeScope] = useState<'top25' | 'all'>('top25')
@@ -1273,12 +1430,12 @@ export default function DashboardScreen() {
   const weatherQuery = useQuery({
     queryKey: ['dashboard-weather', sport, lineQuery.data?.map((game) => game.id || game.game_id).join(',')],
     queryFn: () =>
-      kingfishFetch<Record<string, WeatherInfo>>(sport === 'NFL' ? '/api/nfl-weather' : '/api/mlb-weather', {
+      kingfishFetch<Record<string, WeatherInfo>>(sport === 'NFL' ? '/api/nfl-weather' : sport === 'NCAAF' ? '/api/ncaaf-weather' : '/api/mlb-weather', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ games: lineQuery.data || [] }),
       }),
-    enabled: (sport === 'MLB' || sport === 'NFL') && canFetchLines && !!lineQuery.data?.length,
+    enabled: (sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF') && canFetchLines && !!lineQuery.data?.length,
     staleTime: 60 * 60 * 1000,
   })
   const ballparkProfileQuery = useQuery({
@@ -1317,9 +1474,9 @@ export default function DashboardScreen() {
   })
   const ncaafOutlookQuery = useQuery({
     queryKey: ['ncaaf-mobile-league-view'],
-    queryFn: () => kingfishFetch<NCAAFOutlookData>('/data/ncaaf/team-outlook-2026.json'),
+    queryFn: () => kingfishFetch<NCAAFOutlookData>('/api/ncaaf-rankings'),
     enabled: isSelectedSportActive && sport === 'NCAAF' && (view === 'league' || view === 'matchups' || view === 'lines'),
-    staleTime: 24 * 60 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
   })
   const ncaabBaselineQuery = useQuery({
     queryKey: ['ncaab-mobile-team-board'],
@@ -1394,10 +1551,6 @@ export default function DashboardScreen() {
   })).filter((game) => game.away_team && game.home_team))
   const matchupGames = sport === 'MLB' ? mlbScheduleGames : upcomingLineGames
   const matchupLoading = sport === 'MLB' ? mlbScheduleQuery.isLoading : lineQuery.isLoading
-  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(upcomingLineGames) : []
-  const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
-  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : upcomingLineGames
-  const visibleLineGroups = groupGamesByDate(visibleLineGames)
   const worldCupTeams = Array.from(new Set(upcomingLineGames.flatMap((game) => [game.away_team, game.home_team]).filter(Boolean))).sort()
   const worldCupGroups = groupGamesByDate(upcomingLineGames)
   const worldCupStandings = worldCupStandingGroups(soccerTeams)
@@ -1412,15 +1565,7 @@ export default function DashboardScreen() {
   const visibleNflMatchups = activeNflMatchupWeek ? activeNflMatchupWeek.games : nflMatchupGames
   const visibleNflMatchupGroups = groupGamesByDate(visibleNflMatchups)
   const ncaafTeams = ncaafOutlookQuery.data?.teams || []
-  const hasLiveNcaafTeamData = ncaafTeams.some((team) =>
-    Boolean(
-      team.currentRecord ||
-      team.conferenceRecord ||
-      team.recentForm ||
-      typeof team.pointsForPerGame === 'number' ||
-      typeof team.pointsAllowedPerGame === 'number',
-    ),
-  )
+  const hasLiveNcaafTeamData = Boolean(ncaafOutlookQuery.data && !ncaafOutlookQuery.data.isFallback)
   const ncaafConferences = Array.from(new Set([...NCAAF_MAJOR_CONFERENCES, ...ncaafTeams.map((team) => team.conference).filter(Boolean)]))
   const filteredNcaafTeams = ncaafTeams.filter((team) => {
     const scopeMatch = collegeScope === 'all' || team.rank <= 25
@@ -1440,13 +1585,30 @@ export default function DashboardScreen() {
       if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
     }
     if (collegeConference !== 'All') {
-      const awayConf = ncaafTeamForName(game.away_team)?.conference
-      const homeConf = ncaafTeamForName(game.home_team)?.conference
+      const awayConf = game.awayConference || ncaafTeamForName(game.away_team)?.conference
+      const homeConf = game.homeConference || ncaafTeamForName(game.home_team)?.conference
       if (awayConf !== collegeConference && homeConf !== collegeConference) return false
     }
     return true
   })
   const ncaafMatchupGroups = groupGamesByDate(filteredNcaafMatchups)
+  const filteredUpcomingLineGames = sport !== 'NCAAF' ? upcomingLineGames : upcomingLineGames.filter((game) => {
+    if (collegeScope === 'top25') {
+      const awayRank = ncaafTeamForName(game.away_team)?.rank
+      const homeRank = ncaafTeamForName(game.home_team)?.rank
+      if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
+    }
+    if (collegeConference !== 'All') {
+      const awayConference = game.awayConference || ncaafTeamForName(game.away_team)?.conference
+      const homeConference = game.homeConference || ncaafTeamForName(game.home_team)?.conference
+      if (awayConference !== collegeConference && homeConference !== collegeConference) return false
+    }
+    return true
+  })
+  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(filteredUpcomingLineGames) : []
+  const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
+  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
+  const visibleLineGroups = groupGamesByDate(visibleLineGames)
   const ncaabTeams = ncaabBaselineQuery.data?.teams || []
   const ncaabConferences = Array.from(new Set([...NCAAB_MAJOR_CONFERENCES, ...ncaabTeams.map((team) => team.conference).filter(Boolean)]))
   const filteredNcaabTeams = ncaabTeams.filter((team) => {
@@ -2220,7 +2382,9 @@ export default function DashboardScreen() {
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">
-              {hasLiveNcaafTeamData ? '2026 college football team context' : 'College football team outlook for league context'}
+              {hasLiveNcaafTeamData
+                ? `${ncaafOutlookQuery.data?.poll || 'AP Top 25'} · ${ncaafOutlookQuery.data?.week || 'Current poll'}`
+                : `${ncaafOutlookQuery.data?.baselineSeason || '2025'} final poll fallback`}
             </AppText>
           </View>
 
@@ -2239,18 +2403,17 @@ export default function DashboardScreen() {
           )}
 
           {filteredNcaafTeams.map((team) => {
-            const hasLiveTeamData = Boolean(
-              team.currentRecord ||
-              team.conferenceRecord ||
-              team.recentForm ||
-              typeof team.pointsForPerGame === 'number' ||
-              typeof team.pointsAllowedPerGame === 'number',
-            )
-            const recordLabel = hasLiveTeamData ? '2026 Record' : '2025 Record'
-            const recordValue = team.currentRecord || team.lastRecord
-            const contextLine = hasLiveTeamData
-              ? [team.conference, team.currentRecord, team.conferenceRecord ? `${team.conferenceRecord} conf` : null].filter(Boolean).join(' · ')
-              : `${team.conference} · ${team.lastRecord} · ${team.schedule} schedule`
+            const currentSeason = ncaafOutlookQuery.data?.season || '2026'
+            const baselineSeason = ncaafOutlookQuery.data?.baselineSeason || '2025'
+            const hasPlayed = recordGames(team.currentRecord) > 0
+            const priorRecord = team.priorRecord || (ncaafOutlookQuery.data?.isFallback ? team.lastRecord : undefined)
+            const recordLabel = hasPlayed ? `${currentSeason} Record` : priorRecord ? `${baselineSeason} Record` : `${currentSeason} Record`
+            const recordValue = hasPlayed ? team.currentRecord : priorRecord || team.currentRecord || team.lastRecord
+            const contextLine = [
+              team.conference,
+              hasPlayed ? team.currentRecord : null,
+              team.schedule && team.schedule !== 'preseason' ? team.schedule : null,
+            ].filter(Boolean).join(' · ')
             return (
               <Card key={`${team.rank}-${team.team}`}>
                 <View style={styles.teamInfoHeader}>
@@ -2274,8 +2437,8 @@ export default function DashboardScreen() {
                     <AppText style={styles.teamInfoValue}>{recordValue}</AppText>
                   </View>
                   <View style={styles.teamInfoStat}>
-                    <AppText variant="mono">{hasLiveTeamData ? 'Form' : 'Lean'}</AppText>
-                    <AppText style={styles.teamInfoValue}>{team.recentForm || team.lean}</AppText>
+                    <AppText variant="mono">{hasPlayed || team.recentForm ? 'Form' : 'Poll Read'}</AppText>
+                    <AppText style={styles.teamInfoValue}>{team.recentForm || team.schedule || team.lean}</AppText>
                   </View>
                   <View style={styles.teamInfoStat}>
                     <AppText variant="mono">{team.pointsForPerGame || team.pointsAllowedPerGame ? 'Scoring' : 'Conference'}</AppText>
@@ -2432,8 +2595,9 @@ export default function DashboardScreen() {
                 sport={sport}
                 userState={profile?.state}
                 sportsbookPreferences={profile?.sportsbook_preferences}
-                weather={sport === 'MLB' || sport === 'NFL' ? weatherQuery.data : undefined}
+                weather={sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF' ? weatherQuery.data : undefined}
                 compact={!isLandscape}
+                onPressMatchup={sport === 'NCAAF' ? setSelectedNcaafGame : undefined}
               />
             </View>
           ))}
@@ -2580,7 +2744,15 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'matchups' && sport === 'NCAAF' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Latest NCAAF matchup context</AppText>
+            <AppText
+              variant="mono"
+              style={ncaafMatchupsQuery.data?.[0]?.oddsStale ? styles.ncaafDetailsFreshnessStale : undefined}
+            >
+              {ncaafMatchupsQuery.data?.[0]?.oddsStale ? 'Odds may be stale' : 'Latest NCAAF matchup context'}
+              {ncaafMatchupsQuery.data?.[0]?.oddsUpdatedAt
+                ? ` · Updated ${new Date(ncaafMatchupsQuery.data[0].oddsUpdatedAt!).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })} CT`
+                : ''}
+            </AppText>
           </View>
 
           {ncaafMatchupsQuery.isLoading && (
@@ -2621,30 +2793,42 @@ export default function DashboardScreen() {
                 const marketDetail = game.favoriteDetail || 'Market not posted yet'
                 const totalLabel = game.total == null ? '-' : String(game.total)
                 const rankValue = (rank?: number) => rank && rank <= 25 ? `AP #${rank}` : 'Unranked'
-                const recordValue = (team?: typeof ncaafTeams[number]) => team?.currentRecord || team?.lastRecord || '-'
+                const rankLabel = ncaafOutlookQuery.data?.isFallback ? `${ncaafOutlookQuery.data?.baselineSeason || '2025'} Rank` : 'AP Rank'
+                const recordRow = (record: string | undefined, team?: typeof ncaafTeams[number]) => {
+                  const currentSeason = ncaafOutlookQuery.data?.season || '2026'
+                  const baselineSeason = ncaafOutlookQuery.data?.baselineSeason || '2025'
+                  const current = record || team?.currentRecord
+                  if (recordGames(current) > 0) return { label: `${currentSeason} Record`, value: current || '-' }
+                  const prior = team?.priorRecord || (ncaafOutlookQuery.data?.isFallback ? team?.lastRecord : undefined)
+                  return prior
+                    ? { label: `${baselineSeason} Record`, value: prior }
+                    : { label: `${currentSeason} Record`, value: current || '-' }
+                }
                 const formValue = (team?: typeof ncaafTeams[number]) => team?.recentForm || team?.lean || team?.conference || '-'
+                const awayRecord = recordRow(game.awayRecord, awayTeam)
+                const homeRecord = recordRow(game.homeRecord, homeTeam)
                 const awayRows = [
-                  { label: '2025 Rank', value: rankValue(awayRank) },
-                  { label: '2025 Record', value: recordValue(awayTeam) },
-                  { label: awayTeam?.recentForm ? 'Form' : 'Baseline', value: formValue(awayTeam) },
+                  { label: rankLabel, value: rankValue(awayRank) },
+                  awayRecord,
+                  { label: awayTeam?.recentForm ? 'Form' : 'Poll Read', value: formValue(awayTeam) },
                   { label: 'Market', value: awayFavored ? marketDetail : homeFavored ? 'Plus side' : 'Pending' },
                 ]
                 const homeRows = [
-                  { label: '2025 Rank', value: rankValue(homeRank) },
-                  { label: '2025 Record', value: recordValue(homeTeam) },
-                  { label: homeTeam?.recentForm ? 'Form' : 'Baseline', value: formValue(homeTeam) },
+                  { label: rankLabel, value: rankValue(homeRank) },
+                  homeRecord,
+                  { label: homeTeam?.recentForm ? 'Form' : 'Poll Read', value: formValue(homeTeam) },
                   { label: 'Market', value: homeFavored ? marketDetail : awayFavored ? 'Plus side' : 'Pending' },
                 ]
                 const baselineLeader = awayRank && homeRank
                   ? awayRank < homeRank ? awayShort : homeRank < awayRank ? homeShort : null
                   : awayRank ? awayShort : homeRank ? homeShort : null
                 const baselineDetail = awayRank && homeRank
-                  ? `2025 AP baseline: ${awayShort} #${awayRank}, ${homeShort} #${homeRank}.`
+                  ? `${ncaafOutlookQuery.data?.isFallback ? 'Prior-season AP baseline' : 'Current AP poll'}: ${awayShort} #${awayRank}, ${homeShort} #${homeRank}.`
                   : awayRank
-                    ? `${awayShort} carries a 2025 AP Top 25 baseline at #${awayRank}.`
+                    ? `${awayShort} is ${ncaafOutlookQuery.data?.isFallback ? 'a prior-season AP fallback' : 'currently ranked'} at #${awayRank}.`
                     : homeRank
-                      ? `${homeShort} carries a 2025 AP Top 25 baseline at #${homeRank}.`
-                      : 'No 2025 AP Top 25 baseline is available for either team.'
+                      ? `${homeShort} is ${ncaafOutlookQuery.data?.isFallback ? 'a prior-season AP fallback' : 'currently ranked'} at #${homeRank}.`
+                      : 'Neither team is in the current AP Top 25.'
                 const note = favorite === 'Pending'
                   ? baselineDetail
                   : baselineLeader
@@ -2957,6 +3141,16 @@ export default function DashboardScreen() {
         team={selectedSoccerTeam}
         league={soccerLeague}
         onClose={() => setSelectedSoccerTeam(null)}
+      />
+      <NcaafGameDetailsModal
+        game={selectedNcaafGame}
+        weather={selectedNcaafGame ? weatherQuery.data?.[String(selectedNcaafGame.id || selectedNcaafGame.game_id || '')] : undefined}
+        awayTeam={selectedNcaafGame ? ncaafTeamForName(selectedNcaafGame.away_team) : undefined}
+        homeTeam={selectedNcaafGame ? ncaafTeamForName(selectedNcaafGame.home_team) : undefined}
+        rankings={ncaafOutlookQuery.data}
+        userState={profile?.state}
+        sportsbookPreferences={profile?.sportsbook_preferences}
+        onClose={() => setSelectedNcaafGame(null)}
       />
       <Modal visible={Boolean(selectedBallpark)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedBallpark(null)}>
         <Screen scroll={false}>
@@ -3356,6 +3550,129 @@ const styles = StyleSheet.create({
   },
   tournamentStandingPoints: {
     color: colors.gold,
+  },
+  ncaafDetailsOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,.62)',
+  },
+  ncaafDetailsBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  ncaafDetailsSheet: {
+    maxHeight: '82%',
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: colors.bgCard,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  ncaafDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  ncaafDetailsTitleBlock: {
+    flex: 1,
+  },
+  ncaafDetailsTime: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '900',
+    marginTop: spacing.xs,
+  },
+  ncaafDetailsTeams: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.bgCardAlt,
+    padding: spacing.md,
+  },
+  ncaafDetailsTeamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  ncaafDetailsTeamCopy: {
+    flex: 1.15,
+    minWidth: 0,
+  },
+  ncaafDetailsTeamName: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: '900',
+  },
+  ncaafDetailsRecord: {
+    fontSize: 12,
+    marginTop: 3,
+  },
+  ncaafDetailsLineCopy: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 5,
+  },
+  ncaafDetailsDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  ncaafDetailsMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  ncaafDetailsMetaCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  ncaafDetailsVenue: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  ncaafDetailsSmall: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  ncaafDetailsWeather: {
+    minWidth: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border,
+    paddingLeft: spacing.md,
+  },
+  ncaafDetailsTemp: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  ncaafDetailsTotals: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    gap: 5,
+  },
+  ncaafDetailsTotalLine: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  ncaafDetailsFreshness: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  ncaafDetailsFreshnessStale: {
+    color: colors.red,
+    fontWeight: '800',
   },
   teamProfileOverlay: {
     flex: 1,

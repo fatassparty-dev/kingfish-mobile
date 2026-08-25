@@ -15,7 +15,7 @@ import { colors, spacing } from '@/lib/theme'
 // is uploaded to /api/grade-slip (extract mode); book/prompt fixes ship without
 // an App Store build. Server-side-scores law is unaffected — grades still come
 // from KingFish's own numbers in the grade step.
-const SPORTS = ['NFL', 'MLB', 'NBA', 'WNBA', 'NHL'] as const
+const SPORTS = ['NFL', 'NCAAF', 'MLB', 'NBA', 'WNBA', 'NHL'] as const
 type Sport = (typeof SPORTS)[number]
 type Leg = { id: string; selection: string; market: string; line: string; odds: string }
 

@@ -4,6 +4,14 @@
 > 1.0.5 (version code 2) closed Alpha release are in Google review. This is not
 > a public production release.
 
+## Next release notes — NCAA football
+
+Use for the next higher-version-code release after the current closed Alpha:
+
+> College football is here. This update adds current AP Top 25 rankings,
+> improved conference filtering, matchup weather, refreshed game-line and edge
+> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+
 Prepared for the first Android release of KingFish Bets. This copy is written
 for Google Play and contains no Apple-specific purchase language.
 

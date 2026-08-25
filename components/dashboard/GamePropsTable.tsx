@@ -27,7 +27,7 @@ type SortKey = 'time' | 'edge' | 'grade' | 'total'
 
 const BOOK_SHORT: Record<string, string> = {
   fanduel: 'FD', draftkings: 'DK', betmgm: 'MGM', betrivers: 'BR',
-  williamhill_us: 'CZR', espnbet: 'ESPN', hardrockbet: 'HR',
+  williamhill_us: 'CZR', espnbet: 'TSB', hardrockbet: 'HR',
   hardrockbet_az: 'HR', hardrockbet_fl: 'HR', hardrockbet_oh: 'HR',
 }
 
@@ -53,6 +53,28 @@ function fmtTimeCT(iso: string) {
 
 function pickBest<T extends { price: number }>(items: T[]): T | null {
   return items.reduce<T | null>((best, item) => (!best || item.price > best.price ? item : best), null)
+}
+
+function pickBestSpread<T extends { price: number; point?: number }>(items: T[]): T | null {
+  return items.reduce<T | null>((best, item) => {
+    if (!best) return item
+    if (typeof item.point === 'number' && typeof best.point === 'number' && item.point !== best.point) {
+      return item.point > best.point ? item : best
+    }
+    return item.price > best.price ? item : best
+  }, null)
+}
+
+function pickBestTotal<T extends { price: number; point?: number }>(items: T[], side: 'over' | 'under'): T | null {
+  return items.reduce<T | null>((best, item) => {
+    if (!best) return item
+    if (typeof item.point === 'number' && typeof best.point === 'number' && item.point !== best.point) {
+      return side === 'over'
+        ? item.point < best.point ? item : best
+        : item.point > best.point ? item : best
+    }
+    return item.price > best.price ? item : best
+  }, null)
 }
 
 // Best available ML / spread / total per side across the user's eligible
@@ -85,10 +107,10 @@ export function gameMarkets(game: Game, userState?: string | null, preferences?:
     bestAwayMoneyline: pickBest(ml.map((l) => ({ book: l.book, price: l.away }))) as BestLine,
     bestHomeMoneyline: pickBest(ml.map((l) => ({ book: l.book, price: l.home }))) as BestLine,
     bestDraw: pickBest(ml.filter((l) => typeof l.draw === 'number').map((l) => ({ book: l.book, price: l.draw as number }))) as BestLine,
-    bestAwaySpread: pickBest(spread.map((l) => ({ book: l.book, price: l.away, point: l.awayPoint }))) as BestLine,
-    bestHomeSpread: pickBest(spread.map((l) => ({ book: l.book, price: l.home, point: l.homePoint }))) as BestLine,
-    bestOverTotal: pickBest(tot.map((l) => ({ book: l.book, price: l.over, point: l.point }))) as BestLine,
-    bestUnderTotal: pickBest(tot.map((l) => ({ book: l.book, price: l.under, point: l.point }))) as BestLine,
+    bestAwaySpread: pickBestSpread(spread.map((l) => ({ book: l.book, price: l.away, point: l.awayPoint }))) as BestLine,
+    bestHomeSpread: pickBestSpread(spread.map((l) => ({ book: l.book, price: l.home, point: l.homePoint }))) as BestLine,
+    bestOverTotal: pickBestTotal(tot.map((l) => ({ book: l.book, price: l.over, point: l.point })), 'over') as BestLine,
+    bestUnderTotal: pickBestTotal(tot.map((l) => ({ book: l.book, price: l.under, point: l.point })), 'under') as BestLine,
   }
 }
 
@@ -245,7 +267,7 @@ export function GamePropsTable({
     else { setSortKey(next); setSortDesc(next !== 'time') }
   }
 
-  const showWeather = !compact && (sport === 'MLB' || sport === 'NFL') && !!weather
+  const showWeather = !compact && (sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF') && !!weather
 
   const Header = ({ label, target, flex, align = 'center' }: { label: string; target?: SortKey; flex: number; align?: 'left' | 'center' }) => (
     <Pressable disabled={!target} onPress={() => target && toggleSort(target)} style={[styles.cell, { flex, alignItems: align === 'left' ? 'flex-start' : 'center' }]}>
@@ -287,6 +309,9 @@ export function GamePropsTable({
           <Pressable
             key={(game as any).id || (game as any).game_id || `${game.away_team}-${game.home_team}`}
             onPress={onPressMatchup ? () => onPressMatchup(game) : undefined}
+            accessibilityRole={onPressMatchup ? 'button' : undefined}
+            accessibilityLabel={onPressMatchup ? `${game.away_team} at ${game.home_team} game details` : undefined}
+            accessibilityHint={onPressMatchup ? 'Opens full team names, game lines, venue, records, and weather' : undefined}
             style={styles.row}
           >
             <View style={[styles.cell, { flex: compact ? 1.9 : 1.7, alignItems: 'flex-start' }]}>

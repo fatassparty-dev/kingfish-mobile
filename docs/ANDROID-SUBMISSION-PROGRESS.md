@@ -1,10 +1,39 @@
 # Android submission progress
 
-Last updated: 2026-08-23
+Last updated: 2026-08-24
 
 > The closed Alpha release and its Play listing/declarations have been
 > submitted and are in Google review. KingFish Bets is **not** publicly released
 > on Google Play yet.
+
+## Next Android release — NCAA football + fantasy season transition
+
+The combined pre-season release is version `1.0.7`, version code `3`. Do not
+reuse version code `2`; it belongs to the closed Alpha currently in review.
+
+Required scope:
+
+- Read the current official AP Top 25 from `/api/ncaaf-rankings` in League View.
+- Use backend `homeConference` and `awayConference` fields for exact conference
+  filtering in both Game Props and Game Matchups.
+- Replace the Matchups Status column with NCAAF weather from
+  `/api/ncaaf-weather`.
+- Remove static 2025 ranking/record/baseline language while retaining the
+  server-calculated edge, grade, and lean contract.
+- Shift Fantasy Hub from draft rankings to player updates and connected-team
+  tools when the NFL regular season begins.
+
+Google Play release note:
+
+> College football is here. This update adds current AP Top 25 rankings,
+> improved conference filtering, matchup weather, refreshed game-line and edge
+> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+
+Before promotion, run the NCAAF regression pass in a Play-installed build:
+conference accuracy (especially SEC/Georgia-name collisions), weather and
+indoor/unavailable states, AP Top 25 freshness, game-line/edge rendering, and
+empty/loading/error states. OTA is intentionally deferred; this release ships
+through Google Play.
 
 ## Current state
 
@@ -71,9 +100,11 @@ monthly-only at launch.
 2. Complete the bank microdeposit and verify merchant activation.
 3. Run the purchase, restore, entitlement, subscription-management, push, and
    broader QA gates above in a Play-installed build.
-4. Fix any review or QA findings and upload a higher version code if the binary
-   changes.
-5. Only then prepare the production release and perform a final pre-submit
+4. Complete the NCAA football native scope above and run its Play-installed
+   regression pass alongside the broader QA gates.
+5. Fix any review or QA findings and upload a higher version code; the NCAAF
+   changes require a new binary.
+6. Only then prepare the production release and perform a final pre-submit
    review of countries, pricing, listing, declarations, and reviewer access.
 
 ## Activity log
