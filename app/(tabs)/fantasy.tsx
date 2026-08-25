@@ -67,6 +67,10 @@ type ManualTeam = {
 type FantasyPayload = {
   generated_at?: string | null
   latest_season?: number | null
+  season?: number
+  season_phase?: 'preseason' | 'in_season'
+  draft_rankings_active?: boolean
+  draft_rankings_lock_at?: string
   ranking_version?: string | null
   ranking_source?: string | null
   ranking_views?: {
@@ -424,6 +428,7 @@ export default function FantasyToolScreen() {
   const halfPprPlayers = fantasyQuery.data?.ranking_views?.half_ppr || players
   const standardPlayers = fantasyQuery.data?.ranking_views?.standard || players
   const bestBallPlayers = fantasyQuery.data?.ranking_views?.best_ball || fantasyQuery.data?.bestBallPlayers || []
+  const draftRankingsActive = fantasyQuery.data?.draft_rankings_active !== false
   const orderedHomePlayers = useMemo(() => applySavedOrder(players, boardOrder.home), [boardOrder.home, players])
   const orderedHalfPprPlayers = useMemo(() => applySavedOrder(halfPprPlayers, boardOrder.home), [boardOrder.home, halfPprPlayers])
   const orderedStandardPlayers = useMemo(() => applySavedOrder(standardPlayers, boardOrder.home), [boardOrder.home, standardPlayers])
@@ -731,6 +736,7 @@ export default function FantasyToolScreen() {
   const selectedSleeper = fantasyQuery.data?.sleeper?.selected
   const rosterPlayers = selectedSleeper?.playerDetails || []
   const starters = new Set((selectedSleeper?.roster?.starters || []).map(String))
+  const displayMode: FantasyMode = draftRankingsActive ? mode : 'teams'
 
   return (
     <Screen>
@@ -740,18 +746,22 @@ export default function FantasyToolScreen() {
 
       <AppText variant="title" style={styles.title}>Fantasy Hub</AppText>
       <AppText variant="muted" style={styles.copy}>
-        A roster monitoring and fast decision support tool for draft season.
+        {draftRankingsActive
+          ? 'A roster monitoring and fast decision support tool for draft season.'
+          : 'Follow your season-long teams, player status, and changing roles.'}
       </AppText>
 
       <View style={styles.segmentRow}>
-        {([
-          { key: 'home', label: 'Home' },
-          { key: 'bestball', label: 'Best Ball' },
-          { key: 'planner', label: 'Draft' },
-          { key: 'teams', label: 'My Teams' },
-        ] as Array<{ key: FantasyMode; label: string }>).map(item => (
-          <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.segmentButton, mode === item.key && styles.segmentButtonActive]}>
-            <AppText style={[styles.segmentText, mode === item.key && styles.segmentTextActive]}>{item.label}</AppText>
+        {(draftRankingsActive ? [
+          { key: 'home' as const, label: 'Home' },
+          { key: 'bestball' as const, label: 'Best Ball' },
+          { key: 'planner' as const, label: 'Draft' },
+          { key: 'teams' as const, label: 'My Teams' },
+        ] : [
+          { key: 'teams' as const, label: 'My Teams' },
+        ]).map(item => (
+          <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.segmentButton, displayMode === item.key && styles.segmentButtonActive]}>
+            <AppText style={[styles.segmentText, displayMode === item.key && styles.segmentTextActive]}>{item.label}</AppText>
           </Pressable>
         ))}
       </View>
@@ -767,8 +777,17 @@ export default function FantasyToolScreen() {
           <AppText style={styles.cardTitle}>Could Not Load</AppText>
           <AppText variant="muted" style={styles.cardCopy}>{fantasyQuery.error instanceof Error ? fantasyQuery.error.message : 'Fantasy Hub is unavailable right now.'}</AppText>
         </Card>
-      ) : mode === 'teams' ? (
+      ) : displayMode === 'teams' ? (
         <>
+          {!draftRankingsActive ? (
+            <Card style={styles.metaCard}>
+              <AppText variant="eyebrow">// {fantasyQuery.data?.season || 2026} Season</AppText>
+              <AppText style={styles.cardTitle}>Draft Boards Closed</AppText>
+              <AppText variant="muted" style={styles.cardCopy}>
+                Preseason rankings and draft tools are closed. Use My Teams for roster monitoring throughout the season.
+              </AppText>
+            </Card>
+          ) : null}
           <Card style={styles.metaCard}>
             <AppText variant="eyebrow">// My Teams</AppText>
             <AppText style={styles.cardTitle}>Roster Watch</AppText>
@@ -930,7 +949,7 @@ export default function FantasyToolScreen() {
             </Card>
           ) : null}
         </>
-      ) : mode === 'planner' ? (
+      ) : displayMode === 'planner' ? (
         <>
           <Card style={styles.metaCard}>
             <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>Draft Picker</AppText>
@@ -1088,11 +1107,11 @@ export default function FantasyToolScreen() {
       ) : (
         <>
           <Card style={styles.metaCard}>
-            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>{mode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
+            <AppText style={[styles.cardTitle, styles.cardTitleFirst]}>{displayMode === 'bestball' ? 'Best Ball Board' : 'Home League Board'}</AppText>
             <AppText variant="muted" style={styles.cardCopy}>
               Live KingFish rankings update from the server. Move players and save only when you want a separate My Board for draft day.
             </AppText>
-            {mode === 'bestball' ? (
+            {displayMode === 'bestball' ? (
               <View style={styles.boardToggleRow}>
                 {([
                   { key: 'players', label: 'Players' },
@@ -1122,7 +1141,7 @@ export default function FantasyToolScreen() {
             {boardMessage ? <AppText style={styles.savedMessage}>{boardMessage}</AppText> : null}
           </Card>
 
-          {mode === 'bestball' && bestBallView === 'stacks' ? (
+          {displayMode === 'bestball' && bestBallView === 'stacks' ? (
             <StackBoard
               players={orderedBestBallPlayers}
               selectedTeam={bestBallStackTeam}
@@ -1139,7 +1158,7 @@ export default function FantasyToolScreen() {
                 >
                   <AppText style={[styles.positionText, (searchOpen || !!search) && styles.positionTextActive]}>Search</AppText>
                 </Pressable>
-                {POSITIONS.filter(pos => mode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
+                {POSITIONS.filter(pos => displayMode !== 'bestball' || (pos !== 'K' && pos !== 'DST')).map(pos => (
                   <Pressable key={pos} onPress={() => setPosition(pos)} style={[styles.positionButton, position === pos && styles.positionButtonActive]}>
                     <AppText style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</AppText>
                   </Pressable>

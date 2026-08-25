@@ -20,6 +20,12 @@ export type HomeTile = {
 
 export type MobileConfig = {
   updated_at?: string
+  fantasy?: {
+    season: number
+    season_phase: 'preseason' | 'in_season'
+    draft_rankings_active: boolean
+    draft_rankings_lock_at: string
+  }
   links: {
     home: string
     fantasy_hub: string
@@ -51,6 +57,12 @@ export type MobileConfig = {
 }
 
 export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
+  fantasy: {
+    season: 2026,
+    season_phase: 'preseason',
+    draft_rankings_active: true,
+    draft_rankings_lock_at: '2026-09-10T00:20:00.000Z',
+  },
   links: {
     home: 'https://kingfishbets.com',
     fantasy_hub: 'https://kingfishbets.com/fantasy',
