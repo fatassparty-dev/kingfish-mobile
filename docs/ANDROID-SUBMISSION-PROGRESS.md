@@ -8,8 +8,9 @@ Last updated: 2026-08-24
 
 ## Next Android release — NCAA football + fantasy season transition
 
-The combined pre-season release is version `1.0.7`, version code `3`. Do not
-reuse version code `2`; it belongs to the closed Alpha currently in review.
+The final combined pre-season release is version `1.0.8`, version code `4`. Do
+not reuse version codes `2` or `3`; code `2` belongs to the closed Alpha and
+code `3` was superseded before the final opening-week candidate.
 
 Required scope:
 

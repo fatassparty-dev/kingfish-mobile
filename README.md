@@ -7,6 +7,9 @@ Expo app shell for KingFish Bets.
 - iOS 1.0.4 (build 20) was approved and is live on the App Store.
 - iOS App Version 1.0.5, using binary 1.0.6 (build 28), was submitted on
   2026-08-23 and is **Waiting for Review**. See `APP_STORE_CHANGELOG.md`.
+- The final preseason candidate is iOS 1.0.8 (build 30) / Android version code
+  4. Its server controls and source checks passed on 2026-08-26; it still needs
+  the documented TestFlight device pass before App Store submission.
 - Android 1.0.5 (version code 2), the closed Alpha release, Google Play listing,
   and required declarations were submitted on 2026-08-23. Google showed the
   changes **in review**; this is not a public production release. See
@@ -22,7 +25,7 @@ Current platform pricing:
   Web annual is intended to be 3 days free, then $49.99/year; reconfirm the live
   annual checkout before treating that flow as verified.
 
-## Next Store Release — NCAA Football
+## Next Store Release — Opening-Week Reliability
 
 The next Apple and Google binaries are planned as the NCAA football update.
 Before packaging either store build, bring the native NCAAF board into parity

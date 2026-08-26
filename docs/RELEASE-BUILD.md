@@ -1,5 +1,13 @@
 # Store release build — the working recipe
 
+> **Build 30 preflight — 2026-08-26:** `app.json` and the ignored native iOS
+> project are synchronized at version `1.0.8`, build `30`. TypeScript passes,
+> Expo Doctor passes all 18 checks, the live release controls are non-blocking,
+> and the saved export method now uses `app-store-connect`. The unsigned archive
+> succeeded and passed Xcode store validation; its 4.3 MB JavaScript bundle and
+> privacy manifest were verified. Do not change the server minimum/latest iOS
+> versions until Apple has approved and published the release.
+
 > **Current status — 2026-08-23:** Binary 1.0.6 (build 28) is attached to iOS
 > App Version 1.0.5 and is Waiting for Review. This file remains the packaging
 > recipe, not the release-status tracker.
@@ -40,8 +48,10 @@ shipped — Transporter then rejects the upload with a 409.
   `CURRENT_PROJECT_VERSION` (appears twice each)
 - `ios/KingFishBets/Info.plist` → `CFBundleShortVersionString` + `CFBundleVersion`
 
-`pod install` is only needed if a **native** dependency changed. Adding a JS-only
-import of a package already in `Podfile.lock` does not require it.
+`pod install` is needed if a **native** dependency changed or after a clean
+`npm ci` changes the hoisted location/version recorded by the ignored Pods
+project. Adding a JS-only import of a package already in `Podfile.lock` does not
+require it.
 
 ## 1. Archive (unsigned)
 
@@ -75,25 +85,22 @@ Ends with `** ARCHIVE SUCCEEDED **`.
 cd ~/Developer/KingFishBetsLLC/builds && xcodebuild -exportArchive -archivePath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>.xcarchive -exportOptionsPlist ~/Developer/KingFishBetsLLC/builds/ExportOptions.plist -exportPath ~/Developer/KingFishBetsLLC/builds/KingFishBets-<VERSION>-export
 ```
 
-`~/Developer/KingFishBetsLLC/builds/ExportOptions.plist` holds `method=app-store`, `teamID=3275YRB2Q7`,
+`~/Developer/KingFishBetsLLC/builds/ExportOptions.plist` holds `method=app-store-connect`, `teamID=3275YRB2Q7`,
 `signingStyle=automatic`, `uploadSymbols=true`.
 
-**Deprecation warning, seen every export since Xcode 26:**
+**Current export method:**
 
 ```
-IDEDistribution: Command line name "app-store" is deprecated. Use "app-store-connect" instead.
+app-store-connect
 ```
 
-Harmless today — the export still succeeds and the .ipa is valid. But Apple will
-drop the old name eventually, and it will fail an export at the worst moment. To
-retire it, change one line in `~/Developer/KingFishBetsLLC/builds/ExportOptions.plist`:
+The saved export options were updated to Apple's current method on 2026-08-26:
 
 ```xml
 <key>method</key><string>app-store-connect</string>
 ```
 
-Do that between releases, not mid-submission, and confirm one export succeeds
-before relying on it.
+Confirm the signed build-30 export succeeds before uploading it.
 
 Needs network — it resolves the distribution certificate and profile from Apple.
 
@@ -126,6 +133,7 @@ it in and the build is empty of your changes.
 |---|---|
 | `PhaseScriptExecution Bundle React Native code and images` fails, `error: sentry-cli` | Missing `SENTRY_DISABLE_AUTO_UPLOAD=true` |
 | Same phase fails, `EPERM ... main.jsbundle` | Missing `ENABLE_USER_SCRIPT_SANDBOXING=NO` |
+| `ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy` is missing | `node_modules` and the ignored Pods project are out of sync; run `pod install` from `ios/` and rebuild |
 | Transporter 409 / "version already exists" | `ios/` version drift — see step 0 |
 | Metro says `Bundled N modules` and then fails | Bundling succeeded; the failure is after it. Not your JS. |
 
