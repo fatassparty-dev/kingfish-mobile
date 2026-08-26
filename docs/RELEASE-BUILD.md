@@ -4,7 +4,7 @@
 > App Version 1.0.5 and is Waiting for Review. This file remains the packaging
 > recipe, not the release-status tracker.
 
-## 1.0.7 submission scope — NCAA football + fantasy season transition
+## 1.0.8 submission scope — final preseason reliability release
 
 The next iOS and Android packages require a new native binary. Before starting
 the archive/build, confirm the app uses exact backend conference fields, renders
@@ -14,7 +14,13 @@ Run the NCAAF regression checklist in `README.md` on TestFlight and on a
 Play-installed Android build. Use the approved release note recorded in
 `APP_STORE_CHANGELOG.md` and `STORE_METADATA_DRAFT.md`.
 
-Release identifiers: iOS build `29`; Android version code `3`.
+Release identifiers: iOS build `30`; Android version code `4`.
+
+This binary also includes the server-control hooks for minimum/latest versions,
+global maintenance, NCAA tab visibility, NCAA maintenance, and an expiring
+Fantasy phase override. Confirm `/api/mobile-config` contains a `release` object
+before submission, but leave both minimum-version fields blank until build 30 is
+approved and available in the stores.
 
 OTA is deliberately out of scope for this release; do not add `expo-updates` or
 runtime/update configuration during packaging.

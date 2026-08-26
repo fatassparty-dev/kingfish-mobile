@@ -8,6 +8,7 @@ import { AppText } from '@/components/Text'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
 import { kingfishFetch } from '@/lib/api'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 
 // KingFish reads the slip on the server now (Sonnet 5 vision) — the on-device
@@ -20,8 +21,9 @@ type Sport = (typeof SPORTS)[number]
 type Leg = { id: string; selection: string; market: string; line: string; odds: string }
 
 export default function GradeSlipScreen() {
-  const { profile } = useAuth()
-  const isPremium = profile?.is_premium === true
+  const { profile, session } = useAuth()
+  const mobileConfig = useMobileConfig()
+  const isPremium = profile?.is_premium === true || (mobileConfig.flags.pro_tools_free === true && Boolean(session))
 
   const [sport, setSport] = useState<Sport | null>(null)
   const [busy, setBusy] = useState(false)

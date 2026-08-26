@@ -22,6 +22,18 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 1.0.8 (iOS build 30 / Android code 4) — OPENING-WEEK RELIABILITY
+
+- NCAA Matchups now loads and displays venue-aware weather, with a clear sign-in
+  gate when matchup data requires an account.
+- Fantasy saved teams can add waiver and breakout players from a server-managed
+  player directory even after draft rankings freeze.
+- Server-controlled app-version prompts, maintenance mode, NCAA tab switches,
+  access promotions, and Fantasy phase overrides reduce future app updates.
+- Expo SDK dependencies were aligned and validated for the production binary.
+
+---
+
 ## 🔵 1.0.7 (iOS build 29 / Android code 3) — NCAA FOOTBALL + FANTASY SEASON TRANSITION
 
 > Planned for the week of 2026-08-24. This release requires a new native binary;

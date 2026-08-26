@@ -15,7 +15,7 @@ export type HomeTile = {
   params?: Record<string, string>
   // Drives the sport filter in Account → Home Screen. Absent or 'ALL' means the
   // tile shows under every filter.
-  sport?: 'ALL' | 'MLB' | 'NFL' | 'WNBA'
+  sport?: 'ALL' | 'MLB' | 'NFL' | 'WNBA' | 'NCAAF'
 }
 
 export type MobileConfig = {
@@ -42,6 +42,13 @@ export type MobileConfig = {
     title: string
     body: string
   } | null
+  release?: {
+    minimum_supported_version?: { ios?: string; android?: string }
+    latest_version?: { ios?: string; android?: string }
+    update_message?: string
+    store_urls?: { ios?: string; android?: string }
+    maintenance?: { enabled?: boolean; title?: string; body?: string }
+  }
   dashboard_sport_order: string[]
   home_tiles: HomeTile[]
   // Everything the user may choose from in Account → Home Screen. Older servers
@@ -76,6 +83,20 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     responsible_gaming: 'tel:18005224700',
   },
   app_notice: null,
+  release: {
+    minimum_supported_version: {},
+    latest_version: {},
+    update_message: 'A newer version of KingFish Bets is available.',
+    store_urls: {
+      ios: 'https://apps.apple.com/app/id6776368371',
+      android: 'https://play.google.com/store/apps/details?id=com.kingfishbets.app',
+    },
+    maintenance: {
+      enabled: false,
+      title: 'KingFish is refreshing',
+      body: 'We are updating live data. Please check back shortly.',
+    },
+  },
   dashboard_sport_order: ['MLB', 'NFL', 'NBA', 'NHL', 'WNBA', 'KBO', 'NCAAB', 'NCAAF', 'Soccer'],
   home_tiles: [
     {
@@ -171,6 +192,9 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     nfl_dashboard_tab_matchups: true,
     nfl_dashboard_tab_lines: true,
     nfl_dashboard_tab_props: true,
+    ncaaf_tab_league: true,
+    ncaaf_tab_matchups: true,
+    ncaaf_tab_lines: true,
     cheat_sheets_free: false,
     pro_tools_free: false,
     mlb_access_lines_free: false,
@@ -183,6 +207,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     wnba_access_props_free: false,
     nfl_access_lines_free: false,
     nfl_access_props_free: false,
+    ncaaf_access_lines_free: false,
     mlb_maintenance_lines: false,
     mlb_maintenance_props: false,
     nba_maintenance_lines: false,
@@ -193,6 +218,8 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     wnba_maintenance_props: false,
     nfl_maintenance_lines: false,
     nfl_maintenance_props: false,
+    ncaaf_maintenance_lines: false,
+    ncaaf_maintenance_matchups: false,
   },
 }
 
@@ -209,6 +236,26 @@ export async function fetchMobileConfig() {
       flags: {
         ...DEFAULT_MOBILE_CONFIG.flags,
         ...remoteConfig.flags,
+      },
+      release: {
+        ...DEFAULT_MOBILE_CONFIG.release,
+        ...remoteConfig.release,
+        minimum_supported_version: {
+          ...DEFAULT_MOBILE_CONFIG.release?.minimum_supported_version,
+          ...remoteConfig.release?.minimum_supported_version,
+        },
+        latest_version: {
+          ...DEFAULT_MOBILE_CONFIG.release?.latest_version,
+          ...remoteConfig.release?.latest_version,
+        },
+        store_urls: {
+          ...DEFAULT_MOBILE_CONFIG.release?.store_urls,
+          ...remoteConfig.release?.store_urls,
+        },
+        maintenance: {
+          ...DEFAULT_MOBILE_CONFIG.release?.maintenance,
+          ...remoteConfig.release?.maintenance,
+        },
       },
       dashboard_sport_order: Array.isArray(remoteConfig.dashboard_sport_order)
         ? remoteConfig.dashboard_sport_order
@@ -232,6 +279,7 @@ export function useMobileConfig() {
     queryKey: ['mobile-config'],
     queryFn: fetchMobileConfig,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
   })
 
   return query.data || DEFAULT_MOBILE_CONFIG

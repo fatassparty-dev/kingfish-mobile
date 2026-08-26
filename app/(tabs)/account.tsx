@@ -76,7 +76,7 @@ export default function AccountScreen() {
   const [showHomeManager, setShowHomeManager] = useState(false)
   const [savingHomeTiles, setSavingHomeTiles] = useState(false)
   const [homeTilesMessage, setHomeTilesMessage] = useState('')
-  const [homeTileSport, setHomeTileSport] = useState<'ALL' | 'MLB' | 'NFL' | 'WNBA'>('ALL')
+  const [homeTileSport, setHomeTileSport] = useState<'ALL' | 'MLB' | 'NFL' | 'WNBA' | 'NCAAF'>('ALL')
   const [savingSports, setSavingSports] = useState(false)
   const [sportsMessage, setSportsMessage] = useState('')
 
@@ -784,7 +784,7 @@ export default function AccountScreen() {
               <>
                 <AppText variant="eyebrow" style={styles.homeGroupLabel}>Available</AppText>
                 <View style={styles.homeFilterRow}>
-                  {(['ALL', 'MLB', 'NFL', 'WNBA'] as const).map((sport) => (
+                  {(['ALL', 'MLB', 'NFL', 'NCAAF', 'WNBA'] as const).map((sport) => (
                     <Pressable
                       key={sport}
                       onPress={() => setHomeTileSport(sport)}

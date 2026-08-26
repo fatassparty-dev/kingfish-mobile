@@ -7,6 +7,7 @@ import { AppText } from '@/components/Text'
 import { Card } from '@/components/Card'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/lib/auth'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { kingfishFetch } from '@/lib/api'
 import { colors, spacing } from '@/lib/theme'
 
@@ -227,8 +228,9 @@ function NGSTable({ rows, cols }: { rows: any[]; cols: typeof QB_COLS }) {
 }
 
 export default function ScoutScreen() {
-  const { profile } = useAuth()
-  const isPremium = profile?.is_premium === true
+  const { profile, session } = useAuth()
+  const mobileConfig = useMobileConfig()
+  const isPremium = profile?.is_premium === true || (mobileConfig.flags.pro_tools_free === true && Boolean(session))
   const [tab, setTab] = useState<Tab>('qb')
   const [search, setSearch] = useState('')
   const [teamFilter, setTeamFilter] = useState<string | null>(null)

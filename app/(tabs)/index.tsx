@@ -1205,6 +1205,17 @@ function ncaafWeatherIcon(sky?: string, indoor?: boolean): keyof typeof Ionicons
   return 'sunny-outline'
 }
 
+function matchupWeatherLabel(weather?: WeatherInfo) {
+  if (!weather) return 'Forecast pending'
+  if (weather.indoor) return `Indoor${weather.stadium ? ` · ${weather.stadium}` : ''}`
+  return [
+    weather.sky && weather.sky !== 'Forecast pending' ? weather.sky : '',
+    weather.tempF != null ? `${weather.tempF}°F` : '',
+    weather.windStr,
+    Number.isFinite(weather.precipPct) ? `${weather.precipPct}% precip` : '',
+  ].filter(Boolean).join(' · ') || 'Forecast pending'
+}
+
 function linePoint(point?: number) {
   if (typeof point !== 'number') return '—'
   return `${point > 0 ? '+' : ''}${point}`
@@ -1354,8 +1365,9 @@ export default function DashboardScreen() {
   const tabVisibleForSport = (sportKey: Sport, tab: DashboardView) => {
     const prefix = sportApiKey(sportKey)
     if (sportKey === 'MLB' || sportKey === 'NBA' || sportKey === 'NHL' || sportKey === 'WNBA') return mobileFlag(`${prefix}_tab_${tab}`, true)
+    if (sportKey === 'NCAAF') return mobileFlag(`ncaaf_tab_${tab}`, true)
     if (sportKey === 'NFL') {
-      if (tab === 'props') return true
+      if (tab === 'props') return mobileFlag('nfl_dashboard_tab_props', true)
       return mobileFlag(`nfl_dashboard_tab_${tab}`, true)
     }
     return true
@@ -1388,12 +1400,13 @@ export default function DashboardScreen() {
   const propsFree = mobileFlag(`${sportFlagPrefix}_access_props_free`, false)
   const linesMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_lines`, false)
   const propsMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_props`, false)
+  const matchupsMaintenance = mobileFlag(`${sportFlagPrefix}_maintenance_matchups`, false)
   // Free promos require a logged-in account (server gates these the same way),
   // so a logged-out user never gets promo access without signing up.
   const isLoggedIn = Boolean(session)
   const canViewLines = isPremium || (linesFree && isLoggedIn)
   const canViewProps = isPremium || (propsFree && isLoggedIn)
-  const canViewMatchups = true
+  const canViewMatchups = isLoggedIn
   const isWorldCupSoccer = sport === 'SOCCER' && soccerLeague === 'soccer_fifa_world_cup'
   const dashboardViewLabel = (item: DashboardView) =>
     item === 'league'
@@ -1405,7 +1418,7 @@ export default function DashboardScreen() {
     : secondaryViewLabel
   const canFetchWorldCupTournament = isSelectedSportActive && isWorldCupSoccer && view === 'league' && canViewLines && !linesMaintenance
   const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
-  const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups
+  const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups && !matchupsMaintenance
   const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && canViewProps && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
 
   useEffect(() => {
@@ -1487,19 +1500,29 @@ export default function DashboardScreen() {
   const ncaafMatchupsQuery = useQuery({
     queryKey: ['ncaaf-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaf-matchups'),
-    enabled: isSelectedSportActive && sport === 'NCAAF' && view === 'matchups',
+    enabled: canFetchMatchups && sport === 'NCAAF',
     staleTime: 10 * 60 * 1000,
+  })
+  const ncaafMatchupWeatherQuery = useQuery({
+    queryKey: ['ncaaf-mobile-matchup-weather', ncaafMatchupsQuery.data?.map(game => game.id).join(',')],
+    queryFn: () => kingfishFetch<Record<string, WeatherInfo>>('/api/ncaaf-weather', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ games: ncaafMatchupsQuery.data || [] }),
+    }),
+    enabled: canFetchMatchups && sport === 'NCAAF' && Boolean(ncaafMatchupsQuery.data?.length),
+    staleTime: 60 * 60 * 1000,
   })
   const ncaabMatchupsQuery = useQuery({
     queryKey: ['ncaab-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaab-matchups'),
-    enabled: isSelectedSportActive && sport === 'NCAAB' && view === 'matchups',
+    enabled: canFetchMatchups && sport === 'NCAAB',
     staleTime: 10 * 60 * 1000,
   })
   const nflMatchupsQuery = useQuery({
     queryKey: ['nfl-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/nfl-matchups'),
-    enabled: isSelectedSportActive && sport === 'NFL' && view === 'matchups',
+    enabled: canFetchMatchups && sport === 'NFL',
     staleTime: 10 * 60 * 1000,
   })
   const soccerTeamQuery = useQuery({
@@ -2077,7 +2100,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'matchups' && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && canViewMatchups && (
+      {canFetchMatchups && (sport === 'MLB' || sport === 'NBA' || sport === 'NHL' || sport === 'WNBA' || sport === 'SOCCER') && (
         <View style={styles.liveSection}>
           {matchupLoading && (
             <View style={styles.centerState}>
@@ -2203,11 +2226,21 @@ export default function DashboardScreen() {
       {isSelectedSportActive && view === 'matchups' && !canViewMatchups && (
         <View style={styles.liveSection}>
           <Card>
-            <AppText variant="title" style={styles.cardTitle}>Unlock Game Matchups</AppText>
-            <AppText variant="muted">Team form, matchup context, and market notes are part of KingFish Bets Pro.</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Sign In for Game Matchups</AppText>
+            <AppText variant="muted">Create a free account or sign in to load team form, matchup context, and market notes.</AppText>
             <View style={styles.upgradeAction}>
-              <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
+              <Button onPress={() => router.push('/sign-in')}>Sign In</Button>
             </View>
+          </Card>
+        </View>
+      )}
+
+      {isSelectedSportActive && view === 'matchups' && canViewMatchups && matchupsMaintenance && (
+        <View style={styles.liveSection}>
+          <Card>
+            <AppText variant="eyebrow">// Maintenance</AppText>
+            <AppText variant="title" style={styles.cardTitle}>Game Matchups Paused</AppText>
+            <AppText variant="muted">This board is temporarily paused while KingFish refreshes the matchup data.</AppText>
           </Card>
         </View>
       )}
@@ -2287,7 +2320,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && sport === 'NFL' && view === 'matchups' && canViewMatchups && (
+      {canFetchMatchups && sport === 'NFL' && (
         <View style={styles.liveSection}>
           {nflMatchupsQuery.isLoading && (
             <View style={styles.centerState}>
@@ -2741,7 +2774,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'matchups' && sport === 'NCAAF' && (
+      {canFetchMatchups && sport === 'NCAAF' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText
@@ -2781,6 +2814,7 @@ export default function DashboardScreen() {
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
               {group.games.map((game) => {
+                const matchupWeather = ncaafMatchupWeatherQuery.data?.[game.id]
                 const awayTeam = ncaafTeamForName(game.away_team)
                 const homeTeam = ncaafTeamForName(game.home_team)
                 const awayRank = awayTeam?.rank
@@ -2845,7 +2879,7 @@ export default function DashboardScreen() {
                     <AppText variant="muted" style={styles.teamInfoMeta}>
                       {awayRank && awayRank <= 25 ? `#${awayRank} ${shortTeamName(game.away_team)} · ` : ''}
                       {homeRank && homeRank <= 25 ? `#${homeRank} ${shortTeamName(game.home_team)} · ` : ''}
-                      {game.status}
+                      {matchupWeatherLabel(matchupWeather)}
                     </AppText>
                     <View style={styles.matchupTeamGrid}>
                       <MatchupTeamBox title={awayShort} grade={awayFavored ? 'Fav' : awayRank && awayRank <= 25 ? `#${awayRank}` : null} rows={awayRows} />
@@ -2873,7 +2907,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'matchups' && sport === 'NCAAB' && (
+      {canFetchMatchups && sport === 'NCAAB' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
             <AppText variant="mono">Latest NCAAB matchup context</AppText>

@@ -8,6 +8,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
 import {
   FactorMeta,
@@ -28,8 +29,9 @@ import {
 } from './(tabs)/cheat-sheets'
 
 export default function GameFactorsScreen() {
-  const { profile } = useAuth()
-  const isPremium = profile?.is_premium === true
+  const { profile, session } = useAuth()
+  const mobileConfig = useMobileConfig()
+  const isPremium = profile?.is_premium === true || (mobileConfig.flags.pro_tools_free === true && Boolean(session))
 
   // Opened from the Cheat Sheets tab's "Stadium Cheat Sheet" tile with ?view=cheat,
   // which lands directly on the MLB cheat-sheet view.

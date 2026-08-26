@@ -81,6 +81,9 @@ type FantasyPayload = {
   }
   players: DraftPlayer[]
   bestBallPlayers?: DraftPlayer[]
+  // Server-owned in-season roster universe. This is intentionally separate
+  // from the frozen draft boards so waiver players can change without a build.
+  playerDirectory?: DraftPlayer[]
   sleeper?: {
     user?: { user_id: string; username: string; display_name?: string } | null
     leagues?: SleeperLeague[]
@@ -128,6 +131,10 @@ const PLANNER_ROUND_FILTERS: Array<{ key: PlannerRoundFilter; label: string }> =
   { key: 'LATE', label: 'R9-12' },
   { key: 'END', label: 'R13+' },
 ]
+
+function playerIdentity(player: Pick<DraftPlayer, 'name' | 'team'>) {
+  return `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}:${player.team.toUpperCase()}`
+}
 const NFL_TEAM_NAMES: Record<string, string> = {
   ARI: 'Arizona Cardinals',
   ATL: 'Atlanta Falcons',
@@ -485,12 +492,30 @@ export default function FantasyToolScreen() {
     })
     return Array.from(byId.values()).sort((a, b) => a.rank - b.rank)
   }, [orderedBestBallPlayers, orderedHomePlayers])
+  const allRosterPlayers = useMemo(() => {
+    const byId = new Map<string, DraftPlayer>()
+    ;[...allRankedPlayers, ...(fantasyQuery.data?.playerDirectory || [])].forEach(player => {
+      if (!byId.has(player.id)) byId.set(player.id, player)
+    })
+    return Array.from(byId.values())
+  }, [allRankedPlayers, fantasyQuery.data?.playerDirectory])
+  const rosterPickerPlayers = useMemo(() => {
+    const byIdentity = new Map<string, DraftPlayer>()
+    // Ranked players win display deduplication, but all stable directory ids
+    // remain available through allRosterPlayers for previously saved rosters.
+    allRosterPlayers.forEach(player => {
+      const identity = playerIdentity(player)
+      const current = byIdentity.get(identity)
+      if (!current || player.rank < current.rank) byIdentity.set(identity, player)
+    })
+    return Array.from(byIdentity.values()).sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))
+  }, [allRosterPlayers])
   const draftSelectedPlayers = useMemo(() => {
     const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
     return draftPlayerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
   }, [allRankedPlayers, draftPlayerIds])
   const manualTeamCards = useMemo(() => {
-    const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
+    const byId = new Map(allRosterPlayers.map(player => [player.id, player]))
     return manualTeams.map(team => {
       const teamPlayers = team.playerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
       const slots = team.slots || DEFAULT_DRAFT_TARGETS[team.leagueType || 'home']
@@ -502,22 +527,22 @@ export default function FantasyToolScreen() {
         sections: rosterSections(teamPlayers, slots),
       }
     })
-  }, [allRankedPlayers, manualTeams])
+  }, [allRosterPlayers, manualTeams])
   const editingTeamPlayers = useMemo(() => {
-    const byId = new Map(allRankedPlayers.map(player => [player.id, player]))
+    const byId = new Map(allRosterPlayers.map(player => [player.id, player]))
     return editingTeamPlayerIds.map(id => byId.get(id)).filter((player): player is DraftPlayer => Boolean(player))
-  }, [allRankedPlayers, editingTeamPlayerIds])
+  }, [allRosterPlayers, editingTeamPlayerIds])
   const editingTeamAvailablePlayers = useMemo(() => {
     const selected = new Set(editingTeamPlayerIds)
     const needle = editingTeamSearch.trim().toLowerCase()
-    return allRankedPlayers
+    return rosterPickerPlayers
       .filter(player => !selected.has(player.id))
       .filter(player => {
         if (!needle) return true
         return player.name.toLowerCase().includes(needle) || player.team.toLowerCase().includes(needle) || player.position.toLowerCase().includes(needle)
       })
       .slice(0, 30)
-  }, [allRankedPlayers, editingTeamPlayerIds, editingTeamSearch])
+  }, [editingTeamPlayerIds, editingTeamSearch, rosterPickerPlayers])
   const editingTeamSections = useMemo(() => rosterSections(editingTeamPlayers, editingTeamSlots), [editingTeamPlayers, editingTeamSlots])
   const currentDraftRead = useMemo(() => rosterRead(draftSelectedPlayers), [draftSelectedPlayers])
   const currentDraftSlots = useMemo(() => rosterSlotSummary(draftSelectedPlayers, currentDraftTargets), [currentDraftTargets, draftSelectedPlayers])

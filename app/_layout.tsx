@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { colors } from '@/lib/theme'
 import { AuthProvider } from '@/lib/auth'
 import { Sentry } from '@/lib/sentry'
+import { AppControlGate } from '@/components/AppControlGate'
 
 function RootLayout() {
   const [queryClient] = useState(() => new QueryClient())
@@ -12,8 +13,9 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <StatusBar style="light" />
-        <Stack
+        <AppControlGate>
+          <StatusBar style="light" />
+          <Stack
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: colors.bgPrimary },
@@ -30,7 +32,8 @@ function RootLayout() {
           <Stack.Screen name="scout" />
           <Stack.Screen name="grade-slip" />
           <Stack.Screen name="game-factors" />
-        </Stack>
+          </Stack>
+        </AppControlGate>
       </AuthProvider>
     </QueryClientProvider>
   )
