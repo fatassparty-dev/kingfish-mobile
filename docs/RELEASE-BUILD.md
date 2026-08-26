@@ -5,8 +5,10 @@
 > Expo Doctor passes all 18 checks, the live release controls are non-blocking,
 > and the saved export method now uses `app-store-connect`. The unsigned archive
 > succeeded and passed Xcode store validation; its 4.3 MB JavaScript bundle and
-> privacy manifest were verified. Do not change the server minimum/latest iOS
-> versions until Apple has approved and published the release.
+> privacy manifest were verified. The signed IPA export and direct App Store
+> Connect upload succeeded on 2026-08-26; Apple processing and TestFlight QA are
+> pending. Do not change the server minimum/latest iOS versions until Apple has
+> approved and published the release.
 
 > **Current status — 2026-08-23:** Binary 1.0.6 (build 28) is attached to iOS
 > App Version 1.0.5 and is Waiting for Review. This file remains the packaging

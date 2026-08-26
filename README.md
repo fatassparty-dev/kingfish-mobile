@@ -8,8 +8,9 @@ Expo app shell for KingFish Bets.
 - iOS App Version 1.0.5, using binary 1.0.6 (build 28), was submitted on
   2026-08-23 and is **Waiting for Review**. See `APP_STORE_CHANGELOG.md`.
 - The final preseason candidate is iOS 1.0.8 (build 30) / Android version code
-  4. Its server controls and source checks passed on 2026-08-26; it still needs
-  the documented TestFlight device pass before App Store submission.
+  4. Its server controls, source checks, signed export, and direct App Store
+  Connect upload passed on 2026-08-26. It still needs Apple's processing and the
+  documented TestFlight device pass before App Review submission.
 - Android 1.0.5 (version code 2), the closed Alpha release, Google Play listing,
   and required declarations were submitted on 2026-08-23. Google showed the
   changes **in review**; this is not a public production release. See
