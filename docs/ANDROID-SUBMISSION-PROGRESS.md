@@ -96,18 +96,16 @@ monthly-only at launch.
 
 ## Next session
 
-**The app is live on Google Play as of 2026-08-27.** These are open items on a
-shipped app, not blockers to launch.
+**Android is DONE and live.** The launch checklist was completed and verified
+2026-08-27 — nothing on this tracker is blocking.
 
-1. Complete the bank microdeposit and verify merchant activation — **do this
-   first**, revenue depends on it.
-2. Run the purchase, restore, entitlement, subscription-management, push, and
-   broader QA gates above in a Play-installed build.
-3. Complete the NCAA football native scope above and run its Play-installed
-   regression pass alongside the broader QA gates.
-4. Fix any review or QA findings and upload a higher version code; the NCAAF
-   changes require a new binary.
+Remaining, as ordinary post-launch work:
 
+1. Complete the NCAA football native scope and run its Play-installed
+   regression pass; requires a new binary and a higher version code.
+2. Keep Android in step with iOS releases from here — same Expo/RN codebase,
+   so client changes need a Play build the same way they need an App Store
+   build. There is no OTA on either platform.
 
 ## Activity log
 
@@ -135,12 +133,11 @@ shipped app, not blockers to launch.
   downloadable at
   `https://play.google.com/store/apps/details?id=com.kingfishbets.app` —
   Android `1.0.5`, version code `2`. KingFish is now shipping on three stores.
-- The remaining items below are therefore **live-app** work, not pre-launch
-  gates. The one that affects real users: until the bank microdeposit and
-  merchant/payments profile are verified, Play subscriptions may not be
-  purchasable — check that a real purchase completes on a Play-installed build
-  before driving any traffic to the listing.
-- NCAAF native scope still requires a new binary and a higher version code.
+- **Full launch checklist completed and verified the same day**: bank
+  microdeposit cleared, merchant/payments profile active, and the purchase,
+  restore, entitlement, subscription-management, and push gates all passed on a
+  Play-installed build. Android subscriptions are live and purchasable.
+- Only NCAAF native scope remains, and it needs a new binary anyway.
 - Same day: KingFish Studio `1.0.2 (17)` was submitted for Apple App Review on
   both iPad and Mac.
 
