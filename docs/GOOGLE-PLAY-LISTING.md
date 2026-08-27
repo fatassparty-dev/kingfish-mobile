@@ -1,16 +1,15 @@
 # Google Play Listing Draft
 
-> **Submission status — 2026-08-23:** The listing, declarations, and Android
-> 1.0.5 (version code 2) closed Alpha release are in Google review. This is not
-> a public production release.
+> **Submission status — 2026-08-27:** Android 1.0.5 (version code 2) is approved
+> and publicly downloadable. Android 1.0.8 (version code 4) will be submitted
+> during the weekend after launch as a focused NCAA improvement.
 
 ## Next release notes — NCAA football
 
-Use for the next higher-version-code release after the current closed Alpha:
+Use this short copy for Android 1.0.8 (version code 4):
 
-> College football is here. This update adds current AP Top 25 rankings,
-> improved conference filtering, matchup weather, refreshed game-line and edge
-> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+> Improved college-football rankings, conference filters, matchup weather, and
+> game-line context.
 
 Prepared for the first Android release of KingFish Bets. This copy is written
 for Google Play and contains no Apple-specific purchase language.

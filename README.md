@@ -4,17 +4,16 @@ Expo app shell for KingFish Bets.
 
 ## Current Release Status
 
-- iOS 1.0.4 (build 20) was approved and is live on the App Store.
-- iOS App Version 1.0.5, using binary 1.0.6 (build 28), was submitted on
-  2026-08-23 and is **Waiting for Review**. See `APP_STORE_CHANGELOG.md`.
-- The final preseason candidate is iOS 1.0.8 (build 30) / Android version code
-  4. Its server controls, source checks, signed export, and direct App Store
-  Connect upload passed on 2026-08-26. It still needs Apple's processing and the
-  documented TestFlight device pass before App Review submission.
-- Android 1.0.5 (version code 2), the closed Alpha release, Google Play listing,
-  and required declarations were submitted on 2026-08-23. Google showed the
-  changes **in review**; this is not a public production release. See
-  `docs/ANDROID-SUBMISSION-PROGRESS.md`.
+- iOS 1.0.4 (build 20) remains the public App Store version while the NCAA
+  update is reviewed.
+- iOS 1.0.8 (build 30) is **Waiting for Review** as of 2026-08-27 and is set to
+  publish automatically when Apple approves it.
+- Android 1.0.5 (version code 2) is approved and publicly downloadable from
+  Google Play.
+- Android 1.0.8 (version code 4) is the completed NCAA improvement release.
+  Hold its Google Play submission until the weekend after the initial listing,
+  then submit it with short NCAA-improvement release notes and run the normal
+  Play-installed verification.
 
 Current platform pricing:
 
@@ -104,7 +103,6 @@ Keep these rules in place:
 - `.env`, `node_modules`, and Expo generated files stay out of git.
 - Public mobile env values are okay; service-role keys are never okay.
 - Feature switches control whether a sport shows live data or a clean season-watch state.
-- The `mobile_paywall` switch is an emergency hold for native purchase buttons. Keep it on for App Store launch unless mobile checkout must be paused.
 - Weekly NFL data belongs on the web/backend side first. The app should consume the backend result.
 - Mobile web-link destinations and app notices come from `/api/mobile-config` with safe in-app fallbacks.
 - When touching a mobile area, check the related screen, route, or backend link before calling it done whenever a local or deployed view is available.
@@ -129,7 +127,6 @@ These can change from the backend/admin side without an App Store update:
 - Live odds, props, weather, cheat sheets, and player profiles served by KingFish APIs
 - Account premium status after Stripe, RevenueCat, or manual admin changes sync to Supabase
 - Mobile destination links, support links, legal links, and app notices from `/api/mobile-config`
-- Native purchase entry points while `mobile_paywall` stays on in the admin portal
 
 These still need a new mobile build:
 

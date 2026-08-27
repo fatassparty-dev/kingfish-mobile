@@ -6,13 +6,13 @@
 > and the saved export method now uses `app-store-connect`. The unsigned archive
 > succeeded and passed Xcode store validation; its 4.3 MB JavaScript bundle and
 > privacy manifest were verified. The signed IPA export and direct App Store
-> Connect upload succeeded on 2026-08-26; Apple processing and TestFlight QA are
-> pending. Do not change the server minimum/latest iOS versions until Apple has
+> Connect upload succeeded on 2026-08-26, the focused device QA passed, and iOS
+> 1.0.8 is Waiting for Review as of 2026-08-27 with automatic publication
+> enabled. Do not change the server minimum/latest iOS versions until Apple has
 > approved and published the release.
 
-> **Current status — 2026-08-23:** Binary 1.0.6 (build 28) is attached to iOS
-> App Version 1.0.5 and is Waiting for Review. This file remains the packaging
-> recipe, not the release-status tracker.
+> **Current status — 2026-08-27:** iOS 1.0.8 (build 30) is Waiting for Review.
+> This file remains the packaging recipe, not the release-status tracker.
 
 ## 1.0.8 submission scope — final preseason reliability release
 

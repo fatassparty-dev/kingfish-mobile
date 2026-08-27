@@ -4,16 +4,13 @@
 > [`ANDROID-SUBMISSION-PROGRESS.md`](ANDROID-SUBMISSION-PROGRESS.md). This file
 > remains the background launch plan and account-setup history.
 
-> **Status update — 2026-08-23:** Android 1.0.5 (version code 2), the closed
-> Alpha release, Play listing, and required declarations were submitted. Google
-> Play Console showed the changes **in review**. This is not a public production
-> release. Internal install/open and paywall-copy smoke tests passed. Real
-> purchase, restore, entitlement sync, subscription management, push, and broad
-> QA remain release gates. Google Payments still has the W-9 in review, a bank
-> microdeposit pending, and merchant activation pending.
+> **Status update — 2026-08-27:** Android 1.0.5 (version code 2) is approved and
+> publicly downloadable from Google Play. Purchase, restore, entitlement,
+> subscription-management, notification, and broader QA launch checks passed.
+> Android 1.0.8 (version code 4), the completed NCAA improvement, is planned for
+> submission during the weekend after the initial public approval.
 
-Written 2026-08-20, updated 2026-08-23. Organized into phases. Phases 1 and 2
-are complete; Phase 3 is in review.
+Written 2026-08-20, updated 2026-08-27. The initial Android launch is complete.
 
 ## Correcting an assumption from planning
 

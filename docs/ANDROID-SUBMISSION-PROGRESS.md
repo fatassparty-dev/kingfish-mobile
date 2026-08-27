@@ -1,10 +1,11 @@
 # Android submission progress
 
-Last updated: 2026-08-24
+Last updated: 2026-08-27
 
-> The closed Alpha release and its Play listing/declarations have been
-> submitted and are in Google review. KingFish Bets is **not** publicly released
-> on Google Play yet.
+> Android 1.0.5 (version code 2) is approved and publicly downloadable from
+> Google Play. The completed NCAA improvement release, 1.0.8 (version code 4),
+> is intentionally being held until the weekend after the initial launch so it
+> is not submitted on the same day as the first public approval.
 
 ## Next Android release — NCAA football + fantasy season transition
 
@@ -30,7 +31,9 @@ Google Play release note:
 > improved conference filtering, matchup weather, refreshed game-line and edge
 > context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
 
-Before promotion, run the NCAAF regression pass in a Play-installed build:
+When submitting it this weekend, use a short description such as **Improved
+college-football rankings, conference filters, matchup weather, and game-line
+context.** Then run the NCAAF regression pass in a Play-installed build:
 conference accuracy (especially SEC/Georgia-name collisions), weather and
 indoor/unavailable states, AP Top 25 freshness, game-line/edge rendering, and
 empty/loading/error states. OTA is intentionally deferred; this release ships
@@ -41,14 +44,14 @@ through Google Play.
 | Area | Status | Current result / next action |
 |---|---|---|
 | Play developer account | Complete | KingFish Bets, LLC organization account approved; exempt from the personal-account 12-testers/14-days rule |
-| Android binary | Complete | Version `1.0.5`, version code `2` |
+| Android binary | Complete | Public: `1.0.5` code `2`; next completed source release: `1.0.8` code `4` |
 | Firebase / RevenueCat / RTDN | Complete | Credentials validated and the Google real-time developer notification test was received |
 | Internal install | Complete | Play-installed build launched in the Android emulator |
 | Paywall copy | Smoke-tested | Displays 3 days free, then $0.99 for the first paid month, then $4.99/month |
-| Store listing and declarations | Submitted | Closed Alpha, store assets/copy, Data Safety, content rating, target audience, and other declarations submitted 2026-08-23 |
-| Google review | In review | Publishing Overview showed **Changes in review** |
-| Google Payments | In progress | W-9 submitted/in review; bank microdeposit and merchant activation pending |
-| Public production release | Not started | Do not proceed until review, payments, and release-gate QA are complete |
+| Store listing and declarations | Complete | Approved public listing and declarations |
+| Google review | Approved | Initial public release approved 2026-08-27 |
+| Google Payments | Complete | Launch purchase, restore, entitlement, and subscription-management checks passed |
+| Public production release | Live | Android `1.0.5`, version code `2` |
 
 ## Pricing source of truth
 
@@ -101,8 +104,8 @@ monthly-only at launch.
 
 Remaining, as ordinary post-launch work:
 
-1. Complete the NCAA football native scope and run its Play-installed
-   regression pass; requires a new binary and a higher version code.
+1. Submit the completed NCAA football improvement, Android `1.0.8` version code
+   `4`, this weekend and run its Play-installed regression pass after approval.
 2. Keep Android in step with iOS releases from here — same Expo/RN codebase,
    so client changes need a Play build the same way they need an App Store
    build. There is no OTA on either platform.

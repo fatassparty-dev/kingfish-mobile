@@ -22,11 +22,12 @@ data* it didn't know about before.
 
 ---
 
-## 🟡 1.0.8 (iOS build 30 / Android code 4) — UPLOADED 2026-08-26
+## 🟡 1.0.8 (iOS build 30 / Android code 4) — WAITING FOR REVIEW 2026-08-27
 
 > Signed iOS build 30 was uploaded directly through Xcode and accepted by App
-> Store Connect on 2026-08-26. Apple processing and the focused TestFlight device
-> pass remain; the build has not yet been submitted for App Review.
+> Store Connect on 2026-08-26. The completed NCAA regression pass was performed
+> before submission. Apple shows iOS 1.0.8 as **Waiting for Review** on
+> 2026-08-27, with automatic publication enabled after approval.
 
 - NCAA Matchups now loads and displays venue-aware weather, with a clear sign-in
   gate when matchup data requires an account.
