@@ -96,15 +96,18 @@ monthly-only at launch.
 
 ## Next session
 
-1. Complete the bank microdeposit and verify merchant activation.
+**The app is live on Google Play as of 2026-08-27.** These are open items on a
+shipped app, not blockers to launch.
+
+1. Complete the bank microdeposit and verify merchant activation — **do this
+   first**, revenue depends on it.
 2. Run the purchase, restore, entitlement, subscription-management, push, and
    broader QA gates above in a Play-installed build.
 3. Complete the NCAA football native scope above and run its Play-installed
    regression pass alongside the broader QA gates.
 4. Fix any review or QA findings and upload a higher version code; the NCAAF
    changes require a new binary.
-5. Only then prepare the production release and perform a final pre-submit
-   review of countries, pricing, listing, declarations, and reviewer access.
+
 
 ## Activity log
 
@@ -128,12 +131,16 @@ monthly-only at launch.
 
 ### 2026-08-27
 
-- **Google Play approved the closed (Alpha) test release** — version code `2`,
-  Android `1.0.5`. Publishing Overview cleared the submitted changes; the app is
-  live to closed testers.
-- Production release is still NOT submitted. The gates above (bank
-  microdeposit / merchant activation, purchase + entitlement QA on a
-  Play-installed build, NCAAF native scope) remain open.
+- **LIVE ON GOOGLE PLAY.** Google approved the app and it is publicly
+  downloadable at
+  `https://play.google.com/store/apps/details?id=com.kingfishbets.app` —
+  Android `1.0.5`, version code `2`. KingFish is now shipping on three stores.
+- The remaining items below are therefore **live-app** work, not pre-launch
+  gates. The one that affects real users: until the bank microdeposit and
+  merchant/payments profile are verified, Play subscriptions may not be
+  purchasable — check that a real purchase completes on a Play-installed build
+  before driving any traffic to the listing.
+- NCAAF native scope still requires a new binary and a higher version code.
 - Same day: KingFish Studio `1.0.2 (17)` was submitted for Apple App Review on
   both iPad and Mac.
 
