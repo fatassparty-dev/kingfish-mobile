@@ -1,6 +1,6 @@
 # Android submission progress
 
-Last updated: 2026-08-27
+Last updated: 2026-08-29
 
 > Android 1.0.5 (version code 2) is approved and publicly downloadable from
 > Google Play. The completed NCAA improvement release, 1.0.8 (version code 4),
@@ -143,6 +143,36 @@ Remaining, as ordinary post-launch work:
 - Only NCAAF native scope remains, and it needs a new binary anyway.
 - Same day: KingFish Studio `1.0.2 (17)` was submitted for Apple App Review on
   both iPad and Mac.
+
+### 2026-08-29
+
+- Built Android `1.0.8`, version code `4`, on EAS (`production` profile,
+  `app-bundle`). Build ID `6237b40d-9f23-4f94-87e2-8e51b8159185`, cut from
+  commit `75cbaff`, finished 10:30 CT. Existing keystore
+  (`Build Credentials q0PnE6Tqcy`) was reused, so the app signing key is
+  unchanged.
+- Verified in the shipping `.aab` itself, not just a local prebuild: the
+  manifest carries the `asset_statements` meta-data entry and the compiled
+  resources carry the `https://www.kingfishbets.com` string, both from
+  `plugins/withAssetStatements.js`. No `autoVerify` intent filter was added.
+- Pre-build gates passed: `tsc --noEmit` clean; NCAAF League View reads
+  `/api/ncaaf-rankings`; matchup weather reads `/api/ncaaf-weather`; conference
+  filtering uses the backend `homeConference`/`awayConference` fields; no static
+  2025 baseline strings remain; `/api/mobile-config` returns a `release` object
+  with both minimum-version fields blank.
+- **`eas submit` could not be used.** EAS has no Google Service Account key
+  stored for `com.kingfishbets.app`, and one cannot be configured in
+  `--non-interactive` mode. A `submit.production.android` profile was added to
+  `eas.json` (track `production`, `releaseStatus` `draft`) and is correct, but
+  it stays inert until that credential exists. Until then, Android uploads are
+  manual through the Play Console.
+- The bundle is staged at
+  `~/Developer/KingFishBetsLLC/builds/KingFishBets-android-1.0.8-vc4.aab`
+  (53 MB, sha256 `00e78323…d1885`) awaiting a manual Play Console upload.
+- Still outstanding: `ANDROID_CERT_SHA256` is not set in Vercel, so
+  `https://www.kingfishbets.com/.well-known/assetlinks.json` returns 404 and the
+  manifest entry above does nothing yet. Harmless, but the feature is not live
+  until both halves are.
 
 ## Security notes
 
