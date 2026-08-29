@@ -7,12 +7,14 @@
 > succeeded and passed Xcode store validation; its 4.3 MB JavaScript bundle and
 > privacy manifest were verified. The signed IPA export and direct App Store
 > Connect upload succeeded on 2026-08-26, the focused device QA passed, and iOS
-> 1.0.8 is Waiting for Review as of 2026-08-27 with automatic publication
-> enabled. Do not change the server minimum/latest iOS versions until Apple has
-> approved and published the release.
+> 1.0.8 was approved and auto-published on 2026-08-29 and is now the public
+> App Store version. With it live, set the server `latest_version.ios` value;
+> still leave `minimum_supported_version` blank unless a real compatibility or
+> safety problem appears.
 
-> **Current status — 2026-08-27:** iOS 1.0.8 (build 30) is Waiting for Review.
-> This file remains the packaging recipe, not the release-status tracker.
+> **Current status — 2026-08-29:** iOS 1.0.8 (build 30) is APPROVED and LIVE.
+> Android version code 4 is being built and submitted today. This file remains
+> the packaging recipe, not the release-status tracker.
 
 ## 1.0.8 submission scope — final preseason reliability release
 

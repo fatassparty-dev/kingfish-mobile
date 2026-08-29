@@ -22,12 +22,20 @@ data* it didn't know about before.
 
 ---
 
-## 🟡 1.0.8 (iOS build 30 / Android code 4) — WAITING FOR REVIEW 2026-08-27
+## 🟢 1.0.8 (iOS build 30) — APPROVED + LIVE 2026-08-29 · Android code 4 pending
 
-> Signed iOS build 30 was uploaded directly through Xcode and accepted by App
-> Store Connect on 2026-08-26. The completed NCAA regression pass was performed
-> before submission. Apple shows iOS 1.0.8 as **Waiting for Review** on
-> 2026-08-27, with automatic publication enabled after approval.
+> **iOS 1.0.8 (build 30) was approved and auto-published on 2026-08-29**, and is
+> the public App Store version. Signed build 30 was uploaded directly through
+> Xcode and accepted by App Store Connect on 2026-08-26; the completed NCAA
+> regression pass was performed before submission.
+>
+> **Android version code 4 has not shipped yet** — it is being built and
+> submitted to Google Play on 2026-08-29 with the same NCAA scope plus the
+> Digital Asset Links entry below. Android 1.0.5 (version code 2) remains the
+> public Play version until it does.
+>
+> Follow-through now that iOS is live: set the server `latest_version.ios`
+> value in HQ. Leave `minimum_supported_version` blank.
 
 ### 🔵 Android code 4 — site/app ownership link (Android only, no visible change)
 
@@ -108,8 +116,9 @@ real operating constraint.
 ## 🟡 1.0.6 (build 28) — SUBMITTED FOR APP REVIEW 2026-08-23
 
 > Submitted under iOS App Version 1.0.5. The previous submission was removed
-> from review so build 28 could replace it; build 28 was then resubmitted and is
-> Waiting for Review.
+> from review so build 28 could replace it; build 28 was then resubmitted and was
+> Waiting for Review. **Superseded before approval by 1.0.8 (build 30)**, which
+> is the version that actually shipped — build 28 never reached the store.
 
 - **[2026-08-23] Updated Apple subscription pricing and introductory offer.**
   - **What the user sees:** The upgrade screen shows $0.99 for the first monthly
