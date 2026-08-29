@@ -29,6 +29,22 @@ data* it didn't know about before.
 > before submission. Apple shows iOS 1.0.8 as **Waiting for Review** on
 > 2026-08-27, with automatic publication enabled after approval.
 
+### 🔵 Android code 4 — site/app ownership link (Android only, no visible change)
+
+**What it does:** declares in the Android manifest that this app belongs to
+kingfishbets.com. Paired with a matching file on the website, it lets the site
+recognize that a visitor already has the app installed, so it stops showing them
+a "Get it on Google Play" card they don't need.
+
+**What the user sees:** nothing inside the app. This is a manifest declaration
+only — no new screens, permissions, or behavior.
+
+**Why it needs a build:** the entry lives in the Android manifest, which is
+generated at build time. Added via `plugins/withAssetStatements.js`.
+
+**Not an App Links change:** the app still does not open kingfishbets.com URLs;
+its deep links remain on the `kingfish://` scheme.
+
 - NCAA Matchups now loads and displays venue-aware weather, with a clear sign-in
   gate when matchup data requires an account.
 - Fantasy saved teams can add waiver and breakout players from a server-managed

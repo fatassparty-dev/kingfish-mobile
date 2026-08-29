@@ -59,7 +59,8 @@
           "project": "react-native"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withAssetStatements"
     ],
     "experiments": {
       "typedRoutes": true
