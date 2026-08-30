@@ -35,6 +35,13 @@ data* it didn't know about before.
   it wasn't obvious which team in a matchup was the ranked one. Display only —
   the rank comes from the same server rankings feed the app already loads.
   (2026-08-30)
+- **KBO board shows results instead of an empty screen.** When no US sportsbook
+  has KBO lines posted, the KBO Game Props tab now shows recent final scores,
+  postponements, and the next slate with start times, pulled from the official
+  league scoreboard. *Why:* our odds provider drops KBO entirely on those days,
+  so the tab used to read "no games" on days that had games. Scores only — no
+  odds, because odds are exactly what's missing. New server endpoint
+  (`/api/kbo-scores`); the app renders it. (2026-08-30)
 
 ---
 

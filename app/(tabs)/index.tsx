@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
 import { Card } from '@/components/Card'
 import { GamePropsTable, gameMarkets } from '@/components/dashboard/GamePropsTable'
+import { KboScoreboard, type KboScoreGame } from '@/components/dashboard/KboScoreboard'
 import { MLBPropsTable } from '@/components/dashboard/MLBPropsTable'
 import { PropsList } from '@/components/dashboard/PropCard'
 import { Screen } from '@/components/Screen'
@@ -1537,6 +1538,13 @@ export default function DashboardScreen() {
     enabled: isSelectedSportActive && sport === 'KBO' && (view === 'props' || view === 'lines'),
     staleTime: 18 * 60 * 60 * 1000,
   })
+  // Official league results + next slate, shown when no book has KBO posted.
+  const kboScoreboardQuery = useQuery({
+    queryKey: ['kbo-scores'],
+    queryFn: () => kingfishFetch<{ games: KboScoreGame[]; updated_at?: string | null }>('/api/kbo-scores'),
+    enabled: isSelectedSportActive && sport === 'KBO' && view === 'lines',
+    staleTime: 30 * 60 * 1000,
+  })
   const teamFormQuery = useQuery({
     queryKey: ['team-form', sport],
     queryFn: () => kingfishFetch<TeamFormPayload>(`/api/${sportApiKey(sport)}-team-form`),
@@ -1631,6 +1639,10 @@ export default function DashboardScreen() {
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(filteredUpcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
   const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
+  // KBO with nothing on the board: the league scoreboard stands in for the
+  // lines table rather than an empty card.
+  const kboScoreboardGames = sport === 'KBO' ? (kboScoreboardQuery.data?.games || []) : []
+  const showKboScoreboard = sport === 'KBO' && visibleLineGames.length === 0 && kboScoreboardGames.length > 0
   const visibleLineGroups = groupGamesByDate(visibleLineGames)
   const ncaabTeams = ncaabBaselineQuery.data?.teams || []
   const ncaabConferences = Array.from(new Set([...NCAAB_MAJOR_CONFERENCES, ...ncaabTeams.map((team) => team.conference).filter(Boolean)]))
@@ -2586,10 +2598,14 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {lineQuery.data?.length === 0 && (
+          {lineQuery.data?.length === 0 && !showKboScoreboard && (
             <Card>
               <AppText variant="eyebrow">// Empty</AppText>
-              <AppText variant="muted" style={styles.stateText}>No games found for {sport} right now.</AppText>
+              <AppText variant="muted" style={styles.stateText}>
+                {sport === 'KBO'
+                  ? 'No US sportsbook has KBO lines posted right now.'
+                  : `No games found for ${sport} right now.`}
+              </AppText>
             </Card>
           )}
 
@@ -2609,12 +2625,14 @@ export default function DashboardScreen() {
             </ScrollView>
           )}
 
-          {lineQuery.data && lineQuery.data.length > 0 && visibleLineGames.length === 0 && (
+          {lineQuery.data && lineQuery.data.length > 0 && visibleLineGames.length === 0 && !showKboScoreboard && (
             <Card>
               <AppText variant="eyebrow">// Empty</AppText>
               <AppText variant="muted" style={styles.stateText}>No upcoming games found for {sport} right now.</AppText>
             </Card>
           )}
+
+          {showKboScoreboard && <KboScoreboard games={kboScoreboardGames} />}
 
           {/* Game Props — dense table (web 2026-07-02 swap; the card view now
               lives in the Game Lines tool). Portrait shows the compact
