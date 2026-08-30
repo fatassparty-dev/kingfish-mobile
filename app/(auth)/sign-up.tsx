@@ -8,6 +8,7 @@ import { AppText } from '@/components/Text'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { normalizeLocation, LOCATION_OPTIONS } from '@/lib/locations'
+import { signupAttribution } from '@/lib/signupAttribution'
 
 // Supabase returns weak-password errors as a raw string that lists the entire
 // required character sets (the whole alphabet, all digits) — unreadable to a user.
@@ -91,6 +92,9 @@ export default function SignUpScreen() {
           last_name: lastName.trim(),
           full_name: `${firstName.trim()} ${lastName.trim()}`,
           state: normalizeLocation(state) || null,
+          // Read by the on_auth_user_created trigger into hq_acquisition_events,
+          // so HQ can tell an app signup from a web one.
+          ...signupAttribution(),
         },
       },
     })

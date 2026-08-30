@@ -35,6 +35,12 @@ data* it didn't know about before.
   it wasn't obvious which team in a matchup was the ranked one. Display only —
   the rank comes from the same server rankings feed the app already loads.
   (2026-08-30)
+- **Signups now tell HQ which app they came from.** The signup screen sends the
+  platform (iPhone / iPad / Mac / Android) with the account, so KingFish can see
+  where new users are coming from. *Why:* during the Google Play launch week, 15
+  of 20 signups arrived with no source at all — the spike was real and completely
+  unattributable. No new data about the person is collected; it records the app,
+  not the user. (2026-08-30)
 - **KBO board shows results instead of an empty screen.** When no US sportsbook
   has KBO lines posted, the KBO Game Props tab now shows recent final scores,
   postponements, and the next slate with start times, pulled from the official
