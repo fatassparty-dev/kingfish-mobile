@@ -2631,6 +2631,7 @@ export default function DashboardScreen() {
                 weather={sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF' ? weatherQuery.data : undefined}
                 compact={!isLandscape}
                 onPressMatchup={sport === 'NCAAF' ? setSelectedNcaafGame : undefined}
+                rankForTeam={sport === 'NCAAF' ? (team) => ncaafTeamForName(team)?.rank : undefined}
               />
             </View>
           ))}

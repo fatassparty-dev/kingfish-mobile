@@ -238,6 +238,7 @@ export function GamePropsTable({
   weather,
   compact = false,
   onPressMatchup,
+  rankForTeam,
 }: {
   games: Game[]
   sport: Sport
@@ -246,9 +247,19 @@ export function GamePropsTable({
   weather?: Record<string, WeatherInfo | undefined>
   compact?: boolean
   onPressMatchup?: (game: Game) => void
+  // Poll rank shown in front of the team name (college boards). Returning
+  // undefined — or anything outside the Top 25 — renders no rank at all.
+  rankForTeam?: (team: string) => number | null | undefined
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('time')
   const [sortDesc, setSortDesc] = useState(false)
+
+  // Rank rides INSIDE the matchup text node, not as its own <AppText>: the
+  // cell is deliberately one node so both lines share one font scale.
+  const rankLabel = (team: string) => {
+    const rank = Number(rankForTeam?.(team))
+    return Number.isFinite(rank) && rank > 0 && rank <= 25 ? `#${rank} ` : ''
+  }
 
   const rows = useMemo(() => {
     const mapped = games.map((game) => ({ game, mk: gameMarkets(game, userState, sportsbookPreferences) }))
@@ -321,7 +332,7 @@ export function GamePropsTable({
                   a fraction of the home team's size and the cell read as broken
                   (Brian, 2026-08-19). One node = one scale for both lines. */}
               <AppText style={styles.matchupText} numberOfLines={2}>
-                {shortName(game.away_team)} @{'\n'}{shortName(game.home_team)}
+                {rankLabel(game.away_team)}{shortName(game.away_team)} @{'\n'}{rankLabel(game.home_team)}{shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
             </View>

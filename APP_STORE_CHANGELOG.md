@@ -29,6 +29,12 @@ data* it didn't know about before.
   Ligue 1; World Cup moved to the end. *Why:* the World Cup is a long way off,
   so the app was opening on a league with no posted lines. Cosmetic tab-order
   change only — same data, same leagues. (2026-08-30)
+- **AP rank shown on the college football board.** Ranked teams now carry their
+  AP poll number (`#7`) in front of the team name in the NCAAF Game Props table,
+  the way Game Matchups already did. *Why:* with the board filtered to "Top 25"
+  it wasn't obvious which team in a matchup was the ranked one. Display only —
+  the rank comes from the same server rankings feed the app already loads.
+  (2026-08-30)
 
 ---
 
