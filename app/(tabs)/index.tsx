@@ -311,14 +311,14 @@ const NCAAB_MAJOR_CONFERENCES = [
 ]
 
 const SOCCER_LEAGUES = [
-  { key: 'soccer_fifa_world_cup', label: 'World Cup' },
   { key: 'soccer_epl', label: 'Premier League' },
   { key: 'soccer_usa_mls', label: 'MLS' },
   { key: 'soccer_spain_la_liga', label: 'La Liga' },
+  { key: 'soccer_uefa_champs_league', label: 'Champions League' },
   { key: 'soccer_italy_serie_a', label: 'Serie A' },
   { key: 'soccer_germany_bundesliga', label: 'Bundesliga' },
   { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
-  { key: 'soccer_uefa_champs_league', label: 'Champions League' },
+  { key: 'soccer_fifa_world_cup', label: 'World Cup' },
 ]
 
 const MLB_TEAM_NAME_TO_ABBR: Record<string, string> = {

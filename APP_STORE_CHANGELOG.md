@@ -22,17 +22,26 @@ data* it didn't know about before.
 
 ---
 
-## 🟢 1.0.8 (iOS build 30) — APPROVED + LIVE 2026-08-29 · Android code 4 pending
+## 🔵 Unreleased — next build
+
+- **Soccer league tabs reordered.** Premier League is now the first (and default)
+  soccer league; Champions League moved up ahead of Serie A / Bundesliga /
+  Ligue 1; World Cup moved to the end. *Why:* the World Cup is a long way off,
+  so the app was opening on a league with no posted lines. Cosmetic tab-order
+  change only — same data, same leagues. (2026-08-30)
+
+---
+
+## 🟢 1.0.8 — iOS build 30 + Android code 4 APPROVED AND LIVE
 
 > **iOS 1.0.8 (build 30) was approved and auto-published on 2026-08-29**, and is
 > the public App Store version. Signed build 30 was uploaded directly through
 > Xcode and accepted by App Store Connect on 2026-08-26; the completed NCAA
 > regression pass was performed before submission.
 >
-> **Android version code 4 has not shipped yet** — it is being built and
-> submitted to Google Play on 2026-08-29 with the same NCAA scope plus the
-> Digital Asset Links entry below. Android 1.0.5 (version code 2) remains the
-> public Play version until it does.
+> **Android 1.0.8 (version code 4) was approved and published by Google Play on
+> 2026-08-30** with the same NCAA scope plus the Digital Asset Links entry
+> below. Apple and Google now carry matching current native releases.
 >
 > Follow-through now that iOS is live: set the server `latest_version.ios`
 > value in HQ. Leave `minimum_supported_version` blank.
