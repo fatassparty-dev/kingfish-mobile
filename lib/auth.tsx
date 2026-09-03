@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { AppState } from 'react-native'
 import { router, useSegments } from 'expo-router'
 import { supabase } from './supabase'
 import type { UserProfile } from '@/types'
@@ -56,6 +57,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileError, setProfileError] = useState<string | null>(null)
+
+  // Pick up account preferences changed on the website or another device when
+  // returning to the app. Keep the current screen/profile visible while loading.
+  useEffect(() => {
+    const userId = session?.user.id
+    if (!userId) return
+    let active = true
+    let refreshing = false
+    let previousState = AppState.currentState
+    const listener = AppState.addEventListener('change', async (state) => {
+      const returning = state === 'active' && previousState !== 'active'
+      previousState = state
+      if (!returning || refreshing) return
+      refreshing = true
+      try {
+        const { data } = await fetchProfileOnce()
+        const { data: current } = await supabase.auth.getSession()
+        if (active && data?.user_id === userId && current.session?.user.id === userId) {
+          setProfile(data)
+          setProfileError(null)
+        }
+      } catch {
+        // Offline resumes retain the last successful account profile.
+      } finally { refreshing = false }
+    })
+    return () => { active = false; listener.remove() }
+  }, [session?.user.id])
 
   // Keep retrying a missing/failed profile read in the background until the row
   // resolves, the user changes, or we run out of attempts. Never clears an
