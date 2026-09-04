@@ -78,6 +78,8 @@ export interface Game {
   awayConference?: string
   homeRecord?: string
   awayRecord?: string
+  homeRank?: number
+  awayRank?: number
   venue?: {
     name: string
     city: string

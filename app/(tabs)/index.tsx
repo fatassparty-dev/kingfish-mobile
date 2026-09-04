@@ -16,6 +16,7 @@ import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtOdds, fmtTime } from '@/lib/format'
 import { useMobileConfig } from '@/lib/mobileConfig'
+import { ncaafConferenceMatches, sameNcaafTeam } from '@/lib/ncaafTeams'
 import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
@@ -267,6 +268,8 @@ type NCAAFMatchup = {
   awayConference?: string
   homeRecord?: string
   awayRecord?: string
+  homeRank?: number
+  awayRank?: number
   venue?: Game['venue']
   oddsUpdatedAt?: string
   oddsStale?: boolean
@@ -1600,39 +1603,35 @@ export default function DashboardScreen() {
   const ncaafConferences = Array.from(new Set([...NCAAF_MAJOR_CONFERENCES, ...ncaafTeams.map((team) => team.conference).filter(Boolean)]))
   const filteredNcaafTeams = ncaafTeams.filter((team) => {
     const scopeMatch = collegeScope === 'all' || team.rank <= 25
-    const conferenceMatch = collegeConference === 'All' || team.conference === collegeConference
+    const conferenceMatch = ncaafConferenceMatches(team.conference, collegeConference)
     return scopeMatch && conferenceMatch
   })
-  const ncaafTeamForName = (teamName: string) => ncaafTeams.find((team) => {
-    const posted = teamName.toLowerCase()
-    const known = team.team.toLowerCase()
-    return posted === known || posted.includes(known) || known.includes(posted)
-  })
+  const ncaafTeamForName = (teamName: string) => ncaafTeams.find((team) => sameNcaafTeam(teamName, team.team))
   const filteredNcaafMatchups = (ncaafMatchupsQuery.data || []).filter((game) => {
     if (collegeScope === 'top25') {
-      const awayRank = ncaafTeamForName(game.away_team)?.rank
-      const homeRank = ncaafTeamForName(game.home_team)?.rank
+      const awayRank = game.awayRank ?? ncaafTeamForName(game.away_team)?.rank
+      const homeRank = game.homeRank ?? ncaafTeamForName(game.home_team)?.rank
       if (!awayRank && !homeRank) return false
       if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
     }
     if (collegeConference !== 'All') {
       const awayConf = game.awayConference || ncaafTeamForName(game.away_team)?.conference
       const homeConf = game.homeConference || ncaafTeamForName(game.home_team)?.conference
-      if (awayConf !== collegeConference && homeConf !== collegeConference) return false
+      if (!ncaafConferenceMatches(awayConf, collegeConference) && !ncaafConferenceMatches(homeConf, collegeConference)) return false
     }
     return true
   })
   const ncaafMatchupGroups = groupGamesByDate(filteredNcaafMatchups)
   const filteredUpcomingLineGames = sport !== 'NCAAF' ? upcomingLineGames : upcomingLineGames.filter((game) => {
     if (collegeScope === 'top25') {
-      const awayRank = ncaafTeamForName(game.away_team)?.rank
-      const homeRank = ncaafTeamForName(game.home_team)?.rank
+      const awayRank = game.awayRank ?? ncaafTeamForName(game.away_team)?.rank
+      const homeRank = game.homeRank ?? ncaafTeamForName(game.home_team)?.rank
       if ((awayRank || 999) > 25 && (homeRank || 999) > 25) return false
     }
     if (collegeConference !== 'All') {
       const awayConference = game.awayConference || ncaafTeamForName(game.away_team)?.conference
       const homeConference = game.homeConference || ncaafTeamForName(game.home_team)?.conference
-      if (awayConference !== collegeConference && homeConference !== collegeConference) return false
+      if (!ncaafConferenceMatches(awayConference, collegeConference) && !ncaafConferenceMatches(homeConference, collegeConference)) return false
     }
     return true
   })
@@ -2836,8 +2835,8 @@ export default function DashboardScreen() {
                 const matchupWeather = ncaafMatchupWeatherQuery.data?.[game.id]
                 const awayTeam = ncaafTeamForName(game.away_team)
                 const homeTeam = ncaafTeamForName(game.home_team)
-                const awayRank = awayTeam?.rank
-                const homeRank = homeTeam?.rank
+                const awayRank = game.awayRank ?? awayTeam?.rank
+                const homeRank = game.homeRank ?? homeTeam?.rank
                 const awayShort = shortTeamName(game.away_team)
                 const homeShort = shortTeamName(game.home_team)
                 const favorite = game.favorite || 'Pending'
