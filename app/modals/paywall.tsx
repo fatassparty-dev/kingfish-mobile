@@ -6,14 +6,12 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
+import { getBillingManagement, openBillingManagement } from '@/lib/billingManagement'
 import { getPremiumPricing, purchasePremium, restorePurchases } from '@/lib/purchases'
 import type { PremiumPricing, PurchasePlan } from '@/lib/purchases'
 import { colors, spacing } from '@/lib/theme'
 import {
-  billingManagementCopy,
   isGooglePlayBuild,
-  manageSubscriptionLabel,
-  openMobileSubscriptionManagement,
   paywallRenewalTerms,
 } from '@/lib/mobileStore'
 
@@ -62,6 +60,7 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const { user, profile, refreshProfile } = useAuth()
+  const billing = getBillingManagement(profile)
   const [message, setMessage] = useState('')
   const [loadingAction, setLoadingAction] = useState<'purchase' | 'restore' | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<PurchasePlan>('monthly')
@@ -178,11 +177,11 @@ export default function PaywallScreen() {
           <AppText variant="eyebrow">// Active</AppText>
           <AppText style={styles.noticeTitle}>You are already on KingFish Bets Pro.</AppText>
           <AppText variant="muted" style={styles.noticeCopy}>
-            {billingManagementCopy}
+            {billing.copy}
           </AppText>
         </Card>
-        <Button variant="secondary" onPress={() => void openMobileSubscriptionManagement()}>
-          {manageSubscriptionLabel}
+        <Button variant="secondary" onPress={() => void openBillingManagement(profile)}>
+          {billing.label}
         </Button>
         <View style={styles.gap} />
         <Button variant="secondary" onPress={() => router.back()}>Close</Button>

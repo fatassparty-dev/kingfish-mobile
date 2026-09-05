@@ -8,6 +8,7 @@ import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { getBillingManagement, openBillingManagement } from '@/lib/billingManagement'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -23,12 +24,6 @@ import { isValidLocation, locationLabel, normalizeLocation } from '@/lib/locatio
 import { hasCustomHomeTiles, resolveHomeTiles } from '@/lib/homeTilePrefs'
 import { SPORT_OPTIONS, hasSportPreferences } from '@/lib/sportPrefs'
 import { SPORTSBOOK_PREFERENCE_OPTIONS, isSportsbookVisibleForState } from '@/lib/sportsbooks'
-import {
-  billingManagementCopy,
-  deletionSubscriptionWarning,
-  manageSubscriptionLabel,
-  openMobileSubscriptionManagement,
-} from '@/lib/mobileStore'
 
 const NOTIFICATION_OPTIONS: Array<{
   key: NotificationPreferenceKey
@@ -87,6 +82,7 @@ export default function AccountScreen() {
   const firstName = profile?.first_name?.trim()
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   const sourceLabel = getAccessSource(profile)
+  const billing = getBillingManagement(profile)
   const planLabel = getPlanLabel(profile)
   const renewalLabel = getRenewalLabel(profile)
   const statusCopy = getStatusCopy(Boolean(isPremium), sourceLabel, renewalLabel)
@@ -374,7 +370,7 @@ export default function AccountScreen() {
   function confirmDeleteAccount() {
     Alert.alert(
       'Delete Account?',
-      `This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. This cannot be undone and your account cannot be recovered. ${deletionSubscriptionWarning}`,
+      'This permanently deletes your KingFish account, profile, chat history, chat usage, and saved AI memory. This cannot be undone and your account cannot be recovered. Before deleting, cancel any paid subscription with the provider that charged you: Apple, Google Play, or KingFishBets.com. Deleting this account does not cancel billing.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete Forever', style: 'destructive', onPress: handleDeleteAccount },
@@ -618,11 +614,11 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Plan Management</AppText>
         <AppText style={styles.webTitle}>Billing</AppText>
         <AppText variant="muted" style={styles.copy}>
-          {billingManagementCopy}
+          {billing.copy}
         </AppText>
         <View style={styles.cardAction}>
-          <Button variant="secondary" onPress={() => void openMobileSubscriptionManagement()}>
-            {manageSubscriptionLabel}
+          <Button variant="secondary" onPress={() => void openBillingManagement(profile)}>
+            {billing.label}
           </Button>
         </View>
         <View style={styles.buttonGap} />

@@ -10,6 +10,7 @@ export interface UserProfile {
   last_name?: string | null
   state?: string | null
   subscription_status?: string | null
+  premium_source?: 'none' | 'apple' | 'google' | 'stripe' | 'comp' | null
   subscription_platform?: 'web' | 'ios' | 'android' | 'manual' | null
   stripe_plan?: 'monthly' | 'annual' | 'lifetime' | string | null
   premium_expires_at?: string | null

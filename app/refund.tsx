@@ -5,6 +5,8 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { colors, spacing } from '@/lib/theme'
+import { useAuth } from '@/lib/auth'
+import { getBillingManagement, openBillingManagement } from '@/lib/billingManagement'
 import {
   manageSubscriptionLabel,
   mobileStoreName,
@@ -16,6 +18,8 @@ import {
 } from '@/lib/mobileStore'
 
 export default function RefundScreen() {
+  const { profile } = useAuth()
+  const billing = getBillingManagement(profile)
   return (
     <Screen>
       <AppText variant="eyebrow">// Billing</AppText>
@@ -25,6 +29,15 @@ export default function RefundScreen() {
       </AppText>
 
       <View style={styles.sections}>
+        <Card>
+          <AppText style={styles.sectionTitle}>Your Subscription</AppText>
+          <AppText variant="muted" style={styles.body}>{billing.copy}</AppText>
+          <View style={styles.cardAction}>
+            <Button variant="secondary" onPress={() => void openBillingManagement(profile)}>
+              {billing.label}
+            </Button>
+          </View>
+        </Card>
         <Card>
           <AppText style={styles.sectionTitle}>{mobileStoreName} Purchases</AppText>
           <AppText variant="muted" style={styles.body}>
