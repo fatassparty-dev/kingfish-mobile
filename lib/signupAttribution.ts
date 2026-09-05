@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 
 /**
  * Acquisition metadata for supabase.auth.signUp.
@@ -14,10 +15,16 @@ import { Platform } from 'react-native'
  * the download needs the store's own attribution SDK, which we do not ship.
  */
 export function signupAttribution() {
+  const build = Platform.OS === 'android'
+    ? Constants.platform?.android?.versionCode
+    : Constants.platform?.ios?.buildNumber
   return {
     acquisition_platform: Platform.OS,
     acquisition_source: Platform.OS === 'android' ? 'google_play' : 'app_store',
     acquisition_medium: 'app',
     acquisition_signup_path: 'app_signup',
+    acquisition_client: 'kingfish-mobile',
+    acquisition_app_version: Constants.expoConfig?.version || null,
+    acquisition_app_build: build == null ? null : String(build),
   }
 }

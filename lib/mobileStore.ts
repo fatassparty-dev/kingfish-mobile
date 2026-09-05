@@ -1,4 +1,4 @@
-import { Linking, Platform } from 'react-native'
+import { Alert, Linking, Platform } from 'react-native'
 
 const ANDROID_PACKAGE = 'com.kingfishbets.app'
 const APPLE_SUBSCRIPTIONS_APP_URL = 'itms-apps://apps.apple.com/account/subscriptions'
@@ -39,12 +39,18 @@ export const refundDetailCopy = isGooglePlayBuild
   : 'Apple handles billing, cancellation, and refund requests for subscriptions purchased in the iOS app. KingFish cannot directly issue App Store refunds from inside the app.'
 
 export async function openMobileSubscriptionManagement() {
+  try {
   if (isGooglePlayBuild) {
     await Linking.openURL(GOOGLE_PLAY_SUBSCRIPTIONS_URL)
     return
   }
 
   await Linking.openURL(APPLE_SUBSCRIPTIONS_APP_URL).catch(() => Linking.openURL(APPLE_SUBSCRIPTIONS_WEB_URL))
+  } catch {
+    Alert.alert('Open subscription settings', isGooglePlayBuild
+      ? 'Open Google Play, tap your profile, then Payments & subscriptions > Subscriptions.'
+      : 'Open Settings, tap your name, then Subscriptions to manage your KingFish subscription.')
+  }
 }
 
 export async function openMobileRefundRequest() {
