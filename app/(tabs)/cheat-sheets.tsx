@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { recordFunnelEvent } from '@/lib/funnel'
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, TextInput, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { captureRef } from 'react-native-view-shot'
@@ -2155,6 +2156,11 @@ export default function CheatSheetsScreen() {
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [calculatorKey, setCalculatorKey] = useState<CalculatorKey>('unit')
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
+  useEffect(() => {
+    if (stadiumProfile && ['MLB', 'NFL'].includes(stadiumProfile.sport)) {
+      recordFunnelEvent({ event_name: 'research_opened', sport: stadiumProfile.sport, surface: 'stadium_profile' })
+    }
+  }, [stadiumProfile])
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle')
   const shareCardRef = useRef<View>(null)
   // Capture height follows the card's real height so short sheets don't ship

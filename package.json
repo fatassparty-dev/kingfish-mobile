@@ -5,6 +5,9 @@
   "overrides": {
     "decode-uri-component": "$decode-uri-component"
   },
+  "expo": {
+    "doctor": { "reactNativeDirectoryCheck": { "exclude": ["decode-uri-component"] } }
+  },
   "main": "expo-router/entry",
   "scripts": {
     "eas-build-post-install": "npm run typecheck && node --test tests/nativeFunnelNavigation.test.mjs tests/signupAttribution.test.mjs tests/billingManagement.test.mjs tests/subscriptionManagement.test.mjs && npx expo install --check && npx --yes expo-doctor@1.20.4",

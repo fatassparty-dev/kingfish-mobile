@@ -18,8 +18,12 @@ upgrade. Valid route/query/auth parameters and long malformed queries pass
 against the real query-string and React Navigation consumer.
 
 Local source TypeScript and focused fixture checks passed using the preexisting
-dependencies. A clean cloud install is a separate gate. GitHub workflow records
-clean npm ci, TypeScript, consumer tests, Expo compatibility/Doctor and an audit.
+dependencies. The first clean EAS install and TypeScript passed. Its consumer
+test exposed a missing process.env in the test sandbox for the newly installed
+Navigation version; that harness is corrected. Complete native builds and
+device QA remain separate gates. The EAS post-install hook runs focused tests
+and Expo compatibility/Doctor checks. GitHub's token lacks workflow scope, so
+the GitHub workflow is retained only as a documentation example.
 
 ## Release gates
 

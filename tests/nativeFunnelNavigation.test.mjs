@@ -10,7 +10,7 @@ const decode = require('../vendor/decode-uri-component')
 function compileCommonJs(path, overrides = {}) {
   const module = { exports: {} }, localRequire = createRequire(path)
   const code = ts.transpileModule(readFileSync(path, 'utf8'), { compilerOptions: { allowJs: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText
-  runInNewContext(code, { module, exports: module.exports,
+  runInNewContext(code, { module, exports: module.exports, console, process: { env: { NODE_ENV: process.env.NODE_ENV || 'test' } },
     require(name) { return overrides[name] || localRequire(name) } })
   return module.exports
 }
