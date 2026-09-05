@@ -6,6 +6,7 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { useAuth } from '@/lib/auth'
+import { recordFunnelEvent } from '@/lib/funnel'
 import { getBillingManagement, openBillingManagement } from '@/lib/billingManagement'
 import { getPremiumPricing, purchasePremium, restorePurchases } from '@/lib/purchases'
 import type { PremiumPricing, PurchasePlan } from '@/lib/purchases'
@@ -67,6 +68,9 @@ export default function PaywallScreen() {
   const [pricing, setPricing] = useState<PremiumPricing>({})
   const [pricingLoaded, setPricingLoaded] = useState(false)
   const isPremium = profile?.is_premium === true
+  useEffect(() => {
+    if (user && !isPremium) recordFunnelEvent({ event_name: 'paywall_view' })
+  }, [user?.id, isPremium])
 
   useEffect(() => {
     let active = true
@@ -123,6 +127,7 @@ export default function PaywallScreen() {
   }, [pricing, pricingLoaded])
 
   async function handlePurchase() {
+    recordFunnelEvent({ event_name: 'purchase_started' })
     setLoadingAction('purchase')
     const result = await purchasePremium(user?.id, selectedPlan)
     setMessage(result.message)
@@ -131,6 +136,7 @@ export default function PaywallScreen() {
   }
 
   async function handleRestore() {
+    recordFunnelEvent({ event_name: 'restore_started' })
     setLoadingAction('restore')
     const result = await restorePurchases(user?.id)
     setMessage(result.message)

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useQuery } from '@tanstack/react-query'
@@ -8,6 +8,7 @@ import { Card } from '@/components/Card'
 import { AppText } from '@/components/Text'
 import { fmtOdds } from '@/lib/format'
 import { kingfishFetch } from '@/lib/api'
+import { recordFunnelEvent } from '@/lib/funnel'
 import { colors, spacing } from '@/lib/theme'
 
 interface PlayerProfileResponse {
@@ -488,6 +489,11 @@ export function PlayerProfileModal({ playerName, sport, marketContext, context =
     staleTime: 5 * 60 * 1000,
   })
   const formNote = buildFormNote(sport, query.data)
+  useEffect(() => {
+    if (playerName && query.data && !query.isError) {
+      recordFunnelEvent({ event_name: 'research_opened', sport: sport.toUpperCase(), surface: 'player_profile' })
+    }
+  }, [playerName, sport, query.data, query.isError])
   const propFocus = buildPropFocus(sport, query.data, marketContext)
   const canCopyShareCard = Boolean(propFocus && query.data && playerName && !isFantasyProfile)
   const nflMeta = sport === 'nfl' ? nflProfileMeta(query.data?.team, query.data?.position) : null

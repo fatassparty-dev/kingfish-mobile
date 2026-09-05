@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -7,6 +7,7 @@ import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
+import { recordFunnelEvent } from '@/lib/funnel'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { colors, spacing } from '@/lib/theme'
@@ -39,6 +40,11 @@ export default function GameFactorsScreen() {
   const [factorSport, setFactorSport] = useState<FactorSport>('MLB')
   const [factorView, setFactorView] = useState<FactorView>(params.view === 'cheat' ? 'cheat' : 'board')
   const [stadiumProfile, setStadiumProfile] = useState<StadiumProfile | null>(null)
+  useEffect(() => {
+    if (stadiumProfile && ['MLB', 'NFL'].includes(stadiumProfile.sport)) {
+      recordFunnelEvent({ event_name: 'research_opened', sport: stadiumProfile.sport, surface: 'stadium_profile' })
+    }
+  }, [stadiumProfile])
 
   const factorQuery = useQuery({
     queryKey: ['mobile-game-factors', factorSport],

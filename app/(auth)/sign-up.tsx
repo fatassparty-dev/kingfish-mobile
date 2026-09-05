@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { Link, router } from 'expo-router'
 import { Button } from '@/components/Button'
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { normalizeLocation, LOCATION_OPTIONS } from '@/lib/locations'
 import { signupAttribution } from '@/lib/signupAttribution'
+import { recordFunnelEvent, signupFunnelIdentity } from '@/lib/funnel'
 
 // Supabase returns weak-password errors as a raw string that lists the entire
 // required character sets (the whole alphabet, all digits) — unreadable to a user.
@@ -49,12 +50,16 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  useEffect(() => { recordFunnelEvent({ event_name: 'signup_view' }) }, [])
   const [showLocationPicker, setShowLocationPicker] = useState(false)
 
   async function signUp() {
+    if (loading) return
     setError('')
     setSuccess('')
+    recordFunnelEvent({ event_name: 'signup_started' })
     if (!firstName.trim() || !lastName.trim()) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'name_required' })
       setError('First and last name are required.')
       return
     }
@@ -63,23 +68,28 @@ export default function SignUpScreen() {
       return
     }
     if (!is18) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'terms_required' })
       setError('You must confirm you are 18 or older where permitted by law.')
       return
     }
     if (!accepted) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'terms_required' })
       setError('You must accept the Terms and Privacy Policy.')
       return
     }
     if (password.length < 8) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'auth_rejected' })
       setError('Password must be at least 8 characters.')
       return
     }
     if (password !== confirm) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'password_mismatch' })
       setError('Passwords do not match.')
       return
     }
 
     setLoading(true)
+    try {
     // Pass the name into auth metadata so it persists even before a session exists
     // (email confirmation pending). The on_auth_user_created DB trigger copies this
     // into user_profiles server-side, so the name survives regardless of RLS/session.
@@ -95,11 +105,13 @@ export default function SignUpScreen() {
           // Read by the on_auth_user_created trigger into hq_acquisition_events,
           // so HQ can tell an app signup from a web one.
           ...signupAttribution(),
+          ...await signupFunnelIdentity(),
         },
       },
     })
 
     if (authError) {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'auth_rejected' })
       setError(friendlyAuthError(authError))
       setLoading(false)
       return
@@ -107,6 +119,7 @@ export default function SignUpScreen() {
 
     // Best-effort client write; the DB trigger is the source of truth.
     if (data.user) {
+      try {
       await supabase
         .from('user_profiles')
         .update({
@@ -115,10 +128,16 @@ export default function SignUpScreen() {
           state: normalizeLocation(state) || null,
         })
         .eq('user_id', data.user.id)
+      } catch { /* The account already exists; the DB trigger retains the name. */ }
     }
 
     setSuccess('Account created. Check your email if confirmation is required.')
-    setLoading(false)
+    } catch {
+      recordFunnelEvent({ event_name: 'signup_issue', issue: 'network_error' })
+      setError('Connection interrupted. Try signing in first; if your account was not created, try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

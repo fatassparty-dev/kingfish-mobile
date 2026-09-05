@@ -1,0 +1,14 @@
+node_modules
+.expo
+dist
+ios
+android
+*.log
+.env
+.env.*
+.DS_Store
+.vercel
+*.ipa
+assets/videos
+play-store-assets
+docs

@@ -1,0 +1,7 @@
+{
+  "name": "decode-uri-component",
+  "version": "0.5.0",
+  "description": "Upstream 0.5.0 with CommonJS export for React Navigation 7 / query-string 7",
+  "license": "MIT",
+  "main": "index.js"
+}

@@ -1,0 +1,30 @@
+name: Weekend native validation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/weekend-funnel-20260905']
+permissions:
+  contents: read
+jobs:
+  clean-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --test tests/nativeFunnelNavigation.test.mjs tests/signupAttribution.test.mjs tests/billingManagement.test.mjs tests/subscriptionManagement.test.mjs
+      - run: npx expo install --check
+      - run: npx --yes expo-doctor@1.20.4
+      - name: Save production dependency audit
+        if: always()
+        run: npm audit --omit=dev --json > native-audit.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-audit
+          path: native-audit.json
