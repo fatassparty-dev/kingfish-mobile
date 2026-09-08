@@ -4,6 +4,19 @@ Features held for a future app version. Not in scope for the current build.
 
 ---
 
+## Organize Cheat Sheets by sport (next iPhone release)
+
+The native Cheat Sheets list has grown too long to scan comfortably. Group or
+filter the sheets by sport, following the website's category approach, while
+keeping an All Sports view for users who want the full list. Preserve the
+existing compact mobile Tools navigation and all current sheet routes and
+access rules.
+
+**Release decision (Brian, 2026-09-08):** defer this navigation cleanup until
+the release after iOS 1.0.9 build 31. Do not rebuild 1.0.9 for this change.
+
+---
+
 ## Home screen: user-customizable tiles (v3)
 The home screen redesign v1+v2 SHIPPED in 1.0.3 build 19 (2026-07-07): 8
 deep-link tiles (Top 5 Leans, NRFI/YRFI, Game Lines, Game Factors, Fantasy Hub,
