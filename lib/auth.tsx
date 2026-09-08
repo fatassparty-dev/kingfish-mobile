@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { AppState } from 'react-native'
 import { router, useSegments } from 'expo-router'
-import { supabase } from './supabase'
+import { installAuthAutoRefresh, supabase } from './supabase'
 import type { UserProfile } from '@/types'
 import { configurePurchases } from './purchases'
 import { kingfishFetch } from './api'
@@ -131,6 +131,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let mounted = true
+    const removeAutoRefresh = installAuthAutoRefresh()
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return
@@ -189,6 +190,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => {
       mounted = false
       listener.subscription.unsubscribe()
+      removeAutoRefresh()
     }
   }, [])
 
