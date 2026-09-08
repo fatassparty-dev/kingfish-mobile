@@ -2626,6 +2626,14 @@ export default function CheatSheetsScreen() {
 
       {toolMode === 'more' ? (
         <>
+          <Pressable onPress={() => router.push('/nfl-daily-intel' as any)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// NFL Briefing</AppText>
+              <AppText style={styles.featureToolTitle}>NFL Daily Intel</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+
           <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
             <View style={styles.featureToolCopy}>
               <AppText variant="eyebrow">// Football Draft Room</AppText>

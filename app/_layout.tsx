@@ -32,6 +32,7 @@ function RootLayout() {
           <Stack.Screen name="scout" />
           <Stack.Screen name="grade-slip" />
           <Stack.Screen name="game-factors" />
+          <Stack.Screen name="nfl-daily-intel" />
           </Stack>
         </AppControlGate>
       </AuthProvider>
