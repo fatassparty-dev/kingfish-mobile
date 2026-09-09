@@ -32,7 +32,7 @@
     },
     "android": {
       "package": "com.kingfishbets.app",
-      "versionCode": 4,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
