@@ -92,3 +92,72 @@ For the pre-release comparison, use the seven-day interval ending immediately
 before September 8 at 10:14 p.m. Central, then also compare calendar-day and
 same-weekday views. Save raw counts as well as percentage changes so a small
 baseline is not mistaken for a large durable effect.
+
+## iOS 1.0.9 release event
+
+| Field | Recorded value |
+|---|---|
+| Store | Apple App Store |
+| Version | 1.0.9 |
+| Build | 31 |
+| Source commit | `caaa145` |
+| Apple review | Approved September 9, 2026 |
+| Scheduled release | September 9, 2026, 11:00 a.m. Central |
+| Public availability | Not yet independently verified; record the first confirmed live time |
+| Store listing change | Eight new App Store screenshots |
+| Promotion | Football opening special: first month for $0.99 |
+
+The approval and scheduled-release time were recorded at 10:58 a.m. Central,
+two minutes before release. Approval does not by itself prove public
+availability, so the public release boundary remains pending until the listing
+or a device confirms version 1.0.9 is available.
+
+### Customer-facing changes
+
+- NFL Daily Intel in Tools.
+- NCAA football cheat sheets in the native app.
+- Persistent sign-in across normal closes and reopenings.
+- More reliable signup and subscription-management handling.
+- Native signup evidence containing platform, store, client, version and build.
+- A redesigned App Store screenshot gallery promoting the current experience.
+
+Expected new-account evidence from this binary:
+
+| Field | Expected value |
+|---|---|
+| `acquisition_platform` | `ios` |
+| `acquisition_source` | `app_store` |
+| `acquisition_medium` | `app` |
+| `acquisition_signup_path` | `app_signup` |
+| `acquisition_client` | `kingfish-mobile` |
+| `acquisition_app_version` | `1.0.9` |
+| `acquisition_app_build` | `31` |
+
+A real iOS 1.0.9 signup carrying these exact fields has not yet been verified.
+Keep that verification separate from Apple approval and public availability.
+
+### Hypothesis and competing explanations
+
+Primary hypothesis: the release or its new screenshots increases App Store
+visibility and conversion, leading to more product-page views, downloads and
+KingFish accounts.
+
+The opening NFL game, the $0.99 offer, the Android 1.0.9 release, and any
+campaign activity overlap this release. Use App Store Connect source and funnel
+metrics before attributing a signup increase to update placement.
+
+### Checkpoints
+
+These provisional due times use the scheduled release boundary. Shift them to
+the first confirmed public time if the version appears later.
+
+| Checkpoint | Due | App Store impressions / product-page views / downloads | iOS accounts | Activated | Trial / paid | Notes |
+|---|---|---:|---:|---:|---:|---|
+| 24 hours | Sep 10, 11:00 a.m. | — | — | — | — | Confirm public-release time first |
+| 72 hours | Sep 12, 11:00 a.m. | — | — | — | — | |
+| 7 days | Sep 16, 11:00 a.m. | — | — | — | — | Compare with prior same weekdays |
+| 14 days | Sep 23, 11:00 a.m. | — | — | — | — | Evaluate sustained effect |
+
+For the pre-release comparison, use the seven-day interval ending immediately
+before September 9 at 11:00 a.m. Central. Preserve the Android release as an
+overlapping event rather than combining both stores into one acquisition total.
