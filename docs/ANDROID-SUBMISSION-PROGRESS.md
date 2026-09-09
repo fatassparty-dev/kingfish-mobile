@@ -1,57 +1,51 @@
 # Android submission progress
 
-Last updated: 2026-08-29
+Last updated: 2026-09-09
 
-> Android 1.0.5 (version code 2) is approved and publicly downloadable from
-> Google Play. The completed NCAA improvement release, 1.0.8 (version code 4),
-> is intentionally being held until the weekend after the initial launch so it
-> is not submitted on the same day as the first public approval.
+> Android 1.0.9 (version code 6) is approved and published to Google Play.
+> Submission activity shows it was submitted September 8, 2026 at 10:14 p.m.
+> Central and it was first confirmed **Published** September 9 at 7:35 a.m.
+> Central. The exact approval/publication time within that interval is unknown.
 
-## Next Android release — NCAA football + fantasy season transition
+## Current Android release — NFL opening week
 
-The final combined pre-season release is version `1.0.8`, version code `4`. Do
-not reuse version codes `2` or `3`; code `2` belongs to the closed Alpha and
-code `3` was superseded before the final opening-week candidate.
+The current production release is version `1.0.9`, version code `6`. Do not
+reuse code `5`; it belongs to an earlier completed cloud build even though code
+`4` was the prior public Play release.
 
-Required scope:
+Included scope:
 
-- Read the current official AP Top 25 from `/api/ncaaf-rankings` in League View.
-- Use backend `homeConference` and `awayConference` fields for exact conference
-  filtering in both Game Props and Game Matchups.
-- Replace the Matchups Status column with NCAAF weather from
-  `/api/ncaaf-weather`.
-- Remove static 2025 ranking/record/baseline language while retaining the
-  server-calculated edge, grade, and lean contract.
-- Shift Fantasy Hub from draft rankings to player updates and connected-team
-  tools when the NFL regular season begins.
+- NFL Daily Intel in the native Tools area.
+- Native NCAA football cheat sheets.
+- Secure persistent sign-in across normal app closes and reopenings.
+- Native signup metadata for platform, store source, client, version and build.
+- Provider-aware subscription management and store-link fallback handling.
+- The NCAA rankings, conference, matchup weather and current-season work already
+  shipped in 1.0.8.
 
-Google Play release note:
+Intended Google Play release note:
 
-> College football is here. This update adds current AP Top 25 rankings,
-> improved conference filtering, matchup weather, refreshed game-line and edge
-> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+> New NFL Daily Intel brings today's football headlines into Tools. This update
+> also adds college football cheat sheets, improves sign-in persistence, and
+> includes signup and subscription reliability improvements.
 
-When submitting it this weekend, use a short description such as **Improved
-college-football rankings, conference filters, matchup weather, and game-line
-context.** Then run the NCAAF regression pass in a Play-installed build:
-conference accuracy (especially SEC/Georgia-name collisions), weather and
-indoor/unavailable states, AP Top 25 freshness, game-line/edge rendering, and
-empty/loading/error states. OTA is intentionally deferred; this release ships
-through Google Play.
+Google Play screenshots and the main store listing were not changed with this
+binary submission. They can be updated separately. Track the release's effect
+using [RELEASE-IMPACT-LEDGER.md](RELEASE-IMPACT-LEDGER.md).
 
 ## Current state
 
 | Area | Status | Current result / next action |
 |---|---|---|
 | Play developer account | Complete | KingFish Bets, LLC organization account approved; exempt from the personal-account 12-testers/14-days rule |
-| Android binary | Complete | Public: `1.0.5` code `2`; next completed source release: `1.0.8` code `4` |
+| Android binary | Complete | Public: `1.0.9` code `6` |
 | Firebase / RevenueCat / RTDN | Complete | Credentials validated and the Google real-time developer notification test was received |
 | Internal install | Complete | Play-installed build launched in the Android emulator |
 | Paywall copy | Smoke-tested | Displays 3 days free, then $0.99 for the first paid month, then $4.99/month |
 | Store listing and declarations | Complete | Approved public listing and declarations |
-| Google review | Approved | Initial public release approved 2026-08-27 |
+| Google review | Approved | 1.0.9 submission published by 2026-09-09 7:35 a.m. Central |
 | Google Payments | Complete | Launch purchase, restore, entitlement, and subscription-management checks passed |
-| Public production release | Live | Android `1.0.5`, version code `2` |
+| Public production release | Live | Android `1.0.9`, version code `6` |
 
 ## Pricing source of truth
 
@@ -69,10 +63,13 @@ monthly-only at launch.
 
 - App: KingFish Bets
 - Package: `com.kingfishbets.app`
-- Marketing version: `1.0.5`
-- Android version code: `2`
-- EAS build ID: `2dc94643-ccc5-48da-8ecd-2cc657072d68`
-- Track submitted for review: closed testing — Alpha
+- Marketing version: `1.0.9`
+- Android version code: `6`
+- Source commit: `adf4627a34b5f20178d5b36fff5d8fd75172a5ff`
+- EAS build ID: `15a60bf7-b2c1-4f69-a5af-4bc6f91c2c77`
+- Artifact: `~/Developer/KingFishBetsLLC/builds/KingFishBets-android-1.0.9-vc6.aab`
+- Artifact SHA-256: `da3f923db7edf0e26525a8e87fa845dadd94052fedee538477feb419c864a534`
+- Track: production
 - RevenueCat entitlement: the existing KingFish Bets Pro entitlement
 
 ## What has been verified
@@ -82,31 +79,36 @@ monthly-only at launch.
 - The upgrade screen showed the approved Google monthly offer copy.
 - Google Play accepted the bundle, package, signing, version code, and target
   API level.
+- The 1.0.9 app bundle passed a complete ZIP integrity check before upload.
+- Google Play reported no loss of supported phones, tablets or other existing
+  device classes compared with the prior release.
 - RevenueCat accepted the Play credentials and received the RTDN test event.
 - The account-deletion page is live at
   `https://kingfishbets.com/account-deletion`.
 
-## Release gates not yet verified
+## Launch gates verified 2026-08-27
 
-- Complete a real Google Play test purchase.
-- Confirm premium entitlement syncs after purchase and after a fresh login.
-- Confirm **Restore Purchases** works.
-- Confirm Google Play subscription management opens correctly.
-- Receive and open a real Android push notification.
-- Run broader Android QA: navigation/back behavior, account flows, live data,
+- [x] Complete a real Google Play test purchase.
+- [x] Confirm premium entitlement syncs after purchase and after a fresh login.
+- [x] Confirm **Restore Purchases** works.
+- [x] Confirm Google Play subscription management opens correctly.
+- [x] Receive and open a real Android push notification.
+- [x] Run broader Android QA: navigation/back behavior, account flows, live data,
   Grade My Slip/photo picker, legal/support links, and cancellation states.
-- Confirm the W-9, bank verification, and merchant/payments profile are active.
+- [x] Confirm the W-9, bank verification, and merchant/payments profile are active.
 
 ## Next session
 
-**Android is DONE and live.** The launch checklist was completed and verified
-2026-08-27 — nothing on this tracker is blocking.
+**Android 1.0.9 is published.** Store publication is verified; post-release
+device QA and a real new Android signup carrying version/build attribution have
+not yet been verified.
 
 Remaining, as ordinary post-launch work:
 
-1. Submit the completed NCAA football improvement, Android `1.0.8` version code
-   `4`, this weekend and run its Play-installed regression pass after approval.
-2. Keep Android in step with iOS releases from here — same Expo/RN codebase,
+1. Run the Play-installed 1.0.9 regression pass and watch production/user
+   reports through the September 9 opener and September 13 first NFL Sunday.
+2. Capture the release-impact checkpoints in `RELEASE-IMPACT-LEDGER.md`.
+3. Keep Android in step with iOS releases from here — same Expo/RN codebase,
    so client changes need a Play build the same way they need an App Store
    build. There is no OTA on either platform.
 
@@ -173,6 +175,35 @@ Remaining, as ordinary post-launch work:
   `https://www.kingfishbets.com/.well-known/assetlinks.json` returns 404 and the
   manifest entry above does nothing yet. Harmless, but the feature is not live
   until both halves are.
+
+### 2026-08-30
+
+- **ANDROID 1.0.8 APPROVED AND LIVE ON GOOGLE PLAY.** Version code `4` is now
+  the public production release with the same NCAA and opening-week reliability
+  scope as iOS 1.0.8.
+- The September 1 cross-platform goal is complete two days early. Remaining
+  work is regression testing, production monitoring, user feedback, and NFL
+  readiness rather than another store submission.
+
+### 2026-09-08–09
+
+- Built Android `1.0.9`, version code `6`, on EAS from commit `adf4627` using
+  the existing production keystore. The cloud build completed September 8 at
+  7:45 p.m. Central and its downloaded 53 MB app bundle passed archive
+  integrity verification.
+- Uploaded the bundle manually to the production track. Google accepted version
+  `6 (1.0.9)`, target SDK 36, all four ABIs and all four screen layouts with no
+  loss of supported devices. The only upload message was the expected optional
+  deobfuscation-file warning; this project does not enable R8/ProGuard.
+- Google Play submission activity records the production change as submitted
+  September 8 at 10:14 p.m. Central. It was first observed as **Published** on
+  September 9 at 7:35 a.m. Central. Managed publishing was off, so approval
+  published automatically.
+- Treat the publication as a measured acquisition event. The hypothesis is that
+  a fresh Play release may increase store visibility and therefore signups. A
+  signup increase alone cannot establish that: compare Play impressions and
+  store acquisitions alongside KingFish registrations, activation and paid
+  conversion, and account for the NFL opener and $0.99 promotion.
 
 ## Security notes
 

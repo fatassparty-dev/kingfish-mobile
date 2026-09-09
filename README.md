@@ -4,16 +4,13 @@ Expo app shell for KingFish Bets.
 
 ## Current Release Status
 
-- iOS 1.0.4 (build 20) remains the public App Store version while the NCAA
-  update is reviewed.
-- iOS 1.0.8 (build 30) is **Waiting for Review** as of 2026-08-27 and is set to
-  publish automatically when Apple approves it.
-- Android 1.0.5 (version code 2) is approved and publicly downloadable from
-  Google Play.
-- Android 1.0.8 (version code 4) is the completed NCAA improvement release.
-  Hold its Google Play submission until the weekend after the initial listing,
-  then submit it with short NCAA-improvement release notes and run the normal
-  Play-installed verification.
+- iOS 1.0.8 (build 30) is approved and publicly available in the App Store.
+- Android 1.0.9 (version code 6) is approved and publicly available in Google
+  Play as of September 9, 2026. It adds NFL Daily Intel, NCAA football cheat
+  sheets, persistent sign-in, native signup build attribution, and subscription
+  handling improvements.
+- Release discovery and signup impact are tracked in
+  [docs/RELEASE-IMPACT-LEDGER.md](docs/RELEASE-IMPACT-LEDGER.md).
 
 Current platform pricing:
 
@@ -25,11 +22,20 @@ Current platform pricing:
   Web annual is intended to be 3 days free, then $49.99/year; reconfirm the live
   annual checkout before treating that flow as verified.
 
-## Next Store Release — Opening-Week Reliability
+## Current Store Release — NFL Opening Week
 
-The next Apple and Google binaries are planned as the NCAA football update.
-Before packaging either store build, bring the native NCAAF board into parity
-with the deployed website:
+Android 1.0.9 carries the NFL opening-week scope. Keep the following as the
+parity contract for regression testing and future builds:
+
+- Show NFL Daily Intel in Tools using the public KingFish NFL news feed.
+- Include the native NCAA football cheat sheets and preserve their existing
+  server-driven data contracts.
+- Keep users signed in across normal app closes and reopenings while retaining
+  safe token refresh and prior-session migration behavior.
+- Attach `android`, `google_play`, app version, and build metadata to future
+  native signups so HQ can separate this release's accounts from unknown source.
+- Route subscription management according to the actual billing provider and
+  retain a usable manual fallback when a store link cannot open.
 
 - Use `/api/ncaaf-rankings` for League View so the app shows the current
   official AP Top 25 and receives the server's weekly refreshes.
@@ -48,7 +54,7 @@ Approved Apple and Google release note:
 > improved conference filtering, matchup weather, refreshed game-line and edge
 > context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
 
-OTA updates are intentionally deferred for now. With no paid users and NCAA
+OTA updates are intentionally deferred for now. With the current user base and NCAA
 baseball the only remaining planned sport, the cost and release complexity are
 not justified yet. Revisit `expo-updates` after NCAA baseball or when store
 review delays begin blocking time-sensitive fixes. NCAA baseball should be a
