@@ -1,21 +1,19 @@
 # Google Play Listing Draft
 
-> **Submission status — 2026-08-27:** Android 1.0.5 (version code 2) is approved
-> and publicly downloadable. Android 1.0.8 (version code 4) will be submitted
-> during the weekend after launch as a focused NCAA improvement.
+> **Submission status — 2026-09-10:** Android 1.0.10 (version code 7) was
+> manually uploaded and submitted to the production track with the release note
+> below. Google review and public availability are pending.
 
-## Next release notes — Free dashboard previews
+## Android 1.0.10 release notes — Free dashboard previews
 
-Use this short copy for the next Android release after 1.0.9:
+Submitted with Android 1.0.10 (version code 7):
 
 > Free accounts can now sample live Player Props and Game Props boards before
 > upgrading, with a compact three-row preview built for phones. This update also
 > improves NFL player-stat display and account-notification settings.
 
-This is shared React Native code and matches the next iPhone update. Before
-uploading, increment Android `versionCode` above the currently published code
-and run the signed Play build checklist. Keep the release in draft until the
-remaining mobile changes for the build are complete.
+This is shared React Native code and matches the next iPhone update. The signed
+bundle passed the Play build checklist before manual production submission.
 
 ## Previous release notes — NCAA football
 

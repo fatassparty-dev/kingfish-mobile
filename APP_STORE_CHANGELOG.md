@@ -24,6 +24,12 @@ data* it didn't know about before.
 
 ## 🔵 Unreleased — next build
 
+> **Android status:** Android 1.0.10 (version code 7) was submitted to the
+> Google Play production track on 2026-09-10 with the first three changes below:
+> Free dashboard previews, corrected NFL player-stat display, and accurate
+> required account-notification controls. Google review/publication is pending.
+> These changes remain part of the next iPhone submission.
+
 - **NFL player-stat display corrected.** Player Props now keeps the portrait
   columns in the labeled `Avg`, `L10`, `L5` order and displays a real `0.0`
   instead of making a zero-touchdown history look like missing data. The shared

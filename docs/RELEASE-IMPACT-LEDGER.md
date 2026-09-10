@@ -19,6 +19,32 @@ Publication is an event boundary, not proof that the release caused a change.
 - Check at 24 hours, 72 hours, 7 days and 14 days. Day-7 return-use cohorts are
   incomplete until their full seventh Central calendar day has passed.
 
+## Android 1.0.10 release event
+
+| Field | Recorded value |
+|---|---|
+| Store / track | Google Play / Production |
+| Version | 1.0.10 |
+| Version code | 7 |
+| Source commit | `e23725969b6112c519e07d73bffe851a34c03092` |
+| EAS build | `c9009656-294b-4073-8786-c3c4fbc58130` |
+| Cloud build completed | September 10, 2026, 12:39 p.m. |
+| Submitted to Google | September 10, 2026; exact Play Console time not recorded |
+| Public availability | Pending Google review/publication |
+| Rollout | Production |
+| Store listing change | Release note only; existing Google Play images retained |
+
+### Customer-facing changes
+
+- Three-row Free previews on supported Player Props and Game Props boards.
+- Two KingFish model examples followed by clearly labeled Premium model cells.
+- Correct NFL Player Props stat order and preservation of real zero values.
+- Accurate required account-notification controls.
+
+Use the first confirmed public time as the measurement boundary. Compare Free
+dashboard engagement and upgrades with 1.0.9 while keeping the opening NFL
+weekend and the existing introductory offer visible as competing explanations.
+
 ## Android 1.0.9 release event
 
 | Field | Recorded value |

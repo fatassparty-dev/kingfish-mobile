@@ -7,9 +7,11 @@ Last updated: 2026-09-10
 > Central and it was first confirmed **Published** September 9 at 7:35 a.m.
 > Central. The exact approval/publication time within that interval is unknown.
 
-## Next Android release — Free dashboard previews
+## Submitted Android release — Free dashboard previews
 
-Android `1.0.10`, version code `7`, is ready for production upload. The scope
+Android `1.0.10`, version code `7`, was manually uploaded and submitted to the
+Google Play production track on September 10, 2026. Google review and public
+availability remain pending. The scope
 is frozen to three-row Free dashboard previews, corrected NFL Player Props stat
 display, and accurate required account-notification controls. The TypeScript
 check and Android JavaScript bundle export passed before the signed build. The
@@ -22,10 +24,10 @@ integrity check. It is staged for the Google Play production upload.
 - Artifact size: `55,174,323` bytes
 - Artifact SHA-256: `155d4267a283d48352647604e86625aebdc452023f518669b721306bbe26a012`
 - Track: production
-- Upload status: manual Play Console upload required; EAS Submit has no Google
-  service-account key configured for `com.kingfishbets.app`
+- Upload status: manually uploaded and submitted through Play Console; awaiting
+  Google review/publication
 
-Planned Google Play release note:
+Submitted Google Play release note:
 
 > Free accounts can now sample live Player Props and Game Props boards before
 > upgrading, with a compact three-row preview built for phones. This update also
@@ -67,7 +69,7 @@ using [RELEASE-IMPACT-LEDGER.md](RELEASE-IMPACT-LEDGER.md).
 | Internal install | Complete | Play-installed build launched in the Android emulator |
 | Paywall copy | Smoke-tested | Displays 3 days free, then $0.99 for the first paid month, then $4.99/month |
 | Store listing and declarations | Complete | Approved public listing and declarations |
-| Google review | Approved | 1.0.9 submission published by 2026-09-09 7:35 a.m. Central |
+| Google review | Pending | 1.0.10 code 7 submitted September 10; 1.0.9 remains the approved public version |
 | Google Payments | Complete | Launch purchase, restore, entitlement, and subscription-management checks passed |
 | Public production release | Live | Android `1.0.9`, version code `6` |
 
@@ -245,6 +247,9 @@ Remaining, as ordinary post-launch work:
   uploaded to EAS Submit, but submission stopped before Google Play because no
   Google service-account key is configured. Use the staged bundle for the same
   manual production-track upload flow used for 1.0.9.
+- Manually uploaded version code `7` in Play Console, added the approved release
+  note, and submitted the production release. Google review/publication is
+  pending; do not mark 1.0.10 live until Play Console or a device confirms it.
 
 ## Security notes
 

@@ -16,10 +16,15 @@
 > Android version code 4 is being built and submitted today. This file remains
 > the packaging recipe, not the release-status tracker.
 
+> **Android 1.0.10 status — 2026-09-10:** Version code 7 completed its signed
+> EAS production build, passed archive verification, and was manually submitted
+> to the Google Play production track. Google review/publication is pending.
+
 ## Next mobile release — Free dashboard previews
 
 The three-row Free dashboard preview is shared by iOS and Android and requires
-a new binary on both platforms. Before either submission, verify with a
+a new binary on both platforms. Android 1.0.10 code 7 was submitted on
+September 10. Before the iOS submission, verify with a
 signed-in Free account that supported Player Props and Game Props boards show
 no more than three rows, include two server-provided KingFish model examples,
 label later model cells `Premium`, and open the paywall from `Unlock Premium`.

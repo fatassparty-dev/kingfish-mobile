@@ -9,6 +9,10 @@ Expo app shell for KingFish Bets.
   Play as of September 9, 2026. It adds NFL Daily Intel, NCAA football cheat
   sheets, persistent sign-in, native signup build attribution, and subscription
   handling improvements.
+- Android 1.0.10 (version code 7) was submitted to the Google Play production
+  track on September 10, 2026 and is awaiting review/publication. It adds the
+  three-row Free dashboard preview, NFL player-stat display corrections, and
+  accurate required account-notification controls.
 - Release discovery and signup impact are tracked in
   [docs/RELEASE-IMPACT-LEDGER.md](docs/RELEASE-IMPACT-LEDGER.md).
 
@@ -22,7 +26,7 @@ Current platform pricing:
   Web annual is intended to be 3 days free, then $49.99/year; reconfirm the live
   annual checkout before treating that flow as verified.
 
-## Current Store Release — NFL Opening Week
+## Current public store release — NFL Opening Week
 
 Android 1.0.9 carries the NFL opening-week scope. Keep the following as the
 parity contract for regression testing and future builds:
