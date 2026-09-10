@@ -1,11 +1,24 @@
 # Android submission progress
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 > Android 1.0.9 (version code 6) is approved and published to Google Play.
 > Submission activity shows it was submitted September 8, 2026 at 10:14 p.m.
 > Central and it was first confirmed **Published** September 9 at 7:35 a.m.
 > Central. The exact approval/publication time within that interval is unknown.
+
+## Next Android release — Free dashboard previews
+
+Android `1.0.10`, version code `7`, is being prepared for production. The scope
+is frozen to three-row Free dashboard previews, corrected NFL Player Props stat
+display, and accurate required account-notification controls. The TypeScript
+check and Android JavaScript bundle export passed before the signed build.
+
+Planned Google Play release note:
+
+> Free accounts can now sample live Player Props and Game Props boards before
+> upgrading, with a compact three-row preview built for phones. This update also
+> improves NFL player-stat display and account-notification settings.
 
 ## Current Android release — NFL opening week
 
