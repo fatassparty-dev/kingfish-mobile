@@ -4,7 +4,19 @@
 > and publicly downloadable. Android 1.0.8 (version code 4) will be submitted
 > during the weekend after launch as a focused NCAA improvement.
 
-## Next release notes — NCAA football
+## Next release notes — Free dashboard previews
+
+Use this short copy for the next Android release after 1.0.9:
+
+> Free accounts can now sample live Player Props and Game Props boards before
+> upgrading, with a compact three-row preview built for phones.
+
+This is shared React Native code and matches the next iPhone update. Before
+uploading, increment Android `versionCode` above the currently published code
+and run the signed Play build checklist. Keep the release in draft until the
+remaining mobile changes for the build are complete.
+
+## Previous release notes — NCAA football
 
 Use this short copy for Android 1.0.8 (version code 4):
 

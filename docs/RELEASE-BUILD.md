@@ -16,6 +16,16 @@
 > Android version code 4 is being built and submitted today. This file remains
 > the packaging recipe, not the release-status tracker.
 
+## Next mobile release — Free dashboard previews
+
+The three-row Free dashboard preview is shared by iOS and Android and requires
+a new binary on both platforms. Before either submission, verify with a
+signed-in Free account that supported Player Props and Game Props boards show
+no more than three rows, include two server-provided KingFish model examples,
+label later model cells `Premium`, and open the paywall from `Unlock Premium`.
+MLB Game Props retains its existing gate. Increment the iOS build number and
+Android version code only when the remaining release scope is final.
+
 ## 1.0.8 submission scope — final preseason reliability release
 
 The next iOS and Android packages require a new native binary. Before starting
