@@ -15,6 +15,7 @@ import { applySportPreferences } from '@/lib/sportPrefs'
 import { kingfishFetch } from '@/lib/api'
 import type { FeatureFlagKey } from '@/lib/featureFlags'
 import { fmtOdds, fmtTime } from '@/lib/format'
+import { FREE_PREVIEW_MODEL_SAMPLES, MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { ncaafConferenceMatches, sameNcaafTeam } from '@/lib/ncaafTeams'
 import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
@@ -63,7 +64,18 @@ type KBOTeamStats = {
   updated_at?: string | null
 }
 
-type PropsResponse = Game[] | { props: Game[]; playerStats?: Record<string, any>; boardScores?: Record<string, any>; cacheMode?: string }
+type PropsResponse = Game[] | {
+  props: Game[]
+  playerStats?: Record<string, any>
+  boardScores?: Record<string, any>
+  cacheMode?: string
+  preview?: boolean
+}
+
+type LinesResponse = Game[] | {
+  games: Game[]
+  preview?: boolean
+}
 
 type DashboardView = 'league' | 'matchups' | 'lines' | 'props'
 
@@ -1331,7 +1343,7 @@ function NcaafGameDetailsModal({
 }
 
 export default function DashboardScreen() {
-  const { profile, session } = useAuth()
+  const { profile, session, loading: authLoading } = useAuth()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const isLandscape = windowWidth > windowHeight
   const mobileConfig = useMobileConfig()
@@ -1410,6 +1422,9 @@ export default function DashboardScreen() {
   const isLoggedIn = Boolean(session)
   const canViewLines = isPremium || (linesFree && isLoggedIn)
   const canViewProps = isPremium || (propsFree && isLoggedIn)
+  const supportsGamePreview = sport !== 'MLB'
+  const canPreviewLines = view === 'lines' && !authLoading && isLoggedIn && !canViewLines && supportsGamePreview
+  const canPreviewProps = view === 'props' && !authLoading && isLoggedIn && !canViewProps && !isCollegeSport(sport) && hasLiveProps(sport)
   const canViewMatchups = isLoggedIn
   const isWorldCupSoccer = sport === 'SOCCER' && soccerLeague === 'soccer_fifa_world_cup'
   const dashboardViewLabel = (item: DashboardView) =>
@@ -1421,9 +1436,9 @@ export default function DashboardScreen() {
       ? 'Game Props'
     : secondaryViewLabel
   const canFetchWorldCupTournament = isSelectedSportActive && isWorldCupSoccer && view === 'league' && canViewLines && !linesMaintenance
-  const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && canViewLines && !linesMaintenance
+  const canFetchLines = isSelectedSportActive && viewVisible && view === 'lines' && (canViewLines || canPreviewLines) && !linesMaintenance
   const canFetchMatchups = isSelectedSportActive && viewVisible && view === 'matchups' && canViewMatchups && !matchupsMaintenance
-  const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && canViewProps && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
+  const canFetchProps = isSelectedSportActive && viewVisible && view === 'props' && (canViewProps || canPreviewProps) && !propsMaintenance && !isCollegeSport(sport) && hasLiveProps(sport)
 
   useEffect(() => {
     if (dashboardViews.length && !dashboardViews.includes(view)) setView(dashboardViews[0])
@@ -1435,12 +1450,22 @@ export default function DashboardScreen() {
     }
   }, [sport, visibleSports.map((item) => item.key).join('|')])
   const lineQuery = useQuery({
-    queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default'],
-    queryFn: () => kingfishFetch<Game[]>(
-      sport === 'SOCCER'
-        ? `/api/soccer-odds?league=${soccerLeague}${view === 'matchups' ? '&scope=matchups' : ''}`
-        : `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
-    ),
+    queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default', canPreviewLines ? 'preview' : 'full'],
+    queryFn: async () => {
+      let path: string
+      if (sport === 'SOCCER') {
+        const scope = canPreviewLines ? '&scope=preview' : view === 'matchups' ? '&scope=matchups' : ''
+        path = `/api/soccer-odds?league=${soccerLeague}${scope}`
+      } else if (canPreviewLines && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA')) {
+        path = `/api/${sportApiKey(sport)}-odds?scope=preview`
+      } else if (canPreviewLines) {
+        path = `/api/${sportApiKey(sport)}-odds?preview=1`
+      } else {
+        path = `/api/${sportApiKey(sport)}-odds${view === 'matchups' && (sport === 'NBA' || sport === 'NHL' || sport === 'WNBA') ? '?scope=matchups' : ''}`
+      }
+      const payload = await kingfishFetch<LinesResponse>(path)
+      return Array.isArray(payload) ? payload : payload.games || []
+    },
     enabled: canFetchLines || canFetchWorldCupTournament || (canFetchMatchups && ['MLB', 'NBA', 'NHL', 'WNBA', 'SOCCER'].includes(sport)),
     staleTime: 5 * 60 * 1000,
   })
@@ -1468,12 +1493,12 @@ export default function DashboardScreen() {
     staleTime: 30 * 60 * 1000,
   })
   const propsQuery = useQuery({
-    queryKey: ['player-props', sport],
+    queryKey: ['player-props', sport, canPreviewProps ? 'preview' : 'full'],
     // includeStats=1 also returns `boardScores` (server-computed EDGE/GRADE/
     // VALUE/EV — CLAUDE.md "Calculated scores live on the web"). MLB and NFL
     // were missing from this list, so their prop tables were silently falling
     // back to locally-recomputed EDGE scores instead of the server's.
-    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1`),
+    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1${canPreviewProps ? '&preview=1' : ''}`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
@@ -1637,7 +1662,8 @@ export default function DashboardScreen() {
   })
   const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(filteredUpcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
-  const visibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
+  const fullVisibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
+  const visibleLineGames = canPreviewLines ? fullVisibleLineGames.slice(0, MOBILE_FREE_PREVIEW_ROWS) : fullVisibleLineGames
   // KBO with nothing on the board: the league scoreboard stands in for the
   // lines table rather than an empty card.
   const kboScoreboardGames = sport === 'KBO' ? (kboScoreboardQuery.data?.games || []) : []
@@ -2551,7 +2577,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'lines' && !canViewLines && (
+      {isSelectedSportActive && view === 'lines' && !canViewLines && !canPreviewLines && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="title" style={styles.cardTitle}>Unlock Game Props</AppText>
@@ -2566,7 +2592,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'lines' && canViewLines && linesMaintenance && (
+      {isSelectedSportActive && view === 'lines' && (canViewLines || canPreviewLines) && linesMaintenance && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Maintenance</AppText>
@@ -2578,6 +2604,17 @@ export default function DashboardScreen() {
 
       {canFetchLines && (
         <View style={styles.liveSection}>
+          {canPreviewLines && (
+            <Card>
+              <AppText variant="eyebrow">// Free Preview</AppText>
+              <AppText variant="muted">
+                Explore {MOBILE_FREE_PREVIEW_ROWS} games with {FREE_PREVIEW_MODEL_SAMPLES} KingFish model examples. Unlock Premium for the full board.
+              </AppText>
+              <View style={styles.upgradeAction}>
+                <Button onPress={() => router.push('/modals/paywall')}>Unlock Premium</Button>
+              </View>
+            </Card>
+          )}
           {lineQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -2643,6 +2680,7 @@ export default function DashboardScreen() {
               <GamePropsTable
                 games={group.games}
                 sport={sport}
+                preview={canPreviewLines}
                 userState={profile?.state}
                 sportsbookPreferences={profile?.sportsbook_preferences}
                 weather={sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF' ? weatherQuery.data : undefined}
@@ -2654,7 +2692,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !canViewProps && (
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && !canViewProps && !canPreviewProps && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="title" style={styles.cardTitle}>Unlock Player Props</AppText>
@@ -2669,7 +2707,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && canViewProps && propsMaintenance && (
+      {isSelectedSportActive && view === 'props' && !isCollegeSport(sport) && sport !== 'SOCCER' && sport !== 'KBO' && (canViewProps || canPreviewProps) && propsMaintenance && (
         <View style={styles.liveSection}>
           <Card>
             <AppText variant="eyebrow">// Maintenance</AppText>
@@ -2681,6 +2719,17 @@ export default function DashboardScreen() {
 
       {canFetchProps && (
         <View style={styles.liveSection}>
+          {canPreviewProps && (
+            <Card>
+              <AppText variant="eyebrow">// Free Preview</AppText>
+              <AppText variant="muted">
+                Explore {MOBILE_FREE_PREVIEW_ROWS} players per prop market with {FREE_PREVIEW_MODEL_SAMPLES} KingFish model examples. Unlock Premium for the full board.
+              </AppText>
+              <View style={styles.upgradeAction}>
+                <Button onPress={() => router.push('/modals/paywall')}>Unlock Premium</Button>
+              </View>
+            </Card>
+          )}
           {propsQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
@@ -2705,8 +2754,8 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} boardScores={propsBoardScores} />}
-          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} boardScores={propsBoardScores} />}
+          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} boardScores={propsBoardScores} preview={canPreviewProps} />}
+          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} boardScores={propsBoardScores} preview={canPreviewProps} />}
         </View>
       )}
 

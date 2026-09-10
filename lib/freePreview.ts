@@ -1,0 +1,2 @@
+export const MOBILE_FREE_PREVIEW_ROWS = 3
+export const FREE_PREVIEW_MODEL_SAMPLES = 2

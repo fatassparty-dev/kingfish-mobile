@@ -233,6 +233,7 @@ function shortName(team: string) {
 export function GamePropsTable({
   games,
   sport,
+  preview = false,
   userState,
   sportsbookPreferences,
   weather,
@@ -241,6 +242,7 @@ export function GamePropsTable({
 }: {
   games: Game[]
   sport: Sport
+  preview?: boolean
   userState?: string | null
   sportsbookPreferences?: SportsbookPreferences | null
   weather?: Record<string, WeatherInfo | undefined>
@@ -270,6 +272,7 @@ export function GamePropsTable({
   }, [games, sortKey, sortDesc, userState, sportsbookPreferences])
 
   function toggleSort(next: SortKey) {
+    if (preview) return
     if (sortKey === next) setSortDesc((d) => !d)
     else { setSortKey(next); setSortDesc(next !== 'time') }
   }
@@ -310,6 +313,7 @@ export function GamePropsTable({
         const lean = serverLean(game)
         const edge = serverEdge(game)
         const totalLean = serverTotalLean(game)
+        const modelLocked = preview && (game as any).previewModelLocked === true
         const wx = weather?.[String((game as any).id || (game as any).game_id || '')]
         const noTotalLean = String(totalLean?.label || '').startsWith('Near')
         return (
@@ -348,14 +352,18 @@ export function GamePropsTable({
             )}
             {!compact && (
               <View style={[styles.cell, { flex: 1.2 }]}>
-                {lean?.side
+                {modelLocked
+                  ? <AppText style={styles.premiumText}>Premium</AppText>
+                  : lean?.side
                   ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean)}</AppText>
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
             )}
             {!compact && (
               <View style={[styles.cell, { flex: 0.9 }]}>
-                {lean && lean.grade_for != null && lean.grade_against != null
+                {modelLocked
+                  ? <AppText style={styles.premiumText}>Premium</AppText>
+                  : lean && lean.grade_for != null && lean.grade_against != null
                   ? <AppText variant="mono" style={[styles.gradeText, { color: gradeColor(lean.grade_for, lean.grade_against) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{lean.grade_for}-{lean.grade_against}</AppText>
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
@@ -376,7 +384,9 @@ export function GamePropsTable({
             <View style={[styles.cell, { flex: compact ? 1 : 0.9 }]}>
               {/* Direction ONLY — the O/U column next door carries the number,
                   and a lean tile never doubles it (no-doubled-data rule). */}
-              {totalLean?.label && !noTotalLean
+              {modelLocked
+                ? <AppText style={styles.premiumText}>Premium</AppText>
+                : totalLean?.label && !noTotalLean
                 ? <AppText style={styles.leanText} numberOfLines={1}>{String(totalLean.label).split(' ')[0]}</AppText>
                 : <AppText variant="mono" style={styles.emptyText}>{totalLean ? 'No Lean' : '—'}</AppText>}
             </View>
@@ -384,13 +394,17 @@ export function GamePropsTable({
             {!compact && <PriceCell line={mk.bestUnderTotal} />}
             {compact && (
               <View style={[styles.cell, { flex: 1.2 }]}>
-                {lean?.side
+                {modelLocked
+                  ? <AppText style={styles.premiumText}>Premium</AppText>
+                  : lean?.side
                   ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean)}</AppText>
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
             )}
             <View style={[styles.cell, { flex: 1.2 }]}>
-              {edge?.label ? (
+              {modelLocked ? (
+                <AppText style={styles.premiumText}>Premium</AppText>
+              ) : edge?.label ? (
                 // Player-props-style verdict cell: big bold score, tier under it.
                 <>
                   <AppText variant="mono" style={[styles.edgeScoreBig, { color: edgeColor(edge.score) }]} numberOfLines={1}>
@@ -453,4 +467,5 @@ const styles = StyleSheet.create({
   spreadAbbr: { fontSize: 10, color: colors.textSecondary, width: 26 },
   spreadText: { fontSize: 10, color: colors.gold, fontWeight: '700', flexShrink: 1 },
   emptyText: { fontSize: 12, color: colors.textMuted },
+  premiumText: { fontSize: 9, fontWeight: '800', color: colors.gold, textTransform: 'uppercase' },
 })

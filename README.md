@@ -184,7 +184,7 @@ Use this focused pass before submitting a build:
 - Sign up, sign in, sign out, reset password, and confirm auth screens link to Terms, Privacy, and support. Sign-up must pass first/last name into `signUp({ options: { data } })` (auth metadata) — the backend `on_auth_user_created` trigger reads it from there. Apple IAP / RevenueCat does not supply a name, and there is no Sign in with Apple, so this form is the only place iOS names are captured.
 - Account: edit profile, restore purchases, open legal/support links, and confirm Delete Account is visible.
 - Paywall: product copy, Terms/Privacy/Refund links, Restore Purchase, monthly/yearly plan selection, and Apple subscription management link.
-- Dashboard: sport selector, season-watch states, Game Lines, Player Props, player profile modal, and paywall behavior for locked premium areas.
+- Dashboard: sport selector, season-watch states, Game Lines, Player Props, player profile modal, and paywall behavior for locked premium areas. With a signed-in Free account, verify the supported Player Props and Game Props boards show no more than three rows, show two server-provided KingFish model examples, label later model cells `Premium`, and open the upgrade screen from `Unlock Premium`. MLB Game Props should retain its existing gate.
 - Tools: Cheat Sheets, calculators, Game Factors, and Fantasy Hub.
 - Fantasy Hub: Home League, Best Ball, Draft Planner, Sleeper/Roster Watch, hide/taken actions, and player profile modal.
 - Ask KingFish: free limit messaging, premium messaging, and support/legal paths.

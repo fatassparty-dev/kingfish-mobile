@@ -24,6 +24,17 @@ data* it didn't know about before.
 
 ## 🔵 Unreleased — next build
 
+- **Free accounts can sample the live dashboard.** Signed-in Free members now
+  see up to three players in each posted Player Props market and up to three
+  games on supported Game Props boards. Two rows include KingFish model
+  examples; later model cells say `Premium` while basic lines, prices, and
+  research remain visible. The preview covers MLB/NFL/NBA/NHL/WNBA Player Props
+  and NFL/NBA/NHL/WNBA/NCAAF/NCAAB/KBO/Soccer Game Props. MLB Game Props keeps
+  its existing access rule. *Why:* the previous native app replaced most Free
+  boards with a full-page gate, so members could not experience the product
+  before upgrading. The server still enforces the smaller response; the app
+  renders three rows for a phone-sized preview. (2026-09-10)
+
 - **Soccer league tabs reordered.** Premier League is now the first (and default)
   soccer league; Champions League moved up ahead of Serie A / Bundesliga /
   Ligue 1; World Cup moved to the end. *Why:* the World Cup is a long way off,

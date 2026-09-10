@@ -5,6 +5,7 @@ import { Card } from '@/components/Card'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
+import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { kingfishFetch } from '@/lib/api'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { eligiblePropBookKeys } from '@/lib/sportsbooks'
@@ -351,7 +352,7 @@ function buildBvpMatchups(
   return matchups
 }
 
-export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]; userState?: string | null; boardScores?: Record<string, any> }) {
+export function MLBPropsTable({ games, userState, boardScores, preview = false }: { games: Game[]; userState?: string | null; boardScores?: Record<string, any>; preview?: boolean }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const [marketKey, setMarketKey] = useState('batter_hits')
@@ -376,6 +377,7 @@ export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]
     : gameOptions.find((game) => gameId(game) === activeGameFilter)
 
   function toggleSort(nextKey: SortKey) {
+    if (preview) return
     if (sortKey === nextKey) {
       setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'))
     } else {
@@ -389,7 +391,9 @@ export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]
     const l20 = row.stats?.[`l20_${market.statField}`] || 0
     const l10 = row.stats?.[`l10_${market.statField}`] || 0
     const l5 = row.stats?.[`l5_${market.statField}`] || 0
-    const edge = serverEdge(marketKey, row.player, row.line, boardScores) || edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+    const edge = serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
+      ? edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+      : null)
 
     if (key === 'player') return row.player
     if (key === 'line') return row.line
@@ -403,7 +407,7 @@ export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]
     if (key === 'best') return row.bestOdds || -100000
     if (key === 'book') return row.bestBook || ''
     if (key === 'vsp') return row.vsStarter?.ab ? Number(String(row.vsStarter.avg || '0').replace(/^\./, '0.')) || 0 : -1
-    return edge.score
+    return edge?.score ?? -1
   }
 
   function sortRows(rows: PlayerRow[]) {
@@ -498,7 +502,7 @@ export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]
   const selectedGameLabel = selectedGameForHeader
     ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
     : 'All Games'
-  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter)))
+  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter))).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined)
 
   return (
     <View style={styles.wrap}>
@@ -576,6 +580,7 @@ export function MLBPropsTable({ games, userState, boardScores }: { games: Game[]
               statField={market.statField}
               landscape={landscapeTable}
               boardScores={boardScores}
+              preview={preview}
               onPress={() => {
                 setSelectedPlayer(row.player)
                 setSelectedMarketContext({
@@ -667,6 +672,7 @@ function PlayerPropRow({
   statField,
   landscape,
   boardScores,
+  preview = false,
   onPress,
 }: {
   row: PlayerRow
@@ -675,6 +681,7 @@ function PlayerPropRow({
   statField: string
   landscape: boolean
   boardScores?: Record<string, any>
+  preview?: boolean
   onPress: () => void
 }) {
   const season = row.stats?.[`season_${statField}`] || 0
@@ -682,7 +689,9 @@ function PlayerPropRow({
   const l5 = row.stats?.[`l5_${statField}`] || 0
   // Server-first (CLAUDE.md "Calculated scores live on the web"): local
   // edgeLabel() is kept only as the offline/mismatch fallback, never primary.
-  const edge = serverEdge(marketKey, row.player, row.line, boardScores) || edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+  const edge = serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
+    ? edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+    : null)
   const l5Hit = hitRate(row.stats, statField, row.line, 5)
   const l10Hit = hitRate(row.stats, statField, row.line, 10)
 
@@ -704,8 +713,8 @@ function PlayerPropRow({
       {landscape ? <TableCell value={l5Hit} color={colors.green} /> : null}
       {landscape ? <TableCell value={l10Hit} color={colors.green} /> : null}
       <View style={[styles.compactCell, landscape ? styles.landscapeEdgeColumn : styles.edgeColumn]}>
-        <AppText style={[styles.edgeScore, { color: edge.color }]}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
-        <AppText style={[styles.edgeLabel, { color: edge.color }]}>{edge.label}</AppText>
+        <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]}>{edge ? (edge.score ? Math.round(edge.score) : '-') : 'PRO'}</AppText>
+        <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]}>{edge?.label || 'Premium'}</AppText>
       </View>
     </Pressable>
   )

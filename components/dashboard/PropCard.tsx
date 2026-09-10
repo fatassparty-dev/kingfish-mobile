@@ -6,6 +6,7 @@ import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/component
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
+import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { displayBookName, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
@@ -507,7 +508,7 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
   return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit, initialStats, userState, boardScores }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null; boardScores?: Record<string, any> }) {
+export function PropsList({ games, sport, limit, initialStats, userState, boardScores, preview = false }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null; boardScores?: Record<string, any>; preview?: boolean }) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const compactTable = sport === 'NFL' && landscapeTable
@@ -585,6 +586,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
   const statsByPlayer = initialStats || statsQuery.data?.stats || {}
 
   function toggleSort(nextKey: SortKey) {
+    if (preview) return
     if (sortKey === nextKey) {
       setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'))
     } else {
@@ -597,8 +599,8 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
     return [...gameProps].sort((a, b) => {
       const aStats = statsByPlayer[normalizeName(a.outcome.description || '')]
       const bStats = statsByPlayer[normalizeName(b.outcome.description || '')]
-      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable, boardScores)
-      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable, boardScores)
+      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable, boardScores, preview)
+      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable, boardScores, preview)
       const direction = sortDir === 'asc' ? 1 : -1
 
       if (typeof aValue === 'string' || typeof bValue === 'string') {
@@ -755,7 +757,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
                   </Pressable>
                 ))}
               </View>
-              {sortProps(gameProps).map((prop) => (
+              {sortProps(gameProps).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined).map((prop) => (
                 <PropTableRow
                   key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
                   prop={prop}
@@ -763,6 +765,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
                   sport={sport}
                   landscape={landscapeTable}
                   boardScores={boardScores}
+                  preview={preview}
                   onSelectPlayer={(playerName, context) => {
                     setSelectedPlayer(playerName)
                     setSelectedMarketContext(context)
@@ -829,16 +832,18 @@ function serverEdge(prop: FlattenedProp, boardScores: Record<string, any> | unde
   return { score: entry.edgeScore as number, label: entry.edgeLabel as string, color: edgeColorFromLabel(entry.edgeLabel) }
 }
 
-function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean, boardScores?: Record<string, any>) {
+function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean, boardScores?: Record<string, any>, preview = false) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Rate = hitRate(recentValues(stats, prop.market.key, 10), line)
   const l5Rate = hitRate(recentValues(stats, prop.market.key, 5), line)
-  const edge = serverEdge(prop, boardScores) || (sport === 'NFL'
-    ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport))
+  const edge = serverEdge(prop, boardScores) || (!preview
+    ? sport === 'NFL'
+      ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
+      : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
+    : null)
 
   if (key === 'player') return prop.outcome.description || ''
   if (key === 'line') return line
@@ -848,7 +853,7 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
   if (key === 'l10hit') return l10Rate ?? -1
   if (key === 'l5') return l5
   if (key === 'l5hit') return l5Rate ?? -1
-  return edge.score
+  return edge?.score ?? -1
 }
 
 function PropTableRow({
@@ -857,6 +862,7 @@ function PropTableRow({
   sport,
   landscape,
   boardScores,
+  preview = false,
   onSelectPlayer,
 }: {
   prop: FlattenedProp
@@ -864,6 +870,7 @@ function PropTableRow({
   sport: Sport
   landscape: boolean
   boardScores?: Record<string, any>
+  preview?: boolean
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
 }) {
   const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
@@ -874,10 +881,12 @@ function PropTableRow({
   const l5Values = recentValues(stats, prop.market.key, 5)
   // Server-first (CLAUDE.md "Calculated scores live on the web"): the local
   // calc below is kept only as the offline/mismatch fallback, never primary.
-  const edge = serverEdge(prop, boardScores) || (sport === 'NFL'
-    ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-    : edgeLabel(line, season, l10, l5, prop.outcome.price, sport))
-  const edgeLabelText = String(edge.label).replace(/\s*\d+$/, '')
+  const edge = serverEdge(prop, boardScores) || (!preview
+    ? sport === 'NFL'
+      ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
+      : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
+    : null)
+  const edgeLabelText = edge ? String(edge.label).replace(/\s*\d+$/, '') : 'Premium'
   const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
   const openProfile = () => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
     marketKey: prop.market.key,
@@ -911,8 +920,8 @@ function PropTableRow({
         <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
       ) : null}
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
-        <AppText style={[styles.edgeScore, { color: edge.color }]} numberOfLines={1}>{edge.score ? Math.round(edge.score) : '-'}</AppText>
-        <AppText style={[styles.edgeLabel, { color: edge.color }]} numberOfLines={1}>{edgeLabelText}</AppText>
+        <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edge ? (edge.score ? Math.round(edge.score) : '-') : 'PRO'}</AppText>
+        <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edgeLabelText}</AppText>
       </View>
     </Pressable>
   )
