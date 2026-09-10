@@ -24,6 +24,17 @@ data* it didn't know about before.
 
 ## 🔵 Unreleased — next build
 
+- **NFL player-stat display corrected.** Player Props now keeps the portrait
+  columns in the labeled `Avg`, `L10`, `L5` order and displays a real `0.0`
+  instead of making a zero-touchdown history look like missing data. The shared
+  backend also normalizes punctuation and abbreviated player names. (2026-09-10)
+
+- **Required account notifications are accurately shown as always on.** The
+  Account screen no longer offers a switch that appeared to disable billing,
+  security, and subscription notices while device notifications remained
+  enabled. Optional betting and product notifications remain controllable.
+  (2026-09-10)
+
 - **Free accounts can sample the live dashboard.** Signed-in Free members now
   see up to three players in each posted Player Props market and up to three
   games on supported Game Props boards. Two rows include KingFish model

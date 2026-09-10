@@ -9,7 +9,8 @@
 Use this short copy for the next Android release after 1.0.9:
 
 > Free accounts can now sample live Player Props and Game Props boards before
-> upgrading, with a compact three-row preview built for phones.
+> upgrading, with a compact three-row preview built for phones. This update also
+> improves NFL player-stat display and account-notification settings.
 
 This is shared React Native code and matches the next iPhone update. Before
 uploading, increment Android `versionCode` above the currently published code

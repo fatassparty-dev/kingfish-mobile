@@ -25,6 +25,7 @@ function normalizePreferences(value?: Partial<NotificationPreferences> | null): 
   return {
     ...DEFAULT_NOTIFICATION_PREFERENCES,
     ...(value || {}),
+    account: true,
   }
 }
 

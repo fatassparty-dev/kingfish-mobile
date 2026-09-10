@@ -33,7 +33,7 @@ const NOTIFICATION_OPTIONS: Array<{
   {
     key: 'account',
     label: 'Account Notifications',
-    body: 'Important subscription, billing, security, and account updates.',
+    body: 'Always on when device notifications are enabled: subscription, billing, security, and account updates.',
   },
   {
     key: 'betting',
@@ -390,6 +390,7 @@ export default function AccountScreen() {
   }
 
   async function toggleNotificationPreference(key: NotificationPreferenceKey) {
+    if (key === 'account') return
     const storageKey = notificationStorageKey(user?.id)
     const nextPreferences = {
       ...notificationPreferences,
@@ -697,6 +698,7 @@ export default function AccountScreen() {
               <Switch
                 value={notificationPreferences[option.key]}
                 onValueChange={() => toggleNotificationPreference(option.key)}
+                disabled={option.key === 'account'}
                 trackColor={{ false: colors.borderActive, true: 'rgba(198,145,50,.45)' }}
                 thumbColor={notificationPreferences[option.key] ? colors.gold : colors.textSecondary}
               />

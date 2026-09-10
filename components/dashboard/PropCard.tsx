@@ -386,8 +386,8 @@ function statColor(value: number, line: number) {
   return colors.red
 }
 
-function fmtStat(value: number) {
-  return value ? value.toFixed(1) : '-'
+function fmtStat(value: number, hasStats = value !== 0) {
+  return hasStats ? value.toFixed(1) : '-'
 }
 
 function displayPlayerName(name?: string) {
@@ -910,9 +910,9 @@ function PropTableRow({
           <StatTableCell value={fmtOdds(prop.outcome.price)} color={colors.gold} landscape />
         </>
       ) : null}
-      <StatTableCell value={fmtStat(season)} color={statColor(season, line)} landscape={landscape} />
-      <StatTableCell value={fmtStat(l5)} color={statColor(l5, line)} landscape={landscape} />
-      <StatTableCell value={fmtStat(l10)} color={statColor(l10, line)} landscape={landscape} />
+      <StatTableCell value={fmtStat(season, Boolean(stats))} color={statColor(season, line)} landscape={landscape} />
+      <StatTableCell value={fmtStat(landscape ? l5 : l10, Boolean(stats))} color={statColor(landscape ? l5 : l10, line)} landscape={landscape} />
+      <StatTableCell value={fmtStat(landscape ? l10 : l5, Boolean(stats))} color={statColor(landscape ? l10 : l5, line)} landscape={landscape} />
       {landscape ? (
         <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
       ) : null}
@@ -969,9 +969,9 @@ export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<
 
       {stats && (
         <View style={styles.statsRow}>
-          <StatPill label="Avg" value={fmtStat(season)} color={statColor(season, line)} />
-          <StatPill label="L10" value={fmtStat(l10)} color={statColor(l10, line)} />
-          <StatPill label="L5" value={fmtStat(l5)} color={statColor(l5, line)} />
+          <StatPill label="Avg" value={fmtStat(season, Boolean(stats))} color={statColor(season, line)} />
+          <StatPill label="L10" value={fmtStat(l10, Boolean(stats))} color={statColor(l10, line)} />
+          <StatPill label="L5" value={fmtStat(l5, Boolean(stats))} color={statColor(l5, line)} />
           <StatPill
             label="L10 Hit"
             value={hitRateLabel(l10Hit)}
