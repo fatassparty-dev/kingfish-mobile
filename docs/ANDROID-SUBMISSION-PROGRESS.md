@@ -9,7 +9,7 @@ Last updated: 2026-09-10
 
 ## Next Android release — Free dashboard previews
 
-Android `1.0.10`, version code `7`, is being prepared for production. The scope
+Android `1.0.10`, version code `7`, is ready for production upload. The scope
 is frozen to three-row Free dashboard previews, corrected NFL Player Props stat
 display, and accurate required account-notification controls. The TypeScript
 check and Android JavaScript bundle export passed before the signed build. The
@@ -22,6 +22,8 @@ integrity check. It is staged for the Google Play production upload.
 - Artifact size: `55,174,323` bytes
 - Artifact SHA-256: `155d4267a283d48352647604e86625aebdc452023f518669b721306bbe26a012`
 - Track: production
+- Upload status: manual Play Console upload required; EAS Submit has no Google
+  service-account key configured for `com.kingfishbets.app`
 
 Planned Google Play release note:
 
@@ -238,6 +240,11 @@ Remaining, as ordinary post-launch work:
 - Release scope: three-row Free previews for supported Player Props and Game
   Props boards, NFL player-stat display corrections, and accurate required
   account-notification controls.
+- Fast-forwarded the verified release through commit `3892585` to `origin/main`.
+- Retried the configured noninteractive EAS production submission. The bundle
+  uploaded to EAS Submit, but submission stopped before Google Play because no
+  Google service-account key is configured. Use the staged bundle for the same
+  manual production-track upload flow used for 1.0.9.
 
 ## Security notes
 
