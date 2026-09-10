@@ -12,7 +12,16 @@ Last updated: 2026-09-10
 Android `1.0.10`, version code `7`, is being prepared for production. The scope
 is frozen to three-row Free dashboard previews, corrected NFL Player Props stat
 display, and accurate required account-notification controls. The TypeScript
-check and Android JavaScript bundle export passed before the signed build.
+check and Android JavaScript bundle export passed before the signed build. The
+signed production build completed successfully and passed a complete ZIP
+integrity check. It is staged for the Google Play production upload.
+
+- Source commit: `e23725969b6112c519e07d73bffe851a34c03092`
+- EAS build ID: `c9009656-294b-4073-8786-c3c4fbc58130`
+- Artifact: `~/Developer/KingFishBetsLLC/builds/KingFishBets-android-1.0.10-vc7.aab`
+- Artifact size: `55,174,323` bytes
+- Artifact SHA-256: `155d4267a283d48352647604e86625aebdc452023f518669b721306bbe26a012`
+- Track: production
 
 Planned Google Play release note:
 
@@ -217,6 +226,18 @@ Remaining, as ordinary post-launch work:
   signup increase alone cannot establish that: compare Play impressions and
   store acquisitions alongside KingFish registrations, activation and paid
   conversion, and account for the NFL opener and $0.99 promotion.
+
+### 2026-09-10
+
+- Built Android `1.0.10`, version code `7`, on EAS from commit `e237259` using
+  the existing production keystore. The production app bundle completed at
+  12:39 p.m. Central and passed archive integrity verification.
+- Staged the 55,174,323-byte bundle at
+  `~/Developer/KingFishBetsLLC/builds/KingFishBets-android-1.0.10-vc7.aab` with
+  SHA-256 `155d4267a283d48352647604e86625aebdc452023f518669b721306bbe26a012`.
+- Release scope: three-row Free previews for supported Player Props and Game
+  Props boards, NFL player-stat display corrections, and accurate required
+  account-notification controls.
 
 ## Security notes
 
