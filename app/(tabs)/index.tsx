@@ -3,7 +3,6 @@ import { collegeWindows, inCollegeWindow } from '@/lib/collegeBoardWindow'
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
-import * as ScreenOrientation from 'expo-screen-orientation'
 import { Card } from '@/components/Card'
 import { GamePropsTable, gameMarkets } from '@/components/dashboard/GamePropsTable'
 import { KboScoreboard, type KboScoreGame } from '@/components/dashboard/KboScoreboard'
@@ -1326,7 +1325,7 @@ export default function DashboardScreen() {
     return () => clearInterval(timer)
   }, [])
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('auto')
-  const [ncaafBoardMode, setNcaafBoardMode] = useState<'list' | 'cards' | 'landscape'>('list')
+  const [ncaafBoardMode, setNcaafBoardMode] = useState<'list' | 'cards'>('list')
   const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
@@ -1343,18 +1342,6 @@ export default function DashboardScreen() {
   const [ncaabConference, setNcaabConference] = useState('All')
   const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
   const selectedSoccerLeague = SOCCER_LEAGUES.find((item) => item.key === soccerLeague) || SOCCER_LEAGUES[0]
-
-  useEffect(() => {
-    const lock = sport === 'NCAAF' && view === 'lines' && ncaafBoardMode === 'landscape'
-    const request = lock
-      ? ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
-      : ScreenOrientation.unlockAsync()
-    request.catch(() => {})
-  }, [sport, view, ncaafBoardMode])
-
-  useEffect(() => () => {
-    ScreenOrientation.unlockAsync().catch(() => {})
-  }, [])
   const mobileFlag = (key: string, fallback = false) => mobileConfig.flags[key] ?? fallback
   // Server flags decide what KingFish OFFERS; the user's own list then narrows
   // it to what they follow. Order matters — the preference is applied second, so
@@ -2677,10 +2664,10 @@ export default function DashboardScreen() {
 
           {showKboScoreboard && <KboScoreboard games={kboScoreboardGames} />}
 
-          {sport === 'NCAAF' && (
+          {sport === 'NCAAF' && !isLandscape && (
             <View style={styles.boardModeRow}>
               <AppText variant="mono" style={styles.boardModeLabel}>View</AppText>
-              {(['list', 'cards', 'landscape'] as const).map(mode => (
+              {(['list', 'cards'] as const).map(mode => (
                 <Pressable
                   key={mode}
                   accessibilityRole="button"
@@ -2689,7 +2676,7 @@ export default function DashboardScreen() {
                   style={[styles.boardModeButton, ncaafBoardMode === mode && styles.boardModeButtonActive]}
                 >
                   <AppText style={[styles.boardModeText, ncaafBoardMode === mode && styles.boardModeTextActive]}>
-                    {mode === 'list' ? 'List' : mode === 'cards' ? 'Cards' : 'Landscape'}
+                    {mode === 'list' ? 'List' : 'Cards'}
                   </AppText>
                 </Pressable>
               ))}
