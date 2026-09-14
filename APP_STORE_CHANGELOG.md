@@ -35,6 +35,11 @@ data* it didn't know about before.
   ML lean, and names the schools in ML and spread reads instead of relying on
   mascots or mascot abbreviations. (2026-09-14, build 34)
 
+- **Restored the build 34 board behavior.** Build 36 removes the experimental
+  locked Landscape selector while retaining the build 34 football layouts and
+  fixes. The higher build number replaces uploaded build 35 in App Store
+  Connect. (2026-09-14, build 36)
+
 > **Android status:** Android 1.0.10 (version code 7) was submitted to the
 > Google Play production track on 2026-09-10 with the first three changes below:
 > Free dashboard previews, corrected NFL player-stat display, and accurate
