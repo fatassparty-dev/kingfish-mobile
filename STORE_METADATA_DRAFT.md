@@ -1,6 +1,9 @@
 # KingFish Bets Store Metadata Draft
 
-Use this as the starting copy for App Store Connect. Google Play can reuse most of it later, but the first launch path is Apple.
+This records the customer-facing metadata used for iOS 1.0.10 build 36. The
+binary was submitted for App Review on September 14, 2026. Promotional text can
+change without a new binary; version description and What's New should remain
+aligned with the submitted build.
 
 ## App Name
 
@@ -12,34 +15,66 @@ Props & Odds Analytics
 
 ## Promotional Text
 
-Player props, game lines, matchup context, cheat sheets, fantasy tools, and Ask KingFish analysis in one sports analytics app.
+Football is back! Get KingFish projections, live odds, matchup tools, and player
+props for $0.99 your first month, then $4.99/month. Eligible new subscribers.
 
-## What's New — Next NCAA Football Release
+Apple has no free trial. Do not reuse Google Play or web trial language here.
 
-Use the same customer-facing copy in App Store Connect and Google Play:
+## What's New — iOS 1.0.10
 
-> College football is here. This update adds current AP Top 25 rankings,
-> improved conference filtering, matchup weather, refreshed game-line and edge
-> context, plus an NFL Fantasy Hub that shifts to in-season roster tools at kickoff.
+> Football season is here. This update includes:
+>
+> - Faster NFL board loading
+> - Today, current-week, and all-game NFL filters
+> - Current-season NFL prop data with rolling player histories
+> - Actual season-week navigation for college football
+> - More compact college football board views
+> - Clearer school names and spread information
+> - KingFish spread leans and total projections
+> - Cleaner line-movement summaries
+> - Improved login persistence and general reliability
+>
+> Eligible new monthly subscribers can also get their first month for $0.99,
+> then $4.99/month.
+
+The NFL Teaser Builder is not in the submitted native binary. Do not add it to
+the 1.0.10 description, What's New, screenshots, or review notes.
+
+## TestFlight — What to Test
+
+> Please test the updated NFL and college football boards, including filters,
+> stats, layouts, rotation, and staying signed in. Report any missing data,
+> display issues, or crashes.
 
 ## Full Description
 
-KingFish Bets is a sports analytics and odds research platform built for faster, clearer research across the sports calendar.
+KingFish Bets is a sports analytics and odds research platform built for
+faster, clearer research across the sports calendar.
 
-Compare game lines, scan player props, check recent form, review player profiles, generate cheat sheets, use Fantasy Hub, and ask KingFish for plain-English analysis backed by KingFish context. KingFish is built for users who want the numbers, the context, and the best available price before making their own decision.
+Compare game lines, scan player props, review recent performance, explore player
+profiles, generate cheat sheets, use fantasy football tools, and ask KingFish
+for plain-English analysis backed by current data.
 
-Inside KingFish:
+Inside KingFish Bets:
 
 - Live game lines across supported sports
-- Player props with season, recent-form, and hit-rate context
-- Best available odds highlighted across supported sportsbooks
-- MLB cheat sheets including Batter vs Pitcher for quick prop research
-- MLB and NFL Game Factors for venue, weather, and scoring environment context
-- Fantasy Hub with Home League, Best Ball, Draft Planner, and Roster Watch
-- Ask KingFish analyst with live KingFish context
-- Account settings, profile editing, purchase restore, support, and legal access
+- Player props with recent-game and hit-rate context
+- Odds comparison across supported U.S. sportsbooks
+- KingFish projections and matchup insights
+- MLB cheat sheets and Batter vs. Pitcher research
+- MLB and NFL Game Factors
+- College football rankings, spreads, totals, and matchup information
+- Fantasy football rankings, news, and roster tools
+- Ask KingFish analysis using current KingFish data
+- One account across iPhone, Android, and the web
 
-KingFish does not accept wagers. KingFish is an 18+ analytics and information platform where permitted by law. All tools, stats, research signals, and AI analysis are for informational and entertainment purposes only. Gambling involves risk. Please bet responsibly and within your means.
+KingFish Bets does not accept wagers, hold funds, or operate as a sportsbook. It
+is an analytics and information platform for users 18 and older where permitted
+by law, subject to any higher age requirement in the user's jurisdiction.
+
+All statistics, projections, research signals, tools, and analysis are provided
+for informational and entertainment purposes. Gambling involves risk. Please
+bet responsibly and within your means.
 
 ## Keywords
 

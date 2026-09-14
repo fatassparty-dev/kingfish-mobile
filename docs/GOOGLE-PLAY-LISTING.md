@@ -12,8 +12,9 @@ Submitted with Android 1.0.10 (version code 7):
 > upgrading, with a compact three-row preview built for phones. This update also
 > improves NFL player-stat display and account-notification settings.
 
-This is shared React Native code and matches the next iPhone update. The signed
-bundle passed the Play build checklist before manual production submission.
+This shared React Native preview is also included in submitted iPhone 1.0.10
+build 36. The signed Android bundle passed the Play build checklist before
+manual production submission.
 
 ## Previous release notes — NCAA football
 

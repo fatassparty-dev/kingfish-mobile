@@ -22,7 +22,25 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 Unreleased — next build
+## 🔵 Planned — 1.1.0 (iOS build 37 or higher)
+
+- **Add the NFL Teaser Builder to the native Tools area.** The Teaser Builder is
+  available on the KingFish website, but it is not present in submitted iOS
+  1.0.10 build 36. The native release must use the existing authenticated
+  `/api/nfl-teaser` data contract and receive a focused phone-layout test before
+  packaging. Do not describe the Teaser Builder as an iOS 1.0.10 feature.
+
+---
+
+## 🟡 1.0.10 (iOS build 36) — SUBMITTED FOR APP REVIEW 2026-09-14
+
+> Build 36 was uploaded, selected, and submitted for App Review on September 14,
+> 2026. Public availability is pending Apple approval. App Store Connect already
+> had build 35, so Apple correctly rejected an attempted build 34 upload; every
+> future upload must use a build number higher than 36. Build 36 restores the
+> build 34 product behavior and excludes the discarded orientation-lock
+> experiment. Source commit: `f679699`. Signed IPA SHA-256:
+> `5c0bfd549261435d5b1bbeca55670e807e54b042671b794f7e78827da8305890`.
 
 - **Football boards are easier to scan on a phone.** NFL Player Props, Game
   Props, and Matchups now offer Today, actual season Week, and All filters.
@@ -37,14 +55,14 @@ data* it didn't know about before.
 
 - **Restored the build 34 board behavior.** Build 36 removes the experimental
   locked Landscape selector while retaining the build 34 football layouts and
-  fixes. The higher build number replaces uploaded build 35 in App Store
-  Connect. (2026-09-14, build 36)
+  fixes. Build 35 was uploaded to App Store Connect but was superseded before
+  review. (2026-09-14, build 36)
 
 > **Android status:** Android 1.0.10 (version code 7) was submitted to the
 > Google Play production track on 2026-09-10 with the first three changes below:
 > Free dashboard previews, corrected NFL player-stat display, and accurate
 > required account-notification controls. Google review/publication is pending.
-> These changes remain part of the next iPhone submission.
+> These shared changes are included in submitted iPhone build 36.
 
 - **College football board updated for the live season.** NCAAF now uses actual
   season-week filters with Today and All options, highlights KingFish's selected

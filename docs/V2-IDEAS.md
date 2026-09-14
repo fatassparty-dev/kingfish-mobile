@@ -4,7 +4,7 @@ Features held for a future app version. Not in scope for the current build.
 
 ---
 
-## Organize Cheat Sheets by sport (next iPhone release)
+## Organize Cheat Sheets by sport (future iPhone release)
 
 The native Cheat Sheets list has grown too long to scan comfortably. Group or
 filter the sheets by sport, following the website's category approach, while
@@ -14,6 +14,11 @@ access rules.
 
 **Release decision (Brian, 2026-09-08):** defer this navigation cleanup until
 the release after iOS 1.0.9 build 31. Do not rebuild 1.0.9 for this change.
+
+**Current release note (2026-09-14):** this was not included in submitted iOS
+1.0.10 build 36. The next planned native release is 1.1.0 with the NFL Teaser
+Builder as its lead scope; include this navigation cleanup only if it remains a
+small, separately testable addition.
 
 ---
 

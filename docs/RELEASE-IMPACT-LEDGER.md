@@ -19,6 +19,41 @@ Publication is an event boundary, not proof that the release caused a change.
 - Check at 24 hours, 72 hours, 7 days and 14 days. Day-7 return-use cohorts are
   incomplete until their full seventh Central calendar day has passed.
 
+## iOS 1.0.10 release event
+
+| Field | Recorded value |
+|---|---|
+| Store | Apple App Store |
+| Version | 1.0.10 |
+| Submitted build | 36 |
+| Source commit | `f679699` |
+| Submitted for App Review | September 14, 2026; exact time not recorded |
+| Public availability | Pending Apple approval/publication |
+| Prior uploads | Build 35 uploaded and superseded; build 34 upload rejected because its number was below 35 |
+| Promotion | Eligible new Apple monthly subscribers: $0.99 first month, then $4.99/month; no free trial |
+| Store metadata | Updated promotional text, description, What's New, and TestFlight testing note |
+
+### Customer-facing changes
+
+- Faster and more useful NFL board loading and Today/Week/All navigation.
+- Current-season NFL prop data with rolling player histories and corrected
+  first/last-touchdown presentation.
+- Actual season-week navigation and compact phone layouts for college football.
+- Clearer school names, highlighted college spread leans, and `KF PROJ` totals
+  without an unproven totals recommendation.
+- NFL Line Movers in native Tools with shorter phone-sized guidance.
+- Three-row Free previews on supported props and game boards.
+- Persistent sign-in plus account-notification and general reliability fixes.
+
+Build 36 intentionally restores build 34 behavior and does not include build
+35's orientation-lock experiment. The website's NFL Teaser Builder is also not
+in this binary; plan it for native 1.1.0, build 37 or higher.
+
+Use the first confirmed public time as the measurement boundary. Compare App
+Store impressions, product-page views, downloads, iOS accounts, activation,
+and paid conversion with 1.0.9 while keeping the football schedule and $0.99
+promotion visible as overlapping factors.
+
 ## Android 1.0.10 release event
 
 | Field | Recorded value |

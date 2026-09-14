@@ -4,7 +4,12 @@ Expo app shell for KingFish Bets.
 
 ## Current Release Status
 
-- iOS 1.0.8 (build 30) is approved and publicly available in the App Store.
+- iOS 1.0.9 (build 31) is approved and publicly available in the App Store.
+  App Store Connect showed it Ready for Sale by September 14, 2026.
+- iOS 1.0.10 (build 36) was uploaded and submitted for App Review on September
+  14, 2026. It keeps the build 34 football-board behavior; build 35's discarded
+  orientation-lock experiment is not included. Public availability is pending
+  Apple approval. Future iOS uploads must use build 37 or higher.
 - Android 1.0.9 (version code 6) is approved and publicly available in Google
   Play as of September 9, 2026. It adds NFL Daily Intel, NCAA football cheat
   sheets, persistent sign-in, native signup build attribution, and subscription
@@ -15,6 +20,10 @@ Expo app shell for KingFish Bets.
   accurate required account-notification controls.
 - Release discovery and signup impact are tracked in
   [docs/RELEASE-IMPACT-LEDGER.md](docs/RELEASE-IMPACT-LEDGER.md).
+- The concise cross-platform source of truth is
+  [docs/RELEASE-STATUS.md](docs/RELEASE-STATUS.md).
+- The website's NFL Teaser Builder is not included in iOS 1.0.10. Its native
+  Tools screen is planned for iOS 1.1.0, build 37 or higher.
 
 Current platform pricing:
 

@@ -1,45 +1,41 @@
 # Store release build — the working recipe
 
-> **Build 30 preflight — 2026-08-26:** `app.json` and the ignored native iOS
-> project are synchronized at version `1.0.8`, build `30`. TypeScript passes,
-> Expo Doctor passes all 18 checks, the live release controls are non-blocking,
-> and the saved export method now uses `app-store-connect`. The unsigned archive
-> succeeded and passed Xcode store validation; its 4.3 MB JavaScript bundle and
-> privacy manifest were verified. The signed IPA export and direct App Store
-> Connect upload succeeded on 2026-08-26, the focused device QA passed, and iOS
-> 1.0.8 was approved and auto-published on 2026-08-29 and is now the public
-> App Store version. With it live, set the server `latest_version.ios` value;
-> still leave `minimum_supported_version` blank unless a real compatibility or
-> safety problem appears.
-
-> **Current status — 2026-08-29:** iOS 1.0.8 (build 30) is APPROVED and LIVE.
-> Android version code 4 is being built and submitted today. This file remains
-> the packaging recipe, not the release-status tracker.
+> **Current iOS status — 2026-09-14:** iOS 1.0.9 (build 31) is approved and
+> publicly available. iOS 1.0.10 (build 36) was uploaded and submitted for App
+> Review on September 14; approval and publication are pending. Build 35 was
+> uploaded but superseded before review. An attempted build 34 upload was
+> rejected because Apple requires a build number higher than every previously
+> uploaded build. Build 36 contains the restored build 34 product behavior and
+> excludes the discarded orientation-lock experiment.
+>
+> Build 36 source: `f679699`. Signed IPA:
+> `~/Developer/KingFishBetsLLC/builds/KingFishBets-1.0.10-b36-export/KingFishBets.ipa`.
+> SHA-256: `5c0bfd549261435d5b1bbeca55670e807e54b042671b794f7e78827da8305890`.
+> Keep the build 36 archive and export until Apple approves the release.
 
 > **Android 1.0.10 status — 2026-09-10:** Version code 7 completed its signed
 > EAS production build, passed archive verification, and was manually submitted
 > to the Google Play production track. Google review/publication is pending.
 
-## Next mobile release — Free dashboard previews
+## Next mobile release — NFL Teaser Builder
 
-The three-row Free dashboard preview is shared by iOS and Android and requires
-a new binary on both platforms. Android 1.0.10 code 7 was submitted on
-September 10. Before the iOS submission, verify with a
-signed-in Free account that supported Player Props and Game Props boards show
-no more than three rows, include two server-provided KingFish model examples,
-label later model cells `Premium`, and open the paywall from `Unlock Premium`.
-MLB Game Props retains its existing gate. Increment the iOS build number and
-Android version code only when the remaining release scope is final.
+Plan the next iOS release as version 1.1.0, build 37 or higher. Add a native NFL
+Teaser Builder entry and phone-sized screen using the existing authenticated
+`/api/nfl-teaser` endpoint. The tool is currently available on the website but
+is not part of submitted iOS 1.0.10. Test authentication, Premium gating,
+sportsbook selection, 6/6.5/7-point choices, suggested pairs, custom two-to-four
+leg selection, ticket math, empty/stale states, and small-screen scrolling
+before packaging. Do not remove 1.0.10 from review for this addition.
 
-## 1.0.8 submission scope — final preseason reliability release
+The three-row Free dashboard preview, current football filters, college board
+layout, persistent sign-in, and football display corrections are already in
+submitted iOS 1.0.10 build 36.
 
-The next iOS and Android packages require a new native binary. Before starting
-the archive/build, confirm the app uses exact backend conference fields, renders
-NCAAF weather instead of Status, reads League View from
-`/api/ncaaf-rankings`, and no longer labels current data as the 2025 baseline.
-Run the NCAAF regression checklist in `README.md` on TestFlight and on a
-Play-installed Android build. Use the approved release note recorded in
-`APP_STORE_CHANGELOG.md` and `STORE_METADATA_DRAFT.md`.
+## Historical 1.0.8 scope — final preseason reliability release
+
+This release added exact backend conference fields, NCAAF weather in place of
+Status, League View data from `/api/ncaaf-rankings`, and current-season labels.
+Its NCAAF regression checklist remains useful when those shared areas change.
 
 Release identifiers: iOS build `30`; Android version code `4`.
 
@@ -60,11 +56,11 @@ while the other is missing. Full detail lives in
 Links — there is still no `autoVerify` intent filter, so website links do not
 open in the app.
 
-This binary also includes the server-control hooks for minimum/latest versions,
-global maintenance, NCAA tab visibility, NCAA maintenance, and an expiring
-Fantasy phase override. Confirm `/api/mobile-config` contains a `release` object
-before submission, but leave both minimum-version fields blank until build 30 is
-approved and available in the stores.
+This binary also added server-control hooks for minimum/latest versions, global
+maintenance, NCAA tab visibility, NCAA maintenance, and an expiring Fantasy
+phase override. `/api/mobile-config` supplies the release object. Keep minimum
+supported versions blank unless a real compatibility or safety issue requires a
+forced update.
 
 OTA is deliberately out of scope for this release; do not add `expo-updates` or
 runtime/update configuration during packaging.
@@ -170,7 +166,7 @@ it in and the build is empty of your changes.
 | `PhaseScriptExecution Bundle React Native code and images` fails, `error: sentry-cli` | Missing `SENTRY_DISABLE_AUTO_UPLOAD=true` |
 | Same phase fails, `EPERM ... main.jsbundle` | Missing `ENABLE_USER_SCRIPT_SANDBOXING=NO` |
 | `ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy` is missing | `node_modules` and the ignored Pods project are out of sync; run `pod install` from `ios/` and rebuild |
-| Transporter 409 / "version already exists" | `ios/` version drift — see step 0 |
+| Transporter 409 / build must be higher than a previously uploaded build | `ios/` version drift or reuse of an older build number — see step 0 and increment beyond every App Store Connect upload, including superseded builds |
 | Metro says `Bundled N modules` and then fails | Bundling succeeded; the failure is after it. Not your JS. |
 
 Clearing DerivedData is **not** a fix for any of the above. It costs 15 minutes
