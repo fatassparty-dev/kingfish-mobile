@@ -246,6 +246,7 @@ export function GamePropsTable({
   sportsbookPreferences,
   weather,
   compact = false,
+  ncaafDetails = false,
   onPressMatchup,
 }: {
   games: Game[]
@@ -255,6 +256,7 @@ export function GamePropsTable({
   sportsbookPreferences?: SportsbookPreferences | null
   weather?: Record<string, WeatherInfo | undefined>
   compact?: boolean
+  ncaafDetails?: boolean
   onPressMatchup?: (game: Game) => void
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('time')
@@ -285,9 +287,9 @@ export function GamePropsTable({
     else { setSortKey(next); setSortDesc(next !== 'time') }
   }
 
-  const showWeather = !compact && (sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF') && !!weather
+  const showWeather = !compact && (sport === 'MLB' || sport === 'NFL') && !!weather
 
-  if (sport === 'NCAAF' && compact) {
+  if (sport === 'NCAAF' && compact && ncaafDetails) {
     const price = (line: BestLine, points = false, signed = true) => line
       ? `${points && line.point !== undefined ? (signed ? fmtPoint(line.point) : line.point) + ' ' : ''}${fmtOdds(line.price)} ${BOOK_SHORT[line.book] || line.book}`
       : '—'
@@ -333,6 +335,76 @@ export function GamePropsTable({
     </View>
   }
 
+  if (sport === 'NCAAF' && compact) {
+    return <View style={styles.ncaafList}>
+      <View style={styles.ncaafSortRow}>
+        {(['time', 'edge', 'grade', 'total'] as const).map(key => <Pressable key={key} disabled={preview} onPress={() => toggleSort(key)}>
+          <AppText variant="mono" style={{ color: key === sortKey ? colors.gold : colors.textSecondary }}>
+            {key === 'time' ? 'Kickoff' : key[0].toUpperCase() + key.slice(1)}{key === sortKey ? sortDesc ? ' ↓' : ' ↑' : ''}
+          </AppText>
+        </Pressable>)}
+      </View>
+      {rows.map(({ game, mk }) => {
+        const lean = serverLean(game)
+        const edge = serverEdge(game)
+        const total = serverTotalLean(game)
+        const spreadLean = serverSpreadLean(game)
+        const modelLocked = preview && (game as any).previewModelLocked === true
+        const away = game.awayProgram || game.away_team
+        const home = game.homeProgram || game.home_team
+        const awayTier = ncaafSpreadHighlight(spreadLean, 'away', mk.bestAwaySpread)
+        const homeTier = ncaafSpreadHighlight(spreadLean, 'home', mk.bestHomeSpread)
+        const spreadTier = awayTier || homeTier
+        const spreadSide = awayTier ? away : homeTier ? home : null
+        const spreadLine = awayTier ? mk.bestAwaySpread : homeTier ? mk.bestHomeSpread : null
+        const spreadColor = spreadTier === 'Strong' ? colors.green : spreadTier ? colors.gold : colors.textSecondary
+        const leanName = lean?.team === game.home_team ? `${home} ML` : lean?.team === game.away_team ? `${away} ML` : lean?.side || '—'
+        return <Pressable
+          key={game.id || game.game_id || `${game.away_team}-${game.home_team}`}
+          onPress={onPressMatchup ? () => onPressMatchup(game) : undefined}
+          accessibilityRole={onPressMatchup ? 'button' : undefined}
+          accessibilityLabel={`${away} at ${home}. Open game details.`}
+          style={styles.ncaafListRow}
+        >
+          <View style={styles.ncaafListTop}>
+            <View style={styles.ncaafListMatchup}>
+              <AppText style={styles.ncaafListMatchupText} numberOfLines={2}>{rankLabel(game.awayRank)}{away} @ {rankLabel(game.homeRank)}{home}</AppText>
+              <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT · Details</AppText>
+            </View>
+            <View style={styles.ncaafListEdge}>
+              <AppText variant="mono" style={[styles.edgeScoreBig, { color: modelLocked ? colors.gold : edgeColor(edge?.score) }]}>{modelLocked ? 'PRO' : Number.isFinite(Number(edge?.score)) ? Math.round(Number(edge?.score)) : '—'}</AppText>
+              <AppText style={[styles.edgeTierSmall, { color: modelLocked ? colors.gold : edgeColor(edge?.score) }]}>{modelLocked ? 'Premium' : edgeTier(edge?.label || '') || '—'}</AppText>
+            </View>
+          </View>
+          <View style={styles.ncaafReadRow}>
+            <View style={styles.ncaafReadCell}>
+              <AppText variant="eyebrow" style={styles.ncaafReadLabel}>ML Lean</AppText>
+              <AppText style={styles.leanText} numberOfLines={1}>{modelLocked ? 'Premium' : leanName}</AppText>
+            </View>
+            <View style={styles.ncaafReadCell}>
+              <AppText variant="eyebrow" style={styles.ncaafReadLabel}>Grade</AppText>
+              <AppText variant="mono" style={styles.gradeText}>{modelLocked ? 'Premium' : lean?.grade_for != null && lean.grade_against != null ? `${lean.grade_for}–${lean.grade_against}` : '—'}</AppText>
+            </View>
+          </View>
+          <View style={styles.ncaafReadRow}>
+            <View style={[styles.ncaafReadCell, styles.ncaafSpreadRead]}>
+              <AppText variant="eyebrow" style={styles.ncaafReadLabel}>Spread / KF Lean</AppText>
+              <AppText variant="mono" style={{ color: modelLocked ? colors.gold : spreadColor, fontWeight: spreadTier ? '900' : '600' }} numberOfLines={1}>
+                {modelLocked ? 'Premium' : spreadSide && spreadLine ? `${spreadSide} ${fmtPoint(spreadLine.point)}` : 'No lean'}
+              </AppText>
+            </View>
+            <View style={styles.ncaafReadCell}>
+              <AppText variant="eyebrow" style={styles.ncaafReadLabel}>KF Proj</AppText>
+              <AppText variant="mono" style={styles.totalText}>{modelLocked ? 'Premium' : typeof total?.proj === 'number' ? total.proj : '—'}</AppText>
+            </View>
+          </View>
+        </Pressable>
+      })}
+    </View>
+  }
+
+  const matchupFlex = sport === 'NCAAF' && !compact ? 2.6 : compact ? 1.9 : 1.7
+
   const Header = ({ label, target, flex, align = 'center' }: { label: string; target?: SortKey; flex: number; align?: 'left' | 'center' }) => (
     <Pressable disabled={!target} onPress={() => target && toggleSort(target)} style={[styles.cell, { flex, alignItems: align === 'left' ? 'flex-start' : 'center' }]}>
       <AppText variant="eyebrow" style={[styles.headerText, target && sortKey === target && styles.headerActive]} numberOfLines={1}>
@@ -347,7 +419,7 @@ export function GamePropsTable({
           the thing your eye should land on last. Matchup stacks away-over-home
           so the headers fit without truncating. */}
       <View style={styles.headerRow}>
-        <Header label="Matchup" flex={compact ? 1.9 : 1.7} align="left" />
+        <Header label="Matchup" flex={matchupFlex} align="left" />
         {!compact && <Header label="Time" target="time" flex={0.9} />}
         {showWeather && <Header label="Wthr" flex={0.9} />}
         {!compact && <Header label="ML Lean" flex={1.2} />}
@@ -380,7 +452,7 @@ export function GamePropsTable({
             accessibilityHint={onPressMatchup ? 'Opens full team names, game lines, venue, records, and weather' : undefined}
             style={styles.row}
           >
-            <View style={[styles.cell, { flex: compact ? 1.9 : 1.7, alignItems: 'flex-start' }]}>
+            <View style={[styles.cell, { flex: matchupFlex, alignItems: 'flex-start' }]}>
               {/* Away-over-home stack — buys back the width one long line ate.
                   ONE text node, not two: iOS scales each adjustsFontSizeToFit
                   node independently, so a short away team ("Giants @") shrank to
@@ -526,4 +598,15 @@ const styles = StyleSheet.create({
   spreadText: { fontSize: 10, color: colors.gold, fontWeight: '700', flexShrink: 1 },
   emptyText: { fontSize: 12, color: colors.textMuted },
   premiumText: { fontSize: 9, fontWeight: '800', color: colors.gold, textTransform: 'uppercase' },
+  ncaafList: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden' },
+  ncaafSortRow: { flexDirection: 'row', gap: 16, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.bgCardAlt, borderBottomWidth: 1, borderBottomColor: colors.border },
+  ncaafListRow: { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10 },
+  ncaafListTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  ncaafListMatchup: { flex: 1, minWidth: 0, gap: 3 },
+  ncaafListMatchupText: { color: colors.textPrimary, fontSize: 15, lineHeight: 19, fontWeight: '800' },
+  ncaafListEdge: { width: 54, alignItems: 'flex-end' },
+  ncaafReadRow: { flexDirection: 'row', gap: 12 },
+  ncaafReadCell: { flex: 1, minWidth: 0, gap: 3 },
+  ncaafSpreadRead: { flex: 1.65 },
+  ncaafReadLabel: { color: colors.textMuted, fontSize: 8 },
 })

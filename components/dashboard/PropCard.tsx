@@ -7,6 +7,7 @@ import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
+import { inNflWindow, nflWindows } from '@/lib/nflBoardWindow'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { displayBookName, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
@@ -522,7 +523,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
-  const [selectedGame, setSelectedGame] = useState('all')
+  const [selectedGame, setSelectedGame] = useState('auto')
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const visibleMarkets = useMemo(() => {
@@ -535,20 +536,31 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
     ? availableMarketKeys.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`)
     : undefined
   const gameOptions = upcomingGames(games)
-  const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => String(game.game_id || game.id) === selectedGame)
-    ? selectedGame
-    : 'all'
+  const nflBoard = nflWindows(gameOptions, Date.now())
+  const nflWindowKeys = new Set(nflBoard.options.map(option => option.key))
+  const activeGameFilter = sport === 'NFL'
+    ? selectedGame === 'auto'
+      ? nflBoard.defaultKey
+      : nflWindowKeys.has(selectedGame) || gameOptions.some(game => String(game.game_id || game.id) === selectedGame)
+        ? selectedGame
+        : nflBoard.defaultKey
+    : selectedGame === 'all' || gameOptions.some(game => String(game.game_id || game.id) === selectedGame)
+      ? selectedGame
+      : 'all'
+  const filteredGames = activeGameFilter === 'all'
+    ? games
+    : sport === 'NFL' && nflWindowKeys.has(activeGameFilter)
+      ? games.filter(game => inNflWindow(game, activeGameFilter, Date.now()))
+      : games.filter(game => String(game.game_id || game.id) === activeGameFilter)
   const allProps = flattenProps(
-    activeGameFilter === 'all'
-      ? games
-      : games.filter((game) => String(game.game_id || game.id) === activeGameFilter),
+    filteredGames,
     limit,
     selectedMarket,
     userState
   )
   const props = allProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
   const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
-  const propsByGame = activeGameFilter === 'all'
+  const propsByGame = activeGameFilter === 'all' || (sport === 'NFL' && nflWindowKeys.has(activeGameFilter))
     ? [{ game: null, props }]
     : gameOptions
       .filter((game) => String(game.game_id || game.id) === activeGameFilter)
@@ -676,12 +688,22 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
           >
             <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
           </Pressable>
-          <Pressable
-            onPress={() => setSelectedGame('all')}
-            style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
-          >
-            <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
-          </Pressable>
+          {sport === 'NFL' ? nflBoard.options.map(option => (
+            <Pressable
+              key={option.key}
+              onPress={() => setSelectedGame(option.key)}
+              style={[styles.gameFilterButton, activeGameFilter === option.key && styles.gameFilterButtonActive]}
+            >
+              <AppText style={[styles.gameFilterText, activeGameFilter === option.key && styles.gameFilterTextActive]}>{option.label}</AppText>
+            </Pressable>
+          )) : (
+            <Pressable
+              onPress={() => setSelectedGame('all')}
+              style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
+            >
+              <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
+            </Pressable>
+          )}
           {gameOptions.map((game) => {
             const id = String(game.game_id || game.id)
             return (
@@ -724,7 +746,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
         <View key={game ? game.game_id || game.id || `${game.away_team}-${game.home_team}` : 'all-games'} style={styles.gameBlock}>
           <View style={styles.gameHeader}>
             <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
-              {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : 'All Games'}
+              {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : sport === 'NFL' ? nflBoard.options.find(option => option.key === activeGameFilter)?.label || 'All Games' : 'All Games'}
             </AppText>
             {game ? <AppText variant="mono">{fmtTime(game.commence_time)}</AppText> : null}
           </View>

@@ -24,6 +24,12 @@ data* it didn't know about before.
 
 ## 🔵 Unreleased — next build
 
+- **Football boards are easier to scan on a phone.** NFL Player Props, Game
+  Props, and Matchups now offer Today, actual season Week, and All filters.
+  NCAAF Game Props defaults to a compact list with an optional Cards view;
+  landscape gives team names more room by keeping weather in game details.
+  NFL Line Movers uses shorter phone-sized guidance. (2026-09-14, build 33)
+
 > **Android status:** Android 1.0.10 (version code 7) was submitted to the
 > Google Play production track on 2026-09-10 with the first three changes below:
 > Free dashboard previews, corrected NFL player-stat display, and accurate

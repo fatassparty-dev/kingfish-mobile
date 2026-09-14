@@ -35,9 +35,9 @@ export default function NflLineMoversScreen() {
   const premiumRequired = error?.message === 'Premium required'
   return <Screen>
     <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><AppText style={styles.secondary}>← Tools</AppText></Pressable>
-    <AppText variant="eyebrow" style={styles.gold}>NFL · 24-hour comparison</AppText>
-    <AppText variant="title" style={styles.title}>Top 5 Line Movers</AppText>
-    <AppText style={styles.intro}>The biggest spread and total changes across your sportsbooks.</AppText>
+    <AppText variant="eyebrow" style={styles.gold}>NFL · Last 24 hours</AppText>
+    <AppText variant="title" style={styles.title}>Line Movers</AppText>
+    <AppText style={styles.intro}>The five largest spread and total moves.</AppText>
     {!session ? <View style={styles.message}><AppText>Sign in to view NFL line movements.</AppText><Button onPress={() => router.push('/(auth)/sign-in')}>Sign in</Button></View>
       : isLoading ? <ActivityIndicator color={colors.gold} accessibilityLabel="Loading line movements" />
       : error ? <View style={styles.message}>
@@ -49,7 +49,7 @@ export default function NflLineMoversScreen() {
           {data.latestAt && <AppText style={styles.small}>Latest snapshot: {time(data.latestAt)}</AppText>}
         </View>
         {data.stale && <AppText style={styles.notice}>The latest snapshot is over 8 hours old. These are recorded lines, not current quotes.</AppText>}
-        {data.status === 'collecting' && <AppText style={styles.messageText}>Building the 24-hour comparison. Results appear once two suitable snapshots are available, usually after about a day of regular updates.</AppText>}
+        {data.status === 'collecting' && <AppText style={styles.messageText}>Waiting for a second odds snapshot. Check back after the next update.</AppText>}
         {data.status === 'no_games' && <AppText style={styles.messageText}>No upcoming NFL games in the latest snapshot.</AppText>}
         {data.status === 'no_comparison' && <AppText style={styles.messageText}>No matching lines across your selected sportsbooks in these snapshots.</AppText>}
         {data.status === 'ready' && !data.movers.length && <AppText style={styles.messageText}>No point changes across the {data.comparedMarkets} comparable markets.</AppText>}
@@ -63,7 +63,7 @@ export default function NflLineMoversScreen() {
             <View style={styles.move}><AppText style={styles.change}>{Math.abs(row.change)} {Math.abs(row.change) === 1 ? 'point' : 'points'}</AppText><AppText style={styles.direction}>{row.direction}</AppText></View>
           </View>
         </View>)}
-        <AppText style={styles.footnote}>Net point changes between recorded snapshots, approximately 24 hours apart. Each game and market appears once, using its largest same-book change. Only matching, recently updated quotes are compared. Movement is not a betting recommendation.</AppText>
+        <AppText style={styles.footnote}>Same-book movement only. Research signal, not a pick.</AppText>
       </>}
   </Screen>
 }

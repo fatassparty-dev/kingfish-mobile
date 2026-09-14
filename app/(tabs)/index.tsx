@@ -19,6 +19,7 @@ import { fmtOdds, fmtTime } from '@/lib/format'
 import { FREE_PREVIEW_MODEL_SAMPLES, MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { ncaafConferenceMatches, sameNcaafTeam } from '@/lib/ncaafTeams'
+import { nflWindows } from '@/lib/nflBoardWindow'
 import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
@@ -291,12 +292,6 @@ type NCAAFMatchup = {
   oddsStale?: boolean
 }
 
-type WeekOption<T extends { commence_time: string }> = {
-  key: string
-  label: string
-  games: T[]
-}
-
 type DateGroup<T extends { commence_time: string }> = {
   date: string
   games: T[]
@@ -539,10 +534,6 @@ function soccerTeamGrade(team: SoccerTeamInfo) {
   return 'D'
 }
 
-function shortDate(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 function fullDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -557,33 +548,6 @@ function upcomingGames<T extends { commence_time: string }>(games: T[] = []) {
   return games
     .filter((game) => new Date(game.commence_time).getTime() > now)
     .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
-}
-
-function weekOptions<T extends { commence_time: string }>(games: T[]): WeekOption<T>[] {
-  if (!games.length) return []
-  const firstStart = new Date(games[0].commence_time)
-  firstStart.setHours(0, 0, 0, 0)
-  const weeks: WeekOption<T>[] = []
-
-  games.forEach((game) => {
-    const gameDate = new Date(game.commence_time)
-    const diffDays = Math.max(0, Math.floor((gameDate.getTime() - firstStart.getTime()) / 86400000))
-    const index = Math.floor(diffDays / 7)
-    if (!weeks[index]) {
-      const start = new Date(firstStart)
-      start.setDate(firstStart.getDate() + index * 7)
-      const end = new Date(start)
-      end.setDate(start.getDate() + 6)
-      weeks[index] = {
-        key: `week-${index + 1}`,
-        label: `Week ${index + 1}: ${shortDate(start)}-${shortDate(end)}`,
-        games: [],
-      }
-    }
-    weeks[index].games.push(game)
-  })
-
-  return weeks.filter(Boolean)
 }
 
 function groupGamesByDate<T extends { commence_time: string }>(games: T[]): DateGroup<T>[] {
@@ -1353,14 +1317,15 @@ export default function DashboardScreen() {
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<DashboardView>('props')
-  const [selectedLineWeek, setSelectedLineWeek] = useState('')
+  const [selectedLineWeek, setSelectedLineWeek] = useState('auto')
   const [collegeWindow, setCollegeWindow] = useState('auto')
   const [collegeNow, setCollegeNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setCollegeNow(Date.now()), 30000)
     return () => clearInterval(timer)
   }, [])
-  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
+  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('auto')
+  const [ncaafBoardMode, setNcaafBoardMode] = useState<'list' | 'cards'>('list')
   const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
   const [expandedNflTeam, setExpandedNflTeam] = useState<string | null>(null)
@@ -1629,8 +1594,11 @@ export default function DashboardScreen() {
   const visibleLeagueTeams = uniqueTeamForms(teamFormQuery.data?.teams)
   const wnbaRaceTeams = wnbaPlayoffRaceTeams(visibleLeagueTeams)
   const nflMatchupGames = upcomingGames(nflMatchupsQuery.data || [])
-  const nflMatchupWeeks = sport === 'NFL' ? weekOptions(nflMatchupGames) : []
-  const activeNflMatchupWeek = nflMatchupWeeks.find((week) => week.key === selectedMatchupWeek) || nflMatchupWeeks[0]
+  const nflMatchupBoard = nflWindows(nflMatchupGames, collegeNow)
+  const nflMatchupWeeks = sport === 'NFL' ? nflMatchupBoard.options : []
+  const activeNflMatchupWeek = nflMatchupWeeks.find((week) => week.key === selectedMatchupWeek)
+    || nflMatchupWeeks.find((week) => week.key === nflMatchupBoard.defaultKey)
+    || nflMatchupWeeks[0]
   const visibleNflMatchups = activeNflMatchupWeek ? activeNflMatchupWeek.games : nflMatchupGames
   const visibleNflMatchupGroups = groupGamesByDate(visibleNflMatchups)
   const ncaafTeams = ncaafOutlookQuery.data?.teams || []
@@ -1673,8 +1641,11 @@ export default function DashboardScreen() {
     }
     return true
   })
-  const lineWeeks = sport === 'NFL' ? weekOptions(filteredUpcomingLineGames) : []
-  const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
+  const nflLineBoard = nflWindows(filteredUpcomingLineGames, collegeNow)
+  const lineWeeks = sport === 'NFL' ? nflLineBoard.options : []
+  const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek)
+    || lineWeeks.find((week) => week.key === nflLineBoard.defaultKey)
+    || lineWeeks[0]
   const fullVisibleLineGames = sport === 'NCAAF'
     ? filteredUpcomingLineGames.filter(game => inCollegeWindow(game, activeCollegeWindow, collegeNow))
     : sport === 'NFL' && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
@@ -2668,7 +2639,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {(sport === 'NFL' || sport === 'NCAAF') && lineWeeks.length > 1 && (
+          {sport === 'NFL' && lineWeeks.length > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRow}>
               {lineWeeks.map((week) => (
                 <Pressable
@@ -2693,6 +2664,25 @@ export default function DashboardScreen() {
 
           {showKboScoreboard && <KboScoreboard games={kboScoreboardGames} />}
 
+          {sport === 'NCAAF' && !isLandscape && (
+            <View style={styles.boardModeRow}>
+              <AppText variant="mono" style={styles.boardModeLabel}>View</AppText>
+              {(['list', 'cards'] as const).map(mode => (
+                <Pressable
+                  key={mode}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: ncaafBoardMode === mode }}
+                  onPress={() => setNcaafBoardMode(mode)}
+                  style={[styles.boardModeButton, ncaafBoardMode === mode && styles.boardModeButtonActive]}
+                >
+                  <AppText style={[styles.boardModeText, ncaafBoardMode === mode && styles.boardModeTextActive]}>
+                    {mode === 'list' ? 'List' : 'Cards'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           {/* Game Props — dense table (web 2026-07-02 swap; the card view now
               lives in the Game Lines tool). Portrait shows the compact
               decision set; landscape opens the full board (iPhone-no-iPad-
@@ -2708,6 +2698,7 @@ export default function DashboardScreen() {
                 sportsbookPreferences={profile?.sportsbook_preferences}
                 weather={sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF' ? weatherQuery.data : undefined}
                 compact={!isLandscape}
+                ncaafDetails={sport === 'NCAAF' && !isLandscape && ncaafBoardMode === 'cards'}
                 onPressMatchup={sport === 'NCAAF' ? setSelectedNcaafGame : undefined}
               />
             </View>
@@ -3544,6 +3535,36 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   weekPillTextActive: {
+    color: colors.bgPrimary,
+  },
+  boardModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  boardModeLabel: {
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  boardModeButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.bgCardAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  boardModeButtonActive: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  boardModeText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  boardModeTextActive: {
     color: colors.bgPrimary,
   },
   dateGroup: {
