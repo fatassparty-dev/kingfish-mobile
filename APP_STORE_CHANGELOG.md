@@ -35,6 +35,11 @@ data* it didn't know about before.
   ML lean, and names the schools in ML and spread reads instead of relying on
   mascots or mascot abbreviations. (2026-09-14, build 34)
 
+- **NCAAF Landscape is a board view.** Landscape now appears beside List and
+  Cards. Selecting it rotates and locks the college Game Props board
+  horizontally; selecting another view or leaving NCAAF restores normal device
+  rotation. (2026-09-14, build 35)
+
 > **Android status:** Android 1.0.10 (version code 7) was submitted to the
 > Google Play production track on 2026-09-10 with the first three changes below:
 > Free dashboard previews, corrected NFL player-stat display, and accurate
