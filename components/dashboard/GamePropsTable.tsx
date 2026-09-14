@@ -190,13 +190,24 @@ function PriceCell({ line, flex = 1, showPoint = false }: { line: BestLine; flex
   )
 }
 
-function SpreadCell({ awayAbbr, homeAbbr, away, home, read, flex = 1.8 }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; read?: SpreadHighlightRead | null; flex?: number }) {
+function PairedPriceCell({ awayLabel, homeLabel, away, home, flex = 1.8 }: { awayLabel: string; homeLabel: string; away: BestLine; home: BestLine; flex?: number }) {
+  const half = (label: string, line: BestLine) => <View style={styles.pairedHalf}>
+    <AppText variant="mono" style={styles.pairedLabel} numberOfLines={1}>{label}</AppText>
+    {line ? <View style={styles.pairedValue}>
+      <AppText variant="mono" style={styles.pairedPrice} numberOfLines={1}>{fmtOdds(line.price)}</AppText>
+      <AppText style={styles.bookText}>{BOOK_SHORT[line.book] || line.book}</AppText>
+    </View> : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
+  </View>
+  return <View style={[styles.cell, { flex, overflow: 'hidden' }]}>{half(awayLabel, away)}{half(homeLabel, home)}</View>
+}
+
+function SpreadCell({ awayAbbr, homeAbbr, away, home, read, flex = 1.8, fullLabels = false }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; read?: SpreadHighlightRead | null; flex?: number; fullLabels?: boolean }) {
   const half = (abbr: string, line: BestLine, side: 'home' | 'away') => {
     const tier = ncaafSpreadHighlight(read, side, line)
     const color = tier === 'Strong' ? colors.green : tier ? colors.gold : undefined
     return (
       <View style={styles.spreadHalf}>
-        <AppText variant="mono" style={[styles.spreadAbbr, color ? { color, fontWeight: '900' } : null]} numberOfLines={1}>{abbr}</AppText>
+        <AppText variant="mono" style={[fullLabels ? styles.spreadSchool : styles.spreadAbbr, color ? { color, fontWeight: '900' } : null]} numberOfLines={1}>{abbr}</AppText>
         {line ? (
           <AppText variant="mono" style={[styles.spreadText, color ? { color, fontWeight: '900' } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {fmtPoint(line.point)} {fmtOdds(line.price)}
@@ -404,6 +415,7 @@ export function GamePropsTable({
   }
 
   const matchupFlex = sport === 'NCAAF' && !compact ? 2.6 : compact ? 1.9 : 1.7
+  const ncaafLandscape = sport === 'NCAAF' && !compact
 
   const Header = ({ label, target, flex, align = 'center' }: { label: string; target?: SortKey; flex: number; align?: 'left' | 'center' }) => (
     <Pressable disabled={!target} onPress={() => target && toggleSort(target)} style={[styles.cell, { flex, alignItems: align === 'left' ? 'flex-start' : 'center' }]}>
@@ -422,11 +434,12 @@ export function GamePropsTable({
         <Header label="Matchup" flex={matchupFlex} align="left" />
         {!compact && <Header label="Time" target="time" flex={0.9} />}
         {showWeather && <Header label="Wthr" flex={0.9} />}
-        {!compact && <Header label="ML Lean" flex={1.2} />}
-        {!compact && <Header label="Grade" target="grade" flex={0.9} />}
-        {!compact && <Header label="Away" flex={1} />}
-        {!compact && <Header label="Home" flex={1} />}
-        {!compact && <Header label={sport === 'NCAAF' ? 'Spread / KF Lean' : spreadLabel(sport)} flex={1.8} />}
+        {!compact && <Header label="ML Lean" flex={ncaafLandscape ? 1.5 : 1.2} />}
+        {!compact && !ncaafLandscape && <Header label="Grade" target="grade" flex={0.9} />}
+        {!compact && !ncaafLandscape && <Header label="Away" flex={1} />}
+        {!compact && !ncaafLandscape && <Header label="Home" flex={1} />}
+        {ncaafLandscape && <Header label="Moneyline" flex={2} />}
+        {!compact && <Header label={sport === 'NCAAF' ? 'Spread / KF Lean' : spreadLabel(sport)} flex={ncaafLandscape ? 2.5 : 1.8} />}
         {sport !== 'NCAAF' && <Header label="O/U" target="total" flex={0.8} />}
         <Header label={sport === 'NCAAF' ? 'KF PROJ' : 'Total'} flex={compact ? 1 : 0.9} />
         {!compact && <Header label="Over" flex={1} />}
@@ -443,6 +456,13 @@ export function GamePropsTable({
         const modelLocked = preview && (game as any).previewModelLocked === true
         const wx = weather?.[String((game as any).id || (game as any).game_id || '')]
         const noTotalLean = String(totalLean?.label || '').startsWith('Near')
+        const awayProgram = game.awayProgram || game.away_team
+        const homeProgram = game.homeProgram || game.home_team
+        const leanProgram = lean?.team === game.home_team
+          ? `${homeProgram} ML`
+          : lean?.team === game.away_team
+            ? `${awayProgram} ML`
+            : leanSideDisplay(lean)
         return (
           <Pressable
             key={(game as any).id || (game as any).game_id || `${game.away_team}-${game.home_team}`}
@@ -478,15 +498,18 @@ export function GamePropsTable({
               </View>
             )}
             {!compact && (
-              <View style={[styles.cell, { flex: 1.2 }]}>
+              <View style={[styles.cell, { flex: ncaafLandscape ? 1.5 : 1.2 }]}>
                 {modelLocked
                   ? <AppText style={styles.premiumText}>Premium</AppText>
                   : lean?.side
-                  ? <AppText style={styles.leanText} numberOfLines={1}>{leanSideDisplay(lean)}</AppText>
+                  ? <>
+                      <AppText style={styles.leanText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{ncaafLandscape ? leanProgram : leanSideDisplay(lean)}</AppText>
+                      {ncaafLandscape && lean.grade_for != null && lean.grade_against != null && <AppText variant="mono" style={styles.landscapeGrade}>{lean.grade_for}–{lean.grade_against}</AppText>}
+                    </>
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
             )}
-            {!compact && (
+            {!compact && !ncaafLandscape && (
               <View style={[styles.cell, { flex: 0.9 }]}>
                 {modelLocked
                   ? <AppText style={styles.premiumText}>Premium</AppText>
@@ -495,15 +518,18 @@ export function GamePropsTable({
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
             )}
-            {!compact && <PriceCell line={mk.bestAwayMoneyline} />}
-            {!compact && <PriceCell line={mk.bestHomeMoneyline} />}
+            {!compact && !ncaafLandscape && <PriceCell line={mk.bestAwayMoneyline} />}
+            {!compact && !ncaafLandscape && <PriceCell line={mk.bestHomeMoneyline} />}
+            {ncaafLandscape && <PairedPriceCell awayLabel={awayProgram} homeLabel={homeProgram} away={mk.bestAwayMoneyline} home={mk.bestHomeMoneyline} flex={2} />}
             {!compact && (
               <SpreadCell
-                awayAbbr={shortName(game.away_team).slice(0, 3).toUpperCase()}
-                homeAbbr={shortName(game.home_team).slice(0, 3).toUpperCase()}
+                awayAbbr={ncaafLandscape ? awayProgram : shortName(game.away_team).slice(0, 3).toUpperCase()}
+                homeAbbr={ncaafLandscape ? homeProgram : shortName(game.home_team).slice(0, 3).toUpperCase()}
                 away={mk.bestAwaySpread}
                 home={mk.bestHomeSpread}
                 read={sport === 'NCAAF' && !modelLocked ? spreadLean : null}
+                flex={ncaafLandscape ? 2.5 : 1.8}
+                fullLabels={ncaafLandscape}
               />
             )}
             {sport !== 'NCAAF' && (
@@ -595,7 +621,13 @@ const styles = StyleSheet.create({
   bookText: { fontSize: 8, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   spreadHalf: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1, alignSelf: 'stretch', justifyContent: 'center' },
   spreadAbbr: { fontSize: 10, color: colors.textSecondary, width: 26 },
+  spreadSchool: { fontSize: 8, color: colors.textSecondary, width: 62, flexShrink: 1 },
   spreadText: { fontSize: 10, color: colors.gold, fontWeight: '700', flexShrink: 1 },
+  pairedHalf: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1, alignSelf: 'stretch', justifyContent: 'space-between' },
+  pairedLabel: { fontSize: 8, color: colors.textSecondary, flex: 1, minWidth: 0 },
+  pairedValue: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  pairedPrice: { fontSize: 10, color: colors.gold, fontWeight: '700' },
+  landscapeGrade: { color: colors.textSecondary, fontSize: 9, marginTop: 2 },
   emptyText: { fontSize: 12, color: colors.textMuted },
   premiumText: { fontSize: 9, fontWeight: '800', color: colors.gold, textTransform: 'uppercase' },
   ncaafList: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden' },

@@ -30,6 +30,11 @@ data* it didn't know about before.
   landscape gives team names more room by keeping weather in game details.
   NFL Line Movers uses shorter phone-sized guidance. (2026-09-14, build 33)
 
+- **College landscape labels use school names.** The landscape board combines
+  each game's two moneylines into one stacked column, folds the grade under the
+  ML lean, and names the schools in ML and spread reads instead of relying on
+  mascots or mascot abbreviations. (2026-09-14, build 34)
+
 > **Android status:** Android 1.0.10 (version code 7) was submitted to the
 > Google Play production track on 2026-09-10 with the first three changes below:
 > Free dashboard previews, corrected NFL player-stat display, and accurate
