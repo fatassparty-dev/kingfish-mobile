@@ -68,6 +68,11 @@ export interface ModelLean {
 }
 
 export interface Game {
+  seasonWeek?: number
+  seasonYear?: number
+  seasonType?: number
+  homeProgram?: string
+  awayProgram?: string
   id?: string
   game_id?: string
   home_team: string

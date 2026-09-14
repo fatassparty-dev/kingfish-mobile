@@ -30,6 +30,22 @@ data* it didn't know about before.
 > required account-notification controls. Google review/publication is pending.
 > These changes remain part of the next iPhone submission.
 
+- **College football board updated for the live season.** NCAAF now uses actual
+  season-week filters with Today and All options, highlights KingFish's selected
+  spread side in the posted spread rows, and labels the model total as `KF PROJ`
+  without presenting an unproven Over/Under recommendation. The redundant
+  landscape O/U column was removed. (2026-09-14)
+
+- **NFL first/last touchdown history corrected.** First TD and Last TD player
+  profiles now read their specific result fields instead of treating every
+  touchdown as a first/last touchdown. Recent-game labels include season and
+  week so the rolling history is clear across seasons. (2026-09-14)
+
+- **NFL Line Movers added to Tools.** Premium members can review the five
+  largest same-book spread and total movements between recorded snapshots from
+  approximately 24 hours apart. Movement is labeled as research rather than a
+  betting recommendation. (2026-09-14)
+
 - **NFL player-stat display corrected.** Player Props now keeps the portrait
   columns in the labeled `Avg`, `L10`, `L5` order and displays a real `0.0`
   instead of making a zero-touchdown history look like missing data. The shared

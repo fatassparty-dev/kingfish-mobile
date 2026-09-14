@@ -205,6 +205,9 @@ function formatOpponent(game: RawGame) {
 }
 
 function formatGameLabel(game: RawGame, index: number) {
+  if (Number(game.season) > 0 && Number(game.week) > 0) {
+    return `${game.season} Wk ${game.week} ${formatOpponent(game)}`.trim()
+  }
   return [formatGameDate(game), formatOpponent(game)].filter(Boolean).join(' ') || String(game.label || '') || `Recent ${index + 1}`
 }
 
@@ -378,8 +381,8 @@ function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string)
     player_reception_tds: 'receiving_tds',
     player_anytime_td: 'total_tds',
     player_tds_over: 'total_tds',
-    player_1st_td: 'total_tds',
-    player_last_td: 'total_tds',
+    player_1st_td: 'first_td',
+    player_last_td: 'last_td',
     player_field_goals: 'field_goals_made',
     player_kicking_points: 'kicking_points',
     player_pats: 'extra_points_made',
@@ -419,7 +422,8 @@ function statValue(game: RawGame, keys: string | string[]) {
       found = true
       return sum + combo
     }
-    const direct = Number(game[key])
+    const raw = game[key]
+    const direct = raw === null || raw === undefined || raw === '' ? NaN : Number(raw)
     if (Number.isFinite(direct)) {
       found = true
       return sum + direct

@@ -31,6 +31,7 @@ function RootLayout() {
           <Stack.Screen name="modals/paywall" options={{ presentation: 'modal' }} />
           <Stack.Screen name="scout" />
           <Stack.Screen name="grade-slip" />
+          <Stack.Screen name="nfl-line-movers" />
           <Stack.Screen name="game-factors" />
           <Stack.Screen name="nfl-daily-intel" />
           </Stack>

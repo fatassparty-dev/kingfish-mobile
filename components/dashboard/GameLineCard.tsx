@@ -55,6 +55,7 @@ type LeanResult = {
   book?: string
   type?: string
   team?: string
+  proj?: number
 }
 
 const COUNTRY_CODES: Record<string, string> = {
@@ -262,6 +263,7 @@ function serverTotalLean(game: Game): LeanResult | null {
     price: kt.best?.price,
     book: kt.best ? displayBookName(kt.best.book, kt.best.book) : undefined,
     type: kt.type,
+    proj: kt.proj,
   }
 }
 
@@ -982,7 +984,7 @@ export function GameLineCard({
   const totalLeanLabel = totalLean?.type ? `KingFish ${totalLean.type}` : totalLean?.label.startsWith('Near') ? 'Total Watch' : 'Total Lean'
   const hideAwayMoneyline = moneylineLean?.team === game.away_team
   const hideHomeMoneyline = moneylineLean?.team === game.home_team
-  const totalLeanSide = totalLean?.label.startsWith('Over') ? 'over' : totalLean?.label.startsWith('Under') ? 'under' : null
+  const totalLeanSide = sport === 'NCAAF' ? null : totalLean?.label.startsWith('Over') ? 'over' : totalLean?.label.startsWith('Under') ? 'under' : null
   const showTournamentFlags = sport === 'SOCCER' && soccerContext?.isTournament
   const venueName = weather?.park || weather?.stadium
   const showWeatherPills = Boolean(weather && !(sport === 'NFL' && weather.sky === 'Forecast pending'))
@@ -1049,7 +1051,12 @@ export function GameLineCard({
       {(over || under) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Total</AppText>
-          {totalLean && <LeanBox label={totalLeanLabel} lean={totalLean} compact />}
+          {totalLean && sport !== 'NCAAF' && <LeanBox label={totalLeanLabel} lean={totalLean} compact />}
+          {sport === 'NCAAF' && (
+            <AppText variant="mono" style={styles.totalText}>
+              KF PROJ <AppText style={styles.totalPrice}>{typeof totalLean?.proj === 'number' ? totalLean.proj : '—'}</AppText>
+            </AppText>
+          )}
           <View style={styles.totalRow}>
             {over && totalLeanSide !== 'over' && (
               <AppText style={styles.totalText}>

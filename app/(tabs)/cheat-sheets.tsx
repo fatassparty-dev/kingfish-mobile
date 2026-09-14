@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, TextInput, View
 import * as Clipboard from 'expo-clipboard'
 import { captureRef } from 'react-native-view-shot'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { NcaaSheet, NCAA_SHEETS, type NcaaSheetKey } from '@/components/NcaaSheet'
@@ -2666,6 +2666,14 @@ export default function CheatSheetsScreen() {
             <View style={styles.featureToolCopy}>
               <AppText variant="eyebrow">// NFL Officials</AppText>
               <AppText style={styles.featureToolTitle}>The Ref Report</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+
+          <Pressable onPress={() => router.push('/nfl-line-movers' as Href)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// NFL · 24 Hours</AppText>
+              <AppText style={styles.featureToolTitle}>Top 5 Line Movers</AppText>
             </View>
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>

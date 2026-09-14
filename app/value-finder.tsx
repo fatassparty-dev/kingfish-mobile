@@ -120,7 +120,7 @@ function ValueCard({ game, sport, userState, sportsbookPreferences }: {
 }) {
   const mk = gameMarkets(game, userState, sportsbookPreferences)
   const lean = (game as any).kingfishLean as { side?: string; type?: string; detail?: string } | undefined
-  const totalLean = (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string } | undefined
+  const totalLean = (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string; proj?: number } | undefined
   const away = shortName(game.away_team)
   const home = shortName(game.home_team)
   const noTotalLean = String(totalLean?.label || '').startsWith('Near')
@@ -136,7 +136,9 @@ function ValueCard({ game, sport, userState, sportsbookPreferences }: {
       </View>
 
       {lean?.side ? <LeanTile label={`KingFish ${lean.type || 'Lean'}`} side={lean.side} detail={lean.detail} /> : null}
-      {totalLean?.label && !noTotalLean ? <LeanTile label={`KingFish ${totalLean.type || 'Lean'}`} side={totalLean.label} detail={totalLean.detail} /> : null}
+      {sport === 'NCAAF'
+        ? typeof totalLean?.proj === 'number' ? <LeanTile label="KF PROJ" side={String(totalLean.proj)} detail="KingFish projected game total." /> : null
+        : totalLean?.label && !noTotalLean ? <LeanTile label={`KingFish ${totalLean.type || 'Lean'}`} side={totalLean.label} detail={totalLean.detail} /> : null}
 
       <View style={styles.markets}>
         <View style={styles.marketCard}>

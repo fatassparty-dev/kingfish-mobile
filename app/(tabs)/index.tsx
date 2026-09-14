@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { collegeWindows, inCollegeWindow } from '@/lib/collegeBoardWindow'
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -267,6 +268,9 @@ type NCAABBaselineData = {
 }
 
 type NCAAFMatchup = {
+  seasonWeek?: number
+  seasonYear?: number
+  seasonType?: number
   id: string
   commence_time: string
   home_team: string
@@ -1350,6 +1354,12 @@ export default function DashboardScreen() {
   const [sport, setSport] = useState<Sport>('MLB')
   const [view, setView] = useState<DashboardView>('props')
   const [selectedLineWeek, setSelectedLineWeek] = useState('')
+  const [collegeWindow, setCollegeWindow] = useState('auto')
+  const [collegeNow, setCollegeNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setCollegeNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
   const [selectedMatchupWeek, setSelectedMatchupWeek] = useState('')
   const [leagueScope, setLeagueScope] = useState<'playoff' | 'season'>('playoff')
   const [expandedMlbTeam, setExpandedMlbTeam] = useState<string | null>(null)
@@ -1632,7 +1642,10 @@ export default function DashboardScreen() {
     return scopeMatch && conferenceMatch
   })
   const ncaafTeamForName = (teamName: string) => ncaafTeams.find((team) => sameNcaafTeam(teamName, team.team))
+  const collegeBoard = collegeWindows(view === 'matchups' ? ncaafMatchupsQuery.data || [] : upcomingLineGames, collegeNow)
+  const activeCollegeWindow = collegeBoard.options.some(option => option.key === collegeWindow) ? collegeWindow : collegeBoard.defaultKey
   const filteredNcaafMatchups = (ncaafMatchupsQuery.data || []).filter((game) => {
+    if (!inCollegeWindow(game, activeCollegeWindow, collegeNow)) return false
     if (collegeScope === 'top25') {
       const awayRank = game.awayRank
       const homeRank = game.homeRank
@@ -1660,9 +1673,11 @@ export default function DashboardScreen() {
     }
     return true
   })
-  const lineWeeks = sport === 'NFL' || sport === 'NCAAF' ? weekOptions(filteredUpcomingLineGames) : []
+  const lineWeeks = sport === 'NFL' ? weekOptions(filteredUpcomingLineGames) : []
   const activeLineWeek = lineWeeks.find((week) => week.key === selectedLineWeek) || lineWeeks[0]
-  const fullVisibleLineGames = (sport === 'NFL' || sport === 'NCAAF') && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
+  const fullVisibleLineGames = sport === 'NCAAF'
+    ? filteredUpcomingLineGames.filter(game => inCollegeWindow(game, activeCollegeWindow, collegeNow))
+    : sport === 'NFL' && activeLineWeek ? activeLineWeek.games : filteredUpcomingLineGames
   const visibleLineGames = canPreviewLines ? fullVisibleLineGames.slice(0, MOBILE_FREE_PREVIEW_ROWS) : fullVisibleLineGames
   // KBO with nothing on the board: the league scoreboard stands in for the
   // lines table rather than an empty card.
@@ -1755,6 +1770,14 @@ export default function DashboardScreen() {
 
       {sport === 'NCAAF' && (
         <View style={styles.collegeFilterWrap}>
+          {view !== 'league' && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRow}>
+            {collegeBoard.options.map(option => <Pressable key={option.key}
+              accessibilityRole="button" accessibilityState={{ selected: option.key === activeCollegeWindow }}
+              onPress={() => setCollegeWindow(option.key)}
+              style={[styles.weekPill, option.key === activeCollegeWindow && styles.weekPillActive]}>
+              <AppText style={[styles.weekPillText, option.key === activeCollegeWindow && styles.weekPillTextActive]}>{option.label}</AppText>
+            </Pressable>)}
+          </ScrollView>}
           <Pressable
             onPress={() => setCollegeScopeOpen((open) => !open)}
             style={styles.collegeSelect}

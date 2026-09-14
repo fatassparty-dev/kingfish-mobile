@@ -18,6 +18,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/Text'
 import { fmtOdds } from '@/lib/format'
+import { ncaafSpreadHighlight, type SpreadHighlightRead } from '@/lib/ncaafSpreadHighlight'
 import { supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
@@ -121,7 +122,10 @@ function serverEdge(game: Game) {
   return (game as any).kingfishEdge as { score?: number; label?: string; drivers?: string[] } | undefined
 }
 function serverTotalLean(game: Game) {
-  return (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string } | undefined
+  return (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string; proj?: number } | undefined
+}
+function serverSpreadLean(game: Game) {
+  return (game as any).kingfishSpreadLean as SpreadHighlightRead | null | undefined
 }
 
 // A true yellow for the Edge tier / lopsided-grade highlight — theme's
@@ -171,12 +175,12 @@ function gradeColor(gradeFor?: number, gradeAgainst?: number) {
   return colors.textPrimary
 }
 
-function PriceCell({ line, flex = 1 }: { line: BestLine; flex?: number }) {
+function PriceCell({ line, flex = 1, showPoint = false }: { line: BestLine; flex?: number; showPoint?: boolean }) {
   return (
     <View style={[styles.cell, { flex }]}>
       {line ? (
         <View style={styles.priceWrap}>
-          <AppText variant="mono" style={styles.priceText}>{fmtOdds(line.price)}</AppText>
+          <AppText variant="mono" style={styles.priceText}>{showPoint && line.point !== undefined ? `${line.point} ` : ''}{fmtOdds(line.price)}</AppText>
           <AppText style={styles.bookText}>{BOOK_SHORT[line.book] || line.book}</AppText>
         </View>
       ) : (
@@ -186,23 +190,27 @@ function PriceCell({ line, flex = 1 }: { line: BestLine; flex?: number }) {
   )
 }
 
-function SpreadCell({ awayAbbr, homeAbbr, away, home, flex = 1.8 }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; flex?: number }) {
-  const half = (abbr: string, line: BestLine) => (
-    <View style={styles.spreadHalf}>
-      <AppText variant="mono" style={styles.spreadAbbr} numberOfLines={1}>{abbr}</AppText>
-      {line ? (
-        <AppText variant="mono" style={styles.spreadText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-          {fmtPoint(line.point)} {fmtOdds(line.price)}
-        </AppText>
-      ) : (
-        <AppText variant="mono" style={styles.emptyText}>—</AppText>
-      )}
-    </View>
-  )
+function SpreadCell({ awayAbbr, homeAbbr, away, home, read, flex = 1.8 }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; read?: SpreadHighlightRead | null; flex?: number }) {
+  const half = (abbr: string, line: BestLine, side: 'home' | 'away') => {
+    const tier = ncaafSpreadHighlight(read, side, line)
+    const color = tier === 'Strong' ? colors.green : tier ? colors.gold : undefined
+    return (
+      <View style={styles.spreadHalf}>
+        <AppText variant="mono" style={[styles.spreadAbbr, color ? { color, fontWeight: '900' } : null]} numberOfLines={1}>{abbr}</AppText>
+        {line ? (
+          <AppText variant="mono" style={[styles.spreadText, color ? { color, fontWeight: '900' } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {fmtPoint(line.point)} {fmtOdds(line.price)}
+          </AppText>
+        ) : (
+          <AppText variant="mono" style={styles.emptyText}>—</AppText>
+        )}
+      </View>
+    )
+  }
   return (
     <View style={[styles.cell, { flex, overflow: 'hidden' }]}>
-      {half(awayAbbr, away)}
-      {half(homeAbbr, home)}
+      {half(awayAbbr, away, 'away')}
+      {half(homeAbbr, home, 'home')}
     </View>
   )
 }
@@ -279,6 +287,52 @@ export function GamePropsTable({
 
   const showWeather = !compact && (sport === 'MLB' || sport === 'NFL' || sport === 'NCAAF') && !!weather
 
+  if (sport === 'NCAAF' && compact) {
+    const price = (line: BestLine, points = false, signed = true) => line
+      ? `${points && line.point !== undefined ? (signed ? fmtPoint(line.point) : line.point) + ' ' : ''}${fmtOdds(line.price)} ${BOOK_SHORT[line.book] || line.book}`
+      : '—'
+    return <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 16 }}>
+        {(['time', 'edge', 'grade', 'total'] as const).map(key => <Pressable key={key} disabled={preview} onPress={() => toggleSort(key)}>
+          <AppText variant="mono" style={{ color: key === sortKey ? colors.gold : colors.textSecondary }}>{key === 'time' ? 'Kickoff' : key[0].toUpperCase() + key.slice(1)}{key === sortKey ? sortDesc ? ' ↓' : ' ↑' : ''}</AppText>
+        </Pressable>)}
+      </View>
+      {rows.map(({ game, mk }) => {
+        const lean = serverLean(game), edge = serverEdge(game), total = serverTotalLean(game), spreadLean = serverSpreadLean(game)
+        const modelLocked = preview && (game as any).previewModelLocked === true
+        const away = game.awayProgram || game.away_team, home = game.homeProgram || game.home_team
+        const leanName = lean?.team === game.home_team ? home + ' ML' : lean?.team === game.away_team ? away + ' ML' : lean?.side || '—'
+        const line = (label: string, value: string, color = colors.textPrimary, emphasize = false) => <View key={label} style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between', paddingVertical: 5 }}>
+          <AppText variant="mono" style={{ color: emphasize ? color : colors.textSecondary, flex: 1, fontWeight: emphasize ? '900' : '400' }}>{label}</AppText>
+          <AppText variant="mono" style={{ color, flex: 1, textAlign: 'right', fontWeight: emphasize ? '900' : '400' }}>{value}</AppText>
+        </View>
+        const awaySpreadTier = ncaafSpreadHighlight(spreadLean, 'away', mk.bestAwaySpread)
+        const homeSpreadTier = ncaafSpreadHighlight(spreadLean, 'home', mk.bestHomeSpread)
+        const spreadColor = (tier: 'Lean' | 'Strong' | null) => tier === 'Strong' ? colors.green : tier ? colors.gold : colors.textPrimary
+        return <View key={game.id || game.game_id} style={{ borderWidth: 1, borderColor: colors.border, padding: 14 }}>
+          <Pressable onPress={onPressMatchup ? () => onPressMatchup(game) : undefined} accessibilityRole={onPressMatchup ? 'button' : undefined}>
+            <AppText style={{ fontSize: 18, fontWeight: '700' }}>{rankLabel(game.awayRank)}{away} at {rankLabel(game.homeRank)}{home}</AppText>
+            <AppText variant="mono" style={{ color: colors.textSecondary, marginVertical: 8 }}>{new Date(game.commence_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })} CT · Details</AppText>
+          </Pressable>
+          {line('ML Lean', modelLocked ? 'Premium' : leanName, colors.gold)}
+          {line('Edge', modelLocked ? 'Premium' : edge?.label || '—', modelLocked ? colors.gold : edgeColor(edge?.score))}
+          {line('Grade', modelLocked ? 'Premium' : lean?.grade_for != null && lean.grade_against != null ? `${lean.grade_for}–${lean.grade_against}` : '—', modelLocked ? colors.gold : colors.textPrimary)}
+          {line('KF PROJ', modelLocked ? 'Premium' : typeof total?.proj === 'number' ? String(total.proj) : '—', modelLocked ? colors.gold : colors.textPrimary)}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }}>
+            {line(away + ' ML', price(mk.bestAwayMoneyline))}
+            {line(home + ' ML', price(mk.bestHomeMoneyline))}
+            <AppText variant="eyebrow" style={{ color: colors.textSecondary, marginTop: 8, marginBottom: 3 }}>Spread / KF Lean</AppText>
+            {line(away, price(mk.bestAwaySpread, true), spreadColor(awaySpreadTier), Boolean(awaySpreadTier))}
+            {line(home, price(mk.bestHomeSpread, true), spreadColor(homeSpreadTier), Boolean(homeSpreadTier))}
+            <AppText variant="eyebrow" style={{ color: colors.textSecondary, marginTop: 8, marginBottom: 3 }}>Sportsbook Totals</AppText>
+            {line('Over', price(mk.bestOverTotal, true, false))}
+            {line('Under', price(mk.bestUnderTotal, true, false))}
+          </View>
+        </View>
+      })}
+    </View>
+  }
+
   const Header = ({ label, target, flex, align = 'center' }: { label: string; target?: SortKey; flex: number; align?: 'left' | 'center' }) => (
     <Pressable disabled={!target} onPress={() => target && toggleSort(target)} style={[styles.cell, { flex, alignItems: align === 'left' ? 'flex-start' : 'center' }]}>
       <AppText variant="eyebrow" style={[styles.headerText, target && sortKey === target && styles.headerActive]} numberOfLines={1}>
@@ -300,9 +354,9 @@ export function GamePropsTable({
         {!compact && <Header label="Grade" target="grade" flex={0.9} />}
         {!compact && <Header label="Away" flex={1} />}
         {!compact && <Header label="Home" flex={1} />}
-        {!compact && <Header label={spreadLabel(sport)} flex={1.8} />}
-        <Header label="O/U" target="total" flex={0.8} />
-        <Header label="Total" flex={compact ? 1 : 0.9} />
+        {!compact && <Header label={sport === 'NCAAF' ? 'Spread / KF Lean' : spreadLabel(sport)} flex={1.8} />}
+        {sport !== 'NCAAF' && <Header label="O/U" target="total" flex={0.8} />}
+        <Header label={sport === 'NCAAF' ? 'KF PROJ' : 'Total'} flex={compact ? 1 : 0.9} />
         {!compact && <Header label="Over" flex={1} />}
         {!compact && <Header label="Under" flex={1} />}
         {compact && <Header label="ML Lean" flex={1.2} />}
@@ -313,6 +367,7 @@ export function GamePropsTable({
         const lean = serverLean(game)
         const edge = serverEdge(game)
         const totalLean = serverTotalLean(game)
+        const spreadLean = serverSpreadLean(game)
         const modelLocked = preview && (game as any).previewModelLocked === true
         const wx = weather?.[String((game as any).id || (game as any).game_id || '')]
         const noTotalLean = String(totalLean?.label || '').startsWith('Near')
@@ -332,7 +387,7 @@ export function GamePropsTable({
                   a fraction of the home team's size and the cell read as broken
                   (Brian, 2026-08-19). One node = one scale for both lines. */}
               <AppText style={styles.matchupText} numberOfLines={2}>
-                {rankLabel(game.awayRank)}{shortName(game.away_team)} @{'\n'}{rankLabel(game.homeRank)}{shortName(game.home_team)}
+                {rankLabel(game.awayRank)}{sport === 'NCAAF' ? game.awayProgram || game.away_team : shortName(game.away_team)} @{'\n'}{rankLabel(game.homeRank)}{sport === 'NCAAF' ? game.homeProgram || game.home_team : shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
             </View>
@@ -376,22 +431,25 @@ export function GamePropsTable({
                 homeAbbr={shortName(game.home_team).slice(0, 3).toUpperCase()}
                 away={mk.bestAwaySpread}
                 home={mk.bestHomeSpread}
+                read={sport === 'NCAAF' && !modelLocked ? spreadLean : null}
               />
             )}
-            <View style={[styles.cell, { flex: 0.8, overflow: 'hidden' }]}>
-              <AppText variant="mono" style={styles.totalText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{mk.bestOverTotal?.point ?? mk.bestUnderTotal?.point ?? '—'}</AppText>
-            </View>
+            {sport !== 'NCAAF' && (
+              <View style={[styles.cell, { flex: 0.8, overflow: 'hidden' }]}>
+                <AppText variant="mono" style={styles.totalText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{mk.bestOverTotal?.point ?? mk.bestUnderTotal?.point ?? '—'}</AppText>
+              </View>
+            )}
             <View style={[styles.cell, { flex: compact ? 1 : 0.9 }]}>
-              {/* Direction ONLY — the O/U column next door carries the number,
-                  and a lean tile never doubles it (no-doubled-data rule). */}
               {modelLocked
                 ? <AppText style={styles.premiumText}>Premium</AppText>
-                : totalLean?.label && !noTotalLean
-                ? <AppText style={styles.leanText} numberOfLines={1}>{String(totalLean.label).split(' ')[0]}</AppText>
-                : <AppText variant="mono" style={styles.emptyText}>{totalLean ? 'No Lean' : '—'}</AppText>}
+                : sport === 'NCAAF'
+                  ? <AppText variant="mono" style={styles.totalText} numberOfLines={1}>{typeof totalLean?.proj === 'number' ? totalLean.proj : '—'}</AppText>
+                  : totalLean?.label && !noTotalLean
+                    ? <AppText style={styles.leanText} numberOfLines={1}>{String(totalLean.label).split(' ')[0]}</AppText>
+                    : <AppText variant="mono" style={styles.emptyText}>{totalLean ? 'No Lean' : '—'}</AppText>}
             </View>
-            {!compact && <PriceCell line={mk.bestOverTotal} />}
-            {!compact && <PriceCell line={mk.bestUnderTotal} />}
+            {!compact && <PriceCell line={mk.bestOverTotal} showPoint={sport === 'NCAAF'} />}
+            {!compact && <PriceCell line={mk.bestUnderTotal} showPoint={sport === 'NCAAF'} />}
             {compact && (
               <View style={[styles.cell, { flex: 1.2 }]}>
                 {modelLocked
