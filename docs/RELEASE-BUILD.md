@@ -1,5 +1,10 @@
 # Store release build — the working recipe
 
+**Hard permission rule (2026-09-15):** Packaging a signed artifact does not
+authorize opening or operating a browser/computer UI, and a handoff prompt must
+never suggest or grant store-console upload/submission through a browser without
+Brian's explicit permission for that specific action. See `AGENTS.md`.
+
 > **Current iOS status — 2026-09-14:** iOS 1.0.9 (build 31) is approved and
 > publicly available. iOS 1.0.10 (build 36) was uploaded and submitted for App
 > Review on September 14; approval and publication are pending. Build 35 was

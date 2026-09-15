@@ -2,6 +2,14 @@
 
 Last updated: September 14, 2026 (Central Time)
 
+## Browser and release handoffs
+
+Never use a browser or other computer UI without Brian's explicit permission
+for that specific action. Never include browser/UI use or store-console
+upload/submission instructions in a future-session prompt unless Brian has
+explicitly authorized them. A request to prepare a release or write a prompt
+does not confer that permission. See `AGENTS.md`.
+
 This is the short source of truth for what is public, what is under store
 review, and what requires the next native build. Detailed history remains in
 `APP_STORE_CHANGELOG.md` and `RELEASE-IMPACT-LEDGER.md`.
