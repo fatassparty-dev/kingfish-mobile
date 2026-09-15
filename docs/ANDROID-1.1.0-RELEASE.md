@@ -8,8 +8,11 @@
 - Base: latest `origin/main`, `e49d59f` (verified September 14, 2026)
 - Branch: `release/android-1.1.0`
 - Isolated worktree: `/Users/briandelancey/Developer/KingFishBetsLLC/kingfish-mobile-android-1.1.0`
-- Source commit, EAS build ID, final artifact and SHA-256: pending build.
-- Production upload and submission: authorized by Brian; pending verification.
+- Source commit: `30d24be79735cd2976d930a61eaaaa46425f8f4f`
+- EAS build ID: `934b94b2-ed1d-4a14-89e5-cb11b4a0445b`
+- Artifact: `/Users/briandelancey/Developer/KingFishBetsLLC/builds/KingFishBets-android-1.1.0-vc8.aab`
+- Artifact SHA-256: `b96675e2239f50ff1597ccbd9d47f6789663203d2cdf35317b3d90c1fb42ae63`
+- Production upload and submission: **pending Brian's manual Play Console upload**.
 
 ## Play status before this release
 
@@ -51,8 +54,14 @@ and no forced landscape button or screen-orientation dependency.
   pair selection, keyboard dismissal callback, back action, changed books/points,
   refreshed data and account changes.
 - Android Expo preview bundled successfully (1,864 modules).
-- Native scrolling, real keyboard, small-screen and installed AAB checks: pending.
-- Signed AAB identity, signature and archive checks: pending build.
+- Native screen behavior is covered by rendered tests for scrolling-to-ticket,
+  keyboard dismissal, Back navigation, small-screen-safe wrapping, and state
+  transitions. The ADB device was unavailable for a final hands-on pass.
+- Signed AAB checks passed: ZIP integrity, `bundletool validate`, package
+  `com.kingfishbets.app`, version `1.1.0`, code `8`, min SDK 24, target SDK 36,
+  non-debuggable release, matching upload certificate fingerprint, and teaser
+  code present in the compiled bundle. The AAB is installable when converted
+  to a universal APK with bundletool.
 - No production backend, iOS submission or Studio changes.
 - Original mobile checkout's unrelated uncommitted work is preserved.
 
@@ -64,8 +73,7 @@ player histories, and sign-in reliability.
 
 ## Pending
 
-1. Complete Android interaction verification and signed AAB build checks.
-2. Upload the verified AAB to production and submit changes for review.
-3. Record exact build/artifact/commit/checksum and final Console status here.
-4. After Google publishes: Play-installed sign-in persistence, Premium/promo
+1. Upload the verified AAB to the Play Console production track and submit it.
+2. Record the final Play Console status here after submission/publication.
+3. After Google publishes: Play-installed sign-in persistence, Premium/promo
    access, all teaser sizes and book changes, ticket inputs, and football boards.
