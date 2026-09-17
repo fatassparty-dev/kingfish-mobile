@@ -78,3 +78,22 @@ should be prevented in the UI.
 
 Would reuse the same pattern as the Home picker: its own jsonb column on
 user_profiles, filtered against the server's live list.
+
+---
+
+## Improve push notifications (both apps) — later, not urgent
+
+Found in the HQ data review (2026-09-17): only 1 phone in the whole system has a push
+token (an internal iPhone), so HQ notifications reach almost nobody.
+
+**Why:** the app only asks for notification permission when a customer goes to Account
+and turns ON the Betting or Offers switch. It never asks at sign-in or launch. All 73
+customers have both switches off. The "Account alerts" switch always shows ON but can't
+be tapped, so it never registers the phone either.
+
+**Direction:** ask for permission at a natural moment (e.g. right after sign-in or first
+NFL visit) and register the phone for account alerts when the customer says yes. Needs a
+native build for iPhone, Android, and iPad. The server side
+(`/api/mobile-notifications`, `user_push_tokens`, HQ → Notifications) already works.
+
+**Decision (Brian, 2026-09-17):** deal with this later; not worried about it today.
