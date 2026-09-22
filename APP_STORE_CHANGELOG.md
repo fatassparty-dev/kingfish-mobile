@@ -22,7 +22,13 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 Planned — 1.1.0 (iOS build 37 or higher)
+## 🔵 1.1.0 (iOS build 37) — BUILT 2026-09-22 for TestFlight
+
+> Version jumps 1.0.10 → 1.1.0 (Brian: no 1.0.11). Built from `main` after
+> merging `release/android-1.1.0`, so iOS and Android 1.1.0 share the Teaser
+> Builder. Teaser Builder has NOT yet had its iPhone test pass — test it on
+> TestFlight (sign-in, Premium gate, books, 6/6.5/7 pts, suggested pairs,
+> 2–4 legs, ticket math, empty/stale states, small-screen scroll).
 
 - **Add the NFL Teaser Builder to the native Tools area.** The Teaser Builder is
   available on the KingFish website, but it is not present in submitted iOS
