@@ -136,7 +136,7 @@ const EDGE_YELLOW = '#F5D04C'
 function edgeColor(score?: number) {
   const n = Number(score)
   if (!Number.isFinite(n)) return colors.textSecondary
-  return n >= 75 ? colors.green : n >= 60 ? EDGE_YELLOW : colors.textSecondary
+  return n >= 80 ? colors.green : n >= 65 ? EDGE_YELLOW : colors.textSecondary
 }
 
 // The compact column is strictly the MONEYLINE team. MLB dog leans can arrive
