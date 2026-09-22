@@ -11,6 +11,9 @@ export type TeaserBook = {
 export type NflTeaserResponse = {
   status: 'ready' | 'no_games' | 'no_qualifiers'; points: TeaserPoints
   books: TeaserBook[]; updatedAt: string | null; stale: boolean
+  // Every team's spread per book (server 2026-09-22). The app lists these
+  // instead of suggested pairs; absent on an older server → falls back to books.
+  allBooks?: { key: string; name: string; legs: TeaserLeg[] }[]
 }
 
 export function toggleTeaserLeg(ids: string[], leg: TeaserLeg, legs: TeaserLeg[]): string[] {

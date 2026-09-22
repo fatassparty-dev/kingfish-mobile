@@ -33,7 +33,8 @@ export default function NflTeaserScreen() {
   })
   useEffect(() => { setIds([]); setOdds('') }, [points, bookKey, query.dataUpdatedAt, session?.user.id])
   const data = query.data
-  const book = data?.books.find(item => item.key === bookKey) ?? data?.books[0]
+  const boards = data?.allBooks?.length ? data.allBooks : data?.books ?? []
+  const book = boards.find(item => item.key === bookKey) ?? boards[0]
   const legs = book?.legs ?? []
   const selected = legs.filter(leg => ids.includes(leg.id))
   const payout = teaserTicketMath(odds, stake)
@@ -58,14 +59,14 @@ export default function NflTeaserScreen() {
           <Button variant="secondary" onPress={() => { setIds([]); void query.refetch() }}>Refresh lines</Button>
         </View>
         {data.status === 'no_games' && <AppText style={styles.intro}>No upcoming NFL games are available in the saved lines.</AppText>}
-        {data.status === 'no_qualifiers' && <AppText style={styles.intro}>No spreads from your selected sportsbooks qualify for a {points}-point adjustment.</AppText>}
-        {data.status === 'ready' && book && <>
+        {data.status === 'no_qualifiers' && !data.allBooks?.length && <AppText style={styles.intro}>No spreads from your selected sportsbooks qualify for a {points}-point adjustment.</AppText>}
+        {(data.status === 'ready' || !!data.allBooks?.length) && book && <>
           <AppText style={styles.label}>Sportsbook</AppText>
-          <View style={styles.choices}>{data.books.map(option => <Pressable key={option.key} accessibilityRole="button" accessibilityState={{ selected: book.key === option.key }} onPress={() => { setIds([]); setBookKey(option.key) }} style={[styles.choice, book.key === option.key && styles.active]}><AppText>{option.name}</AppText></Pressable>)}</View>
+          <View style={styles.choices}>{boards.map(option => <Pressable key={option.key} accessibilityRole="button" accessibilityState={{ selected: book.key === option.key }} onPress={() => { setIds([]); setBookKey(option.key) }} style={[styles.choice, book.key === option.key && styles.active]}><AppText>{option.name}</AppText></Pressable>)}</View>
           <View onLayout={event => { ticketY.current = event.nativeEvent.layout.y }} style={styles.section}>
             <AppText style={styles.heading}>Your teaser · {selected.length} of 4 legs</AppText>
             <AppText style={styles.small}>{book.name} · {points} points</AppText>
-            {selected.length < 2 && <AppText style={styles.muted}>{selected.length ? 'Add one more leg.' : 'Choose a suggested pair or add legs below.'}</AppText>}
+            {selected.length < 2 && <AppText style={styles.muted}>{selected.length ? 'Add one more leg.' : 'Add legs from the list below.'}</AppText>}
             {selected.map(leg => <Pressable key={leg.id} accessibilityRole="button" accessibilityLabel={`Remove ${leg.team}`} onPress={() => setIds(current => current.filter(id => id !== leg.id))} style={styles.ticketLeg}><AppText style={styles.flex}>{leg.team} {line(leg.teasedLine)}</AppText><AppText style={styles.gold}>×</AppText></Pressable>)}
             {selected.length >= 2 && <>
               <AppText style={styles.label}>Sportsbook ticket odds (American)</AppText>
@@ -76,19 +77,20 @@ export default function NflTeaserScreen() {
               {payout ? <View accessibilityLiveRegion="polite" style={styles.section}><AppText>Potential profit · ${payout.profit.toFixed(2)}</AppText><AppText>Total return · ${payout.total.toFixed(2)}</AppText><AppText style={styles.small}>Break-even rate · {payout.breakEven.toFixed(1)}%</AppText></View> : <AppText style={styles.small}>Enter ticket odds of −100 or lower, or +100 or higher, and a positive stake.</AppText>}
             </>}
           </View>
-          <AppText style={styles.heading}>Suggested two-leg teasers</AppText>
-          {!book.pairs.length && <AppText style={styles.intro}>No two-game combinations qualify at this sportsbook.</AppText>}
-          {book.pairs.map((pair, index) => {
-            const pairLegs = pair.legIds.map(id => legs.find(leg => leg.id === id))
-            if (!pairLegs[0] || !pairLegs[1]) return null
-            return <View key={pair.id} style={styles.section}><AppText style={styles.small}>Option {index + 1}</AppText>{pairLegs.map(leg => leg && <View key={leg.id}><AppText>{leg.team}</AppText><AppText style={styles.gold}>{line(leg.originalLine)} → {line(leg.teasedLine)}</AppText></View>)}<Button variant="secondary" onPress={() => { setIds([...pair.legIds]); setOdds(''); showTicket() }}>Use pair {index + 1}</Button></View>
-          })}
-          <AppText style={styles.heading}>Top qualifying legs</AppText>
-          <AppText style={styles.small}>Select two to four games. Your ticket is above.</AppText>
-          {legs.map((leg, index) => {
+          <AppText style={styles.heading}>All teams</AppText>
+          <AppText style={styles.small}>Every spread at {book.name}, teased {points} points. Pick two to four teams from different games. Your ticket is above.</AppText>
+          {legs.map(leg => {
             const added = ids.includes(leg.id)
             const disabled = !added && (ids.length >= 4 || selected.some(other => other.gameId === leg.gameId))
-            return <View key={leg.id} style={styles.section}><AppText style={styles.small}>{String(index + 1).padStart(2, '0')}</AppText><AppText style={styles.heading}>{leg.team}</AppText><AppText style={styles.small}>vs. {leg.opponent} · {time(leg.kickoff)}</AppText><AppText style={styles.line}>{line(leg.originalLine)} → {line(leg.teasedLine)}</AppText><AppText style={styles.small}>{leg.explanation}</AppText><Pressable accessibilityRole="button" accessibilityLabel={`${added ? 'Remove' : 'Add'} ${leg.team}`} accessibilityState={{ selected: added, disabled }} disabled={disabled} onPress={() => { setIds(current => toggleTeaserLeg(current, leg, legs)); setOdds('') }} style={[styles.choice, added && styles.active, disabled && styles.disabled]}><AppText>{added ? 'Remove leg' : disabled ? 'Selection limit' : 'Add leg'}</AppText></Pressable></View>
+            return <View key={leg.id} style={styles.legRow}>
+              <View style={styles.flex}>
+                <AppText style={styles.heading}>{leg.team}</AppText>
+                <AppText style={styles.small}>vs. {leg.opponent} · {time(leg.kickoff)}</AppText>
+                <AppText style={styles.line}>{line(leg.originalLine)} → {line(leg.teasedLine)}</AppText>
+                <AppText style={styles.small}>{leg.explanation}</AppText>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${added ? 'Remove' : 'Add'} ${leg.team}`} accessibilityState={{ selected: added, disabled }} disabled={disabled} onPress={() => { setIds(current => toggleTeaserLeg(current, leg, legs)); setOdds('') }} style={[styles.choice, added && styles.active, disabled && styles.disabled]}><AppText>{added ? 'Remove' : disabled ? 'Limit' : 'Add'}</AppText></Pressable>
+            </View>
           })}
           {selected.length > 0 && <Button variant="secondary" onPress={showTicket}>View your teaser ({selected.length} legs)</Button>}
         </>}
@@ -107,6 +109,7 @@ const styles = StyleSheet.create({
   active: { borderColor: colors.gold, backgroundColor: colors.bgCard },
   disabled: { opacity: 0.45 },
   section: { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 20, gap: 12 },
+  legRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 14 },
   heading: { fontSize: 18, fontWeight: '600' }, small: { fontSize: 12, lineHeight: 19, color: colors.textSecondary },
   ticketLeg: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, flex: { flex: 1 },
   input: { color: colors.textPrimary, fontSize: 18, minHeight: 48, padding: 12, borderWidth: 1, borderColor: colors.borderActive, backgroundColor: colors.bgCard },

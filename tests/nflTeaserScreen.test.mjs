@@ -82,9 +82,11 @@ test('empty and stale snapshots are explained', async () => {
   const f = await fixture({ payload: { ...data(), stale: true } })
   assert.match(f.text(), /older than usual/); await f.close()
 })
-test('pairs populate tickets; ticket math, back and keyboard dismissal work', async () => {
+const pickTwo = async f => { await f.press('Add Team 1'); await f.press('Add Team 2') }
+test('picked teams populate the ticket; ticket math, back and keyboard dismissal work', async () => {
   const f = await fixture()
-  await f.press('Use pair 1')
+  await pickTwo(f)
+  await f.press('View your teaser (2 legs)')
   assert.equal(f.scrolls.length, 1)
   const inputs = f.root.root.findAllByType('TextInput')
   assert.equal(inputs.length, 2)
@@ -97,16 +99,30 @@ test('pairs populate tickets; ticket math, back and keyboard dismissal work', as
 })
 test('book, point, user and snapshot changes clear selections and previous pricing', async () => {
   const f = await fixture()
-  await f.press('Use pair 1'); await f.press('Book B')
+  await pickTwo(f); await f.press('Book B')
   assert.equal(f.root.root.findAllByType('TextInput').length, 0)
-  await f.press('Book A'); await f.press('Use pair 1')
+  await f.press('Book A'); await pickTwo(f)
   const points = f.root.root.findAllByType('Pressable').find(node => node.props.children?.props?.children === 6.5)
   await act(() => points.props.onPress())
   assert.equal(f.queries.at(-1).queryKey[2], 6.5)
   assert.equal(f.root.root.findAllByType('TextInput').length, 0)
-  await f.press('Use pair 1'); f.query.dataUpdatedAt = 2; await f.update()
+  await pickTwo(f); f.query.dataUpdatedAt = 2; await f.update()
   assert.equal(f.root.root.findAllByType('TextInput').length, 0)
-  await f.press('Use pair 1'); f.state.session = null; await f.update()
+  await pickTwo(f); f.state.session = null; await f.update()
   assert.doesNotMatch(f.text(), /Team 1/)
+  await f.close()
+})
+test('all teams from allBooks are listed, with no suggested pairs', async () => {
+  const allLeg = (id, gameId) => ({ ...leg(id, gameId), originalLine: 11.5, teasedLine: 17.5, explanation: 'Does not move through 3 or 7.' })
+  const f = await fixture({ payload: { ...data(), status: 'no_qualifiers', books: [], allBooks: [
+    { key: 'a', name: 'Book A', legs: [allLeg('1', 'g1'), allLeg('2', 'g1'), allLeg('3', 'g2')] },
+  ] } })
+  assert.match(f.text(), /All teams/)
+  assert.doesNotMatch(f.text(), /Suggested|Use pair|No spreads from your selected/)
+  await f.press('Add Team 1')
+  const sameGame = f.root.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'Add Team 2')[0]
+  assert.equal(sameGame.props.disabled, true)
+  await f.press('Add Team 3')
+  assert.equal(f.root.root.findAllByType('TextInput').length, 2)
   await f.close()
 })
