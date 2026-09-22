@@ -36,6 +36,21 @@ data* it didn't know about before.
   `/api/nfl-teaser` data contract and receive a focused phone-layout test before
   packaging. Do not describe the Teaser Builder as an iOS 1.0.10 feature.
 
+- **[Built — 2026-09-22, build 38] Dashboard opens on the first sport tab.** It
+  always opened on MLB (hard-coded) even when HQ's order put NFL first. Now it
+  follows `dashboard_sport_order` (narrowed by Sports You Follow) until the user
+  taps a sport. Scope: `app/(tabs)/index.tsx`.
+
+- **[Built — 2026-09-22, build 38] Sport filter in Tools.** Cheat Sheets and
+  Tools get a chip row (All Sports + each sport with something built for it, in
+  HQ order); cross-sport entries show under every sport; Calculators ignore it.
+  Ported from the web's /tools filter. Scope: `app/(tabs)/cheat-sheets.tsx`.
+
+- **[Built — 2026-09-22, build 38] Teaser Builder lists every team.** Suggested
+  pairs removed; "All teams" lists every spread at the chosen book (from the
+  server's new `allBooks` field), one team per game, 2–4 legs. Scope:
+  `app/nfl-teaser.tsx`, `lib/nflTeaser.ts`.
+
 - **[Built — 2026-09-22] QB yards no longer cut off in the props table.**
   - **What the reviewer sees:** Avg / L10 / L5 read "229" instead of "22…" on
     pass-yards rows; the odds under the player name no longer truncate.
