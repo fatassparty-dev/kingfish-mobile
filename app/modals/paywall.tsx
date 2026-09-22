@@ -55,7 +55,7 @@ const FEATURES = [
   'Player profiles with recent form',
   'MLB cheat sheets and stat reports',
   'Unlimited Ask KingFish with live context',
-  'NFL Command Center and all supported sports',
+  'NFL and all supported sports',
 ]
 
 export default function PaywallScreen() {

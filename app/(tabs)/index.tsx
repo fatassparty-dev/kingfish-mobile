@@ -3238,19 +3238,6 @@ export default function DashboardScreen() {
           ))}
         </View>
       )}
-      {sport === 'NFL' && (
-        <Card>
-          <AppText variant="eyebrow">// More Research</AppText>
-          <AppText variant="muted" style={styles.roadmapText}>
-            Futures, injuries, fantasy, depth charts, and team research.
-          </AppText>
-          <View style={styles.upgradeAction}>
-            <Button variant="secondary" onPress={() => Linking.openURL(mobileConfig.links.nfl_command_center)}>
-              Open NFL Command Center
-            </Button>
-          </View>
-        </Card>
-      )}
       <SoccerTeamProfileModal
         team={selectedSoccerTeam}
         league={soccerLeague}
