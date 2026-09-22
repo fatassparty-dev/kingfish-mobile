@@ -1316,6 +1316,9 @@ export default function DashboardScreen() {
   const isLandscape = windowWidth > windowHeight
   const mobileConfig = useMobileConfig()
   const [sport, setSport] = useState<Sport>('MLB')
+  // Until the user taps a sport, the dashboard follows the first tab in the
+  // server's dashboard_sport_order (HQ), narrowed by their followed sports.
+  const [sportPicked, setSportPicked] = useState(false)
   const [view, setView] = useState<DashboardView>('props')
   const [selectedLineWeek, setSelectedLineWeek] = useState('auto')
   const [collegeWindow, setCollegeWindow] = useState('auto')
@@ -1420,10 +1423,14 @@ export default function DashboardScreen() {
   }, [dashboardViews.join('|'), view])
 
   useEffect(() => {
-    if (visibleSports.length && !visibleSports.some((item) => item.key === sport)) {
-      setSport(visibleSports[0].key)
+    if (!visibleSports.length) return
+    const first = visibleSports[0].key
+    const needsReset = sportPicked ? !visibleSports.some((item) => item.key === sport) : sport !== first
+    if (needsReset) {
+      setSport(first)
+      setView(firstDashboardViewForSport(first))
     }
-  }, [sport, visibleSports.map((item) => item.key).join('|')])
+  }, [sport, sportPicked, visibleSports.map((item) => item.key).join('|')])
   const lineQuery = useQuery({
     queryKey: ['game-lines', sport, view, sport === 'SOCCER' ? soccerLeague : 'default', canPreviewLines ? 'preview' : 'full'],
     queryFn: async () => {
@@ -1689,6 +1696,7 @@ export default function DashboardScreen() {
           <Pressable
             key={item.key}
             onPress={() => {
+              setSportPicked(true)
               setSport(item.key)
               setView(firstDashboardViewForSport(item.key))
             }}
