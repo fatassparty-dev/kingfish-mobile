@@ -334,6 +334,28 @@ const TOOL_MODES: Array<{ key: ToolMode; label: string }> = [
   { key: 'more', label: 'Tools' },
 ]
 
+// Sport filter for Cheat Sheets + Tools, ported from the web's /tools filter
+// (kingfish-bets lib/productCatalog.ts). 'ALL' entries are cross-sport and show
+// under every sport. Calculators ignore it — they don't care what you bet.
+type ToolSport = Exclude<ToolTile['sport'], 'ALL'>
+type ToolSportFilter = ToolSport | 'all'
+
+function matchesToolSport(entrySport: ToolTile['sport'], selected: ToolSportFilter) {
+  return selected === 'all' || entrySport === 'ALL' || entrySport === selected
+}
+
+const PRO_TOOL_TILES: Array<{ key: string; route: string; eyebrow: string; title: string; sport: ToolTile['sport'] }> = [
+  { key: 'daily-intel', route: '/nfl-daily-intel', eyebrow: '// NFL Briefing', title: 'NFL Daily Intel', sport: 'NFL' },
+  { key: 'fantasy', route: '/fantasy', eyebrow: '// Football Draft Room', title: 'Fantasy Hub', sport: 'NFL' },
+  { key: 'game-factors', route: '/game-factors', eyebrow: '// MLB + NFL', title: 'Game Factors', sport: 'ALL' },
+  { key: 'scout', route: '/scout', eyebrow: '// NFL Tracking Data', title: 'The Scout', sport: 'NFL' },
+  { key: 'ref-report', route: '/ref-report', eyebrow: '// NFL Officials', title: 'The Ref Report', sport: 'NFL' },
+  { key: 'line-movers', route: '/nfl-line-movers', eyebrow: '// NFL · 24 Hours', title: 'Top 5 Line Movers', sport: 'NFL' },
+  { key: 'teaser', route: '/nfl-teaser', eyebrow: '// NFL · Game Spreads', title: 'NFL Teaser Builder', sport: 'NFL' },
+  { key: 'grade-slip', route: '/grade-slip', eyebrow: '// Slip Grader', title: 'Grade My Slip', sport: 'ALL' },
+  { key: 'value-finder', route: '/value-finder', eyebrow: '// All Sports', title: 'Game Lines', sport: 'ALL' },
+]
+
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
 
 const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
@@ -2153,6 +2175,20 @@ export default function CheatSheetsScreen() {
   // Land on Calculators: it's free for everyone, so guests/free users (and App
   // Review) see usable tools before any premium gate.
   const [toolMode, setToolMode] = useState<ToolMode>('calculators')
+  const [toolSport, setToolSport] = useState<ToolSportFilter>('all')
+  // Chips = sports that have something dedicated in Cheat Sheets or Tools,
+  // in the HQ dashboard order (NFL first in season), narrowed to the sports the
+  // user follows.
+  const toolSportOptions = useMemo(() => {
+    const tagged = new Set<ToolSport>()
+    for (const entry of [...TOOL_TILES, ...PRO_TOOL_TILES]) if (entry.sport !== 'ALL') tagged.add(entry.sport)
+    const order = mobileConfig.dashboard_sport_order.map((key) => key.toUpperCase())
+    const rank = (sport: string) => (order.indexOf(sport) === -1 ? order.length : order.indexOf(sport))
+    return [...tagged]
+      .filter((sport) => tileMatchesSportPreferences(sport, profile?.sport_preferences))
+      .sort((a, b) => rank(a) - rank(b))
+  }, [mobileConfig.dashboard_sport_order.join('|'), profile?.sport_preferences])
+  const activeToolSport: ToolSportFilter = toolSport !== 'all' && toolSportOptions.includes(toolSport) ? toolSport : 'all'
   const [selectedKey, setSelectedKey] = useState<SheetKey | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
@@ -2628,79 +2664,38 @@ export default function CheatSheetsScreen() {
         ))}
       </View>
 
+      {toolMode !== 'calculators' && toolSportOptions.length > 1 ? (
+        <View style={styles.sportFilterRow} accessibilityLabel="Filter tools by sport">
+          {(['all', ...toolSportOptions] as ToolSportFilter[]).map((option) => (
+            <Pressable
+              key={option}
+              accessibilityRole="button"
+              accessibilityState={{ selected: toolSport === option }}
+              onPress={() => {
+                setToolSport(option)
+                setSelectedKey(null)
+              }}
+              style={[styles.sportFilterChip, toolSport === option && styles.sportFilterChipActive]}
+            >
+              <AppText style={[styles.sportFilterText, toolSport === option && styles.sportFilterTextActive]}>
+                {option === 'all' ? 'All Sports' : option}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {toolMode === 'more' ? (
         <>
-          <Pressable onPress={() => router.push('/nfl-daily-intel' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// NFL Briefing</AppText>
-              <AppText style={styles.featureToolTitle}>NFL Daily Intel</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/fantasy' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// Football Draft Room</AppText>
-              <AppText style={styles.featureToolTitle}>Fantasy Hub</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/game-factors' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// MLB + NFL</AppText>
-              <AppText style={styles.featureToolTitle}>Game Factors</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/scout' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// NFL Tracking Data</AppText>
-              <AppText style={styles.featureToolTitle}>The Scout</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/ref-report' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// NFL Officials</AppText>
-              <AppText style={styles.featureToolTitle}>The Ref Report</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/nfl-line-movers' as Href)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// NFL · 24 Hours</AppText>
-              <AppText style={styles.featureToolTitle}>Top 5 Line Movers</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable accessibilityRole="button" onPress={() => router.push('/nfl-teaser' as Href)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// NFL · Game Spreads</AppText>
-              <AppText style={styles.featureToolTitle}>NFL Teaser Builder</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/grade-slip' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// Slip Grader</AppText>
-              <AppText style={styles.featureToolTitle}>Grade My Slip</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
-
-          <Pressable onPress={() => router.push('/value-finder' as any)} style={styles.featureTool}>
-            <View style={styles.featureToolCopy}>
-              <AppText variant="eyebrow">// All Sports</AppText>
-              <AppText style={styles.featureToolTitle}>Game Lines</AppText>
-            </View>
-            <AppText style={styles.featureToolArrow}>Open</AppText>
-          </Pressable>
+          {PRO_TOOL_TILES.filter((tool) => matchesToolSport(tool.sport, activeToolSport)).map((tool) => (
+            <Pressable key={tool.key} accessibilityRole="button" onPress={() => router.push(tool.route as Href)} style={styles.featureTool}>
+              <View style={styles.featureToolCopy}>
+                <AppText variant="eyebrow">{tool.eyebrow}</AppText>
+                <AppText style={styles.featureToolTitle}>{tool.title}</AppText>
+              </View>
+              <AppText style={styles.featureToolArrow}>Open</AppText>
+            </Pressable>
+          ))}
         </>
       ) : toolMode === 'calculators' ? (
         <>
@@ -2732,7 +2727,7 @@ export default function CheatSheetsScreen() {
         <>
           <View style={styles.sheetGrid}>
             {(canUseCheatSheets
-              ? TOOL_TILES.filter((tile) => tileMatchesSportPreferences(tile.sport, profile?.sport_preferences))
+              ? TOOL_TILES.filter((tile) => tileMatchesSportPreferences(tile.sport, profile?.sport_preferences) && matchesToolSport(tile.sport, activeToolSport))
               : []
             ).map((sheet) => (
               <Pressable
@@ -2743,11 +2738,11 @@ export default function CheatSheetsScreen() {
                 style={styles.sheetPickerTile}
               >
                 <View style={styles.sheetPickerAccent} />
-                <AppText style={styles.sheetSportLabel}>{sheet.sport === 'NCAAF' ? 'NCAA Football' : sheet.sport}</AppText>
+                <AppText style={styles.sheetSportLabel}>{sheet.sport}</AppText>
                 <AppText style={styles.sheetPickerTitle} numberOfLines={2}>{sheet.label}</AppText>
               </Pressable>
             ))}
-            {canUseCheatSheets ? (
+            {canUseCheatSheets && matchesToolSport('MLB', activeToolSport) ? (
               <Pressable
                 key="stadium"
                 onPress={() => router.push('/game-factors?view=cheat' as any)}
@@ -3503,6 +3498,31 @@ const styles = StyleSheet.create({
   cardTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
   cardCopy: { marginTop: spacing.sm },
   action: { marginTop: spacing.lg },
+  sportFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.md,
+  },
+  sportFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sportFilterChipActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  sportFilterText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  sportFilterTextActive: {
+    color: colors.bgPrimary,
+  },
   segmentRow: {
     flexDirection: 'row',
     gap: spacing.sm,
