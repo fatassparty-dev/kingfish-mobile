@@ -387,8 +387,11 @@ function statColor(value: number, line: number) {
   return colors.red
 }
 
+// Triple-digit stats (QB pass yards) drop the decimal so "229" fits the
+// 54px column instead of truncating to "22…".
 function fmtStat(value: number, hasStats = value !== 0) {
-  return hasStats ? value.toFixed(1) : '-'
+  if (!hasStats) return '-'
+  return Math.abs(value) >= 100 ? String(Math.round(value)) : value.toFixed(1)
 }
 
 function displayPlayerName(name?: string) {
@@ -922,7 +925,7 @@ function PropTableRow({
         <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
           {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
-        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
+        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {landscape ? marketLabel(prop.market.key) : playerLine}
         </AppText>
       </View>
@@ -952,7 +955,7 @@ function PropTableRow({
 function StatTableCell({ value, color, landscape = false }: { value: string; color: string; landscape?: boolean }) {
   return (
     <View style={[styles.cell, landscape && styles.landscapeCell]}>
-      <AppText style={[styles.statCellValue, landscape && styles.landscapeStatCellValue, { color }]} numberOfLines={1}>{value}</AppText>
+      <AppText style={[styles.statCellValue, landscape && styles.landscapeStatCellValue, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{value}</AppText>
     </View>
   )
 }
