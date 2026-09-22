@@ -2678,6 +2678,14 @@ export default function CheatSheetsScreen() {
             <AppText style={styles.featureToolArrow}>Open</AppText>
           </Pressable>
 
+          <Pressable accessibilityRole="button" onPress={() => router.push('/nfl-teaser' as Href)} style={styles.featureTool}>
+            <View style={styles.featureToolCopy}>
+              <AppText variant="eyebrow">// NFL · Game Spreads</AppText>
+              <AppText style={styles.featureToolTitle}>NFL Teaser Builder</AppText>
+            </View>
+            <AppText style={styles.featureToolArrow}>Open</AppText>
+          </Pressable>
+
           <Pressable onPress={() => router.push('/grade-slip' as any)} style={styles.featureTool}>
             <View style={styles.featureToolCopy}>
               <AppText variant="eyebrow">// Slip Grader</AppText>

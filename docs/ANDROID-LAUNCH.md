@@ -1,5 +1,9 @@
 # Android launch plan
 
+> **Current Android release work:** `1.0.10` code `7` is live, verified September
+> 14, 2026. The next release is `1.1.0` code `8`; see
+> [ANDROID-1.1.0-RELEASE.md](ANDROID-1.1.0-RELEASE.md) for verification and submission.
+
 > The active, day-by-day submission checklist and status are maintained in
 > [`ANDROID-SUBMISSION-PROGRESS.md`](ANDROID-SUBMISSION-PROGRESS.md). This file
 > remains the background launch plan and account-setup history.

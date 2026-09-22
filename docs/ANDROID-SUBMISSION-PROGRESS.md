@@ -1,5 +1,11 @@
 # Android submission progress
 
+> **September 14, 2026:** Play Console confirms Android `1.0.10` code `7` is
+> live in production, with no unpublished changes. Android `1.1.0` code `8`
+> is being prepared in an isolated worktree. Follow
+> [ANDROID-1.1.0-RELEASE.md](ANDROID-1.1.0-RELEASE.md) for its exact build,
+> verification and submission record. Older entries below are historical.
+
 Last updated: 2026-09-10
 
 > Android 1.0.9 (version code 6) is approved and published to Google Play.
