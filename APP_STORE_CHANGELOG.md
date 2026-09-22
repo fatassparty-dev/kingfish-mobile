@@ -30,6 +30,24 @@ data* it didn't know about before.
   `/api/nfl-teaser` data contract and receive a focused phone-layout test before
   packaging. Do not describe the Teaser Builder as an iOS 1.0.10 feature.
 
+- **[Built — 2026-09-22] QB yards no longer cut off in the props table.**
+  - **What the reviewer sees:** Avg / L10 / L5 read "229" instead of "22…" on
+    pass-yards rows; the odds under the player name no longer truncate.
+  - **Why:** triple-digit values with a decimal didn't fit the column.
+  - **Scope:** `components/dashboard/PropCard.tsx` — stats of 100+ show whole
+    numbers; stat cells and the subline shrink-to-fit as a safety net.
+  - **Risk:** display only.
+
+- **[Built — 2026-09-22] Removed the "Open NFL Command Center" card.** It sat at
+  the bottom of the NFL dashboard and opened the website's Fantasy page. The
+  paywall feature line now reads "NFL and all supported sports." Scope:
+  `app/(tabs)/index.tsx`, `app/modals/paywall.tsx`.
+
+- **[Built — 2026-09-22] Game Edge colors match the server labels (80 / 65).**
+  The server labels Strong >= 80 / Lean >= 65 since 2026-09-19; the app colored
+  at 75 / 60, so a "Lean 77" showed green. `edgeColor()` in
+  `components/dashboard/GamePropsTable.tsx`. *Why:* color and label should agree.
+
 ---
 
 ## 🟡 1.0.10 (iOS build 36) — SUBMITTED FOR APP REVIEW 2026-09-14
@@ -621,6 +639,13 @@ real operating constraint.
 ---
 
 ## 🟢 Server/web changes — no app update needed (for your records)
+
+### 2026-09-22 — WNBA/NBA Edge win-% fix (`kingfish-bets` `44b6f6e`)
+
+Live in the current app, no update needed. The team-form feed's `games` is the
+last-10 count while wins/losses are the whole season, so the Edge read a 30-15
+team as 300% and pushed WNBA favorites (and NBA opening-night games at 53-47
+grades) toward 95. Win % now = wins / (wins + losses).
 
 ### 2026-08-20 — NFL props correctness + Odds API cost work (`kingfish-bets`)
 
