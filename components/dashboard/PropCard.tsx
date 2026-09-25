@@ -925,7 +925,7 @@ function PropTableRow({
         <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
           {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
-        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
           {landscape ? marketLabel(prop.market.key) : playerLine}
         </AppText>
       </View>
@@ -955,7 +955,7 @@ function PropTableRow({
 function StatTableCell({ value, color, landscape = false }: { value: string; color: string; landscape?: boolean }) {
   return (
     <View style={[styles.cell, landscape && styles.landscapeCell]}>
-      <AppText style={[styles.statCellValue, landscape && styles.landscapeStatCellValue, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{value}</AppText>
+      <AppText style={[styles.statCellValue, landscape && styles.landscapeStatCellValue, { color }]} numberOfLines={1}>{value}</AppText>
     </View>
   )
 }

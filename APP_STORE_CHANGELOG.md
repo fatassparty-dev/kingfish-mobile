@@ -22,6 +22,26 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 1.1.1 — hotfix, NOT YET BUILT (queued 2026-09-25)
+
+> 1.1.0 went live 2026-09-25 with a props-table rendering bug. Request Apple
+> expedited review when submitting (live-app bug, NFL weekend).
+
+- **Props table: random rows no longer render in tiny text.**
+  - **What the reviewer sees:** every row of the player-props table draws at
+    normal size; in 1.1.0 one row at a time (e.g. a QB's odds line or stat
+    numbers) could render microscopically small, jumping rows on refresh.
+  - **Why:** the shrink-to-fit safety net added in 1.1.0 hits a React Native
+    new-architecture bug that ignores the minimum font scale on re-layout.
+  - **Scope:** `components/dashboard/PropCard.tsx` — removed shrink-to-fit
+    from the odds subline and stat cells. The 1.1.0 whole-number fix for 100+
+    stats stays, so QB yards ("229") still fit without it.
+  - **Test:** NFL board → Pass Yds, pull-to-refresh several times; no row
+    should shrink.
+  - **Risk:** display only (reverts two attributes).
+
+---
+
 ## 🔵 1.1.0 (iOS build 37) — BUILT 2026-09-22 for TestFlight
 
 > Version jumps 1.0.10 → 1.1.0 (Brian: no 1.0.11). Built from `main` after
