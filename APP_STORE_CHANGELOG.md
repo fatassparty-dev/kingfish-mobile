@@ -681,6 +681,28 @@ real operating constraint.
 
 ## 🟢 Server/web changes — no app update needed (for your records)
 
+### 2026-09-27 — NFL player props: faster loads + cheaper odds (`kingfish-bets`)
+
+Live in the current app, no update needed. The app calls the same
+`/api/nfl-props?includeStats=1` it always has.
+
+- **Board loads instantly** (`0134392`, `60ddb39`). The server used to rebuild
+  the scored board (~12s) on the first view after every odds or stats change.
+  Now it serves the last saved board right away and rebuilds after the
+  response. A game-day warm-up cron keeps it fresh until the day's last
+  kickoff. The data shape is unchanged; the board may be one refresh (minutes)
+  behind for the one viewer who lands right as it goes stale.
+- **Odds bought per game** (see `kingfish-bets` docs). Each game refreshes on
+  its own kickoff instead of the whole slate every 30 minutes. Each game in the
+  payload carries a new `fetched_at` timestamp; the app never reads it.
+
+**Web-only, NOT in the app** (a build would be needed to port them; not queued):
+the NFL props board's per-row Line dropdown replaced the Standard/Alt toggle.
+Alts are limited to -250..+250 (interceptions: 0.5/1.5 at any price), and
+Anytime TD offers 0.5 / 1.5 (2+ TDs). The app still shows the Alt toggle, whose
+alt lines pick one arbitrary rung per book (`kingfish-bets`
+`docs/odds-api-open-items.md` §5).
+
 ### 2026-09-22 — WNBA/NBA Edge win-% fix (`kingfish-bets` `44b6f6e`)
 
 Live in the current app, no update needed. The team-form feed's `games` is the
