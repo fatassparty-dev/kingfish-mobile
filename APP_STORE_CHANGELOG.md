@@ -22,7 +22,35 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.1 — hotfix, NOT YET BUILT (queued 2026-09-25)
+## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
+
+- **[2026-10-02] NHL board: Saves tab (goalie saves props).**
+  - **What the reviewer sees:** a new "Saves" market on the NHL player-props
+    board, listing the starting goalies with their line, season / L10 / L5
+    saves per start, hit rates, and Edge.
+  - **Why:** goalie saves is one of the most-bet NHL props and the board
+    didn't carry it. The odds, stats (saves per start, starts only) and Edge
+    are all computed on the server; the app only needed to know the new market
+    exists.
+  - **Scope:** `components/dashboard/PropCard.tsx` (tab list, label, stat
+    key), `components/dashboard/PlayerProfileModal.tsx` (game-log stat key).
+  - **Note:** live on web first (2026-10-02); this entry is the port.
+  - **Test:** NHL board → Saves tab; goalie rows show averages in the 20s and
+    an Edge; tapping a goalie opens their recent saves.
+  - **Risk:** additive only (one new tab).
+
+---
+
+## 🔵 1.1.1 — hotfix (queued 2026-09-25) — Android only; iOS skips to 1.1.2
+
+> **Next build is 1.1.2 on BOTH stores** (Brian, 2026-09-28). iOS never gets a
+> 1.1.1; it goes 1.1.0 → 1.1.2 so the version numbers match Google Play. This
+> fix ships to iOS inside 1.1.2 with the other batched fixes.
+
+> **Store status (Brian, 2026-09-28):** Google Play approved **1.1.1**. Apple is
+> on **1.1.0** (approved); iOS 1.1.1 has NOT been built or submitted yet. HQ
+> `mobile_release_control.latest_version` set to ios 1.1.0 / android 1.1.1 the
+> same day (no minimum), so older installs see the dismissible Update prompt.
 
 > 1.1.0 went live 2026-09-25 with a props-table rendering bug. Request Apple
 > expedited review when submitting (live-app bug, NFL weekend).

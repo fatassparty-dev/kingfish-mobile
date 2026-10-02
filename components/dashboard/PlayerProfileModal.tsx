@@ -361,6 +361,7 @@ function propStatKey(sport: PlayerProfileModalProps['sport'], marketKey: string)
     player_shots_on_goal: 'shots',
     player_blocked_shots: 'blocks',
     player_power_play_points: 'ppp',
+    player_total_saves: 'saves',
   }
   const nfl: Record<string, string> = {
     player_pass_yds: 'passing_yards',

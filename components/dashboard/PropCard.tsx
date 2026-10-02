@@ -43,6 +43,7 @@ const MARKET_LABELS: Record<string, string> = {
   player_shots_on_goal: 'Shots on Goal',
   player_blocked_shots: 'Blocked Shots',
   player_power_play_points: 'Power Play Points',
+  player_total_saves: 'Saves',
   player_pass_yds: 'Pass Yards',
   player_pass_tds: 'Pass TDs',
   player_pass_attempts: 'Pass Attempts',
@@ -88,6 +89,7 @@ const NHL_MARKETS = [
   'player_shots_on_goal',
   'player_blocked_shots',
   'player_power_play_points',
+  'player_total_saves',
 ]
 
 const NFL_MARKETS = [
@@ -165,6 +167,7 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
   player_shots_on_goal: 'shots',
   player_blocked_shots: 'blk',
   player_power_play_points: 'ppp',
+  player_total_saves: 'saves',
   player_pass_yds: 'passing_yards_per_game',
   player_pass_tds: 'passing_tds_per_game',
   player_pass_attempts: 'passing_attempts_per_game',
