@@ -721,6 +721,17 @@ real operating constraint.
 
 ## 🟢 Server/web changes — no app update needed (for your records)
 
+### 2026-10-02 — NHL props server work (`kingfish-bets`)
+
+- **NHL board refreshes more often** (`69e1072`): 5:35 PM and 7:35 PM CT runs
+  added, so markets posted in the afternoon reach the app the same evening.
+- **Saves and First Goal are scored and graded on the server** (`eab90d5`,
+  `432a519`). The current app ignores both markets; 1.1.2 adds the tabs.
+- **HQ Refresh rebuilds the NHL/NBA/WNBA props boards** (`b592ae9`).
+- **Web-only, NOT in the app:** the NHL props board's per-row Line dropdown
+  (alt Shots on Goal / Points / Assists). The app payload never carries the
+  alt ladders.
+
 ### 2026-09-27 — NFL player props: faster loads + cheaper odds (`kingfish-bets`)
 
 Live in the current app, no update needed. The app calls the same
