@@ -40,6 +40,7 @@ const MARKET_LABELS: Record<string, string> = {
   player_points_assists: 'Pts + Ast',
   player_rebounds_assists: 'Reb + Ast',
   player_goal_scorer_anytime: 'Anytime Goal',
+  player_goal_scorer_first: 'First Goal',
   player_shots_on_goal: 'Shots on Goal',
   player_blocked_shots: 'Blocked Shots',
   player_power_play_points: 'Power Play Points',
@@ -84,6 +85,7 @@ const BASKETBALL_MARKETS = [
 
 const NHL_MARKETS = [
   'player_goal_scorer_anytime',
+  'player_goal_scorer_first',
   'player_assists',
   'player_points',
   'player_shots_on_goal',
@@ -164,6 +166,7 @@ const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
   player_points_assists: ['pts', 'ast'],
   player_rebounds_assists: ['reb', 'ast'],
   player_goal_scorer_anytime: 'goals',
+  player_goal_scorer_first: 'goals',
   player_shots_on_goal: 'shots',
   player_blocked_shots: 'blk',
   player_power_play_points: 'ppp',
@@ -272,8 +275,15 @@ function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value))
 }
 
+// NHL goal-scorer markets are Yes-only at an implied 0.5, like anytime TD.
+function isNhlGoalScorerMarket(marketKey: string) {
+  return marketKey === 'player_goal_scorer_anytime' || marketKey === 'player_goal_scorer_first'
+}
+
 function recentValues(stats: Record<string, any> | undefined, marketKey: string, count: 5 | 10) {
   if (!stats) return []
+  // No "scored first" history exists; a goal-game rate would overstate it.
+  if (marketKey === 'player_goal_scorer_first') return []
   const statKey = (baseMarketKey(marketKey) === 'player_assists' && stats.def_tackle_assists_per_game !== undefined)
     ? 'def_tackle_assists_per_game'
     : STAT_KEY_BY_MARKET[marketKey] || STAT_KEY_BY_MARKET[baseMarketKey(marketKey)]
@@ -458,7 +468,7 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
       for (const market of bookmaker.markets || []) {
         if (marketKey && market.key !== marketKey) continue
         for (const outcome of market.outcomes || []) {
-          const isTouchdown = isNflTouchdownMarket(market.key) || market.key === 'player_goal_scorer_anytime'
+          const isTouchdown = isNflTouchdownMarket(market.key) || isNhlGoalScorerMarket(market.key)
           const playerName = isTouchdown ? (outcome.description || outcome.name) : outcome.description
           if (!playerName) continue
           if (!isTouchdown && outcome.name !== 'Over' && outcome.name !== 'Yes') continue
@@ -483,7 +493,7 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
     }
 
     players.forEach((entry) => {
-      const isTouchdown = isNflTouchdownMarket(entry.market.key) || entry.market.key === 'player_goal_scorer_anytime'
+      const isTouchdown = isNflTouchdownMarket(entry.market.key) || isNhlGoalScorerMarket(entry.market.key)
       if (isTouchdown) {
         const options = bookKeys
           .map((book) => ({ book, odds: entry.anytime[book] }))
@@ -854,14 +864,14 @@ function edgeColorFromLabel(label: string): string {
 // `${marketKey}-${player}`. Guarded on line match; null when unresolved so
 // callers fall back to the local calc (kept as a backup only, per that law).
 function serverEdge(prop: FlattenedProp, boardScores: Record<string, any> | undefined) {
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const entry = boardScores?.[`${prop.market.key}-${prop.outcome.description}`]
   if (!entry || entry.line !== line) return null
   return { score: entry.edgeScore as number, label: entry.edgeLabel as string, color: edgeColorFromLabel(entry.edgeLabel) }
 }
 
 function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean, boardScores?: Record<string, any>, preview = false) {
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
@@ -901,7 +911,7 @@ function PropTableRow({
   preview?: boolean
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
 }) {
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
@@ -965,7 +975,7 @@ function StatTableCell({ value, color, landscape = false }: { value: string; col
 
 export function PropCard({ prop, stats }: { prop: FlattenedProp; stats?: Record<string, any> }) {
   const label = marketLabel(prop.market.key)
-  const line = prop.outcome.point ?? (prop.market.key === 'player_goal_scorer_anytime' || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')

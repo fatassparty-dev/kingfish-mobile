@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
 
+- **[2026-10-02] NHL board: First Goal tab (first goal scorer props).**
+  - **What the reviewer sees:** a "First Goal" market next to Anytime Goal on
+    the NHL player-props board, with each player's best price and Edge. The
+    hit columns show "-" for it (there is no "scored first" history; a
+    goal-game rate would overstate it).
+  - **Why:** every sportsbook we list posts it nightly. Odds and Edge come
+    from the server; the app only needed the market added.
+  - **Scope:** `components/dashboard/PropCard.tsx` (tab list, label, stat key,
+    Yes-only handling shared with Anytime Goal).
+  - **Note:** live on web first (2026-10-02); this entry is the port.
+  - **Risk:** additive only (one new tab).
+
 - **[2026-10-02] NHL board: Saves tab (goalie saves props).**
   - **What the reviewer sees:** a new "Saves" market on the NHL player-props
     board, listing the starting goalies with their line, season / L10 / L5
