@@ -22,7 +22,7 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
+## 🔵 1.1.2 (iOS build 39, Android vc 11) — iOS BUILD 2026-10-03
 
 - **[2026-10-03] Sign-up goes through the KingFish server.**
   - **What the reviewer sees:** the same Create Account form; on success the
