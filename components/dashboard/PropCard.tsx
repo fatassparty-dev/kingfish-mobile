@@ -208,8 +208,8 @@ function isNflTouchdownMarket(marketKey: string) {
   return NFL_TD_MARKETS.has(baseMarketKey(marketKey))
 }
 
-function standardMarketLabel(marketKey: string) {
-  const label = marketLabel(marketKey)
+function standardMarketLabel(marketKey: string, sport?: Sport) {
+  const label = marketLabel(marketKey, sport)
   return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
 }
 
@@ -226,7 +226,7 @@ function compactPropLabel(marketKey: string, sport: Sport) {
       .replace(/\bCompletions\b/g, 'Comp')
       .replace(/\bInterceptions\b/g, 'INT')
   }
-  return marketLabel(marketKey)
+  return marketLabel(marketKey, sport)
 }
 
 const NFL_MARKET_LABELS: Record<string, string> = {
@@ -234,8 +234,10 @@ const NFL_MARKET_LABELS: Record<string, string> = {
   player_assists_alternate: 'Alt Tackle Assists',
 }
 
-function marketLabel(marketKey: string) {
-  if (NFL_MARKET_LABELS[marketKey]) return NFL_MARKET_LABELS[marketKey]
+// NFL names only for NFL: `player_assists` is tackle assists in football but
+// assists in hockey and basketball (NHL showed "Tackle Assists", 2026-10-03).
+function marketLabel(marketKey: string, sport?: Sport) {
+  if ((!sport || sport === 'NFL') && NFL_MARKET_LABELS[marketKey]) return NFL_MARKET_LABELS[marketKey]
   if (MARKET_LABELS[marketKey]) return MARKET_LABELS[marketKey]
   const baseLabel = MARKET_LABELS[baseMarketKey(marketKey)]
   if (baseLabel && marketKey.endsWith('_alternate')) return `Alt ${baseLabel}`
@@ -648,7 +650,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
             style={[styles.marketButton, sport === 'NFL' && styles.nflMarketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
           >
             <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
-              {standardMarketLabel(marketKey)}
+              {standardMarketLabel(marketKey, sport)}
             </AppText>
           </Pressable>
         ))}
@@ -668,7 +670,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
             style={[styles.variantButton, isAlternateMarket(selectedMarket) && styles.variantButtonActive]}
           >
             <AppText style={[styles.variantText, isAlternateMarket(selectedMarket) && styles.variantTextActive]}>
-              {marketLabel(selectedAltMarket)}
+              {marketLabel(selectedAltMarket, sport)}
             </AppText>
           </Pressable>
         </View>
@@ -928,7 +930,7 @@ function PropTableRow({
   const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
   const openProfile = () => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
     marketKey: prop.market.key,
-    marketLabel: marketLabel(prop.market.key),
+    marketLabel: marketLabel(prop.market.key, sport),
     commonLine: line,
   })
 
@@ -939,7 +941,7 @@ function PropTableRow({
           {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
         <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
-          {landscape ? marketLabel(prop.market.key) : playerLine}
+          {landscape ? marketLabel(prop.market.key, sport) : playerLine}
         </AppText>
       </View>
       {landscape ? (

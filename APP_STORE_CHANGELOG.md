@@ -24,6 +24,15 @@ data* it didn't know about before.
 
 ## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
 
+- **[2026-10-03] NHL/NBA "Assists" no longer read "Tackle Assists".**
+  - **What the reviewer sees:** the Assists tab and row labels on the NHL and
+    NBA/WNBA player-props boards say "Assists". NFL keeps "Tackle Assists".
+  - **Why:** market names looked up the NFL name first for every sport, and
+    the NFL's `player_assists` market is defensive tackle assists.
+  - **Scope:** `components/dashboard/PropCard.tsx` (`marketLabel` takes the
+    sport). Same fix as KingFish Studio build 19.
+  - **Risk:** label text only.
+
 - **[2026-10-02] NHL board: First Goal tab (first goal scorer props).**
   - **What the reviewer sees:** a "First Goal" market next to Anytime Goal on
     the NHL player-props board, with each player's best price and Edge. The
