@@ -22,7 +22,21 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.2 (iOS build 39, Android vc 11) — iOS BUILD 2026-10-03
+## 🔵 1.1.2 (iOS build 40, Android vc 11) — iOS BUILD 2026-10-03
+
+> Build 39 went to TestFlight; Brian's test found First Goal showing plain goal
+> stats and MLB free preview stats blank (server fix `df8cdd0`, no build).
+> Build 40 adds the First Goal fix below.
+
+- **[2026-10-03] NHL First Goal shows first-scorer records.**
+  - **What the reviewer sees:** on the First Goal tab the stat columns read
+    first goals / games (season, last 10, last 5), e.g. "1/3", in gray.
+    Landscape keeps L5/L10 goal averages ("L5 G"/"L10 G") as context and the
+    hit columns carry the first-goal records.
+  - **Why:** build 39 showed goals-per-game under First Goal; the server's
+    `first_goal_history` (same as web) was never read.
+  - **Scope:** `components/dashboard/PropCard.tsx`.
+  - **Risk:** First Goal tab display + sort only.
 
 - **[2026-10-03] Sign-up goes through the KingFish server.**
   - **What the reviewer sees:** the same Create Account form; on success the

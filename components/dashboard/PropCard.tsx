@@ -282,6 +282,26 @@ function isNhlGoalScorerMarket(marketKey: string) {
   return marketKey === 'player_goal_scorer_anytime' || marketKey === 'player_goal_scorer_first'
 }
 
+// First Goal reads the server's actual first-scorer history (nhl-stats
+// `first_goal_history`), mirroring lib/nhl/firstGoalHistory.ts on the web.
+// Goal averages say nothing about scoring FIRST.
+const FIRST_GOAL_MARKET = 'player_goal_scorer_first'
+
+function firstGoalRecord(stats: Record<string, any> | undefined, recentCount?: 5 | 10) {
+  const history = stats?.first_goal_history
+  if (!history) return null
+  const recent: Array<{ firstGoal: number }> = Array.isArray(history.recent) ? history.recent : []
+  const games = recentCount ? recent.slice(0, recentCount) : null
+  const played = games ? games.length : Number(history.gamesPlayed) || 0
+  if (!played) return null
+  const hits = games ? games.reduce((sum, game) => sum + (game.firstGoal === 1 ? 1 : 0), 0) : Number(history.seasonHits) || 0
+  return { hits, games: played, rate: hits / played }
+}
+
+function firstGoalLabel(record: ReturnType<typeof firstGoalRecord>) {
+  return record ? `${record.hits}/${record.games}` : '-'
+}
+
 function recentValues(stats: Record<string, any> | undefined, marketKey: string, count: 5 | 10) {
   if (!stats) return []
   // No "scored first" history exists; a goal-game rate would overstate it.
@@ -771,7 +791,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
           <View>
             <View style={landscapeTable && styles.landscapeTable}>
               <View style={styles.tableHeader}>
-                {(landscapeTable ? LANDSCAPE_TABLE_HEADERS : PORTRAIT_TABLE_HEADERS).map((header) => (
+                {tableHeaders(landscapeTable, selectedMarket === FIRST_GOAL_MARKET).map((header) => (
                   <Pressable
                     key={header.label}
                     onPress={() => toggleSort(header.key)}
@@ -849,6 +869,23 @@ const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
+const FIRST_GOAL_HEADER_LABELS: Record<string, { portrait: string; landscape: string }> = {
+  season: { portrait: '1st Szn', landscape: '1st Szn' },
+  l10: { portrait: '1st L10', landscape: 'L10 G' },
+  l5: { portrait: '1st L5', landscape: 'L5 G' },
+  l5hit: { portrait: '1st L5', landscape: '1st L5' },
+  l10hit: { portrait: '1st L10', landscape: '1st L10' },
+}
+
+function tableHeaders(landscape: boolean, firstGoal: boolean) {
+  const headers = landscape ? LANDSCAPE_TABLE_HEADERS : PORTRAIT_TABLE_HEADERS
+  if (!firstGoal) return headers
+  return headers.map((header) => {
+    const relabel = FIRST_GOAL_HEADER_LABELS[header.key]
+    return relabel ? { ...header, label: landscape ? relabel.landscape : relabel.portrait } : header
+  })
+}
+
 // Maps a server edge label ("Strong 82", "Lean 61", ...) to this table's
 // existing tier colors, so a server-sourced score renders identically to a
 // locally-computed one.
@@ -886,6 +923,11 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
     : null)
 
   if (key === 'player') return prop.outcome.description || ''
+  if (prop.market.key === FIRST_GOAL_MARKET) {
+    if (key === 'season') return firstGoalRecord(stats)?.rate ?? -1
+    if (key === 'l5hit' || (key === 'l5' && !landscape)) return firstGoalRecord(stats, 5)?.rate ?? -1
+    if (key === 'l10hit' || (key === 'l10' && !landscape)) return firstGoalRecord(stats, 10)?.rate ?? -1
+  }
   if (key === 'line') return line
   if (key === 'odds') return prop.outcome.price || 0
   if (key === 'season') return season
@@ -950,15 +992,39 @@ function PropTableRow({
           <StatTableCell value={fmtOdds(prop.outcome.price)} color={colors.gold} landscape />
         </>
       ) : null}
-      <StatTableCell value={fmtStat(season, Boolean(stats))} color={statColor(season, line)} landscape={landscape} />
-      <StatTableCell value={fmtStat(landscape ? l5 : l10, Boolean(stats))} color={statColor(landscape ? l5 : l10, line)} landscape={landscape} />
-      <StatTableCell value={fmtStat(landscape ? l10 : l5, Boolean(stats))} color={statColor(landscape ? l10 : l5, line)} landscape={landscape} />
-      {landscape ? (
-        <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
-      ) : null}
-      {landscape ? (
-        <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
-      ) : null}
+      {prop.market.key === FIRST_GOAL_MARKET ? (
+        // First Goal: season / recent first-scorer records (neutral, like web).
+        // Landscape keeps L5/L10 goal averages as context; the hit columns
+        // carry the first-goal records, so no number appears twice.
+        <>
+          <StatTableCell value={firstGoalLabel(firstGoalRecord(stats))} color={colors.textSecondary} landscape={landscape} />
+          {landscape ? (
+            <>
+              <StatTableCell value={fmtStat(l5, Boolean(stats))} color={colors.textSecondary} landscape />
+              <StatTableCell value={fmtStat(l10, Boolean(stats))} color={colors.textSecondary} landscape />
+              <StatTableCell value={firstGoalLabel(firstGoalRecord(stats, 5))} color={colors.textSecondary} landscape />
+              <StatTableCell value={firstGoalLabel(firstGoalRecord(stats, 10))} color={colors.textSecondary} landscape />
+            </>
+          ) : (
+            <>
+              <StatTableCell value={firstGoalLabel(firstGoalRecord(stats, 10))} color={colors.textSecondary} />
+              <StatTableCell value={firstGoalLabel(firstGoalRecord(stats, 5))} color={colors.textSecondary} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <StatTableCell value={fmtStat(season, Boolean(stats))} color={statColor(season, line)} landscape={landscape} />
+          <StatTableCell value={fmtStat(landscape ? l5 : l10, Boolean(stats))} color={statColor(landscape ? l5 : l10, line)} landscape={landscape} />
+          <StatTableCell value={fmtStat(landscape ? l10 : l5, Boolean(stats))} color={statColor(landscape ? l10 : l5, line)} landscape={landscape} />
+          {landscape ? (
+            <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
+          ) : null}
+          {landscape ? (
+            <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
+          ) : null}
+        </>
+      )}
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
         <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edge ? (edge.score ? Math.round(edge.score) : '-') : 'PRO'}</AppText>
         <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edgeLabelText}</AppText>
