@@ -29,6 +29,7 @@ export type PurchasePlan = keyof typeof PLAN_PACKAGE_IDS
 
 export type PremiumPlanPricing = {
   priceString: string
+  introPrice: number | null
   introPriceString: string | null
   introCycles: number | null
   introPeriod: string | null
@@ -170,6 +171,7 @@ export async function getPremiumPricing(appUserID?: string | null): Promise<Prem
       const product = selectedPackage.product
       pricing[plan] = {
         priceString: product.priceString,
+        introPrice: typeof product.introPrice?.price === 'number' ? product.introPrice.price : null,
         introPriceString: product.introPrice?.priceString || null,
         introCycles: product.introPrice?.cycles ?? null,
         introPeriod: product.introPrice?.period || null,

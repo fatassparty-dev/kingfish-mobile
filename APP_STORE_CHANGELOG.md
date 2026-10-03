@@ -24,6 +24,16 @@ data* it didn't know about before.
 
 ## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
 
+- **[2026-10-03] Yearly plan shows its free trial (iOS paywall).**
+  - **What the reviewer sees:** the yearly plan reads "3 days free, then
+    $49.99/year" and the renewal terms mention the trial. It said "No free
+    trial" while App Store Connect gave a 1-week (now 3-day) trial.
+  - **Why:** the yearly copy was fixed text. It now reads the trial from Apple
+    (RevenueCat intro offer at $0), falling back to the App Store Connect setup
+    (3 days, changed 2026-10-03) if prices can't load. Monthly unchanged.
+  - **Scope:** `app/modals/paywall.tsx`, `lib/purchases.ts` (`introPrice`).
+  - **Risk:** paywall text only; purchase flow unchanged.
+
 - **[2026-10-03] NHL/NBA "Assists" no longer read "Tackle Assists".**
   - **What the reviewer sees:** the Assists tab and row labels on the NHL and
     NBA/WNBA player-props boards say "Assists". NFL keeps "Tackle Assists".

@@ -35,10 +35,26 @@ const APP_STORE_PLANS: PlanOption[] = [
     id: 'yearly',
     eyebrow: '// Yearly',
     price: '$49.99/yr',
-    sub: '$49.99/year until canceled. No free trial.',
+    sub: '3 days free, then $49.99/year. Automatically renews unless canceled.',
     badge: 'Best value',
   },
 ]
+
+// Apple intro period → words: "P3D" x1 → "3 days", "P1W" x1 → "1 week".
+function introLength(period: string | null | undefined, cycles: number | null | undefined) {
+  const match = /^P(\d+)([DWMY])$/.exec(String(period || ''))
+  if (!match) return null
+  const count = Number(match[1]) * Math.max(1, cycles || 1)
+  const unit = { D: 'day', W: 'week', M: 'month', Y: 'year' }[match[2] as 'D' | 'W' | 'M' | 'Y']
+  return `${count} ${unit}${count === 1 ? '' : 's'}`
+}
+
+// Yearly free trial as Apple reports it for this account (a $0 intro offer).
+// Before pricing loads, the App Store Connect setup (3 days, 2026-10-03).
+function yearlyTrialLength(yearly: PremiumPricing['yearly'], pricingLoaded: boolean) {
+  if (!pricingLoaded || !yearly?.priceString) return '3 days'
+  return yearly.introPrice === 0 ? introLength(yearly.introPeriod, yearly.introCycles) : null
+}
 
 const GOOGLE_PLAY_PLANS: PlanOption[] = [
   {
@@ -88,6 +104,7 @@ export default function PaywallScreen() {
     const monthlyIntroPrice = monthly?.introPriceString
     const hasConfirmedMonthlyPrice = pricingLoaded && Boolean(monthly?.priceString)
     const showIntroOffer = monthlyIntroPrice || !hasConfirmedMonthlyPrice
+    const yearlyTrial = yearlyTrialLength(yearly, pricingLoaded)
 
     return [
       {
@@ -105,7 +122,9 @@ export default function PaywallScreen() {
         id: 'yearly',
         eyebrow: '// Yearly',
         price: `${yearly?.priceString || '$49.99'}/yr`,
-        sub: `${yearly?.priceString || '$49.99'}/year until canceled. No free trial.`,
+        sub: yearlyTrial
+          ? `${yearlyTrial} free, then ${yearly?.priceString || '$49.99'}/year. Automatically renews unless canceled.`
+          : `${yearly?.priceString || '$49.99'}/year until canceled.`,
         badge: 'Best value',
       },
     ]
@@ -116,10 +135,14 @@ export default function PaywallScreen() {
     const monthlyBasePrice = pricing.monthly?.priceString || '$4.99'
     const monthlyIntroPrice = pricing.monthly?.introPriceString
     const yearlyPrice = pricing.yearly?.priceString || '$49.99'
+    const yearlyTrial = yearlyTrialLength(pricing.yearly, pricingLoaded)
+    const yearlyTerms = yearlyTrial
+      ? `Eligible new yearly subscribers get ${yearlyTrial} free, then ${yearlyPrice} per year.`
+      : `The yearly plan is ${yearlyPrice} per year.`
     const monthlyTerms = monthlyIntroPrice || !pricingLoaded || !pricing.monthly?.priceString
       ? `Eligible new monthly subscribers pay ${monthlyIntroPrice || '$0.99'} for the first month, then ${monthlyBasePrice} per month.`
       : `The monthly plan is ${monthlyBasePrice} per month.`
-    return `${monthlyTerms} The yearly plan is ${yearlyPrice} per year. There is no free trial. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your Apple account is charged when the purchase is confirmed and for renewal within 24 hours before the current period ends. Manage or cancel subscriptions in your Apple account settings. KingFish is intended for users 18+ where permitted by law.`
+    return `${monthlyTerms} ${yearlyTerms} Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the trial or current period. Your Apple account is charged when the purchase is confirmed (or when a free trial ends) and for renewal within 24 hours before the current period ends. Manage or cancel subscriptions in your Apple account settings. KingFish is intended for users 18+ where permitted by law.`
   }, [pricing, pricingLoaded])
 
   async function handlePurchase() {
