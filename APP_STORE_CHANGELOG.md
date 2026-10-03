@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
 
+- **[2026-10-03] Sign-up goes through the KingFish server.**
+  - **What the reviewer sees:** the same Create Account form; on success the
+    app lands signed in. Error messages are unchanged in wording.
+  - **Why:** security. The app used to create accounts by calling Supabase
+    directly with the public key, which any script could also do. Now the
+    KingFish server creates the account (per-IP rate limits, validation) via
+    `/api/auth/sign-up` (live on web 2026-10-03). Public Supabase sign-up gets
+    turned off once current builds are out.
+  - **Scope:** `app/(auth)/sign-up.tsx`.
+  - **Risk:** account creation path. Test: create a new account on device,
+    confirm it lands signed in and HQ shows name/state/platform.
+
 - **[2026-10-03] NFL weeks run Tuesday→Monday; backup Edge tiers 80/65.**
   - **What the reviewer sees:** nothing new in normal use. The NFL week pills
     match the website exactly, and if the server's Edge is missing (offline /

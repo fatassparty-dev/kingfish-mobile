@@ -5,6 +5,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Screen } from '@/components/Screen'
 import { AppText } from '@/components/Text'
+import { API_BASE_URL } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { colors, spacing } from '@/lib/theme'
 import { normalizeLocation, LOCATION_OPTIONS } from '@/lib/locations'
@@ -80,44 +81,38 @@ export default function SignUpScreen() {
     }
 
     setLoading(true)
-    // Pass the name into auth metadata so it persists even before a session exists
-    // (email confirmation pending). The on_auth_user_created DB trigger copies this
-    // into user_profiles server-side, so the name survives regardless of RLS/session.
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          full_name: `${firstName.trim()} ${lastName.trim()}`,
-          state: normalizeLocation(state) || null,
-          // Read by the on_auth_user_created trigger into hq_acquisition_events,
-          // so HQ can tell an app signup from a web one.
-          ...signupAttribution(),
-        },
-      },
-    })
-
-    if (authError) {
-      setError(friendlyAuthError(authError))
-      setLoading(false)
-      return
-    }
-
-    // Best-effort client write; the DB trigger is the source of truth.
-    if (data.user) {
-      await supabase
-        .from('user_profiles')
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          state: normalizeLocation(state) || null,
+    // The KingFish server creates the account (rate limits + validation) and
+    // returns a session; the on_auth_user_created trigger copies name, state
+    // and attribution from the metadata into user_profiles. Apps no longer call
+    // supabase.auth.signUp, so public sign-up can be turned off in Supabase.
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/sign-up`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          state: normalizeLocation(state),
+          attribution: signupAttribution(),
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setError(friendlyAuthError({ message: result.error, code: result.code === 'password_weak' ? 'weak_password' : undefined }))
+      } else if (result.session?.access_token && result.session?.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
         })
-        .eq('user_id', data.user.id)
+        if (sessionError) setSuccess('Account created. Sign in to continue.')
+      } else {
+        setSuccess('Account created. Sign in to continue.')
+      }
+    } catch {
+      setError('Could not create your account. Check your connection and try again.')
     }
-
-    setSuccess('Account created. Check your email if confirmation is required.')
     setLoading(false)
   }
 
