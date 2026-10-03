@@ -359,8 +359,8 @@ function edgeLabel(
   const trendScore = l5 >= l10 && l10 >= season * 0.92 ? 8 : l5 >= l10 ? 4 : 0
   const score = Math.round(avgScore + l10Score + l5Score + priceScore + trendScore)
 
-  if (score >= 75) return { label: `Strong ${score}`, color: colors.green, score }
-  if (score >= 62) return { label: `Lean ${score}`, color: colors.gold, score }
+  if (score >= 80) return { label: `Strong ${score}`, color: colors.green, score }
+  if (score >= 65) return { label: `Lean ${score}`, color: colors.gold, score }
   if (score >= 45) return { label: `Neutral ${score}`, color: colors.textSecondary, score }
   return { label: `Fade ${score}`, color: colors.red, score }
 }
@@ -379,8 +379,8 @@ function nflEdgeLabel(line: number, stat: number, odds: number | undefined, mark
     const priceBoost = odds && odds > 0 ? Math.min(22, odds / 35) : 0
     const tdScore = Math.max(0, Math.min(70, (stat / 0.75) * 70))
     const score = Math.round(tdScore + priceBoost)
-    if (score >= 78) return { label: 'Strong', color: colors.green, score }
-    if (score >= 62) return { label: 'Lean', color: colors.gold, score }
+    if (score >= 80) return { label: 'Strong', color: colors.green, score }
+    if (score >= 65) return { label: 'Lean', color: colors.gold, score }
     if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
     return { label: 'Fade', color: colors.red, score }
   }
@@ -389,8 +389,8 @@ function nflEdgeLabel(line: number, stat: number, odds: number | undefined, mark
   const ratio = lowerIsBetter ? safeLine / Math.max(stat, 0.1) : stat / safeLine
   const pricePenalty = odds && implied(odds) > 0.68 ? 10 : odds && implied(odds) > 0.6 ? 5 : 0
   const score = Math.round(Math.max(0, Math.min(100, ((ratio - 0.72) / 0.58) * 82 + 14 - pricePenalty)))
-  if (score >= 78) return { label: 'Strong', color: colors.green, score }
-  if (score >= 62) return { label: 'Lean', color: colors.gold, score }
+  if (score >= 80) return { label: 'Strong', color: colors.green, score }
+  if (score >= 65) return { label: 'Lean', color: colors.gold, score }
   if (score >= 45) return { label: 'Neutral', color: colors.textSecondary, score }
   return { label: 'Fade', color: colors.red, score }
 }

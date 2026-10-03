@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 1.1.2 — next build, both stores (NOT YET BUILT)
 
+- **[2026-10-03] NFL weeks run Tuesday→Monday; backup Edge tiers 80/65.**
+  - **What the reviewer sees:** nothing new in normal use. The NFL week pills
+    match the website exactly, and if the server's Edge is missing (offline /
+    stale cache) the backup Edge labels use the same Strong 80 / Lean 65 tiers
+    as the server.
+  - **Why:** weeks were counted Thursday→Wednesday (only differs for a Tue/Wed
+    game); the backup math still used the old 75–78 / 62–64 cutoffs.
+  - **Scope:** `lib/nflBoardWindow.ts`, `components/dashboard/PropCard.tsx`,
+    `app/(tabs)/cheat-sheets.tsx` (fallback branches only; server scores
+    unchanged).
+  - **Risk:** fallback labels/colors and week grouping only.
+
 - **[2026-10-03] Yearly plan shows its free trial (iOS paywall).**
   - **What the reviewer sees:** the yearly plan reads "3 days free, then
     $49.99/year" and the renewal terms mention the trial. It said "No free

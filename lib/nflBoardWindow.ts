@@ -14,10 +14,10 @@ function dateValue(day: string) {
   return Date.parse(`${day}T12:00:00Z`)
 }
 
-function regularSeasonStart(year: number) {
+function week1Tuesday(year: number) {
   const septemberFirst = new Date(Date.UTC(year, 8, 1, 12))
   const daysToMonday = (8 - septemberFirst.getUTCDay()) % 7
-  septemberFirst.setUTCDate(septemberFirst.getUTCDate() + daysToMonday + 3)
+  septemberFirst.setUTCDate(septemberFirst.getUTCDate() + daysToMonday + 1)
   return septemberFirst.toISOString().slice(0, 10)
 }
 
@@ -28,7 +28,7 @@ function seasonYear(value: string | number) {
 
 export function nflWeek(value: string | number) {
   const year = seasonYear(value)
-  const diffDays = Math.floor((dateValue(nflDay(value)) - dateValue(regularSeasonStart(year))) / 86400000)
+  const diffDays = Math.floor((dateValue(nflDay(value)) - dateValue(week1Tuesday(year))) / 86400000)
   const week = Math.floor(diffDays / 7) + 1
   if (week >= 1 && week <= 18) return { key: `${year}-week-${week}`, label: `Week ${week}` }
   return { key: `${year}-postseason`, label: 'Postseason' }
