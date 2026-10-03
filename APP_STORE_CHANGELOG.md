@@ -22,7 +22,7 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.2 (iOS build 40, Android vc 11) — iOS BUILD 2026-10-03
+## 🟡 1.1.2 (iOS build 40, Android vc 11) — SUBMITTED 2026-10-03 (App Store + Google Play)
 
 > Build 39 went to TestFlight; Brian's test found First Goal showing plain goal
 > stats and MLB free preview stats blank (server fix `df8cdd0`, no build).

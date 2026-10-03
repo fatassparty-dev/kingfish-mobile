@@ -1,6 +1,6 @@
 # KingFish release status
 
-Last updated: September 14, 2026 (Central Time)
+Last updated: October 3, 2026 (Central Time)
 
 ## Browser and release handoffs
 
@@ -14,7 +14,23 @@ This is the short source of truth for what is public, what is under store
 review, and what requires the next native build. Detailed history remains in
 `APP_STORE_CHANGELOG.md` and `RELEASE-IMPACT-LEDGER.md`.
 
-## Published now
+## Current status (October 3, 2026)
+
+| Store | Live | In review |
+|---|---|---|
+| Apple App Store (iPhone) | 1.1.0 | **1.1.2 (build 40)**, submitted Oct 3 |
+| Google Play (Android) | 1.1.1 (vc 10) | **1.1.2 (vc 11)**, submitted Oct 3 |
+| KingFish Studio (iPad + Mac) | 1.0.2 (17) | 1.1.2 (20), submitted Oct 3 |
+
+1.1.2 contents: `APP_STORE_CHANGELOG.md` (🔵 1.1.2). Build 39 was TestFlight
+only. iOS IPA: `builds/KingFishBets-1.1.2-b40-export/KingFishBets.ipa`;
+Android AAB: `builds/KingFishBets-android-1.1.2-vc11.aab` (EAS).
+
+On approval: set HQ `latest_version` ios + android to 1.1.2 (no minimum).
+
+Everything below this section is the September 14 snapshot, kept for history.
+
+## Published now (as of September 14)
 
 ### Website
 
