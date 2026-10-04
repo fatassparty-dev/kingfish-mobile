@@ -527,6 +527,8 @@ interface TdStreakRow {
   two_td_games?: number
   games?: number
   two_td_rate?: string
+  // Server: touchdowns per regular-season game (ties sort on it).
+  tds_per_game?: number
 }
 
 interface QbYardsRow {
@@ -1808,13 +1810,13 @@ function buildShareTable(
   }
 
   if (activeKey === 'td') {
-    const out = tdRows.map(row => [row.player, row.team, row.position, `${row.streak_games} games`])
-    return out.length ? { columns: ['PLAYER', 'TEAM', 'POS', 'STREAK'], rows: out } : null
+    const out = tdRows.map(row => [row.player, row.team, row.position, `${row.streak_games} games`, typeof row.tds_per_game === 'number' ? row.tds_per_game.toFixed(1) : '-'])
+    return out.length ? { columns: ['PLAYER', 'TEAM', 'POS', 'STREAK', 'TD/G'], rows: out } : null
   }
 
   if (activeKey === 'qbtd') {
-    const out = qbTdRows.map(row => [row.player, row.team, `${row.two_td_games || 0}/${row.games || 0}`, `${row.streak_games}`])
-    return out.length ? { columns: ['QB', 'TEAM', '2+ TD', 'STREAK'], rows: out } : null
+    const out = qbTdRows.map(row => [row.player, row.team, `${row.two_td_games || 0}/${row.games || 0}`, `${row.streak_games}`, typeof row.tds_per_game === 'number' ? row.tds_per_game.toFixed(1) : '-'])
+    return out.length ? { columns: ['QB', 'TEAM', '2+ TD', 'STREAK', 'TD/G'], rows: out } : null
   }
 
   if (activeKey === 'qb200') {
@@ -3041,7 +3043,7 @@ export default function CheatSheetsScreen() {
                     <View style={styles.rowMain}>
                       <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
                       <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
-                        {row.team} · {row.position}
+                        {row.team} · {row.position}{typeof row.tds_per_game === 'number' ? ` · ${row.tds_per_game.toFixed(1)} TD/G` : ''}
                       </AppText>
                     </View>
                     <View style={styles.rowNumbers}>
@@ -3112,7 +3114,7 @@ export default function CheatSheetsScreen() {
                     <View style={styles.rowMain}>
                       <AppText style={styles.compactPlayer} numberOfLines={1}>{row.player}</AppText>
                       <AppText variant="mono" style={styles.compactMeta} numberOfLines={1}>
-                        {row.team} · QB · {row.two_td_games}/{row.games} games
+                        {row.team} · QB · {row.two_td_games}/{row.games} games{typeof row.tds_per_game === 'number' ? ` · ${row.tds_per_game.toFixed(1)} TD/G` : ''}
                       </AppText>
                     </View>
                     <View style={styles.rowNumbers}>

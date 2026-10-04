@@ -22,6 +22,19 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 Next build (after 1.1.2) — NOT YET BUILT
+
+- **[2026-10-04] NFL TD Streaks + QB 2+ TD show TD/G.**
+  - **What the reviewer sees:** each row's detail line adds touchdowns per
+    regular-season game (e.g. "3.0 TD/G"); the shared table gets a TD/G column.
+  - **Why:** equal streaks used to list alphabetically. The server now sorts
+    ties by TD/G (live on web + ordering in every app since 2026-10-04,
+    `6796bd3`); the app only needed to display the number.
+  - **Scope:** `app/(tabs)/cheat-sheets.tsx`.
+  - **Risk:** display only; hidden when the server field is absent.
+
+---
+
 ## 🟡 1.1.2 (iOS build 40, Android vc 11) — SUBMITTED 2026-10-03 (App Store + Google Play)
 
 > Build 39 went to TestFlight; Brian's test found First Goal showing plain goal
