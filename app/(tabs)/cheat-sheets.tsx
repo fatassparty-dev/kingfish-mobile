@@ -1820,8 +1820,9 @@ function buildShareTable(
   }
 
   if (activeKey === 'qb200') {
-    const out = qb200Rows.map(row => [row.player, row.team, row.hitRate, `${row.l5Hits}/5`, `${row.l10Hits}/10`])
-    return out.length ? { columns: ['QB', 'TEAM', '200+ RATE', 'L5', 'L10'], rows: out } : null
+    // L5 over games actually played; L10 returns later in the season (matches web).
+    const out = qb200Rows.map(row => [row.player, row.team, row.hitRate, `${row.l5Hits}/${Math.min(row.games, 5)}`])
+    return out.length ? { columns: ['QB', 'TEAM', '200+ RATE', 'L5'], rows: out } : null
   }
 
   if (activeKey === 'wnba_roles') {

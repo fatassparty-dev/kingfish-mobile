@@ -24,6 +24,13 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.2) — NOT YET BUILT
 
+- **[2026-10-04] QB 200+ share image: L5 over games played, no L10.**
+  - **What the reviewer sees:** the shared QB 200+ table reads e.g. "3/3" for
+    L5 and drops the L10 column (it read "3/5" and "3/10" for a QB who is 3
+    for 3 this season). Matches the website (`c480446`).
+  - **Scope:** `app/(tabs)/cheat-sheets.tsx` (share table only).
+  - **Risk:** share image text only.
+
 - **[2026-10-04] NFL TD Streaks + QB 2+ TD show TD/G.**
   - **What the reviewer sees:** each row's detail line adds touchdowns per
     regular-season game (e.g. "3.0 TD/G"); the shared table gets a TD/G column.
