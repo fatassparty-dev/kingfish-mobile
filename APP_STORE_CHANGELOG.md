@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.2) — NOT YET BUILT
 
+- **[2026-10-08] TO DO (not coded yet): rename Ask KingFish to KingFish AI.**
+  - **What the reviewer sees:** the chat tab/screen is titled **KingFish AI**;
+    buttons and links into it say **Ask AI**; Help, Terms, Privacy and Account
+    copy say KingFish AI. Matches the website (`kingfish-bets` `e37bd5f`,
+    `f5e8f8c`).
+  - **Scope:** `app/(tabs)/ask-kingfish.tsx`, tab label, `help.tsx`,
+    `terms.tsx`, `privacy.tsx`, `(tabs)/account.tsx`, `game-factors.tsx`.
+  - **Risk:** text only.
+  - **Already live with no app update (🟢):** the chat answers themselves
+    (server-side — NFL stats now labelled by season, `d26561c`), the daily-limit
+    message, and the Home "Ask AI" tile label (server-driven `home_tiles`).
+
 - **[2026-10-04] QB 200+ share image: L5 over games played, no L10.**
   - **What the reviewer sees:** the shared QB 200+ table reads e.g. "3/3" for
     L5 and drops the L10 column (it read "3/5" and "3/10" for a QB who is 3
