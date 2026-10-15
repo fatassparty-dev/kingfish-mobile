@@ -70,7 +70,7 @@ const FEATURES = [
   'Live props, game lines, and best odds',
   'Player profiles with recent form',
   'MLB cheat sheets and stat reports',
-  'Unlimited Ask KingFish with live context',
+  'Unlimited KingFish AI with live context',
   'NFL and all supported sports',
 ]
 

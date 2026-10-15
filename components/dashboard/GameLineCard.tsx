@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Card } from '@/components/Card'
+import { CompareTap, OddsCompareSheet, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime } from '@/lib/format'
+import { gameLineCompare, type GameLinePick } from '@/lib/oddsCompare'
 import { displayBookName, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Bookmaker, Game, Market, Outcome, Sport, WeatherInfo } from '@/types'
@@ -949,6 +952,14 @@ export function GameLineCard({
   sportsbookPreferences?: SportsbookPreferences | null
 }) {
   const bookmakers = supportedBookmakers(game.bookmakers, userState, sportsbookPreferences)
+  const [compare, setCompare] = useState<OddsCompareData | null>(null)
+  // Market-section prices open every book's price for that outcome. Verdict
+  // tiles (LeanBox) stay price-free (no-doubled-data rule).
+  const compareTitle = `${game.away_team} @ ${game.home_team}`
+  const openCompare = (line: { price: number; point?: number; book: string } | null | undefined, pick: GameLinePick) => {
+    if (line) setCompare(gameLineCompare(game, bookmakers.map((bookmaker) => bookmaker.key), line, pick))
+  }
+  const spreadName = sport === 'MLB' || sport === 'KBO' ? 'Run Line' : sport === 'NHL' ? 'Puck Line' : 'Spread'
   const totalMarket = getMarket(bookmakers, 'totals')
   const over = findOutcome(totalMarket, 'Over')
   const under = findOutcome(totalMarket, 'Under')
@@ -1028,23 +1039,27 @@ export function GameLineCard({
           line={awayBest}
           tournament={showTournamentFlags}
           onPress={showTournamentFlags ? onPressSoccerTeam : undefined}
+          compareTitle={compareTitle}
+          onCompare={() => openCompare(awayBest, { market: 'h2h', outcome: game.away_team, label: `Moneyline · ${game.away_team}` })}
         />
       )}
-      {drawBest && <TeamRow team="Draw" line={drawBest} />}
+      {drawBest && <TeamRow team="Draw" line={drawBest} compareTitle={compareTitle} onCompare={() => openCompare(drawBest, { market: 'h2h', outcome: 'Draw', label: 'Moneyline · Draw' })} />}
       {!hideHomeMoneyline && (
         <TeamRow
           team={game.home_team}
           line={homeBest}
           tournament={showTournamentFlags}
           onPress={showTournamentFlags ? onPressSoccerTeam : undefined}
+          compareTitle={compareTitle}
+          onCompare={() => openCompare(homeBest, { market: 'h2h', outcome: game.home_team, label: `Moneyline · ${game.home_team}` })}
         />
       )}
 
       {(awaySpread || homeSpread) && (
         <View style={styles.marketBox}>
           <AppText variant="eyebrow">// Spread</AppText>
-          <MarketRow team={game.away_team} line={awaySpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} />
-          <MarketRow team={game.home_team} line={homeSpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} />
+          <MarketRow team={game.away_team} line={awaySpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} compareTitle={compareTitle} onCompare={() => openCompare(awaySpread, { market: 'spreads', outcome: game.away_team, label: `${spreadName} · ${game.away_team}` })} />
+          <MarketRow team={game.home_team} line={homeSpread} marketLabel={sport === 'MLB' ? 'RL' : 'Spread'} compareTitle={compareTitle} onCompare={() => openCompare(homeSpread, { market: 'spreads', outcome: game.home_team, label: `${spreadName} · ${game.home_team}` })} />
         </View>
       )}
 
@@ -1059,14 +1074,18 @@ export function GameLineCard({
           )}
           <View style={styles.totalRow}>
             {over && totalLeanSide !== 'over' && (
-              <AppText style={styles.totalText}>
-                O {over.point} <AppText style={styles.totalPrice}>{fmtOdds(over.price)}</AppText>
-              </AppText>
+              <CompareTap title={compareTitle} onPress={() => openCompare({ price: over.price, point: over.point, book: '' }, { market: 'totals', outcome: 'Over', label: 'Total · Over' })}>
+                <AppText style={styles.totalText}>
+                  O {over.point} <AppText style={[styles.totalPrice, styles.tapText]}>{fmtOdds(over.price)}</AppText>
+                </AppText>
+              </CompareTap>
             )}
             {under && totalLeanSide !== 'under' && (
-              <AppText style={styles.totalText}>
-                U {under.point} <AppText style={styles.totalPrice}>{fmtOdds(under.price)}</AppText>
-              </AppText>
+              <CompareTap title={compareTitle} onPress={() => openCompare({ price: under.price, point: under.point, book: '' }, { market: 'totals', outcome: 'Under', label: 'Total · Under' })}>
+                <AppText style={styles.totalText}>
+                  U {under.point} <AppText style={[styles.totalPrice, styles.tapText]}>{fmtOdds(under.price)}</AppText>
+                </AppText>
+              </CompareTap>
             )}
           </View>
         </View>
@@ -1078,18 +1097,23 @@ export function GameLineCard({
           {bttsLean && <LeanBox label={`KingFish ${bttsLean.type}`} lean={bttsLean} compact />}
           <View style={styles.totalRow}>
             {bttsYes && (
-              <AppText style={styles.totalText}>
-                Yes <AppText style={styles.totalPrice}>{fmtOdds(bttsYes.price)}</AppText>
-              </AppText>
+              <CompareTap title={compareTitle} onPress={() => openCompare(bttsYes, { market: 'btts', outcome: 'Yes', label: 'Both Teams To Score · Yes' })}>
+                <AppText style={styles.totalText}>
+                  Yes <AppText style={[styles.totalPrice, styles.tapText]}>{fmtOdds(bttsYes.price)}</AppText>
+                </AppText>
+              </CompareTap>
             )}
             {bttsNo && (
-              <AppText style={styles.totalText}>
-                No <AppText style={styles.totalPrice}>{fmtOdds(bttsNo.price)}</AppText>
-              </AppText>
+              <CompareTap title={compareTitle} onPress={() => openCompare(bttsNo, { market: 'btts', outcome: 'No', label: 'Both Teams To Score · No' })}>
+                <AppText style={styles.totalText}>
+                  No <AppText style={[styles.totalPrice, styles.tapText]}>{fmtOdds(bttsNo.price)}</AppText>
+                </AppText>
+              </CompareTap>
             )}
           </View>
         </View>
       )}
+      <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
     </Card>
   )
 }
@@ -1114,11 +1138,15 @@ function TeamRow({
   line,
   tournament = false,
   onPress,
+  compareTitle,
+  onCompare,
 }: {
   team: string
   line: { price: number; book: string } | null
   tournament?: boolean
   onPress?: (team: string) => void
+  compareTitle: string
+  onCompare: () => void
 }) {
   const teamName = (
     <View style={styles.teamNameWrap}>
@@ -1129,14 +1157,20 @@ function TeamRow({
   return (
     <View style={styles.teamRow}>
       {onPress && team !== 'Draw' ? <Pressable onPress={() => onPress(team)}>{teamName}</Pressable> : teamName}
-      <View style={styles.oddsBadge}>
-        <AppText style={styles.oddsText}>{line ? fmtOdds(line.price) : '-'}</AppText>
-      </View>
+      {line ? (
+        <CompareTap title={compareTitle} onPress={onCompare} style={styles.oddsBadge}>
+          <AppText style={[styles.oddsText, styles.tapText]}>{fmtOdds(line.price)}</AppText>
+        </CompareTap>
+      ) : (
+        <View style={styles.oddsBadge}>
+          <AppText style={styles.oddsText}>-</AppText>
+        </View>
+      )}
     </View>
   )
 }
 
-function MarketRow({ team, line, marketLabel }: { team: string; line: { price: number; point?: number; book: string } | null; marketLabel: string }) {
+function MarketRow({ team, line, marketLabel, compareTitle, onCompare }: { team: string; line: { price: number; point?: number; book: string } | null; marketLabel: string; compareTitle: string; onCompare: () => void }) {
   const point = line ? fmtSpreadPoint(line.point) : ''
   return (
     <View style={styles.marketRow}>
@@ -1147,7 +1181,13 @@ function MarketRow({ team, line, marketLabel }: { team: string; line: { price: n
         </View>
         <AppText variant="mono">{marketLabel}</AppText>
       </View>
-      <AppText style={styles.marketPrice}>{line ? fmtOdds(line.price) : '-'}</AppText>
+      {line ? (
+        <CompareTap title={compareTitle} onPress={onCompare}>
+          <AppText style={[styles.marketPrice, styles.tapText]}>{fmtOdds(line.price)}</AppText>
+        </CompareTap>
+      ) : (
+        <AppText style={styles.marketPrice}>-</AppText>
+      )}
     </View>
   )
 }
@@ -1345,5 +1385,11 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 13,
     fontWeight: '900',
+  },
+  // Tappable prices: the same dotted underline as the web's compare buttons.
+  tapText: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
+    textDecorationColor: 'rgba(198,145,50,.5)',
   },
 })

@@ -54,7 +54,7 @@ const sections = [
   },
   {
     title: '12. AI and Automated Analysis',
-    body: 'Ask KingFish and other automated tools may generate analysis using available data, historical context, and user prompts. AI-generated responses may contain errors or omissions and should not be treated as instructions to wager.',
+    body: 'KingFish AI and other automated tools may generate analysis using available data, historical context, and user prompts. AI-generated responses may contain errors or omissions and should not be treated as instructions to wager.',
   },
   {
     title: '13. Limitation of Liability',

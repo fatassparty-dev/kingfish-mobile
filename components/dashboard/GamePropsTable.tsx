@@ -16,21 +16,20 @@
  */
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
+import { CompareTap, OddsCompareSheet, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { AppText } from '@/components/Text'
 import { fmtOdds } from '@/lib/format'
 import { ncaafSpreadHighlight, type SpreadHighlightRead } from '@/lib/ncaafSpreadHighlight'
-import { supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
+import { gameLineCompare, type GameLinePick } from '@/lib/oddsCompare'
+import { shortBookName, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 
 type BestLine = { book: string; price: number; point?: number } | null
 type SortKey = 'time' | 'edge' | 'grade' | 'total'
-
-const BOOK_SHORT: Record<string, string> = {
-  fanduel: 'FD', draftkings: 'DK', betmgm: 'MGM', betrivers: 'BR',
-  williamhill_us: 'CZR', espnbet: 'TSB', hardrockbet: 'HR',
-  hardrockbet_az: 'HR', hardrockbet_fl: 'HR', hardrockbet_oh: 'HR',
-}
+// Which game-line outcome a price cell shows, for its compare sheet.
+type LinePick = GameLinePick & { market: 'h2h' | 'spreads' | 'totals' }
+type OpenCompare = (line: BestLine, pick: LinePick) => void
 
 function spreadLabel(sport: Sport) {
   if (sport === 'MLB' || sport === 'KBO') return 'Run Line'
@@ -175,14 +174,16 @@ function gradeColor(gradeFor?: number, gradeAgainst?: number) {
   return colors.textPrimary
 }
 
-function PriceCell({ line, flex = 1, showPoint = false }: { line: BestLine; flex?: number; showPoint?: boolean }) {
+// Every price taps open the compare sheet (all of the customer's books for that
+// outcome, at the same spread/total number).
+function PriceCell({ line, flex = 1, showPoint = false, pick, title, onCompare }: { line: BestLine; flex?: number; showPoint?: boolean; pick: LinePick; title: string; onCompare: OpenCompare }) {
   return (
     <View style={[styles.cell, { flex }]}>
       {line ? (
-        <View style={styles.priceWrap}>
-          <AppText variant="mono" style={styles.priceText}>{showPoint && line.point !== undefined ? `${line.point} ` : ''}{fmtOdds(line.price)}</AppText>
-          <AppText style={styles.bookText}>{BOOK_SHORT[line.book] || line.book}</AppText>
-        </View>
+        <CompareTap title={title} onPress={() => onCompare(line, pick)} style={styles.priceWrap}>
+          <AppText variant="mono" style={[styles.priceText, styles.tapText]}>{showPoint && line.point !== undefined ? `${line.point} ` : ''}{fmtOdds(line.price)}</AppText>
+          <AppText style={styles.bookText}>{shortBookName(line.book)}</AppText>
+        </CompareTap>
       ) : (
         <AppText variant="mono" style={styles.emptyText}>—</AppText>
       )}
@@ -190,28 +191,30 @@ function PriceCell({ line, flex = 1, showPoint = false }: { line: BestLine; flex
   )
 }
 
-function PairedPriceCell({ awayLabel, homeLabel, away, home, flex = 1.8 }: { awayLabel: string; homeLabel: string; away: BestLine; home: BestLine; flex?: number }) {
-  const half = (label: string, line: BestLine) => <View style={styles.pairedHalf}>
+function PairedPriceCell({ awayLabel, homeLabel, away, home, awayPick, homePick, title, onCompare, flex = 1.8 }: { awayLabel: string; homeLabel: string; away: BestLine; home: BestLine; awayPick: LinePick; homePick: LinePick; title: string; onCompare: OpenCompare; flex?: number }) {
+  const half = (label: string, line: BestLine, pick: LinePick) => <View style={styles.pairedHalf}>
     <AppText variant="mono" style={styles.pairedLabel} numberOfLines={1}>{label}</AppText>
-    {line ? <View style={styles.pairedValue}>
-      <AppText variant="mono" style={styles.pairedPrice} numberOfLines={1}>{fmtOdds(line.price)}</AppText>
-      <AppText style={styles.bookText}>{BOOK_SHORT[line.book] || line.book}</AppText>
-    </View> : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
+    {line ? <CompareTap title={title} onPress={() => onCompare(line, pick)} style={styles.pairedValue}>
+      <AppText variant="mono" style={[styles.pairedPrice, styles.tapText]} numberOfLines={1}>{fmtOdds(line.price)}</AppText>
+      <AppText style={styles.bookText}>{shortBookName(line.book)}</AppText>
+    </CompareTap> : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
   </View>
-  return <View style={[styles.cell, { flex, overflow: 'hidden' }]}>{half(awayLabel, away)}{half(homeLabel, home)}</View>
+  return <View style={[styles.cell, { flex, overflow: 'hidden' }]}>{half(awayLabel, away, awayPick)}{half(homeLabel, home, homePick)}</View>
 }
 
-function SpreadCell({ awayAbbr, homeAbbr, away, home, read, flex = 1.8, fullLabels = false }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; read?: SpreadHighlightRead | null; flex?: number; fullLabels?: boolean }) {
-  const half = (abbr: string, line: BestLine, side: 'home' | 'away') => {
+function SpreadCell({ awayAbbr, homeAbbr, away, home, awayPick, homePick, title, onCompare, read, flex = 1.8, fullLabels = false }: { awayAbbr: string; homeAbbr: string; away: BestLine; home: BestLine; awayPick: LinePick; homePick: LinePick; title: string; onCompare: OpenCompare; read?: SpreadHighlightRead | null; flex?: number; fullLabels?: boolean }) {
+  const half = (abbr: string, line: BestLine, side: 'home' | 'away', pick: LinePick) => {
     const tier = ncaafSpreadHighlight(read, side, line)
     const color = tier === 'Strong' ? colors.green : tier ? colors.gold : undefined
     return (
       <View style={styles.spreadHalf}>
         <AppText variant="mono" style={[fullLabels ? styles.spreadSchool : styles.spreadAbbr, color ? { color, fontWeight: '900' } : null]} numberOfLines={1}>{abbr}</AppText>
         {line ? (
-          <AppText variant="mono" style={[styles.spreadText, color ? { color, fontWeight: '900' } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-            {fmtPoint(line.point)} {fmtOdds(line.price)}
-          </AppText>
+          <CompareTap title={title} onPress={() => onCompare(line, pick)} style={styles.spreadTap}>
+            <AppText variant="mono" style={[styles.spreadText, styles.tapText, color ? { color, fontWeight: '900' } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {fmtPoint(line.point)} {fmtOdds(line.price)}
+            </AppText>
+          </CompareTap>
         ) : (
           <AppText variant="mono" style={styles.emptyText}>—</AppText>
         )}
@@ -220,8 +223,8 @@ function SpreadCell({ awayAbbr, homeAbbr, away, home, read, flex = 1.8, fullLabe
   }
   return (
     <View style={[styles.cell, { flex, overflow: 'hidden' }]}>
-      {half(awayAbbr, away, 'away')}
-      {half(homeAbbr, home, 'home')}
+      {half(awayAbbr, away, 'away', awayPick)}
+      {half(homeAbbr, home, 'home', homePick)}
     </View>
   )
 }
@@ -272,6 +275,24 @@ export function GamePropsTable({
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('time')
   const [sortDesc, setSortDesc] = useState(false)
+  const [compare, setCompare] = useState<OddsCompareData | null>(null)
+
+  // The sheet lists the same books gameMarkets() picked from, in the same
+  // order, so its "Best" always matches the cell (ties keep the first book).
+  const compareFor = (game: Game) => (line: BestLine, pick: LinePick) => {
+    if (!line) return
+    const books = supportedBookmakers(game.bookmakers, userState, sportsbookPreferences).map((bookmaker) => bookmaker.key)
+    setCompare(gameLineCompare(game, books, line, pick))
+  }
+  const picks = (game: Game, sport: Sport) => ({
+    awayMl: { market: 'h2h', outcome: game.away_team, label: `Moneyline · ${game.away_team}` },
+    homeMl: { market: 'h2h', outcome: game.home_team, label: `Moneyline · ${game.home_team}` },
+    awaySpread: { market: 'spreads', outcome: game.away_team, label: `${spreadLabel(sport)} · ${game.away_team}` },
+    homeSpread: { market: 'spreads', outcome: game.home_team, label: `${spreadLabel(sport)} · ${game.home_team}` },
+    over: { market: 'totals', outcome: 'Over', label: 'Total · Over' },
+    under: { market: 'totals', outcome: 'Under', label: 'Total · Under' },
+  }) satisfies Record<string, LinePick>
+  const sheet = <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
 
   // Rank rides INSIDE the matchup text node, not as its own <AppText>: the
   // cell is deliberately one node so both lines share one font scale.
@@ -302,9 +323,10 @@ export function GamePropsTable({
 
   if (sport === 'NCAAF' && compact && ncaafDetails) {
     const price = (line: BestLine, points = false, signed = true) => line
-      ? `${points && line.point !== undefined ? (signed ? fmtPoint(line.point) : line.point) + ' ' : ''}${fmtOdds(line.price)} ${BOOK_SHORT[line.book] || line.book}`
+      ? `${points && line.point !== undefined ? (signed ? fmtPoint(line.point) : line.point) + ' ' : ''}${fmtOdds(line.price)} ${shortBookName(line.book)}`
       : '—'
     return <View style={{ gap: 12 }}>
+      {sheet}
       <View style={{ flexDirection: 'row', gap: 16 }}>
         {(['time', 'edge', 'grade', 'total'] as const).map(key => <Pressable key={key} disabled={preview} onPress={() => toggleSort(key)}>
           <AppText variant="mono" style={{ color: key === sortKey ? colors.gold : colors.textSecondary }}>{key === 'time' ? 'Kickoff' : key[0].toUpperCase() + key.slice(1)}{key === sortKey ? sortDesc ? ' ↓' : ' ↑' : ''}</AppText>
@@ -315,10 +337,20 @@ export function GamePropsTable({
         const modelLocked = preview && (game as any).previewModelLocked === true
         const away = game.awayProgram || game.away_team, home = game.homeProgram || game.home_team
         const leanName = lean?.team === game.home_team ? home + ' ML' : lean?.team === game.away_team ? away + ' ML' : lean?.side || '—'
-        const line = (label: string, value: string, color = colors.textPrimary, emphasize = false) => <View key={label} style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between', paddingVertical: 5 }}>
+        const pick = picks(game, sport)
+        const open = compareFor(game)
+        const title = `${game.away_team} @ ${game.home_team}`
+        const line = (label: string, value: string, color = colors.textPrimary, emphasize = false, onPress?: () => void) => <View key={label} style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between', paddingVertical: 5 }}>
           <AppText variant="mono" style={{ color: emphasize ? color : colors.textSecondary, flex: 1, fontWeight: emphasize ? '900' : '400' }}>{label}</AppText>
-          <AppText variant="mono" style={{ color, flex: 1, textAlign: 'right', fontWeight: emphasize ? '900' : '400' }}>{value}</AppText>
+          {onPress ? (
+            <CompareTap title={title} onPress={onPress} style={{ flex: 1 }}>
+              <AppText variant="mono" style={[{ color, textAlign: 'right', fontWeight: emphasize ? '900' : '400' }, styles.tapText]}>{value}</AppText>
+            </CompareTap>
+          ) : (
+            <AppText variant="mono" style={{ color, flex: 1, textAlign: 'right', fontWeight: emphasize ? '900' : '400' }}>{value}</AppText>
+          )}
         </View>
+        const tap = (bestLine: BestLine, linePick: LinePick) => bestLine ? () => open(bestLine, linePick) : undefined
         const awaySpreadTier = ncaafSpreadHighlight(spreadLean, 'away', mk.bestAwaySpread)
         const homeSpreadTier = ncaafSpreadHighlight(spreadLean, 'home', mk.bestHomeSpread)
         const spreadColor = (tier: 'Lean' | 'Strong' | null) => tier === 'Strong' ? colors.green : tier ? colors.gold : colors.textPrimary
@@ -332,14 +364,14 @@ export function GamePropsTable({
           {line('Grade', modelLocked ? 'Premium' : lean?.grade_for != null && lean.grade_against != null ? `${lean.grade_for}–${lean.grade_against}` : '—', modelLocked ? colors.gold : colors.textPrimary)}
           {line('KF PROJ', modelLocked ? 'Premium' : typeof total?.proj === 'number' ? String(total.proj) : '—', modelLocked ? colors.gold : colors.textPrimary)}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }}>
-            {line(away + ' ML', price(mk.bestAwayMoneyline))}
-            {line(home + ' ML', price(mk.bestHomeMoneyline))}
+            {line(away + ' ML', price(mk.bestAwayMoneyline), colors.textPrimary, false, tap(mk.bestAwayMoneyline, pick.awayMl))}
+            {line(home + ' ML', price(mk.bestHomeMoneyline), colors.textPrimary, false, tap(mk.bestHomeMoneyline, pick.homeMl))}
             <AppText variant="eyebrow" style={{ color: colors.textSecondary, marginTop: 8, marginBottom: 3 }}>Spread / KF Lean</AppText>
-            {line(away, price(mk.bestAwaySpread, true), spreadColor(awaySpreadTier), Boolean(awaySpreadTier))}
-            {line(home, price(mk.bestHomeSpread, true), spreadColor(homeSpreadTier), Boolean(homeSpreadTier))}
+            {line(away, price(mk.bestAwaySpread, true), spreadColor(awaySpreadTier), Boolean(awaySpreadTier), tap(mk.bestAwaySpread, pick.awaySpread))}
+            {line(home, price(mk.bestHomeSpread, true), spreadColor(homeSpreadTier), Boolean(homeSpreadTier), tap(mk.bestHomeSpread, pick.homeSpread))}
             <AppText variant="eyebrow" style={{ color: colors.textSecondary, marginTop: 8, marginBottom: 3 }}>Sportsbook Totals</AppText>
-            {line('Over', price(mk.bestOverTotal, true, false))}
-            {line('Under', price(mk.bestUnderTotal, true, false))}
+            {line('Over', price(mk.bestOverTotal, true, false), colors.textPrimary, false, tap(mk.bestOverTotal, pick.over))}
+            {line('Under', price(mk.bestUnderTotal, true, false), colors.textPrimary, false, tap(mk.bestUnderTotal, pick.under))}
           </View>
         </View>
       })}
@@ -463,6 +495,8 @@ export function GamePropsTable({
           : lean?.team === game.away_team
             ? `${awayProgram} ML`
             : leanSideDisplay(lean)
+        const pick = picks(game, sport)
+        const cellCompare = { title: `${game.away_team} @ ${game.home_team}`, onCompare: compareFor(game) }
         return (
           <Pressable
             key={(game as any).id || (game as any).game_id || `${game.away_team}-${game.home_team}`}
@@ -518,15 +552,18 @@ export function GamePropsTable({
                   : <AppText variant="mono" style={styles.emptyText}>—</AppText>}
               </View>
             )}
-            {!compact && !ncaafLandscape && <PriceCell line={mk.bestAwayMoneyline} />}
-            {!compact && !ncaafLandscape && <PriceCell line={mk.bestHomeMoneyline} />}
-            {ncaafLandscape && <PairedPriceCell awayLabel={awayProgram} homeLabel={homeProgram} away={mk.bestAwayMoneyline} home={mk.bestHomeMoneyline} flex={2} />}
+            {!compact && !ncaafLandscape && <PriceCell line={mk.bestAwayMoneyline} pick={pick.awayMl} {...cellCompare} />}
+            {!compact && !ncaafLandscape && <PriceCell line={mk.bestHomeMoneyline} pick={pick.homeMl} {...cellCompare} />}
+            {ncaafLandscape && <PairedPriceCell awayLabel={awayProgram} homeLabel={homeProgram} away={mk.bestAwayMoneyline} home={mk.bestHomeMoneyline} awayPick={pick.awayMl} homePick={pick.homeMl} {...cellCompare} flex={2} />}
             {!compact && (
               <SpreadCell
                 awayAbbr={ncaafLandscape ? awayProgram : shortName(game.away_team).slice(0, 3).toUpperCase()}
                 homeAbbr={ncaafLandscape ? homeProgram : shortName(game.home_team).slice(0, 3).toUpperCase()}
                 away={mk.bestAwaySpread}
                 home={mk.bestHomeSpread}
+                awayPick={pick.awaySpread}
+                homePick={pick.homeSpread}
+                {...cellCompare}
                 read={sport === 'NCAAF' && !modelLocked ? spreadLean : null}
                 flex={ncaafLandscape ? 2.5 : 1.8}
                 fullLabels={ncaafLandscape}
@@ -546,8 +583,8 @@ export function GamePropsTable({
                     ? <AppText style={styles.leanText} numberOfLines={1}>{String(totalLean.label).split(' ')[0]}</AppText>
                     : <AppText variant="mono" style={styles.emptyText}>{totalLean ? 'No Lean' : '—'}</AppText>}
             </View>
-            {!compact && <PriceCell line={mk.bestOverTotal} showPoint={sport === 'NCAAF'} />}
-            {!compact && <PriceCell line={mk.bestUnderTotal} showPoint={sport === 'NCAAF'} />}
+            {!compact && <PriceCell line={mk.bestOverTotal} showPoint={sport === 'NCAAF'} pick={pick.over} {...cellCompare} />}
+            {!compact && <PriceCell line={mk.bestUnderTotal} showPoint={sport === 'NCAAF'} pick={pick.under} {...cellCompare} />}
             {compact && (
               <View style={[styles.cell, { flex: 1.2 }]}>
                 {modelLocked
@@ -577,6 +614,7 @@ export function GamePropsTable({
           </Pressable>
         )
       })}
+      {sheet}
     </View>
   )
 }
@@ -618,6 +656,9 @@ const styles = StyleSheet.create({
   totalText: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
   priceWrap: { alignItems: 'center' },
   priceText: { fontSize: 12, fontWeight: '700', color: colors.gold },
+  // Tappable prices: the same dotted underline as the web's compare buttons.
+  tapText: { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: 'rgba(198,145,50,.5)' },
+  spreadTap: { flexShrink: 1 },
   bookText: { fontSize: 8, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   spreadHalf: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 1, alignSelf: 'stretch', justifyContent: 'center' },
   spreadAbbr: { fontSize: 10, color: colors.textSecondary, width: 26 },

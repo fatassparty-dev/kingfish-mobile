@@ -139,7 +139,7 @@ export default function AskKingFishScreen() {
           ...current,
           {
             role: 'assistant',
-            content: `You've used your ${FREE_DAILY_LIMIT} free chats for today. Premium unlocks unlimited Ask KingFish access.`,
+            content: `You've used your ${FREE_DAILY_LIMIT} free chats for today. Premium unlocks unlimited KingFish AI access.`,
           },
         ])
       } else {
@@ -157,7 +157,7 @@ export default function AskKingFishScreen() {
   function confirmClearChat() {
     Alert.alert(
       'Clear Chat',
-      'This removes your saved Ask KingFish conversation history from KingFish.',
+      'This removes your saved KingFish AI conversation history from KingFish.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Clear Chat', style: 'destructive', onPress: clearChat },
@@ -190,7 +190,7 @@ export default function AskKingFishScreen() {
           <Image source={require('../../assets/images/kingfish-body-layer.png')} style={styles.compactAvatar} />
           <View style={styles.compactTitleWrap}>
             <AppText variant="eyebrow">// AI Analyst</AppText>
-            <AppText style={styles.compactTitle}>Ask KingFish</AppText>
+            <AppText style={styles.compactTitle}>KingFish AI</AppText>
           </View>
           <AppText variant="mono" style={styles.compactLimit} numberOfLines={1}>{limitLabel}</AppText>
         </View>
@@ -228,7 +228,7 @@ export default function AskKingFishScreen() {
           />
         </View>
         <AppText variant="eyebrow">// AI Analyst</AppText>
-        <AppText variant="title" style={styles.title}>Ask KingFish</AppText>
+        <AppText variant="title" style={styles.title}>KingFish AI</AppText>
         <AppText variant="muted" style={styles.copy}>
           Sharp answers backed by live odds, props, stats, and KingFish context.
         </AppText>
@@ -295,7 +295,7 @@ export default function AskKingFishScreen() {
 
       {reachedLimit && (
         <View style={styles.upgradeBox}>
-          <AppText style={styles.upgradeTitle}>Unlimited Ask KingFish</AppText>
+          <AppText style={styles.upgradeTitle}>Unlimited KingFish AI</AppText>
           <AppText variant="muted" style={styles.upgradeCopy}>
             Premium includes unlimited chat, player props, cheat sheets, and edge tools.
           </AppText>
@@ -308,7 +308,7 @@ export default function AskKingFishScreen() {
           value={input}
           onChangeText={setInput}
           editable={!sending && !reachedLimit}
-          placeholder={reachedLimit ? 'Premium unlocks unlimited chat' : 'Ask KingFish...'}
+          placeholder={reachedLimit ? 'Premium unlocks unlimited chat' : 'Ask KingFish AI...'}
           placeholderTextColor={colors.textMuted}
           multiline
           returnKeyType="send"

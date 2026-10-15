@@ -52,7 +52,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ask-kingfish"
         options={{
-          title: 'Ask',
+          title: 'Ask AI',
           tabBarIcon: ({ color, focused }) => <TabIcon name="ai" color={color} focused={focused} />,
         }}
       />

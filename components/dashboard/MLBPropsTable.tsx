@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
+import { OddsCompareSheet, PriceChip, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { kingfishFetch } from '@/lib/api'
+import { propBookLines, sideHit, sidePricesAtLine, type BookPrice, type PropSide } from '@/lib/oddsCompare'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
-import { eligiblePropBookKeys } from '@/lib/sportsbooks'
+import { eligiblePropBookKeys, shortBookName, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game } from '@/types'
 
@@ -77,6 +79,9 @@ interface PlayerRow {
   line: number
   bestOdds?: number
   bestBook?: string
+  // Every book at the standard line, best first, per side.
+  prices: BookPrice[]
+  underPrices: BookPrice[]
   stats?: Record<string, any>
   vsStarter?: {
     pitcherName?: string
@@ -166,29 +171,41 @@ function edgeLabel(line: number, season: number, l10: number, l5: number, odds?:
   return { label: 'Fade', color: colors.red, score }
 }
 
-function statColor(value: number, line: number) {
+function statColor(value: number, line: number, side: PropSide = 'over') {
   if (!value) return colors.textMuted
+  if (side === 'under') {
+    if (value * 1.2 < line) return colors.green
+    if (value < line) return colors.yellow
+    return colors.red
+  }
   if (value > line * 1.2) return colors.green
   if (value > line) return colors.yellow
   return colors.red
 }
 
-function hitRate(stats: Record<string, any> | undefined, statField: string, line: number, count: number) {
+function hitRate(stats: Record<string, any> | undefined, statField: string, line: number, count: number, side: PropSide = 'over') {
   const rawKey = STAT_TO_RAW[statField]
   const raw = stats?.raw_games
   if (!rawKey || !Array.isArray(raw) || raw.length === 0) return '-'
   const sample = raw.slice(0, count)
-  const hits = sample.filter((game: any) => (game[rawKey] || 0) > line).length
+  const hits = sample.filter((game: any) => sideHit(game[rawKey] || 0, line, side)).length
   return `${hits}/${sample.length}`
 }
 
-function hitRateValue(stats: Record<string, any> | undefined, statField: string, line: number, count: number) {
+function hitRateValue(stats: Record<string, any> | undefined, statField: string, line: number, count: number, side: PropSide = 'over') {
   const rawKey = STAT_TO_RAW[statField]
   const raw = stats?.raw_games
   if (!rawKey || !Array.isArray(raw) || raw.length === 0) return -1
   const sample = raw.slice(0, count)
   if (sample.length === 0) return -1
-  return sample.filter((game: any) => (game[rawKey] || 0) > line).length / sample.length
+  return sample.filter((game: any) => sideHit(game[rawKey] || 0, line, side)).length / sample.length
+}
+
+function hitColor(rate: number) {
+  if (rate < 0) return colors.textMuted
+  if (rate >= 0.6) return colors.green
+  if (rate >= 0.5) return colors.gold
+  return colors.red
 }
 
 function fmtRate(value: number | undefined) {
@@ -238,28 +255,26 @@ function buildRows(
   bvpStats: Record<string, any> = {},
   bvpByGameBatter: Map<string, BvpMatchup> = new Map(),
 ): PlayerRow[] {
-  const playerMap: Record<string, Record<string, { over?: number; point?: number }>> = {}
+  const playerOutcomes: Record<string, Array<{ book: string; name: string; price: number; point?: number }>> = {}
 
   game.bookmakers?.forEach((bookmaker) => {
     if (!bookKeys.includes(bookmaker.key)) return
     bookmaker.markets?.forEach((market) => {
       if (market.key !== marketKey) return
       market.outcomes?.forEach((outcome) => {
-        if (!outcome.description || outcome.name !== 'Over') return
-        if (typeof outcome.price !== 'number' || outcome.price > 700 || outcome.price < -10000) return
-        playerMap[outcome.description] ||= {}
-        playerMap[outcome.description][bookmaker.key] = {
-          over: outcome.price,
-          point: outcome.point,
-        }
+        if (!outcome.description || (outcome.name !== 'Over' && outcome.name !== 'Under')) return
+        // No upper price cap (matches the web board; longshot HR rows return).
+        if (typeof outcome.price !== 'number' || outcome.price < -10000) return
+        ;(playerOutcomes[outcome.description] ||= []).push({ book: bookmaker.key, name: outcome.name, price: outcome.price, point: outcome.point })
       })
     })
   })
 
-  return Object.keys(playerMap)
+  return Object.keys(playerOutcomes)
     .filter((player) => !search || player.toLowerCase().includes(search.toLowerCase()))
     .map((player) => {
-      const bookData = playerMap[player]
+      // Each book's Under is matched to its Over point (web 80598bf).
+      const bookData = propBookLines(playerOutcomes[player])
       const line = getDisplayLine(bookData, bookKeys)
       const best = getBestOverAtLine(bookData, bookKeys, line)
       const lineup = findLineupPlayer(lineupMap, player)
@@ -270,6 +285,8 @@ function buildRows(
         line,
         bestOdds: best?.odds,
         bestBook: best?.book,
+        prices: sidePricesAtLine(bookData, bookKeys, line, 'over'),
+        underPrices: sidePricesAtLine(bookData, bookKeys, line, 'under'),
         stats: lineup ? stats[lineup.id] : undefined,
         vsStarter: bvpMeta
           ? {
@@ -285,6 +302,19 @@ function buildRows(
       }
     })
     .filter((row) => row.line || row.bestOdds)
+}
+
+// The price a row shows on the chosen side: the best Over, or the best Under
+// at the same standard line.
+function sidePrice(row: PlayerRow, side: PropSide): BookPrice | null {
+  if (side === 'under') return row.underPrices[0] || null
+  return typeof row.bestOdds === 'number' && row.bestBook ? { book: row.bestBook, odds: row.bestOdds } : null
+}
+
+// Server Under Edge (future `underBoardScores`, same key + line guard). No
+// Under math in the app: absent means no Edge on the Under side.
+function serverUnderEdge(marketKey: string, player: string, line: number, underBoardScores: Record<string, any> | undefined) {
+  return serverEdge(marketKey, player, line, underBoardScores)
 }
 
 function upcomingGames(games: Game[]) {
@@ -352,7 +382,14 @@ function buildBvpMatchups(
   return matchups
 }
 
-export function MLBPropsTable({ games, userState, boardScores, preview = false }: { games: Game[]; userState?: string | null; boardScores?: Record<string, any>; preview?: boolean }) {
+export function MLBPropsTable({ games, userState, sportsbookPreferences, boardScores, underBoardScores, preview = false }: {
+  games: Game[]
+  userState?: string | null
+  sportsbookPreferences?: SportsbookPreferences | null
+  boardScores?: Record<string, any>
+  underBoardScores?: Record<string, any>
+  preview?: boolean
+}) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const [marketKey, setMarketKey] = useState('batter_hits')
@@ -363,6 +400,11 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
   const [selectedMarketContext, setSelectedMarketContext] = useState<PlayerProfileMarketContext | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
   const [searchOpen, setSearchOpen] = useState(false)
+  // Starts on Over every visit, like the web.
+  const [side, setSide] = useState<PropSide>('over')
+  const [compare, setCompare] = useState<OddsCompareData | null>(null)
+  const underSide = side === 'under'
+  const underEdge = underSide && Boolean(underBoardScores && Object.keys(underBoardScores).length)
   const market = ALL_MARKETS.find((item) => item.key === marketKey) || ALL_MARKETS[0]
   const gameOptions = upcomingGames(games)
   const activeGameFilter = selectedGame === 'all' || gameOptions.some((game) => gameId(game) === selectedGame)
@@ -371,7 +413,8 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
   const filteredGames = activeGameFilter === 'all'
     ? gameOptions
     : gameOptions.filter((game) => gameId(game) === activeGameFilter)
-  const bookKeys = eligiblePropBookKeys(userState)
+  // Book Preferences apply here exactly as they do on Game Props.
+  const bookKeys = eligiblePropBookKeys(userState, sportsbookPreferences)
   const selectedGameForHeader = activeGameFilter === 'all'
     ? null
     : gameOptions.find((game) => gameId(game) === activeGameFilter)
@@ -391,9 +434,10 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
     const l20 = row.stats?.[`l20_${market.statField}`] || 0
     const l10 = row.stats?.[`l10_${market.statField}`] || 0
     const l5 = row.stats?.[`l5_${market.statField}`] || 0
-    const edge = serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
+    const overEdge = serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
       ? edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
       : null)
+    const price = sidePrice(row, side)
 
     if (key === 'player') return row.player
     if (key === 'line') return row.line
@@ -401,13 +445,20 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
     if (key === 'l20') return l20
     if (key === 'l10') return l10
     if (key === 'l5') return l5
-    if (key === 'l20hit') return hitRateValue(row.stats, market.statField, row.line, 20)
-    if (key === 'l10hit') return hitRateValue(row.stats, market.statField, row.line, 10)
-    if (key === 'l5hit') return hitRateValue(row.stats, market.statField, row.line, 5)
-    if (key === 'best') return row.bestOdds || -100000
-    if (key === 'book') return row.bestBook || ''
+    if (key === 'l20hit') return hitRateValue(row.stats, market.statField, row.line, 20, side)
+    if (key === 'l10hit') return hitRateValue(row.stats, market.statField, row.line, 10, side)
+    if (key === 'l5hit') return hitRateValue(row.stats, market.statField, row.line, 5, side)
+    if (key === 'best') return price?.odds ?? -100000
+    if (key === 'book') return price ? shortBookName(price.book) : ''
     if (key === 'vsp') return row.vsStarter?.ab ? Number(String(row.vsStarter.avg || '0').replace(/^\./, '0.')) || 0 : -1
-    return edge?.score ?? -1
+    if (underSide) {
+      // Under: the server Under Edge when sent, else L5 Under hit rate. The
+      // free preview keeps the Over order so its locked research can't leak.
+      if (preview) return overEdge?.score ?? -1
+      const underEdgeScore = serverUnderEdge(marketKey, row.player, row.line, underBoardScores)?.score
+      return underEdgeScore ?? hitRateValue(row.stats, market.statField, row.line, 5, 'under')
+    }
+    return overEdge?.score ?? -1
   }
 
   function sortRows(rows: PlayerRow[]) {
@@ -419,7 +470,8 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
       if (typeof aValue === 'string' || typeof bValue === 'string') {
         return String(aValue).localeCompare(String(bValue)) * direction
       }
-      return ((aValue || 0) - (bValue || 0)) * direction
+      // Under ties (same hit rate) go to the better price.
+      return ((aValue || 0) - (bValue || 0)) * direction || (underSide ? (sidePrice(b, side)?.odds ?? -100000) - (sidePrice(a, side)?.odds ?? -100000) : 0)
     })
   }
 
@@ -502,7 +554,9 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
   const selectedGameLabel = selectedGameForHeader
     ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
     : 'All Games'
-  const allRows = sortRows(filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter))).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined)
+  const builtRows = filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter))
+  // An Under row needs at least one book's Under at the standard line.
+  const allRows = sortRows(underSide ? builtRows.filter((row) => row.underPrices.length > 0) : builtRows).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined)
 
   return (
     <View style={styles.wrap}>
@@ -511,6 +565,19 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
           <MarketButton key={item.key} active={marketKey === item.key} label={item.label} onPress={() => setMarketKey(item.key)} />
         ))}
       </ScrollView>
+      <View style={styles.sideRow}>
+        {(['over', 'under'] as PropSide[]).map((option) => (
+          <Pressable
+            key={option}
+            onPress={() => setSide(option)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: side === option }}
+            style={[styles.sideButton, side === option && styles.sideButtonActive]}
+          >
+            <AppText style={[styles.sideText, side === option && styles.sideTextActive]}>{option === 'over' ? 'Over' : 'Under'}</AppText>
+          </Pressable>
+        ))}
+      </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
         <Pressable
@@ -570,7 +637,7 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
             <AppText style={styles.gameTitle}>{selectedGameLabel}</AppText>
             {selectedGameForHeader ? <AppText variant="mono">{fmtTime(selectedGameForHeader.commence_time)}</AppText> : null}
           </View>
-          <TableHeader sortKey={sortKey} onSort={toggleSort} landscape={landscapeTable} />
+          <TableHeader sortKey={sortKey} onSort={toggleSort} landscape={landscapeTable} side={side} underEdge={underEdge} />
           {allRows.map((row, index) => (
             <PlayerPropRow
               key={`${row.player}-${row.line}-${index}`}
@@ -580,7 +647,20 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
               statField={market.statField}
               landscape={landscapeTable}
               boardScores={boardScores}
+              underBoardScores={underBoardScores}
+              side={side}
+              underEdge={underEdge}
               preview={preview}
+              onCompare={() => {
+                const price = sidePrice(row, side)
+                const prices = side === 'under' ? row.underPrices : row.prices
+                setCompare({
+                  title: row.player,
+                  subtitle: `${market.label} · ${side === 'under' ? 'Under' : 'Over'} ${row.line}`,
+                  prices: prices.length ? prices : price ? [price] : [],
+                  note: `Your books posting ${row.line}. Books on a different line aren't listed.`,
+                })
+              }}
               onPress={() => {
                 setSelectedPlayer(row.player)
                 setSelectedMarketContext({
@@ -594,6 +674,7 @@ export function MLBPropsTable({ games, userState, boardScores, preview = false }
           ))}
         </View>
       )}
+      <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
       <PlayerProfileModal
         playerName={selectedPlayer}
         sport="mlb"
@@ -637,19 +718,23 @@ function SortHeader({
   )
 }
 
-function TableHeader({ sortKey, onSort, landscape }: { sortKey: SortKey; onSort: (key: SortKey) => void; landscape: boolean }) {
+// Landscape: Book follows Line (web order). Under with no server Under Edge:
+// landscape drops Edge, portrait's Edge column becomes "L5 U" (L5 Under hit rate).
+function TableHeader({ sortKey, onSort, landscape, side, underEdge }: { sortKey: SortKey; onSort: (key: SortKey) => void; landscape: boolean; side: PropSide; underEdge: boolean }) {
+  const hideEdge = side === 'under' && !underEdge
   if (landscape) {
     return (
       <View style={styles.compactHeader}>
         <SortHeader label="Player" target="player" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapePlayerColumn} />
         <SortHeader label="Line" target="line" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
+        <SortHeader label="Book" target="book" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeBookColumn} />
         <SortHeader label="VS SP" target="vsp" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="AVG" target="season" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L5 Hit" target="l5hit" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
         <SortHeader label="L10 Hit" target="l10hit" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeStatColumn} />
-        <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeEdgeColumn} />
+        {hideEdge ? null : <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} landscape style={styles.landscapeEdgeColumn} />}
       </View>
     )
   }
@@ -660,7 +745,7 @@ function TableHeader({ sortKey, onSort, landscape }: { sortKey: SortKey; onSort:
       <SortHeader label="AVG" target="season" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="L10" target="l10" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
       <SortHeader label="L5" target="l5" sortKey={sortKey} onSort={onSort} style={styles.statColumn} />
-      <SortHeader label="Edge" target="edge" sortKey={sortKey} onSort={onSort} style={styles.edgeColumn} />
+      <SortHeader label={hideEdge ? 'L5 U' : 'Edge'} target="edge" sortKey={sortKey} onSort={onSort} style={styles.edgeColumn} />
     </View>
   )
 }
@@ -672,7 +757,11 @@ function PlayerPropRow({
   statField,
   landscape,
   boardScores,
+  underBoardScores,
+  side,
+  underEdge,
   preview = false,
+  onCompare,
   onPress,
 }: {
   row: PlayerRow
@@ -681,7 +770,11 @@ function PlayerPropRow({
   statField: string
   landscape: boolean
   boardScores?: Record<string, any>
+  underBoardScores?: Record<string, any>
+  side: PropSide
+  underEdge: boolean
   preview?: boolean
+  onCompare: () => void
   onPress: () => void
 }) {
   const season = row.stats?.[`season_${statField}`] || 0
@@ -689,33 +782,67 @@ function PlayerPropRow({
   const l5 = row.stats?.[`l5_${statField}`] || 0
   // Server-first (CLAUDE.md "Calculated scores live on the web"): local
   // edgeLabel() is kept only as the offline/mismatch fallback, never primary.
-  const edge = serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
-    ? edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
-    : null)
-  const l5Hit = hitRate(row.stats, statField, row.line, 5)
-  const l10Hit = hitRate(row.stats, statField, row.line, 10)
+  // The Under side shows only the server's Under Edge; there is no Under math here.
+  const edge = side === 'under'
+    ? serverUnderEdge(marketKey, row.player, row.line, underBoardScores)
+    : serverEdge(marketKey, row.player, row.line, boardScores) || (!preview
+      ? edgeLabel(row.line, season, l10, l5, row.bestOdds, marketKey === 'batter_home_runs')
+      : null)
+  const l5Hit = hitRate(row.stats, statField, row.line, 5, side)
+  const l10Hit = hitRate(row.stats, statField, row.line, 10, side)
+  const l10UnderRate = hitRateValue(row.stats, statField, row.line, 10, 'under')
+  const l5UnderRate = hitRateValue(row.stats, statField, row.line, 5, 'under')
+  const price = sidePrice(row, side)
+  const showL10Under = side === 'under' && !underEdge
 
   return (
     <Pressable onPress={onPress} style={styles.playerRow}>
       <View style={[styles.compactCell, landscape ? styles.landscapePlayerColumn : styles.playerColumn]}>
-        <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+        {/* No shrink-to-fit: the RN new-architecture bug that drew random
+            rows in tiny text (1.1.1 hotfix, 3612b20) also hits names. */}
+        <AppText style={styles.playerName} numberOfLines={1}>
           {landscape ? row.player : displayPlayerName(row.player)}
         </AppText>
-        <AppText variant="mono" style={styles.bookName} numberOfLines={1}>
-          {landscape ? `${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}` : `${row.line || '-'} ${marketLabel} ${row.bestOdds ? fmtOdds(row.bestOdds) : '-'}`}
-        </AppText>
+        {/* The price lives on this line only (portrait "0.5  +120 FD", no
+            market label: the tab names it and it got squeezed to "…";
+            landscape "Hits · +120", with the book in its own column). */}
+        <View style={styles.sublineRow}>
+          <AppText variant="mono" style={[styles.bookName, styles.sublineLabel]} numberOfLines={1}>
+            {landscape ? `${marketLabel} · ` : `${row.line || '-'}  `}
+          </AppText>
+          {price ? (
+            <PriceChip title={row.player} onPress={onCompare}>
+              {landscape ? fmtOdds(price.odds) : `${fmtOdds(price.odds)} ${shortBookName(price.book)}`}
+            </PriceChip>
+          ) : (
+            <AppText variant="mono" style={styles.bookName}>-</AppText>
+          )}
+        </View>
       </View>
       {landscape ? <TableCell value={row.line ? String(row.line) : '-'} color={colors.textPrimary} /> : null}
+      {landscape ? (
+        <View style={[styles.compactCell, styles.landscapeBookColumn]}>
+          <AppText variant="mono" style={styles.bookCellText} numberOfLines={1}>{price ? shortBookName(price.book) : '-'}</AppText>
+        </View>
+      ) : null}
       {landscape ? <TableCell value={formatVsStarter(row.vsStarter)} color={row.vsStarter?.ab ? colors.textPrimary : colors.textMuted} /> : null}
-      <TableCell value={fmtRate(season)} color={statColor(season, row.line)} landscape={landscape} />
-      <TableCell value={fmtRate(l5)} color={statColor(l5, row.line)} landscape={landscape} />
-      <TableCell value={fmtRate(l10)} color={statColor(l10, row.line)} landscape={landscape} />
-      {landscape ? <TableCell value={l5Hit} color={colors.green} /> : null}
-      {landscape ? <TableCell value={l10Hit} color={colors.green} /> : null}
-      <View style={[styles.compactCell, landscape ? styles.landscapeEdgeColumn : styles.edgeColumn]}>
-        <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]}>{edge ? (edge.score ? Math.round(edge.score) : '-') : 'PRO'}</AppText>
-        <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]}>{edge?.label || 'Premium'}</AppText>
-      </View>
+      <TableCell value={fmtRate(season)} color={statColor(season, row.line, side)} landscape={landscape} />
+      <TableCell value={fmtRate(l5)} color={statColor(l5, row.line, side)} landscape={landscape} />
+      <TableCell value={fmtRate(l10)} color={statColor(l10, row.line, side)} landscape={landscape} />
+      {landscape ? <TableCell value={l5Hit} color={side === 'under' ? hitColor(l5UnderRate) : colors.green} /> : null}
+      {landscape ? <TableCell value={l10Hit} color={side === 'under' ? hitColor(l10UnderRate) : colors.green} /> : null}
+      {showL10Under ? (
+        landscape ? null : (
+          <View style={[styles.compactCell, styles.edgeColumn]}>
+            <AppText style={[styles.edgeScore, { color: hitColor(l5UnderRate) }]} numberOfLines={1}>{l5UnderRate < 0 ? '-' : `${Math.round(l5UnderRate * 100)}%`}</AppText>
+          </View>
+        )
+      ) : (
+        <View style={[styles.compactCell, landscape ? styles.landscapeEdgeColumn : styles.edgeColumn]}>
+          <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]}>{edge ? (edge.score ? Math.round(edge.score) : '-') : preview ? 'PRO' : '-'}</AppText>
+          <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]}>{edge?.label || (preview ? 'Premium' : '-')}</AppText>
+        </View>
+      )}
     </Pressable>
   )
 }
@@ -896,7 +1023,51 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   bookName: {
-    marginTop: 2,
     color: colors.textSecondary,
+  },
+  sublineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    minWidth: 0,
+  },
+  sublineLabel: {
+    flexShrink: 1,
+  },
+  landscapeBookColumn: {
+    width: 50,
+    alignItems: 'center',
+    paddingRight: 5,
+  },
+  bookCellText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  sideRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.bgCard,
+    padding: 4,
+  },
+  sideButton: {
+    borderRadius: 9,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+  },
+  sideButtonActive: {
+    backgroundColor: colors.gold,
+  },
+  sideText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  sideTextActive: {
+    color: colors.bgPrimary,
   },
 })

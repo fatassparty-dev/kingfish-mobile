@@ -70,6 +70,11 @@ type PropsResponse = Game[] | {
   props: Game[]
   playerStats?: Record<string, any>
   boardScores?: Record<string, any>
+  // `alts=board` only: server Edge for every alt rung, `${altMarket}-${player}` -> { [line]: score }.
+  altScores?: Record<string, Record<string, any>>
+  // Future server Under Edge (same shape as boardScores). Not sent yet; the
+  // Under side shows it as soon as the server does, with no app update.
+  underBoardScores?: Record<string, any>
   cacheMode?: string
   preview?: boolean
 }
@@ -1480,7 +1485,9 @@ export default function DashboardScreen() {
     // VALUE/EV — CLAUDE.md "Calculated scores live on the web"). MLB and NFL
     // were missing from this list, so their prop tables were silently falling
     // back to locally-recomputed EDGE scores instead of the server's.
-    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1${canPreviewProps ? '&preview=1' : ''}`),
+    // alts=board (NFL, NHL): the server's trimmed alt rungs (-250..+250) and
+    // their server-scored Edge (altScores) for each row's line picker.
+    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1${sport === 'NFL' || sport === 'NHL' ? '&alts=board' : ''}${canPreviewProps ? '&preview=1' : ''}`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })
@@ -1688,6 +1695,8 @@ export default function DashboardScreen() {
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
   const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
   const propsBoardScores = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.boardScores
+  const propsAltScores = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.altScores
+  const propsUnderBoardScores = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.underBoardScores
 
   return (
     <Screen>
@@ -2719,7 +2728,7 @@ export default function DashboardScreen() {
           <Card>
             <AppText variant="title" style={styles.cardTitle}>Unlock Player Props</AppText>
             <AppText variant="muted">
-              Player props, cheat sheets, Edge Scores, and unlimited Ask KingFish access are part
+              Player props, cheat sheets, Edge Scores, and unlimited KingFish AI access are part
               of KingFish Bets Pro.
             </AppText>
             <View style={styles.upgradeAction}>
@@ -2776,8 +2785,8 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} boardScores={propsBoardScores} preview={canPreviewProps} />}
-          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} boardScores={propsBoardScores} preview={canPreviewProps} />}
+          {sport === 'MLB' && propsGames.length > 0 && <MLBPropsTable games={propsGames} userState={profile?.state} sportsbookPreferences={profile?.sportsbook_preferences} boardScores={propsBoardScores} underBoardScores={propsUnderBoardScores} preview={canPreviewProps} />}
+          {sport !== 'MLB' && (propsGames.length > 0 || sport === 'NFL') && <PropsList games={propsGames} sport={sport} initialStats={bundledPlayerStats} userState={profile?.state} sportsbookPreferences={profile?.sportsbook_preferences} boardScores={propsBoardScores} altScores={propsAltScores} underBoardScores={propsUnderBoardScores} preview={canPreviewProps} />}
         </View>
       )}
 

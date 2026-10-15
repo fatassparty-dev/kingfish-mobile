@@ -23,11 +23,13 @@ import { AppText } from '@/components/Text'
 import { Card } from '@/components/Card'
 import { Button } from '@/components/Button'
 import { gameMarkets } from '@/components/dashboard/GamePropsTable'
+import { CompareTap, OddsCompareSheet, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { useAuth } from '@/lib/auth'
 import { useMobileConfig } from '@/lib/mobileConfig'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds } from '@/lib/format'
-import { displayBookName } from '@/lib/sportsbooks'
+import { gameLineCompare, type GameLinePick } from '@/lib/oddsCompare'
+import { displayBookName, supportedBookmakers } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game } from '@/types'
 
@@ -81,7 +83,8 @@ function shortName(team: string) {
 
 type BestLine = { book: string; price: number; point?: number } | null
 
-function MarketRow({ label, point, line }: { label: string; point?: number; line: BestLine }) {
+// The price taps open every book's price for that outcome.
+function MarketRow({ label, point, line, compareTitle, onCompare }: { label: string; point?: number; line: BestLine; compareTitle: string; onCompare: () => void }) {
   return (
     <View style={styles.marketRow}>
       <View style={styles.marketLabelWrap}>
@@ -89,10 +92,10 @@ function MarketRow({ label, point, line }: { label: string; point?: number; line
         {point !== undefined && point !== null && <AppText variant="mono" style={styles.marketPoint}>{fmtPoint(point)}</AppText>}
       </View>
       {line ? (
-        <View style={styles.marketValueWrap}>
-          <AppText variant="mono" style={styles.marketPrice}>{fmtOdds(line.price)}</AppText>
+        <CompareTap title={compareTitle} onPress={onCompare} style={styles.marketValueWrap}>
+          <AppText variant="mono" style={[styles.marketPrice, styles.tapText]}>{fmtOdds(line.price)}</AppText>
           <AppText style={styles.marketBook}>{displayBookName(line.book)}</AppText>
-        </View>
+        </CompareTap>
       ) : (
         <AppText variant="mono" style={styles.marketEmpty}>—</AppText>
       )}
@@ -124,6 +127,13 @@ function ValueCard({ game, sport, userState, sportsbookPreferences }: {
   const away = shortName(game.away_team)
   const home = shortName(game.home_team)
   const noTotalLean = String(totalLean?.label || '').startsWith('Near')
+  const [compare, setCompare] = useState<OddsCompareData | null>(null)
+  // Same book list and order gameMarkets() picked from, so "Best" matches.
+  const compareTitle = `${game.away_team} @ ${game.home_team}`
+  const open = (line: BestLine, pick: GameLinePick) => () => {
+    if (line) setCompare(gameLineCompare(game, supportedBookmakers(game.bookmakers, userState, sportsbookPreferences).map((bookmaker) => bookmaker.key), line, pick))
+  }
+  const tap = { compareTitle }
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
@@ -143,21 +153,22 @@ function ValueCard({ game, sport, userState, sportsbookPreferences }: {
       <View style={styles.markets}>
         <View style={styles.marketCard}>
           <AppText style={styles.marketTitle}>Moneyline</AppText>
-          <MarketRow label={away} line={mk.bestAwayMoneyline} />
-          <MarketRow label={home} line={mk.bestHomeMoneyline} />
-          {mk.bestDraw ? <MarketRow label="Draw" line={mk.bestDraw} /> : null}
+          <MarketRow label={away} line={mk.bestAwayMoneyline} {...tap} onCompare={open(mk.bestAwayMoneyline, { market: 'h2h', outcome: game.away_team, label: `Moneyline · ${game.away_team}` })} />
+          <MarketRow label={home} line={mk.bestHomeMoneyline} {...tap} onCompare={open(mk.bestHomeMoneyline, { market: 'h2h', outcome: game.home_team, label: `Moneyline · ${game.home_team}` })} />
+          {mk.bestDraw ? <MarketRow label="Draw" line={mk.bestDraw} {...tap} onCompare={open(mk.bestDraw, { market: 'h2h', outcome: 'Draw', label: 'Moneyline · Draw' })} /> : null}
         </View>
         <View style={styles.marketCard}>
           <AppText style={styles.marketTitle}>{spreadTitle(sport)}</AppText>
-          <MarketRow label={away} point={mk.bestAwaySpread?.point} line={mk.bestAwaySpread} />
-          <MarketRow label={home} point={mk.bestHomeSpread?.point} line={mk.bestHomeSpread} />
+          <MarketRow label={away} point={mk.bestAwaySpread?.point} line={mk.bestAwaySpread} {...tap} onCompare={open(mk.bestAwaySpread, { market: 'spreads', outcome: game.away_team, label: `${spreadTitle(sport)} · ${game.away_team}` })} />
+          <MarketRow label={home} point={mk.bestHomeSpread?.point} line={mk.bestHomeSpread} {...tap} onCompare={open(mk.bestHomeSpread, { market: 'spreads', outcome: game.home_team, label: `${spreadTitle(sport)} · ${game.home_team}` })} />
         </View>
         <View style={styles.marketCard}>
           <AppText style={styles.marketTitle}>Total</AppText>
-          <MarketRow label={`Over ${mk.bestOverTotal?.point ?? ''}`.trim()} line={mk.bestOverTotal} />
-          <MarketRow label={`Under ${mk.bestUnderTotal?.point ?? ''}`.trim()} line={mk.bestUnderTotal} />
+          <MarketRow label={`Over ${mk.bestOverTotal?.point ?? ''}`.trim()} line={mk.bestOverTotal} {...tap} onCompare={open(mk.bestOverTotal, { market: 'totals', outcome: 'Over', label: 'Total · Over' })} />
+          <MarketRow label={`Under ${mk.bestUnderTotal?.point ?? ''}`.trim()} line={mk.bestUnderTotal} {...tap} onCompare={open(mk.bestUnderTotal, { market: 'totals', outcome: 'Under', label: 'Total · Under' })} />
         </View>
       </View>
+      <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
     </View>
   )
 }
@@ -298,6 +309,8 @@ const styles = StyleSheet.create({
   marketPoint: { fontSize: 13, fontWeight: '900', color: colors.textPrimary },
   marketValueWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   marketPrice: { fontSize: 15, fontWeight: '900', color: colors.textPrimary },
+  // Tappable prices: the same dotted underline as the web's compare buttons.
+  tapText: { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: 'rgba(198,145,50,.5)' },
   marketBook: { fontSize: 8, fontWeight: '800', color: colors.gold, textTransform: 'uppercase', letterSpacing: 0.5 },
   marketEmpty: { fontSize: 13, color: colors.textMuted },
 })

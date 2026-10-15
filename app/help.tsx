@@ -72,7 +72,7 @@ const tools = [
     body: 'Home starts with the KingFish shortcuts. To choose your own, tap Customize on the Home screen or open Account and use Your Shortcuts — handy between seasons when half the board is a sport you do not follow.',
   },
   {
-    title: 'Ask KingFish',
+    title: 'KingFish AI',
     body: 'Use the chat when you want the data explained in plain English, want help comparing players, or want a quick read on a betting idea.',
   },
 ]
@@ -210,7 +210,7 @@ export default function HelpScreen() {
             <Card>
               <AppText style={styles.cardTitle}>From Board To Bet Slip</AppText>
               <AppText variant="muted" style={styles.cardBody}>
-                Start with stat sheets for ideas. Open the Dashboard to confirm the market and best price. Tap the player profile to check recent form. Use Ask KingFish if you want a plain-English second read before making your own decision.
+                Start with stat sheets for ideas. Open the Dashboard to confirm the market and best price. Tap the player profile to check recent form. Use KingFish AI if you want a plain-English second read before making your own decision.
               </AppText>
             </Card>
           </View>

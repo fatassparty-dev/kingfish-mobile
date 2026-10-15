@@ -347,7 +347,7 @@ export default function AccountScreen() {
   function confirmClearChatHistory() {
     Alert.alert(
       'Clear Chat History',
-      'This removes your saved Ask KingFish conversation history from KingFish. It does not delete your account.',
+      'This removes your saved KingFish AI conversation history from KingFish. It does not delete your account.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Clear History', style: 'destructive', onPress: handleClearChatHistory },
@@ -359,7 +359,7 @@ export default function AccountScreen() {
     setClearingChat(true)
     try {
       await kingfishFetch('/api/chat-history', { method: 'DELETE' })
-      setRestoreMessage('Ask KingFish chat history was cleared.')
+      setRestoreMessage('KingFish AI chat history was cleared.')
     } catch (error: any) {
       setRestoreMessage(error?.message || 'Chat history could not be cleared.')
     } finally {
@@ -714,11 +714,11 @@ export default function AccountScreen() {
         <AppText variant="eyebrow">// Controls</AppText>
         <AppText style={styles.webTitle}>Account</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Clear saved Ask KingFish history or sign out.
+          Clear saved KingFish AI history or sign out.
         </AppText>
         <View style={styles.cardAction}>
           <Button variant="secondary" loading={clearingChat} onPress={confirmClearChatHistory}>
-            Clear Ask KingFish History
+            Clear KingFish AI History
           </Button>
         </View>
         <View style={styles.buttonGap} />
@@ -907,7 +907,7 @@ function getRenewalLabel(profile: ReturnType<typeof useAuth>['profile']) {
 
 function getStatusCopy(isPremium: boolean, sourceLabel: string, renewalLabel: string) {
   if (!isPremium) {
-    return 'Upgrade anytime to unlock player props, cheat sheets, unlimited Ask KingFish, and the full KingFish workspace.'
+    return 'Upgrade anytime to unlock player props, cheat sheets, unlimited KingFish AI, and the full KingFish workspace.'
   }
 
   if (renewalLabel === 'Lifetime') {

@@ -50,7 +50,7 @@ export default function SignInScreen() {
         <AppText variant="eyebrow">// KingFish Bets</AppText>
         <AppText variant="title" style={styles.title}>Sign In</AppText>
         <AppText variant="muted" style={styles.copy}>
-          Access your dashboard, cheat sheets, Ask KingFish history, and premium status.
+          Access your dashboard, cheat sheets, KingFish AI history, and premium status.
         </AppText>
       </View>
 

@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
+import { LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
 import { inNflWindow, nflWindows } from '@/lib/nflBoardWindow'
+import { lineOptions, propBookLines, sideHitCount, sideHitRate, sidePricesAtLine, yesPrices, type BookPrice, type LineOption, type PropSide } from '@/lib/oddsCompare'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
-import { displayBookName, eligiblePropBookKeys } from '@/lib/sportsbooks'
+import { displayBookName, eligiblePropBookKeys, shortBookName, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Market, Outcome, Sport } from '@/types'
 
@@ -142,16 +144,24 @@ const NFL_MARKETS = [
 
 const NFL_TD_MARKETS = new Set(['player_anytime_td', 'player_1st_td', 'player_last_td', 'player_tds_over'])
 
+// Markets with only a Yes price: no Under side, so the Over / Under switch hides.
+const YES_ONLY_MARKETS = new Set([...NFL_TD_MARKETS, 'player_goal_scorer_anytime', 'player_goal_scorer_first'])
+
 interface FlattenedProp {
   game: Game
   market: Market
   outcome: Outcome
   book: string
+  bookKey: string
+  // Every book's Over (or Yes) price at the standard line, best first.
+  prices: BookPrice[]
+  // Every book's Under price at the standard line, best first.
+  underPrices: BookPrice[]
+  // Alt rungs from the `alts=board` payload: point -> book -> Over price.
+  altRungs: Record<string, Record<string, number>>
 }
 
-type PlayerBookData = Record<string, { over?: number; point?: number }>
-
-type SortKey = 'player' | 'line' | 'odds' | 'season' | 'l10' | 'l10hit' | 'l5' | 'l5hit' | 'edge'
+type SortKey = 'player' | 'line' | 'odds' | 'book' | 'season' | 'l10' | 'l10hit' | 'l5' | 'l5hit' | 'edge'
 type SortDir = 'asc' | 'desc'
 
 const STAT_KEY_BY_MARKET: Record<string, string | string[]> = {
@@ -208,25 +218,35 @@ function isNflTouchdownMarket(marketKey: string) {
   return NFL_TD_MARKETS.has(baseMarketKey(marketKey))
 }
 
+function isYesOnlyMarket(marketKey: string) {
+  return YES_ONLY_MARKETS.has(baseMarketKey(marketKey))
+}
+
+// Where a row's alt rungs come from on the `alts=board` payload (NFL and NHL;
+// other sports have no alt ladders on the web either). Anytime TD / Anytime
+// Goal offer their 2+ rung, like the web board.
+function altSource(marketKey: string, sport: Sport): { key: string; point?: number } | null {
+  if (sport !== 'NFL' && sport !== 'NHL') return null
+  if (marketKey === 'player_anytime_td') return { key: 'player_tds_over', point: 1.5 }
+  if (marketKey === 'player_goal_scorer_anytime') return { key: 'player_goals_alternate', point: 1.5 }
+  if (isYesOnlyMarket(marketKey) || isAlternateMarket(marketKey)) return null
+  return { key: `${marketKey}_alternate` }
+}
+
+// The line as the row reads it: Yes-only markets show their 2+ rung as "2+".
+function rungText(marketKey: string, line: number) {
+  if (isYesOnlyMarket(marketKey) && line === 1.5) return '2+'
+  return line ? String(line) : '-'
+}
+
+function pickerLabel(marketKey: string, line: number, sport: Sport) {
+  if (isYesOnlyMarket(marketKey)) return line === 1.5 ? `2+ ${sport === 'NHL' ? 'Goals' : 'TDs'}` : marketLabel(marketKey, sport)
+  return `Over ${line}`
+}
+
 function standardMarketLabel(marketKey: string, sport?: Sport) {
   const label = marketLabel(marketKey, sport)
   return isAlternateMarket(marketKey) ? label.replace(/^Alt\s+/, '') : label
-}
-
-function compactPropLabel(marketKey: string, sport: Sport) {
-  const base = baseMarketKey(marketKey)
-  if (sport === 'NFL') {
-    if (base === 'player_anytime_td') return 'TD'
-    if (base === 'player_tds_over') return 'TDs'
-    if (base === 'player_1st_td') return '1st TD'
-    if (base === 'player_last_td') return 'Last TD'
-    return standardMarketLabel(base)
-      .replace(/\bYards\b/g, 'Yds')
-      .replace(/\bAttempts\b/g, 'Att')
-      .replace(/\bCompletions\b/g, 'Comp')
-      .replace(/\bInterceptions\b/g, 'INT')
-  }
-  return marketLabel(marketKey, sport)
 }
 
 const NFL_MARKET_LABELS: Record<string, string> = {
@@ -345,11 +365,6 @@ function hitRateLabel(rate: number | null) {
   return `${Math.round(rate * 100)}%`
 }
 
-function hitCountLabel(values: number[], line: number) {
-  if (!values.length) return '-'
-  return `${values.filter((value) => value > line).length}/${values.length}`
-}
-
 function hitRateColor(rate: number | null) {
   if (rate === null) return colors.textMuted
   if (rate >= 0.6) return colors.green
@@ -415,8 +430,13 @@ function nflEdgeLabel(line: number, stat: number, odds: number | undefined, mark
   return { label: 'Fade', color: colors.red, score }
 }
 
-function statColor(value: number, line: number) {
+function statColor(value: number, line: number, side: PropSide = 'over') {
   if (!value) return colors.textMuted
+  if (side === 'under') {
+    if (value * 1.15 < line) return colors.green
+    if (value <= line) return colors.yellow
+    return colors.red
+  }
   if (value > line * 1.15) return colors.green
   if (value >= line) return colors.yellow
   return colors.red
@@ -431,6 +451,10 @@ function fmtStat(value: number, hasStats = value !== 0) {
 
 function displayPlayerName(name?: string) {
   const clean = String(name || '').trim()
+  // Team defense rows ("Denver Broncos Defense") read as the team, never as a
+  // person ("D. Defense"): nickname + D, e.g. "Broncos D".
+  const defense = clean.match(/^(.*\S)\s+(?:D\/ST|DST|Defense|Defence)$/i)
+  if (defense) return `${defense[1].split(/\s+/).pop()} D`
   const pieces = clean.split(/\s+/).filter(Boolean)
   if (pieces.length < 2) return clean
   const suffixes = new Set(['jr.', 'sr.', 'ii', 'iii', 'iv', 'v'])
@@ -451,9 +475,9 @@ function marketKeysForSport(sport: Sport) {
   return []
 }
 
-function availableMarkets(games: Game[], sport: Sport, userState?: string | null) {
+function availableMarkets(games: Game[], sport: Sport, userState?: string | null, preferences?: SportsbookPreferences | null) {
   const available = new Set<string>()
-  const bookKeys = eligiblePropBookKeys(userState)
+  const bookKeys = eligiblePropBookKeys(userState, preferences)
   games.forEach((game) => {
     game.bookmakers?.forEach((bookmaker) => {
       if (!bookKeys.includes(bookmaker.key)) return
@@ -478,36 +502,60 @@ function upcomingGames(games: Game[]) {
     .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
 }
 
-export function flattenProps(games: Game[], limit?: number, marketKey?: string, userState?: string | null): FlattenedProp[] {
+export function flattenProps(
+  games: Game[],
+  limit?: number,
+  marketKey?: string,
+  userState?: string | null,
+  preferences?: SportsbookPreferences | null,
+  sport?: Sport,
+): FlattenedProp[] {
   const propMap = new Map<string, FlattenedProp>()
-  const bookKeys = eligiblePropBookKeys(userState)
+  // Book Preferences apply here exactly as they do on Game Props.
+  const bookKeys = eligiblePropBookKeys(userState, preferences)
+  const alts = marketKey && sport ? altSource(marketKey, sport) : null
 
   for (const game of upcomingGames(games)) {
-    const players = new Map<string, { market: Market; playerName: string; bookData: PlayerBookData; anytime: Record<string, number>; bookTitles: Record<string, string> }>()
+    const players = new Map<string, {
+      market: Market
+      playerName: string
+      outcomes: Array<{ book: string; name: string; price: number; point?: number }>
+      anytime: Record<string, number>
+      bookTitles: Record<string, string>
+    }>()
+    const altRungs: Record<string, Record<string, Record<string, number>>> = {}
 
     for (const bookmaker of game.bookmakers || []) {
       if (!bookKeys.includes(bookmaker.key)) continue
       for (const market of bookmaker.markets || []) {
+        if (alts && market.key === alts.key) {
+          for (const outcome of market.outcomes || []) {
+            if (outcome.name !== 'Over' || !outcome.description) continue
+            if (typeof outcome.price !== 'number' || typeof outcome.point !== 'number') continue
+            if (alts.point !== undefined && outcome.point !== alts.point) continue
+            ((altRungs[outcome.description] ||= {})[String(outcome.point)] ||= {})[bookmaker.key] = outcome.price
+          }
+          continue
+        }
         if (marketKey && market.key !== marketKey) continue
+        const yesOnly = isYesOnlyMarket(market.key)
         for (const outcome of market.outcomes || []) {
-          const isTouchdown = isNflTouchdownMarket(market.key) || isNhlGoalScorerMarket(market.key)
-          const playerName = isTouchdown ? (outcome.description || outcome.name) : outcome.description
+          const playerName = yesOnly ? (outcome.description || outcome.name) : outcome.description
           if (!playerName) continue
-          if (!isTouchdown && outcome.name !== 'Over' && outcome.name !== 'Yes') continue
-          if (typeof outcome.price !== 'number') continue
-          if (outcome.price > 700 || outcome.price < -10000) continue
+          if (yesOnly ? outcome.name === 'No' : outcome.name !== 'Over' && outcome.name !== 'Yes' && outcome.name !== 'Under') continue
+          // No upper price cap: the old +700 ceiling hid NFL 1st / Last TD and
+          // 2+ TD longshots (removed on the web in September). The row-count
+          // trim keeps the board short.
+          if (typeof outcome.price !== 'number' || outcome.price < -10000) continue
 
           const playerKey = `${market.key}-${playerName}`
-          const entry = players.get(playerKey) || { market, playerName, bookData: {}, anytime: {}, bookTitles: {} }
+          const entry = players.get(playerKey) || { market, playerName, outcomes: [], anytime: {}, bookTitles: {} }
           entry.bookTitles[bookmaker.key] = bookmaker.title
 
-          if (isTouchdown) {
+          if (yesOnly) {
             entry.anytime[bookmaker.key] = outcome.price
           } else {
-            const bookLine = entry.bookData[bookmaker.key] || {}
-            bookLine.over = outcome.price
-            if (typeof outcome.point === 'number') bookLine.point = outcome.point
-            entry.bookData[bookmaker.key] = bookLine
+            entry.outcomes.push({ book: bookmaker.key, name: outcome.name === 'Yes' ? 'Over' : outcome.name, price: outcome.price, point: outcome.point })
           }
           players.set(playerKey, entry)
         }
@@ -515,30 +563,37 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
     }
 
     players.forEach((entry) => {
-      const isTouchdown = isNflTouchdownMarket(entry.market.key) || isNhlGoalScorerMarket(entry.market.key)
-      if (isTouchdown) {
-        const options = bookKeys
-          .map((book) => ({ book, odds: entry.anytime[book] }))
-          .filter((item): item is { book: string; odds: number } => typeof item.odds === 'number')
-        if (!options.length) return
-        const best = options.reduce((current, item) => (item.odds > current.odds ? item : current))
-        propMap.set(`${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`, {
+      const rowKey = `${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`
+      const rungs = altRungs[entry.playerName] || {}
+      if (isYesOnlyMarket(entry.market.key)) {
+        const prices = yesPrices(entry.anytime, bookKeys)
+        if (!prices.length) return
+        propMap.set(rowKey, {
           game,
           market: entry.market,
-          outcome: { name: 'Yes', description: entry.playerName, price: best.odds, point: 0.5 },
-          book: displayBookName(best.book, entry.bookTitles[best.book]),
+          outcome: { name: 'Yes', description: entry.playerName, price: prices[0].odds, point: 0.5 },
+          book: displayBookName(prices[0].book, entry.bookTitles[prices[0].book]),
+          bookKey: prices[0].book,
+          prices,
+          underPrices: [],
+          altRungs: rungs,
         })
         return
       }
 
-      const line = getDisplayLine(entry.bookData, bookKeys)
-      const best = getBestOverAtLine(entry.bookData, bookKeys, line)
+      const bookData = propBookLines(entry.outcomes)
+      const line = getDisplayLine(bookData, bookKeys)
+      const best = getBestOverAtLine(bookData, bookKeys, line)
       if (!best) return
-      propMap.set(`${game.game_id || game.id}-${entry.market.key}-${entry.playerName}`, {
+      propMap.set(rowKey, {
         game,
         market: entry.market,
         outcome: { name: 'Over', description: entry.playerName, price: best.odds, point: line },
         book: displayBookName(best.book, entry.bookTitles[best.book]),
+        bookKey: best.book,
+        prices: sidePricesAtLine(bookData, bookKeys, line, 'over'),
+        underPrices: sidePricesAtLine(bookData, bookKeys, line, 'under'),
+        altRungs: rungs,
       })
     })
   }
@@ -547,14 +602,38 @@ export function flattenProps(games: Game[], limit?: number, marketKey?: string, 
   return typeof limit === 'number' ? props.slice(0, limit) : props
 }
 
-export function PropsList({ games, sport, limit, initialStats, userState, boardScores, preview = false }: { games: Game[]; sport: Sport; limit?: number; initialStats?: Record<string, any>; userState?: string | null; boardScores?: Record<string, any>; preview?: boolean }) {
+export function PropsList({
+  games,
+  sport,
+  limit,
+  initialStats,
+  userState,
+  sportsbookPreferences,
+  boardScores,
+  altScores,
+  underBoardScores,
+  preview = false,
+}: {
+  games: Game[]
+  sport: Sport
+  limit?: number
+  initialStats?: Record<string, any>
+  userState?: string | null
+  sportsbookPreferences?: SportsbookPreferences | null
+  boardScores?: Record<string, any>
+  altScores?: Record<string, Record<string, any>>
+  underBoardScores?: Record<string, any>
+  preview?: boolean
+}) {
   const { width, height } = useWindowDimensions()
   const landscapeTable = width > height
   const compactTable = sport === 'NFL' && landscapeTable
-  const availableMarketKeys = useMemo(() => availableMarkets(games, sport, userState), [games, sport, userState])
+  const availableMarketKeys = useMemo(() => availableMarkets(games, sport, userState, sportsbookPreferences), [games, sport, userState, sportsbookPreferences])
+  // NFL alt markets and TDs Over aren't tabs: their rungs live in each row's
+  // line picker (Anytime TD offers 2+ TDs there), like the web board.
   const markets = useMemo(() => {
-    if (availableMarketKeys.length || sport !== 'NFL') return availableMarketKeys
-    return NFL_MARKETS.filter((marketKey) => !isAlternateMarket(marketKey))
+    const keys = availableMarketKeys.length || sport !== 'NFL' ? availableMarketKeys : NFL_MARKETS
+    return sport === 'NFL' ? keys.filter((marketKey) => !isAlternateMarket(marketKey) && marketKey !== 'player_tds_over') : keys
   }, [availableMarketKeys, sport])
   const [activeMarket, setActiveMarket] = useState(markets[0])
   const [sortKey, setSortKey] = useState<SortKey>('edge')
@@ -564,15 +643,17 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
   const [selectedGame, setSelectedGame] = useState('auto')
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const visibleMarkets = useMemo(() => {
-    if (sport !== 'NFL') return markets
-    return markets.filter((marketKey) => !isAlternateMarket(marketKey))
-  }, [markets, sport])
-  const selectedMarket = markets.includes(activeMarket) ? activeMarket : visibleMarkets[0] || markets[0]
-  const selectedBaseMarket = selectedMarket ? baseMarketKey(selectedMarket) : ''
-  const selectedAltMarket = sport === 'NFL' && availableMarketKeys.length
-    ? availableMarketKeys.find((marketKey) => marketKey === `${selectedBaseMarket}_alternate`)
-    : undefined
+  // Starts on Over every visit, like the web.
+  const [side, setSide] = useState<PropSide>('over')
+  const [linePicks, setLinePicks] = useState<Record<string, number>>({})
+  const [compare, setCompare] = useState<OddsCompareData | null>(null)
+  const [picker, setPicker] = useState<LinePickerData | null>(null)
+  const selectedMarket = markets.includes(activeMarket) ? activeMarket : markets[0]
+  const yesOnly = selectedMarket ? isYesOnlyMarket(selectedMarket) : false
+  const activeSide: PropSide = side === 'under' && !yesOnly ? 'under' : 'over'
+  // The server's future Under Edge (`underBoardScores`); until it ships, the
+  // Under side shows no Edge.
+  const underEdge = activeSide === 'under' && Boolean(underBoardScores && Object.keys(underBoardScores).length)
   const gameOptions = upcomingGames(games)
   const nflBoard = nflWindows(gameOptions, Date.now())
   const nflWindowKeys = new Set(nflBoard.options.map(option => option.key))
@@ -594,10 +675,14 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
     filteredGames,
     limit,
     selectedMarket,
-    userState
+    userState,
+    sportsbookPreferences,
+    sport
   )
-  const props = allProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
-  const playerNames = [...new Set(props.map((prop) => prop.outcome.description).filter(Boolean))]
+  // An Under row needs at least one book's Under at the standard line.
+  const sideProps = activeSide === 'under' ? allProps.filter((prop) => prop.underPrices.length > 0) : allProps
+  const props = sideProps.filter((prop) => !search || String(prop.outcome.description || '').toLowerCase().includes(search.toLowerCase()))
+  const playerNames = [...new Set(allProps.map((prop) => prop.outcome.description).filter(Boolean))]
   const propsByGame = activeGameFilter === 'all' || (sport === 'NFL' && nflWindowKeys.has(activeGameFilter))
     ? [{ game: null, props }]
     : gameOptions
@@ -609,9 +694,8 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
       .filter((group) => group.props.length > 0)
 
   useEffect(() => {
-    const nextMarket = sport === 'NFL' ? visibleMarkets[0] : markets[0]
-    if (nextMarket) setActiveMarket(nextMarket)
-  }, [markets[0], sport, visibleMarkets[0]])
+    if (markets[0]) setActiveMarket(markets[0])
+  }, [markets[0], sport])
 
   const statsQuery = useQuery({
     queryKey: ['prop-stats', sport, selectedMarket, playerNames.join('|')],
@@ -634,6 +718,7 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
     staleTime: 12 * 60 * 60 * 1000,
   })
   const statsByPlayer = initialStats || statsQuery.data?.stats || {}
+  const rowContext: RowContext = { sport, side: activeSide, preview, linePicks, boardScores, altScores, underBoardScores }
 
   function toggleSort(nextKey: SortKey) {
     if (preview) return
@@ -641,58 +726,59 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
       setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'))
     } else {
       setSortKey(nextKey)
-      setSortDir(nextKey === 'player' ? 'asc' : 'desc')
+      setSortDir(nextKey === 'player' || nextKey === 'book' ? 'asc' : 'desc')
     }
   }
 
   function sortProps(gameProps: FlattenedProp[]) {
-    return [...gameProps].sort((a, b) => {
-      const aStats = statsByPlayer[normalizeName(a.outcome.description || '')]
-      const bStats = statsByPlayer[normalizeName(b.outcome.description || '')]
-      const aValue = sortValue(a, aStats, sortKey, sport, landscapeTable, boardScores, preview)
-      const bValue = sortValue(b, bStats, sortKey, sport, landscapeTable, boardScores, preview)
-      const direction = sortDir === 'asc' ? 1 : -1
+    return gameProps
+      .map((prop) => {
+        const stats = statsByPlayer[normalizeName(prop.outcome.description || '')]
+        return { prop, stats, view: rowView(prop, stats, rowContext) }
+      })
+      .sort((a, b) => {
+        const aValue = sortValue(a.prop, a.view, a.stats, sortKey, activeSide, landscapeTable)
+        const bValue = sortValue(b.prop, b.view, b.stats, sortKey, activeSide, landscapeTable)
+        const direction = sortDir === 'asc' ? 1 : -1
 
-      if (typeof aValue === 'string' || typeof bValue === 'string') {
-        return String(aValue).localeCompare(String(bValue)) * direction
-      }
-      return ((aValue || 0) - (bValue || 0)) * direction
-    })
+        if (typeof aValue === 'string' || typeof bValue === 'string') {
+          return String(aValue).localeCompare(String(bValue)) * direction
+        }
+        // Under ties (same hit rate) go to the better price.
+        return ((aValue || 0) - (bValue || 0)) * direction || (activeSide === 'under' ? b.view.standardOdds - a.view.standardOdds : 0)
+      })
   }
 
   return (
     <View style={styles.list}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketRail}>
-        {visibleMarkets.map((marketKey) => (
+        {markets.map((marketKey) => (
           <Pressable
             key={marketKey}
             onPress={() => setActiveMarket(marketKey)}
-            style={[styles.marketButton, sport === 'NFL' && styles.nflMarketButton, selectedBaseMarket === marketKey && styles.marketButtonActive]}
+            style={[styles.marketButton, sport === 'NFL' && styles.nflMarketButton, selectedMarket === marketKey && styles.marketButtonActive]}
           >
-            <AppText style={[styles.marketText, selectedBaseMarket === marketKey && styles.marketTextActive]}>
+            <AppText style={[styles.marketText, selectedMarket === marketKey && styles.marketTextActive]}>
               {standardMarketLabel(marketKey, sport)}
             </AppText>
           </Pressable>
         ))}
       </ScrollView>
-      {sport === 'NFL' && selectedAltMarket && (
+      {!yesOnly && (
         <View style={styles.variantRow}>
-          <Pressable
-            onPress={() => setActiveMarket(selectedBaseMarket)}
-            style={[styles.variantButton, !isAlternateMarket(selectedMarket) && styles.variantButtonActive]}
-          >
-            <AppText style={[styles.variantText, !isAlternateMarket(selectedMarket) && styles.variantTextActive]}>
-              Standard
-            </AppText>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveMarket(selectedAltMarket)}
-            style={[styles.variantButton, isAlternateMarket(selectedMarket) && styles.variantButtonActive]}
-          >
-            <AppText style={[styles.variantText, isAlternateMarket(selectedMarket) && styles.variantTextActive]}>
-              {marketLabel(selectedAltMarket, sport)}
-            </AppText>
-          </Pressable>
+          {(['over', 'under'] as PropSide[]).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setSide(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activeSide === option }}
+              style={[styles.variantButton, activeSide === option && styles.variantButtonActive]}
+            >
+              <AppText style={[styles.variantText, activeSide === option && styles.variantTextActive]}>
+                {option === 'over' ? 'Over' : 'Under'}
+              </AppText>
+            </Pressable>
+          ))}
         </View>
       )}
 
@@ -791,13 +877,14 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
           <View>
             <View style={landscapeTable && styles.landscapeTable}>
               <View style={styles.tableHeader}>
-                {tableHeaders(landscapeTable, selectedMarket === FIRST_GOAL_MARKET).map((header) => (
+                {tableHeaders(landscapeTable, selectedMarket === FIRST_GOAL_MARKET, activeSide, underEdge).map((header) => (
                   <Pressable
                     key={header.label}
                     onPress={() => toggleSort(header.key)}
                     style={[
                       styles.cell,
                       landscapeTable && styles.landscapeCell,
+                      header.key === 'book' && styles.bookCell,
                       header.key === 'player' && styles.playerCell,
                       header.key === 'player' && landscapeTable && styles.landscapePlayerCell,
                       header.key === 'edge' && styles.edgeCell,
@@ -817,19 +904,33 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
                   </Pressable>
                 ))}
               </View>
-              {sortProps(gameProps).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined).map((prop) => (
+              {sortProps(gameProps).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined).map(({ prop, stats, view }) => (
                 <PropTableRow
                   key={`${prop.market.key}-${prop.outcome.description}-${prop.outcome.point}-${prop.book}`}
                   prop={prop}
-                  stats={statsByPlayer[normalizeName(prop.outcome.description || '')]}
+                  view={view}
+                  stats={stats}
                   sport={sport}
                   landscape={landscapeTable}
-                  boardScores={boardScores}
+                  side={activeSide}
+                  underEdge={underEdge}
                   preview={preview}
                   onSelectPlayer={(playerName, context) => {
                     setSelectedPlayer(playerName)
                     setSelectedMarketContext(context)
                   }}
+                  onCompare={() => setCompare(compareData(prop, view, sport, activeSide))}
+                  onPickLine={() => setPicker({
+                    title: prop.outcome.description || '',
+                    subtitle: marketLabel(prop.market.key, sport),
+                    options: view.options.map((option) => ({
+                      line: option.line,
+                      label: pickerLabel(prop.market.key, option.line, sport),
+                      best: option.prices[0],
+                    })),
+                    selected: view.line,
+                    onPick: (line) => setLinePicks((current) => ({ ...current, [view.pickKey]: line })),
+                  })}
                 />
               ))}
             </View>
@@ -845,6 +946,8 @@ export function PropsList({ games, sport, limit, initialStats, userState, boardS
           setSelectedMarketContext(null)
         }}
       />
+      <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
+      <LinePickerSheet data={picker} onClose={() => setPicker(null)} />
     </View>
   )
 }
@@ -857,10 +960,12 @@ const PORTRAIT_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'edge', label: 'Edge' },
 ]
 
+// Book follows Odds, the web board's order.
 const LANDSCAPE_TABLE_HEADERS: Array<{ key: SortKey; label: string }> = [
   { key: 'player', label: 'Player' },
   { key: 'line', label: 'Line' },
   { key: 'odds', label: 'Odds' },
+  { key: 'book', label: 'Book' },
   { key: 'season', label: 'AVG' },
   { key: 'l5', label: 'L5' },
   { key: 'l10', label: 'L10' },
@@ -877,8 +982,16 @@ const FIRST_GOAL_HEADER_LABELS: Record<string, { portrait: string; landscape: st
   l10hit: { portrait: '1st L10', landscape: '1st L10' },
 }
 
-function tableHeaders(landscape: boolean, firstGoal: boolean) {
-  const headers = landscape ? LANDSCAPE_TABLE_HEADERS : PORTRAIT_TABLE_HEADERS
+// Under with no server Under Edge: portrait's Edge column becomes "L5 U" (the
+// L5 Under hit rate; L5 since early-season L10 is mostly L5) so the width
+// holds; landscape drops Edge.
+function tableHeaders(landscape: boolean, firstGoal: boolean, side: PropSide, underEdge: boolean) {
+  let headers = landscape ? LANDSCAPE_TABLE_HEADERS : PORTRAIT_TABLE_HEADERS
+  if (side === 'under' && !underEdge) {
+    headers = landscape
+      ? headers.filter((header) => header.key !== 'edge')
+      : headers.map((header) => (header.key === 'edge' ? { ...header, label: 'L5 U' } : header))
+  }
   if (!firstGoal) return headers
   return headers.map((header) => {
     const relabel = FIRST_GOAL_HEADER_LABELS[header.key]
@@ -897,31 +1010,104 @@ function edgeColorFromLabel(label: string): string {
   return colors.textMuted
 }
 
-// Server-computed EDGE for this prop (CLAUDE.md "Calculated scores live on
-// the web" — the client renders it, never recomputes it as primary). Keyed
-// the same way lib/scoring/propScoring.ts's secondary output key is:
-// `${marketKey}-${player}`. Guarded on line match; null when unresolved so
-// callers fall back to the local calc (kept as a backup only, per that law).
-function serverEdge(prop: FlattenedProp, boardScores: Record<string, any> | undefined) {
-  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
-  const entry = boardScores?.[`${prop.market.key}-${prop.outcome.description}`]
+type Edge = { score: number; label: string; color: string }
+
+// Server-computed EDGE (CLAUDE.md "Calculated scores live on the web" — the
+// client renders it, never recomputes it as primary). boardScores, altScores
+// and underBoardScores are keyed like lib/scoring/propScoring.ts's secondary
+// output key, `${marketKey}-${player}`. Guarded on line match; null when
+// unresolved so Over rows fall back to the local calc (a backup only, per that
+// law). Under rows have no local fallback: no Under math in the app.
+function scoreEntry(entry: any, line: number): Edge | null {
   if (!entry || entry.line !== line) return null
   return { score: entry.edgeScore as number, label: entry.edgeLabel as string, color: edgeColorFromLabel(entry.edgeLabel) }
 }
 
-function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, key: SortKey, sport: Sport, landscape: boolean, boardScores?: Record<string, any>, preview = false) {
-  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+function localEdge(prop: FlattenedProp, line: number, odds: number, stats: Record<string, any> | undefined, sport: Sport): Edge {
   const season = getStat(stats, prop.market.key, 'season')
-  const l10 = getStat(stats, prop.market.key, 'l10')
-  const l5 = getStat(stats, prop.market.key, 'l5')
-  const l10Rate = hitRate(recentValues(stats, prop.market.key, 10), line)
-  const l5Rate = hitRate(recentValues(stats, prop.market.key, 5), line)
-  const edge = serverEdge(prop, boardScores) || (!preview
-    ? sport === 'NFL'
-      ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-      : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
-    : null)
+  if (sport === 'NFL') return nflEdgeLabel(line, season, odds, prop.market.key)
+  return edgeLabel(line, season, getStat(stats, prop.market.key, 'l10'), getStat(stats, prop.market.key, 'l5'), odds, sport)
+}
 
+type RowContext = {
+  sport: Sport
+  side: PropSide
+  preview: boolean
+  linePicks: Record<string, number>
+  boardScores?: Record<string, any>
+  altScores?: Record<string, Record<string, any>>
+  underBoardScores?: Record<string, any>
+}
+
+// What a row shows after the Over / Under switch and its line pick. The board
+// order (rankScore) always comes from the standard line, so picking a rung
+// never reshuffles the board (web board, 2026-09-27).
+type RowView = {
+  standardLine: number
+  line: number
+  best: BookPrice | null
+  prices: BookPrice[]
+  options: LineOption[]
+  edge: Edge | null
+  rankScore: number
+  standardOdds: number
+  pickKey: string
+}
+
+function rowView(prop: FlattenedProp, stats: Record<string, any> | undefined, ctx: RowContext): RowView {
+  const player = prop.outcome.description || ''
+  const standardLine = prop.outcome.point ?? (isYesOnlyMarket(prop.market.key) ? 0.5 : 0)
+  const pickKey = `${prop.game.game_id || prop.game.id}|${prop.market.key}|${player}`
+  const standardEdge = scoreEntry(ctx.boardScores?.[`${prop.market.key}-${player}`], standardLine)
+    || (!ctx.preview ? localEdge(prop, standardLine, prop.outcome.price, stats, ctx.sport) : null)
+
+  if (ctx.side === 'under') {
+    // The standard line only: the board payload carries Over alts only.
+    const best = prop.underPrices[0] || null
+    const edge = scoreEntry(ctx.underBoardScores?.[`${prop.market.key}-${player}`], standardLine)
+    const l5Under = sideHitRate(recentValues(stats, prop.market.key, 5), standardLine, 'under')
+    return {
+      standardLine,
+      line: standardLine,
+      best,
+      prices: prop.underPrices,
+      options: [{ line: standardLine, prices: prop.underPrices }],
+      edge,
+      // The free preview keeps the Over order, so the rows it surfaces don't
+      // leak the Under hit-rate ranking.
+      rankScore: ctx.preview ? standardEdge?.score ?? -1 : edge ? edge.score : l5Under ?? -1,
+      standardOdds: best?.odds ?? -100000,
+      pickKey,
+    }
+  }
+
+  const alts = ctx.preview ? null : altSource(prop.market.key, ctx.sport)
+  const options = lineOptions(standardLine, prop.prices, alts ? prop.altRungs : {})
+  const picked = ctx.linePicks[pickKey]
+  const line = picked !== undefined && options.some((option) => option.line === picked) ? picked : standardLine
+  const prices = options.find((option) => option.line === line)?.prices || prop.prices
+  const best = line === standardLine ? { book: prop.bookKey, odds: prop.outcome.price } : prices[0] || null
+  const edge = line === standardLine || !alts
+    ? standardEdge
+    : scoreEntry(ctx.altScores?.[`${alts.key}-${player}`]?.[String(line)] || ctx.boardScores?.[`${alts.key}-${player}`], line)
+      || (best ? localEdge(prop, line, best.odds, stats, ctx.sport) : null)
+  return { standardLine, line, best, prices, options, edge, rankScore: standardEdge?.score ?? -1, standardOdds: prop.outcome.price, pickKey }
+}
+
+function compareData(prop: FlattenedProp, view: RowView, sport: Sport, side: PropSide): OddsCompareData {
+  const label = marketLabel(prop.market.key, sport)
+  const yesStandard = isYesOnlyMarket(prop.market.key) && view.line === view.standardLine
+  return {
+    title: prop.outcome.description || '',
+    subtitle: yesStandard ? label : `${label} · ${side === 'under' ? 'Under' : 'Over'} ${view.line}`,
+    prices: view.prices.length ? view.prices : view.best ? [view.best] : [],
+    note: yesStandard ? 'Your books with this market posted.' : `Your books posting ${view.line}. Books on a different line aren't listed.`,
+  }
+}
+
+// Sorts read the standard line, so a picked rung never moves its row.
+function sortValue(prop: FlattenedProp, view: RowView, stats: Record<string, any> | undefined, key: SortKey, side: PropSide, landscape: boolean) {
+  const line = view.standardLine
   if (key === 'player') return prop.outcome.description || ''
   if (prop.market.key === FIRST_GOAL_MARKET) {
     if (key === 'season') return firstGoalRecord(stats)?.rate ?? -1
@@ -929,67 +1115,123 @@ function sortValue(prop: FlattenedProp, stats: Record<string, any> | undefined, 
     if (key === 'l10hit' || (key === 'l10' && !landscape)) return firstGoalRecord(stats, 10)?.rate ?? -1
   }
   if (key === 'line') return line
-  if (key === 'odds') return prop.outcome.price || 0
-  if (key === 'season') return season
-  if (key === 'l10') return l10
-  if (key === 'l10hit') return l10Rate ?? -1
-  if (key === 'l5') return l5
-  if (key === 'l5hit') return l5Rate ?? -1
-  return edge?.score ?? -1
+  if (key === 'odds') return view.standardOdds
+  if (key === 'book') return shortBookName((side === 'under' ? prop.underPrices[0]?.book : prop.bookKey) || '')
+  if (key === 'season') return getStat(stats, prop.market.key, 'season')
+  if (key === 'l10') return getStat(stats, prop.market.key, 'l10')
+  if (key === 'l10hit') return sideHitRate(recentValues(stats, prop.market.key, 10), line, side) ?? -1
+  if (key === 'l5') return getStat(stats, prop.market.key, 'l5')
+  if (key === 'l5hit') return sideHitRate(recentValues(stats, prop.market.key, 5), line, side) ?? -1
+  return view.rankScore
 }
+
+const LINE_HIT_SLOP = { top: 14, bottom: 14, left: 8, right: 8 }
 
 function PropTableRow({
   prop,
+  view,
   stats,
   sport,
   landscape,
-  boardScores,
+  side,
+  underEdge,
   preview = false,
   onSelectPlayer,
+  onCompare,
+  onPickLine,
 }: {
   prop: FlattenedProp
+  view: RowView
   stats?: Record<string, any>
   sport: Sport
   landscape: boolean
-  boardScores?: Record<string, any>
+  side: PropSide
+  underEdge: boolean
   preview?: boolean
   onSelectPlayer: (playerName: string, context: PlayerProfileMarketContext) => void
+  onCompare: () => void
+  onPickLine: () => void
 }) {
-  const line = prop.outcome.point ?? (isNhlGoalScorerMarket(prop.market.key) || prop.market.key === 'player_anytime_td' ? 0.5 : 0)
+  const line = view.line
   const season = getStat(stats, prop.market.key, 'season')
   const l10 = getStat(stats, prop.market.key, 'l10')
   const l5 = getStat(stats, prop.market.key, 'l5')
   const l10Values = recentValues(stats, prop.market.key, 10)
   const l5Values = recentValues(stats, prop.market.key, 5)
-  // Server-first (CLAUDE.md "Calculated scores live on the web"): the local
-  // calc below is kept only as the offline/mismatch fallback, never primary.
-  const edge = serverEdge(prop, boardScores) || (!preview
-    ? sport === 'NFL'
-      ? nflEdgeLabel(line, season, prop.outcome.price, prop.market.key)
-      : edgeLabel(line, season, l10, l5, prop.outcome.price, sport)
-    : null)
-  const edgeLabelText = edge ? String(edge.label).replace(/\s*\d+$/, '') : 'Premium'
-  const playerLine = `${line || '-'} ${compactPropLabel(prop.market.key, sport)}  ${fmtOdds(prop.outcome.price)}`
+  // Server-first (CLAUDE.md "Calculated scores live on the web"): rowView's
+  // local calc is kept only as the offline/mismatch fallback, never primary.
+  const edge = view.edge
+  const edgeLabelText = edge ? String(edge.label).replace(/\s*\d+$/, '') : preview ? 'Premium' : '-'
+  const showL10Under = side === 'under' && !underEdge
+  const rung = rungText(prop.market.key, line)
+  const playerName = prop.outcome.description || ''
+  const canPickLine = view.options.length > 1
   const openProfile = () => prop.outcome.description && onSelectPlayer(prop.outcome.description, {
     marketKey: prop.market.key,
     marketLabel: marketLabel(prop.market.key, sport),
     commonLine: line,
   })
+  // The line opens the picker when the row has alt rungs ("94.5 ▾").
+  const lineControl = (text: string, style: any) => canPickLine ? (
+    <Pressable
+      onPress={onPickLine}
+      hitSlop={LINE_HIT_SLOP}
+      accessibilityRole="button"
+      accessibilityLabel={`${playerName} line ${text}. Choose another line`}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <AppText variant="mono" style={[style, styles.lineLink]} numberOfLines={1}>{text} ▾</AppText>
+    </Pressable>
+  ) : (
+    <AppText variant="mono" style={style} numberOfLines={1}>{text}</AppText>
+  )
+  const l5UnderRate = sideHitRate(l5Values, line, 'under')
 
   return (
     <Pressable onPress={openProfile} style={styles.tableRow}>
       <View style={[styles.cell, landscape && styles.landscapeCell, styles.playerCell, landscape && styles.landscapePlayerCell]}>
-        <AppText style={styles.playerName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+        {/* No shrink-to-fit: the RN new-architecture bug that drew random
+            rows in tiny text (1.1.1 hotfix, 3612b20) also hits names. */}
+        <AppText style={styles.playerName} numberOfLines={1}>
           {landscape ? prop.outcome.description : displayPlayerName(prop.outcome.description)}
         </AppText>
-        <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
-          {landscape ? marketLabel(prop.market.key, sport) : playerLine}
-        </AppText>
+        {landscape ? (
+          <AppText variant="mono" style={styles.playerSubline} numberOfLines={1}>
+            {marketLabel(prop.market.key, sport)}
+          </AppText>
+        ) : (
+          // Portrait: "94.5 ▾  -113 FD". The price lives here only. No market
+          // label: the selected tab already names it, and at phone width it
+          // was squeezed to "T…" (Brian, 2026-10-15 device review).
+          <View style={styles.sublineRow}>
+            {lineControl(rung, styles.playerSublineText)}
+            {view.best ? (
+              <PriceChip title={playerName} onPress={onCompare} style={styles.sublineChip}>
+                {fmtOdds(view.best.odds)} {shortBookName(view.best.book)}
+              </PriceChip>
+            ) : (
+              <AppText variant="mono" style={styles.playerSublineText}>-</AppText>
+            )}
+          </View>
+        )}
       </View>
       {landscape ? (
         <>
-          <StatTableCell value={line ? String(line) : '-'} color={colors.textPrimary} landscape />
-          <StatTableCell value={fmtOdds(prop.outcome.price)} color={colors.gold} landscape />
+          <View style={[styles.cell, styles.landscapeCell]}>
+            {lineControl(line ? String(line) : '-', [styles.statCellValue, styles.landscapeStatCellValue, { color: colors.textPrimary }])}
+          </View>
+          <View style={[styles.cell, styles.landscapeCell]}>
+            {view.best ? (
+              <PriceChip title={playerName} onPress={onCompare} style={[styles.statCellValue, styles.landscapeStatCellValue]}>
+                {fmtOdds(view.best.odds)}
+              </PriceChip>
+            ) : (
+              <AppText style={[styles.statCellValue, styles.landscapeStatCellValue, { color: colors.textMuted }]}>-</AppText>
+            )}
+          </View>
+          <View style={[styles.cell, styles.landscapeCell, styles.bookCell]}>
+            <AppText variant="mono" style={styles.bookCellText} numberOfLines={1}>{view.best ? shortBookName(view.best.book) : '-'}</AppText>
+          </View>
         </>
       ) : null}
       {prop.market.key === FIRST_GOAL_MARKET ? (
@@ -1014,21 +1256,31 @@ function PropTableRow({
         </>
       ) : (
         <>
-          <StatTableCell value={fmtStat(season, Boolean(stats))} color={statColor(season, line)} landscape={landscape} />
-          <StatTableCell value={fmtStat(landscape ? l5 : l10, Boolean(stats))} color={statColor(landscape ? l5 : l10, line)} landscape={landscape} />
-          <StatTableCell value={fmtStat(landscape ? l10 : l5, Boolean(stats))} color={statColor(landscape ? l10 : l5, line)} landscape={landscape} />
+          <StatTableCell value={fmtStat(season, Boolean(stats))} color={statColor(season, line, side)} landscape={landscape} />
+          <StatTableCell value={fmtStat(landscape ? l5 : l10, Boolean(stats))} color={statColor(landscape ? l5 : l10, line, side)} landscape={landscape} />
+          <StatTableCell value={fmtStat(landscape ? l10 : l5, Boolean(stats))} color={statColor(landscape ? l10 : l5, line, side)} landscape={landscape} />
           {landscape ? (
-            <StatTableCell value={hitCountLabel(l5Values, line)} color={hitRateColor(hitRate(l5Values, line))} landscape />
+            <StatTableCell value={sideHitCount(l5Values, line, side)} color={hitRateColor(sideHitRate(l5Values, line, side))} landscape />
           ) : null}
           {landscape ? (
-            <StatTableCell value={hitCountLabel(l10Values, line)} color={hitRateColor(hitRate(l10Values, line))} landscape />
+            <StatTableCell value={sideHitCount(l10Values, line, side)} color={hitRateColor(sideHitRate(l10Values, line, side))} landscape />
           ) : null}
         </>
       )}
-      <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
-        <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edge ? (edge.score ? Math.round(edge.score) : '-') : 'PRO'}</AppText>
-        <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edgeLabelText}</AppText>
-      </View>
+      {showL10Under ? (
+        landscape ? null : (
+          <View style={[styles.cell, styles.edgeCell]}>
+            <AppText style={[styles.edgeScore, { color: hitRateColor(l5UnderRate) }]} numberOfLines={1}>
+              {hitRateLabel(l5UnderRate)}
+            </AppText>
+          </View>
+        )
+      ) : (
+        <View style={[styles.cell, landscape && styles.landscapeCell, styles.edgeCell, landscape && styles.landscapeEdgeCell]}>
+          <AppText style={[styles.edgeScore, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edge ? (edge.score ? Math.round(edge.score) : '-') : preview ? 'PRO' : '-'}</AppText>
+          <AppText style={[styles.edgeLabel, { color: edge?.color || colors.gold }]} numberOfLines={1}>{edgeLabelText}</AppText>
+        </View>
+      )}
     </Pressable>
   )
 }
@@ -1218,6 +1470,37 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 15,
+  },
+  sublineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    minWidth: 0,
+  },
+  playerSublineText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  sublineChip: {
+    marginLeft: 10,
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  lineLink: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  bookCell: {
+    width: 50,
+  },
+  bookCellText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   edgeCell: {
     width: 58,

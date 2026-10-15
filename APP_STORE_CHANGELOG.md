@@ -22,32 +22,114 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 Next build (after 1.1.2) — NOT YET BUILT
+## 🔵 Next build (after 1.1.3) — NOT YET BUILT
 
-Planned as **1.1.3** (iOS + Android), bundled with the KingFish AI rename below.
+- **[2026-10-15] TO DO (not coded yet): Help page book list.**
+  - **What the reviewer sees:** Help no longer says bet365, PointsBet, Unibet,
+    Barstool, WynnBET or SuperBook "can appear" (none has US data; removed
+    from Book Preferences 2026-10-15). Lists the books KingFish actually
+    shows, including Fanatics, BetPARX and Bally Bet.
+  - **Scope:** `app/help.tsx` (sportsbooks answer). Brian also plans a deeper
+    Help rewrite and a matching website Help update; fold this into that.
+  - **Risk:** text only.
 
-- **[2026-10-15] TO DO (not coded yet): compare every book, Over / Under, alt
-  dropdown.** Full plan: `docs/odds-compare-phone-plan-2026-10-15.md` (A1–A8).
-  - **What the reviewer sees:** tap any price (player props, Game Props, Game
-    Lines, Value Finder) to see every sportsbook's odds. Player props show which
-    book has the best price, follow the customer's Book Preferences, get an Over
-    / Under switch, and NFL/NHL lines open a dropdown of alternate lines.
-  - **Already live with no app update (🟢):** the server side, web `0901b95`.
-    The props feeds carry Fanatics, BetPARX and Bally Bet, and mobile-config
-    sends the 10-book `prop_keys` and `short_names`. Earlier the same day: Hard
-    Rock state feeds folded into the main feed, and bet365 / PointsBet / Unibet /
-    Barstool / WynnBET / SuperBook removed from Book Preferences (no US data),
-    both through mobile-config.
-  - **Risk:** UI changes on the props and Game Props tables, plus a new bottom
-    sheet. No new permissions, no payments change.
+---
 
-- **[2026-10-08] TO DO (not coded yet): rename Ask KingFish to KingFish AI.**
-  - **What the reviewer sees:** the chat tab/screen is titled **KingFish AI**;
-    buttons and links into it say **Ask AI**; Help, Terms, Privacy and Account
-    copy say KingFish AI. Matches the website (`kingfish-bets` `e37bd5f`,
-    `f5e8f8c`).
-  - **Scope:** `app/(tabs)/ask-kingfish.tsx`, tab label, `help.tsx`,
-    `terms.tsx`, `privacy.tsx`, `(tabs)/account.tsx`, `game-factors.tsx`.
+## 🔵 1.1.3 (iOS build 42, Android vc 12) — TESTFLIGHT, DEVICE TEST CLEAR 2026-10-15
+
+**1.1.3** (`app.json` bumped 2026-10-15). Build 41 went to TestFlight only;
+Brian's device review found the items in the build 42 entry below. Build 42
+uploaded to TestFlight and passed Brian's device test the same day. Not yet
+submitted to App Review; Android not yet built. Plan:
+`docs/odds-compare-phone-plan-2026-10-15.md` (A1–A8). Server side already live
+with no app update (🟢, web `0901b95`): the props feeds carry Fanatics, BetPARX
+and Bally Bet, and mobile-config sends the 10-book `prop_keys` and
+`short_names`. Typecheck and unit tests pass; not yet run on a device.
+
+- **[2026-10-15] Tap any price to see every sportsbook's odds (A1, A5, A7).**
+  - **What the reviewer sees:** tapping a price on player props, Game Props,
+    the Game Lines tool or Value Finder opens a bottom sheet listing each of
+    the customer's books with its price, best first and tagged "Best". Spread
+    and total sheets list only books on the same number. Closes on the
+    backdrop, the X, or Android back. Verdict tiles stay price-free.
+  - **Scope:** new `lib/oddsCompare.ts` (unit tests in
+    `tests/oddsCompare.test.mjs`), new `components/dashboard/OddsCompareSheet.tsx`,
+    `PropCard.tsx`, `MLBPropsTable.tsx`, `GamePropsTable.tsx`, `GameLineCard.tsx`,
+    `app/value-finder.tsx`.
+  - **Not done (Brian, 2026-10-15):** no haptic on open. The app has no
+    haptics library; adding `expo-haptics` would be a new native module.
+  - **Risk:** new bottom sheet; tap targets inside table rows. No new
+    permissions, no payments change.
+
+- **[2026-10-15] Player props show the best book (A3).**
+  - **What the reviewer sees:** portrait rows read e.g. "94.5 ▾  -113 FD"
+    under the player's name; the price + book is the tappable chip. Landscape adds a Book
+    column (after Odds on NFL/NBA/WNBA/NHL, after Line on MLB). The price
+    still appears once per row.
+  - **Scope:** `PropCard.tsx`, `MLBPropsTable.tsx`. Short labels read from the
+    server's `short_names`, falling back to `BOOK_SHORT_NAMES` in
+    `lib/sportsbooks.ts`.
+
+- **[2026-10-15] Player props follow Book Preferences; bundled book lists
+  cleaned up (A2).**
+  - **What the reviewer sees:** turning a book on or off in Account → Book
+    Preferences now changes player props too (it already changed Game Props).
+    Fanatics, BetPARX and Bally Bet can appear on props.
+  - **Scope:** `app/(tabs)/index.tsx` passes `sportsbook_preferences` into
+    `PropsList` and `MLBPropsTable`. `lib/sportsbooks.ts` offline fallbacks:
+    bet365, PointsBet, Unibet, Barstool, WynnBET and SuperBook removed, Hard
+    Rock states all use the main feed, `PROP_BOOK_KEYS` = the server's 10.
+
+- **[2026-10-15] Alternate lines picker on NFL and NHL props (A6).**
+  - **What the reviewer sees:** when a player has alt lines, the line shows
+    "▾"; tapping it opens a sheet of lines with each one's best price. Picking
+    one updates that row's price, book, hit counts and Edge in place; the board
+    order stays on the standard line. Anytime TD offers 0.5 / 2+ TDs, Anytime
+    Goal offers 2+ Goals. The NFL Standard / Alt toggle row is gone, and TDs
+    Over is no longer its own tab (its 2+ rung lives in Anytime TD), like the web.
+  - **Scope:** props request `alts=board` for NFL and NHL (server-trimmed rungs
+    -250..+250); alt Edge is the server's `altScores`, with the local calc kept
+    only as the fallback. Not offered in the free preview.
+
+- **[2026-10-15] Over / Under switch on player props (A4).**
+  - **What the reviewer sees:** an Over | Under switch under the market tabs
+    (hidden on Anytime / 1st / Last TD and NHL goal markets). Under shows each
+    row's best Under price at the standard line, flips hit counts and stat
+    colors to "stayed under", hides Edge (portrait shows "L5 U", the last-5
+    Under hit rate as a percentage, in its place), and orders rows by L5 Under
+    hit rate, ties to the better price. The free
+    preview keeps the Over order. Starts on Over every visit.
+  - **Server-ready:** if the server ever sends `underBoardScores` (same shape
+    as `boardScores`), the Under side shows that Edge with no app update. The
+    app does no Under Edge math.
+  - **Scope:** `PropCard.tsx`, `MLBPropsTable.tsx`, `lib/oddsCompare.ts`
+    (Unders matched to each book's Over point, like web `80598bf`).
+
+- **[2026-10-15] Build 42 fixes from Brian's build 41 device review.**
+  - **What the reviewer sees:** the portrait line under each player no longer
+    shows a cut-off market label ("T…", "Rus…"); it reads "0.5 ▾  +110 MGM".
+    The Under column is "L5 U" with just the percentage (no "4/5 · 80%"). Team
+    defense rows read "Broncos D" instead of "D. Defense". Player names no
+    longer shrink to tiny text on some rows.
+  - **Why the tiny text:** the shrink-to-fit setting on player names hit the
+    same React Native bug fixed for odds and stats in 1.1.1 (`3612b20`); it
+    is now off for names too. Long names end in "…" instead.
+  - **Scope:** `PropCard.tsx`, `MLBPropsTable.tsx`.
+
+- **[2026-10-15] No +700 cap on player props (A8).**
+  - **What the reviewer sees:** longshot rows (NFL 1st / Last TD, 2+ TDs, MLB
+    home runs) priced over +700 now appear, matching the web. Covers
+    NFL/NBA/WNBA/NHL (`flattenProps`) and MLB (Brian, 2026-10-15).
+
+- **[2026-10-15] Ask KingFish renamed KingFish AI.** (Queued 2026-10-08, done.)
+  - **What the reviewer sees:** the chat screen is titled **KingFish AI** and
+    its tab / bottom-nav label says **Ask AI**; the input reads "Ask KingFish
+    AI..."; Help, Terms, Privacy, Account, sign-in, paywall and upgrade copy
+    say KingFish AI. Matches the website (`kingfish-bets` `e37bd5f`, `f5e8f8c`).
+  - **Scope:** `app/(tabs)/ask-kingfish.tsx`, `app/(tabs)/_layout.tsx`,
+    `components/AppBottomNav.tsx`, `help.tsx`, `terms.tsx`, `privacy.tsx`,
+    `(tabs)/account.tsx`, `game-factors.tsx`, `(auth)/sign-in.tsx`,
+    `modals/paywall.tsx`, `(tabs)/index.tsx`, `(tabs)/cheat-sheets.tsx`.
   - **Risk:** text only.
   - **Already live with no app update (🟢):** the chat answers themselves
     (server-side — NFL stats now labelled by season, `d26561c`), the daily-limit

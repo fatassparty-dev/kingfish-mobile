@@ -2581,7 +2581,7 @@ export default function CheatSheetsScreen() {
     <Card>
       <AppText style={styles.cardTitle}>Unlock KingFish Tools</AppText>
       <AppText variant="muted" style={styles.cardCopy}>
-        Cheat Sheets, player props, Edge Scores, game factors, and unlimited Ask KingFish access are part of KingFish Bets Pro.
+        Cheat Sheets, player props, Edge Scores, game factors, and unlimited KingFish AI access are part of KingFish Bets Pro.
       </AppText>
       <View style={styles.action}>
         <Button onPress={() => router.push('/modals/paywall')}>Get Access</Button>
