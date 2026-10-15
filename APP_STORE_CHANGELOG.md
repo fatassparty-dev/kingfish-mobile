@@ -24,6 +24,23 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.2) — NOT YET BUILT
 
+Planned as **1.1.3** (iOS + Android), bundled with the KingFish AI rename below.
+
+- **[2026-10-15] TO DO (not coded yet): compare every book, Over / Under, alt
+  dropdown.** Full plan: `docs/odds-compare-phone-plan-2026-10-15.md` (A1–A8).
+  - **What the reviewer sees:** tap any price (player props, Game Props, Game
+    Lines, Value Finder) to see every sportsbook's odds. Player props show which
+    book has the best price, follow the customer's Book Preferences, get an Over
+    / Under switch, and NFL/NHL lines open a dropdown of alternate lines.
+  - **Already live with no app update (🟢):** the server side, web `0901b95`.
+    The props feeds carry Fanatics, BetPARX and Bally Bet, and mobile-config
+    sends the 10-book `prop_keys` and `short_names`. Earlier the same day: Hard
+    Rock state feeds folded into the main feed, and bet365 / PointsBet / Unibet /
+    Barstool / WynnBET / SuperBook removed from Book Preferences (no US data),
+    both through mobile-config.
+  - **Risk:** UI changes on the props and Game Props tables, plus a new bottom
+    sheet. No new permissions, no payments change.
+
 - **[2026-10-08] TO DO (not coded yet): rename Ask KingFish to KingFish AI.**
   - **What the reviewer sees:** the chat tab/screen is titled **KingFish AI**;
     buttons and links into it say **Ask AI**; Help, Terms, Privacy and Account
