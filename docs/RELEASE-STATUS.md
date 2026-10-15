@@ -1,6 +1,6 @@
 # KingFish release status
 
-Last updated: October 3, 2026 (Central Time)
+Last updated: October 15, 2026 (Central Time)
 
 ## Browser and release handoffs
 
@@ -14,19 +14,23 @@ This is the short source of truth for what is public, what is under store
 review, and what requires the next native build. Detailed history remains in
 `APP_STORE_CHANGELOG.md` and `RELEASE-IMPACT-LEDGER.md`.
 
-## Current status (October 3, 2026)
+## Current status (October 15, 2026)
 
 | Store | Live | In review |
 |---|---|---|
-| Apple App Store (iPhone) | 1.1.0 | **1.1.2 (build 40)**, submitted Oct 3 |
-| Google Play (Android) | 1.1.1 (vc 10) | **1.1.2 (vc 11)**, submitted Oct 3 |
-| KingFish Studio (iPad + Mac) | 1.0.2 (17) | 1.1.2 (20), submitted Oct 3 |
+| Apple App Store (iPhone) | **1.1.2 (build 40)**, approved by Oct 6 | **1.1.3 (build 42)**, submitted Oct 15 |
+| Google Play (Android) | **1.1.2 (vc 11)**, approved Oct 5 | **1.1.3 (vc 12)**, submitted Oct 15 (full rollout) |
+| KingFish Studio (iPad + Mac) | **1.1.2 (20)**, approved by Oct 6 | — |
 
-1.1.2 contents: `APP_STORE_CHANGELOG.md` (🔵 1.1.2). Build 39 was TestFlight
-only. iOS IPA: `builds/KingFishBets-1.1.2-b40-export/KingFishBets.ipa`;
-Android AAB: `builds/KingFishBets-android-1.1.2-vc11.aab` (EAS).
+1.1.3 contents: `APP_STORE_CHANGELOG.md` (🟡 1.1.3). Source `235d0c2`. Build
+41 was TestFlight only; build 42 passed Brian's device test. iOS IPA:
+`builds/KingFishBets-1.1.3-b42-export/KingFishBets.ipa`; Android AAB:
+`builds/KingFishBets-android-1.1.3-vc12.aab` (EAS). Google Play has managed
+publishing off, so Android goes live on approval.
 
-On approval: set HQ `latest_version` ios + android to 1.1.2 (no minimum).
+On approval: set HQ `latest_version` ios + android to 1.1.3 (no minimum).
+HQ `latest_version` is 1.1.2 for ios, android and studio until then (set Oct 6).
+New App Store screenshots are up on all Apple listings (Oct 6).
 
 Everything below this section is the September 14 snapshot, kept for history.
 
