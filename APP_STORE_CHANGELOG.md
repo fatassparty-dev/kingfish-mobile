@@ -35,12 +35,26 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.3 (iOS build 42, Android vc 12) — TESTFLIGHT, DEVICE TEST CLEAR 2026-10-15
+## 🟡 1.1.3 (iOS build 42, Android vc 12) — SUBMITTED 2026-10-15 (App Store + Google Play)
 
 **1.1.3** (`app.json` bumped 2026-10-15). Build 41 went to TestFlight only;
 Brian's device review found the items in the build 42 entry below. Build 42
-uploaded to TestFlight and passed Brian's device test the same day. Not yet
-submitted to App Review; Android not yet built. Plan:
+passed Brian's TestFlight device test and was submitted for App Review the same
+day. Android vc 12 (EAS cloud build, `builds/KingFishBets-android-1.1.3-vc12.aab`)
+submitted to the Play production track, full rollout, managed publishing off.
+Source: `235d0c2`. iOS IPA: `builds/KingFishBets-1.1.3-b42-export/KingFishBets.ipa`.
+On approval: set HQ `latest_version` ios + android to 1.1.3 (no minimum).
+
+**What's New (both stores):**
+- Tap any price to compare odds at every sportsbook you use.
+- Player props now show which sportsbook has the best price.
+- New Over / Under switch on player props.
+- Alternate lines: tap a player's line to pick another (NFL, NHL).
+- Player props now follow your Book Preferences.
+- Ask KingFish is now KingFish AI.
+
+App Store promotional text unchanged (the $0.99 first-month offer). No product
+page header / search results creative asset (optional; skipped). Plan:
 `docs/odds-compare-phone-plan-2026-10-15.md` (A1–A8). Server side already live
 with no app update (🟢, web `0901b95`): the props feeds carry Fanatics, BetPARX
 and Bally Bet, and mobile-config sends the 10-book `prop_keys` and
