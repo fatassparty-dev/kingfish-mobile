@@ -1,6 +1,6 @@
 # KingFish release status
 
-Last updated: October 15, 2026 (Central Time)
+Last updated: October 16, 2026 (Central Time)
 
 ## Browser and release handoffs
 
@@ -14,13 +14,13 @@ This is the short source of truth for what is public, what is under store
 review, and what requires the next native build. Detailed history remains in
 `APP_STORE_CHANGELOG.md` and `RELEASE-IMPACT-LEDGER.md`.
 
-## Current status (October 15, 2026)
+## Current status (October 16, 2026)
 
 | Store | Live | In review |
 |---|---|---|
 | Apple App Store (iPhone) | **1.1.2 (build 40)**, approved by Oct 6 | **1.1.3 (build 42)**, submitted Oct 15 |
-| Google Play (Android) | **1.1.2 (vc 11)**, approved Oct 5 | **1.1.3 (vc 12)**, submitted Oct 15 (full rollout) |
-| KingFish Studio (iPad + Mac) | **1.1.2 (20)**, approved by Oct 6 | — |
+| Google Play (Android) | **1.1.3 (vc 12)**, approved and live Oct 15 (full rollout) | — |
+| KingFish Studio (iPad + Mac) | **1.1.2 (20)**, approved by Oct 6 | **1.1.3 (23)**, submitted Oct 16 |
 
 1.1.3 contents: `APP_STORE_CHANGELOG.md` (🟡 1.1.3). Source `235d0c2`. Build
 41 was TestFlight only; build 42 passed Brian's device test. iOS IPA:
@@ -28,7 +28,7 @@ review, and what requires the next native build. Detailed history remains in
 `builds/KingFishBets-android-1.1.3-vc12.aab` (EAS). Google Play has managed
 publishing off, so Android goes live on approval.
 
-On approval: set HQ `latest_version` ios + android to 1.1.3 (no minimum).
+HQ `latest_version.android` → 1.1.3 now (Android is live). On Apple approval: ios → 1.1.3; studio → 1.1.3 once Studio 1.1.3 is approved.
 HQ `latest_version` is 1.1.2 for ios, android and studio until then (set Oct 6).
 New App Store screenshots are up on all Apple listings (Oct 6).
 

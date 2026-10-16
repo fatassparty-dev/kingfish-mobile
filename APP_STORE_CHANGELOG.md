@@ -35,7 +35,7 @@ data* it didn't know about before.
 
 ---
 
-## 🟡 1.1.3 (iOS build 42, Android vc 12) — SUBMITTED 2026-10-15 (App Store + Google Play)
+## 🟡 1.1.3 (iOS build 42, Android vc 12) — ANDROID LIVE 2026-10-15; iOS IN REVIEW
 
 **1.1.3** (`app.json` bumped 2026-10-15). Build 41 went to TestFlight only;
 Brian's device review found the items in the build 42 entry below. Build 42
