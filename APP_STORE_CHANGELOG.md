@@ -24,6 +24,15 @@ data* it didn't know about before.
 
 ## 🔵 1.1.4 (43) — CODED, NOT YET BUILT (version bumped 2026-10-29)
 
+- **[2026-10-29] CODED: NFL props game dropdown.**
+  - **What the reviewer sees:** on the NFL Player Props board, the long row of
+    game chips (Today, Week 8, Week 9, then every game) is one dropdown button.
+    It opens a sheet listing this week's games first (with kickoff time CT),
+    then Today / each week / All Weeks. Other sports keep their chips.
+  - **Scope:** `components/dashboard/PropCard.tsx` + new `GamePickerSheet` in
+    `components/dashboard/OddsCompareSheet.tsx` (same bottom sheet as the line
+    picker). Filtering logic unchanged. Risk: UI only.
+
 - **[2026-10-29] CODED: three NBA cheat sheets (web live).**
   - **What the reviewer sees:** three new NBA tiles in Tools → Cheat Sheets:
     First Basket, Defense vs Position, King of the Court (new NBA chip in the

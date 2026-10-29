@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
+import { GamePickerSheet, LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
 import { fmtOdds, fmtTime, normalizeName } from '@/lib/format'
 import { MOBILE_FREE_PREVIEW_ROWS } from '@/lib/freePreview'
-import { inNflWindow, nflWindows } from '@/lib/nflBoardWindow'
+import { inNflWindow, nflWeek, nflWindows } from '@/lib/nflBoardWindow'
 import { lineOptions, propBookLines, sideHitCount, sideHitRate, sidePricesAtLine, yesPrices, type BookPrice, type LineOption, type PropSide } from '@/lib/oddsCompare'
 import { getBestOverAtLine, getDisplayLine } from '@/lib/propLines'
 import { displayBookName, eligiblePropBookKeys, shortBookName, type SportsbookPreferences } from '@/lib/sportsbooks'
@@ -648,6 +648,7 @@ export function PropsList({
   const [linePicks, setLinePicks] = useState<Record<string, number>>({})
   const [compare, setCompare] = useState<OddsCompareData | null>(null)
   const [picker, setPicker] = useState<LinePickerData | null>(null)
+  const [gamePickerOpen, setGamePickerOpen] = useState(false)
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : markets[0]
   const yesOnly = selectedMarket ? isYesOnlyMarket(selectedMarket) : false
   const activeSide: PropSide = side === 'under' && !yesOnly ? 'under' : 'over'
@@ -666,6 +667,32 @@ export function PropsList({
     : selectedGame === 'all' || gameOptions.some(game => String(game.game_id || game.id) === selectedGame)
       ? selectedGame
       : 'all'
+  // NFL game dropdown (Brian, 2026-10-29): this week's games first, then the
+  // week windows (Today, Week N, All Weeks) after the game list.
+  const nflGameLabel = (game: Game) => `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`
+  const nflCurrentWeekKey = gameOptions[0] ? nflWeek(gameOptions[0].commence_time).key : null
+  const nflPickerSections = sport === 'NFL' ? [
+    {
+      title: 'This Week\'s Games',
+      options: gameOptions
+        .filter(game => nflWeek(game.commence_time).key === nflCurrentWeekKey)
+        .map(game => ({
+          key: String(game.game_id || game.id),
+          label: nflGameLabel(game),
+          detail: new Date(game.commence_time).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) + ' CT',
+        })),
+    },
+    {
+      title: 'Weeks',
+      options: nflBoard.options
+        .filter(option => option.key !== 'today' || option.games.length > 0)
+        .map(option => ({ key: option.key, label: option.key === 'all' ? 'All Weeks' : option.label, detail: `${option.games.length} ${option.games.length === 1 ? 'game' : 'games'}` })),
+    },
+  ] : []
+  const activeNflGame = gameOptions.find(game => String(game.game_id || game.id) === activeGameFilter)
+  const nflSelectionLabel = activeNflGame
+    ? nflGameLabel(activeNflGame)
+    : activeGameFilter === 'all' ? 'All Weeks' : nflBoard.options.find(option => option.key === activeGameFilter)?.label || 'Games'
   const filteredGames = activeGameFilter === 'all'
     ? games
     : sport === 'NFL' && nflWindowKeys.has(activeGameFilter)
@@ -812,36 +839,40 @@ export function PropsList({
           >
             <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
           </Pressable>
-          {sport === 'NFL' ? nflBoard.options.map(option => (
+          {sport === 'NFL' ? (
             <Pressable
-              key={option.key}
-              onPress={() => setSelectedGame(option.key)}
-              style={[styles.gameFilterButton, activeGameFilter === option.key && styles.gameFilterButtonActive]}
+              onPress={() => setGamePickerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Games: ${nflSelectionLabel}. Choose games`}
+              style={[styles.gameFilterButton, styles.gameFilterButtonActive, styles.gameDropdown]}
             >
-              <AppText style={[styles.gameFilterText, activeGameFilter === option.key && styles.gameFilterTextActive]}>{option.label}</AppText>
+              <AppText style={[styles.gameFilterText, styles.gameFilterTextActive]}>{nflSelectionLabel}</AppText>
+              <AppText style={[styles.gameFilterText, styles.gameFilterTextActive]}>▾</AppText>
             </Pressable>
-          )) : (
-            <Pressable
-              onPress={() => setSelectedGame('all')}
-              style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
-            >
-              <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
-            </Pressable>
-          )}
-          {gameOptions.map((game) => {
-            const id = String(game.game_id || game.id)
-            return (
+          ) : (
+            <>
               <Pressable
-                key={id}
-                onPress={() => setSelectedGame(id)}
-                style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
+                onPress={() => setSelectedGame('all')}
+                style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
               >
-                <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
-                  {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
-                </AppText>
+                <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
               </Pressable>
-            )
-          })}
+              {gameOptions.map((game) => {
+                const id = String(game.game_id || game.id)
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => setSelectedGame(id)}
+                    style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
+                  >
+                    <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
+                      {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
+                    </AppText>
+                  </Pressable>
+                )
+              })}
+            </>
+          )}
         </ScrollView>
       </View>
 
@@ -948,6 +979,7 @@ export function PropsList({
       />
       <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
       <LinePickerSheet data={picker} onClose={() => setPicker(null)} />
+      <GamePickerSheet visible={gamePickerOpen} sections={nflPickerSections} selected={activeGameFilter} onPick={setSelectedGame} onClose={() => setGamePickerOpen(false)} />
     </View>
   )
 }
@@ -1659,6 +1691,11 @@ const styles = StyleSheet.create({
   },
   gameFilterTextActive: {
     color: colors.bgPrimary,
+  },
+  gameDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',
