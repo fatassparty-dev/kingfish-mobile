@@ -22,7 +22,33 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 Next build (after 1.1.3) — NOT YET BUILT
+## 🔵 1.1.4 (43) — CODED, NOT YET BUILT (version bumped 2026-10-29)
+
+- **[2026-10-29] CODED: three NBA cheat sheets (web live).**
+  - **What the reviewer sees:** three new NBA tiles in Tools → Cheat Sheets:
+    First Basket, Defense vs Position, King of the Court (new NBA chip in the
+    sport filter). Records and posted lines only, no prices.
+  - **Why an app update:** `app/(tabs)/cheat-sheets.tsx` hard-codes the sheet
+    list and each renderer. New `components/NbaSheet.tsx` renders all three
+    (same pattern as `NcaaSheet.tsx`). Data comes from `/api/nba-first-basket`,
+    `/api/nba-defense-vs-position`, `/api/nba-king-of-the-court` (Premium; the
+    apps never send `?preview=1`, so free users get the normal paywall).
+
+- **[2026-10-17] CODED, NOT BUILT: Meta install measurement (iOS only).**
+  - **What the reviewer sees:** on first launch, Apple's App Tracking
+    Transparency prompt ("KingFish uses this to see which of our ads bring
+    people to the app..."). Nothing else changes.
+  - **Why:** Instagram App Promotion ads optimized for installs need Meta's SDK
+    to report installs (Meta App ID 1042981065182777).
+  - **Scope:** `plugins/withMetaAppEvents.js` (+ `app.json` plugin entry), with
+    the same edits hand-applied to `ios/` (Podfile `FBSDKCoreKit ~> 18.1`,
+    AppDelegate, Info.plist). Only `activateApp` is logged; auto-logging is OFF
+    so purchases stay with RevenueCat; no user/betting data is sent.
+  - **Before archiving:** `pod install` in `ios/`, then a device test.
+    **Before submitting:** App Store Connect → App Privacy must declare
+    tracking (Device ID + Product Interaction, Third-Party Advertising), and
+    turn off "Log in-app events automatically" in Meta's app dashboard.
+  - **Risk:** new native dependency — needs a successful build first.
 
 - **[2026-10-15] TO DO (not coded yet): Help page book list.**
   - **What the reviewer sees:** Help no longer says bet365, PointsBet, Unibet,

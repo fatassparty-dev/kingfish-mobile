@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
+import { NbaSheet, NBA_SHEETS, type NbaSheetKey } from '@/components/NbaSheet'
 import { NcaaSheet, NCAA_SHEETS, type NcaaSheetKey } from '@/components/NcaaSheet'
 import { GameLineCard } from '@/components/dashboard/GameLineCard'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
@@ -21,7 +22,7 @@ import { BOOK_DISPLAY_NAMES, eligiblePropBookKeys } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
 import type { Game, WeatherInfo } from '@/types'
 
-type SheetKey = NcaaSheetKey | 'picks' | 'perfect_l10' | 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
+type SheetKey = NcaaSheetKey | NbaSheetKey | 'picks' | 'perfect_l10' | 'topleans' | 'nrfi' | 'hits' | 'hr' | 'tb' | 'alt_hits' | 'alt_tb' | 'k' | 'alt_outs' | 'hot' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'qbtd' | 'qb200' | 'nfl_alt_pass_yds' | 'nfl_alt_rush_yds' | 'nfl_alt_rec_yds' | 'nfl_alt_receptions' | 'nfl_alt_completions'
 
 // One row of the NRFI/YRFI sheet — computed server-side by /api/mlb-nrfi and
 // rendered identically on web, studio, and mobile.
@@ -44,7 +45,7 @@ type NrfiRow = {
 type ToolTile = {
   key: SheetKey
   label: string
-  sport: 'ALL' | 'MLB' | 'WNBA' | 'NFL' | 'NCAAF'
+  sport: 'ALL' | 'MLB' | 'NBA' | 'WNBA' | 'NFL' | 'NCAAF'
 }
 type ToolMode = 'sheets' | 'calculators' | 'more'
 type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
@@ -145,7 +146,7 @@ const SHEETS: Array<{
   key: SheetKey
   label: string
   desc: string
-  type: 'ncaaf' | 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans' | 'perfect' | 'picks'
+  type: 'ncaaf' | 'nba' | 'props' | 'k' | 'bvp' | 'lines' | 'wnba_roles' | 'td' | 'nrfi' | 'topleans' | 'perfect' | 'picks'
   market?: string
   statField?: string
   trend?: boolean
@@ -165,6 +166,7 @@ const SHEETS: Array<{
   { key: 'hot', label: 'Hot Hitters', desc: 'Players whose recent hit form is running above their season baseline.', type: 'props', market: 'batter_hits', statField: 'hits_per_game', trend: true },
   { key: 'bvp', label: 'Batter vs Pitcher', desc: "Career batter history against today's probable starter.", type: 'bvp' },
   { key: 'lines', label: 'Game Lines & Edge', desc: "Today's MLB moneylines, totals, and weather context.", type: 'lines' },
+  ...NBA_SHEETS.map(({ key, label, desc, type }) => ({ key, label, desc, type })),
   { key: 'wnba_roles', label: 'WNBA Role Movers', desc: "Five rising and five falling rotation roles from today's prop-player pool.", type: 'wnba_roles' },
   { key: 'td', label: 'NFL TD Streaks', desc: 'Regular-season touchdown scoring streaks by player.', type: 'td' },
   { key: 'qbtd', label: 'NFL QB 2+ TD Streaks', desc: 'Quarterbacks on recent streaks of 2+ passing touchdown games.', type: 'td' },
@@ -192,6 +194,9 @@ const TOOL_TILES: ToolTile[] = [
   { key: 'hot', label: 'Hot Hitters', sport: 'MLB' },
   { key: 'bvp', label: 'Batter vs Pitcher', sport: 'MLB' },
   { key: 'lines', label: 'Game Lines', sport: 'MLB' },
+  { key: 'nba_first_basket', label: 'First Basket', sport: 'NBA' },
+  { key: 'nba_dvp', label: 'Defense vs Position', sport: 'NBA' },
+  { key: 'nba_king', label: 'King of the Court', sport: 'NBA' },
   { key: 'wnba_roles', label: 'Role Movers', sport: 'WNBA' },
   { key: 'td', label: 'NFL TD Streaks', sport: 'NFL' },
   { key: 'qbtd', label: 'QB 2+ TD Streaks', sport: 'NFL' },
@@ -2225,10 +2230,11 @@ export default function CheatSheetsScreen() {
   const canLoadData = canUseCheatSheets && toolMode === 'sheets' && hasOpenSheet
   const isTdSheet = activeSheet.type === 'td'
   const isNcaaSheet = activeSheet.type === 'ncaaf'
+  const isNbaSheet = activeSheet.type === 'nba'
   const isWnbaRoleSheet = activeSheet.type === 'wnba_roles'
   const isPerfectSheet = activeSheet.type === 'perfect'
   const isPicksSheet = activeSheet.type === 'picks'
-  const canLoadMlbSheetData = canLoadData && !isNcaaSheet && !isTdSheet && !isWnbaRoleSheet && !isPerfectSheet && !isPicksSheet
+  const canLoadMlbSheetData = canLoadData && !isNcaaSheet && !isNbaSheet && !isTdSheet && !isWnbaRoleSheet && !isPerfectSheet && !isPicksSheet
 
   useEffect(() => {
     if (mode === 'calculators' || mode === 'sheets' || mode === 'more') {
@@ -2775,7 +2781,7 @@ export default function CheatSheetsScreen() {
             <AppText variant="eyebrow">{isNcaaSheet ? '// Weekly Board' : '// Daily Board'}</AppText>
           </View>
 
-          {isNcaaSheet ? <NcaaSheet key={activeKey} sheetKey={activeKey as NcaaSheetKey} /> : <Card>
+          {isNcaaSheet ? <NcaaSheet key={activeKey} sheetKey={activeKey as NcaaSheetKey} /> : isNbaSheet ? <NbaSheet key={activeKey} sheetKey={activeKey as NbaSheetKey} /> : <Card>
             <View style={styles.reportTitleRow}>
               <View style={styles.reportTitleWrap}>
                 <AppText variant="eyebrow">// {isTdSheet ? 'NFL' : isWnbaRoleSheet ? 'WNBA' : activeSheet.label}</AppText>

@@ -3,7 +3,7 @@
     "name": "KingFish Bets",
     "slug": "kingfish-bets",
     "scheme": "kingfish",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ]
       },
-      "buildNumber": "42"
+      "buildNumber": "43"
     },
     "android": {
       "package": "com.kingfishbets.app",
@@ -60,7 +60,14 @@
         }
       ],
       "expo-font",
-      "./plugins/withAssetStatements"
+      "./plugins/withAssetStatements",
+      [
+        "./plugins/withMetaAppEvents",
+        {
+          "appId": "1042981065182777",
+          "clientToken": "683280df528fbdcc729c1d5720e74fe2"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
