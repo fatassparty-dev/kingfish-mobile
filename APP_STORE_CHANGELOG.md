@@ -22,16 +22,21 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.4 (43) — CODED, NOT YET BUILT (version bumped 2026-10-29)
+## 🔵 1.1.4 (44) — CODED, NOT YET BUILT (build 43 exported 2026-10-29, superseded before upload by 44's NFL menu redesign)
 
-- **[2026-10-29] CODED: NFL props game dropdown.**
-  - **What the reviewer sees:** on the NFL Player Props board, the long row of
-    game chips (Today, Week 8, Week 9, then every game) is one dropdown button.
-    It opens a sheet listing this week's games first (with kickoff time CT),
-    then Today / each week / All Weeks. Other sports keep their chips.
-  - **Scope:** `components/dashboard/PropCard.tsx` + new `GamePickerSheet` in
-    `components/dashboard/OddsCompareSheet.tsx` (same bottom sheet as the line
-    picker). Filtering logic unchanged. Risk: UI only.
+- **[2026-10-29] CODED: NFL props game menu (build 44).**
+  - **What the reviewer sees:** on the NFL Player Props board, the row of game
+    chips is one quiet line: "Week 8 · All Games ⌃⌄" with a search icon on
+    the right. Tapping the line opens Apple's native pop-up menu: All Week N
+    Games (checked, the default) and Today, then each game this week with its
+    kickoff time, then "Later" weeks and All Weeks. The big "WEEK 8" title
+    above the table is gone (the menu line already says it). Other sports
+    unchanged for now; carries over to all sports if Brian likes it.
+  - **Scope:** new native dependency `@react-native-menu/menu` 2.0.0 (needs
+    `pod install`), new `components/dashboard/GameMenuLine.tsx`,
+    `components/dashboard/PropCard.tsx`. Build 43 had a bottom-sheet version
+    of this; it was never uploaded.
+  - **Risk:** new native dependency; UI only otherwise.
 
 - **[2026-10-29] CODED: three NBA cheat sheets (web live).**
   - **What the reviewer sees:** three new NBA tiles in Tools → Cheat Sheets:

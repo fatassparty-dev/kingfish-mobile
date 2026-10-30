@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { GamePickerSheet, LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
+import { GameMenuLine } from '@/components/dashboard/GameMenuLine'
+import { LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
 import { kingfishFetch } from '@/lib/api'
@@ -648,7 +649,6 @@ export function PropsList({
   const [linePicks, setLinePicks] = useState<Record<string, number>>({})
   const [compare, setCompare] = useState<OddsCompareData | null>(null)
   const [picker, setPicker] = useState<LinePickerData | null>(null)
-  const [gamePickerOpen, setGamePickerOpen] = useState(false)
   const selectedMarket = markets.includes(activeMarket) ? activeMarket : markets[0]
   const yesOnly = selectedMarket ? isYesOnlyMarket(selectedMarket) : false
   const activeSide: PropSide = side === 'under' && !yesOnly ? 'under' : 'over'
@@ -658,41 +658,56 @@ export function PropsList({
   const gameOptions = upcomingGames(games)
   const nflBoard = nflWindows(gameOptions, Date.now())
   const nflWindowKeys = new Set(nflBoard.options.map(option => option.key))
+  // NFL opens on all of this week's games (Brian, 2026-10-29), not Today.
+  const nflCurrentWeekKey = gameOptions[0] ? nflWeek(gameOptions[0].commence_time).key : null
+  const nflDefaultKey = nflCurrentWeekKey && nflWindowKeys.has(nflCurrentWeekKey) ? nflCurrentWeekKey : nflBoard.defaultKey
   const activeGameFilter = sport === 'NFL'
     ? selectedGame === 'auto'
-      ? nflBoard.defaultKey
+      ? nflDefaultKey
       : nflWindowKeys.has(selectedGame) || gameOptions.some(game => String(game.game_id || game.id) === selectedGame)
         ? selectedGame
-        : nflBoard.defaultKey
+        : nflDefaultKey
     : selectedGame === 'all' || gameOptions.some(game => String(game.game_id || game.id) === selectedGame)
       ? selectedGame
       : 'all'
-  // NFL game dropdown (Brian, 2026-10-29): this week's games first, then the
-  // week windows (Today, Week N, All Weeks) after the game list.
+  // NFL game menu (Brian, 2026-10-29): all of this week's games first, then
+  // each game, then later weeks. One quiet line, not a chip row.
   const nflGameLabel = (game: Game) => `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`
-  const nflCurrentWeekKey = gameOptions[0] ? nflWeek(gameOptions[0].commence_time).key : null
-  const nflPickerSections = sport === 'NFL' ? [
+  const gameCount = (n: number) => `${n} ${n === 1 ? 'game' : 'games'}`
+  const nflCurrentWeek = nflBoard.options.find(option => option.key === nflCurrentWeekKey)
+  const nflToday = nflBoard.options.find(option => option.key === 'today')
+  const nflMenuSections = sport === 'NFL' ? [
     {
-      title: 'This Week\'s Games',
-      options: gameOptions
-        .filter(game => nflWeek(game.commence_time).key === nflCurrentWeekKey)
-        .map(game => ({
-          key: String(game.game_id || game.id),
-          label: nflGameLabel(game),
-          detail: new Date(game.commence_time).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) + ' CT',
-        })),
+      options: [
+        ...(nflCurrentWeek ? [{ key: nflCurrentWeek.key, label: `All ${nflCurrentWeek.label} Games`, detail: gameCount(nflCurrentWeek.games.length) }] : []),
+        ...(nflToday && nflToday.games.length ? [{ key: 'today', label: 'Today', detail: gameCount(nflToday.games.length) }] : []),
+      ],
     },
     {
-      title: 'Weeks',
-      options: nflBoard.options
-        .filter(option => option.key !== 'today' || option.games.length > 0)
-        .map(option => ({ key: option.key, label: option.key === 'all' ? 'All Weeks' : option.label, detail: `${option.games.length} ${option.games.length === 1 ? 'game' : 'games'}` })),
+      options: (nflCurrentWeek?.games || []).map(game => ({
+        key: String(game.game_id || game.id),
+        label: nflGameLabel(game as Game),
+        detail: new Date(game.commence_time).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) + ' CT',
+      })),
+    },
+    {
+      title: 'Later',
+      options: [
+        ...nflBoard.options
+          .filter(option => option.key !== 'today' && option.key !== 'all' && option.key !== nflCurrentWeekKey)
+          .map(option => ({ key: option.key, label: option.label, detail: gameCount(option.games.length) })),
+        { key: 'all', label: 'All Weeks', detail: gameCount(gameOptions.length) },
+      ],
     },
   ] : []
   const activeNflGame = gameOptions.find(game => String(game.game_id || game.id) === activeGameFilter)
-  const nflSelectionLabel = activeNflGame
-    ? nflGameLabel(activeNflGame)
-    : activeGameFilter === 'all' ? 'All Weeks' : nflBoard.options.find(option => option.key === activeGameFilter)?.label || 'Games'
+  const nflMenuLabel = activeNflGame
+    ? `${nflWeek(activeNflGame.commence_time).label} · ${nflGameLabel(activeNflGame)}`
+    : activeGameFilter === 'all'
+      ? 'All Weeks'
+      : activeGameFilter === 'today'
+        ? 'Today · All Games'
+        : `${nflBoard.options.find(option => option.key === activeGameFilter)?.label || 'This Week'} · All Games`
   const filteredGames = activeGameFilter === 'all'
     ? games
     : sport === 'NFL' && nflWindowKeys.has(activeGameFilter)
@@ -832,48 +847,45 @@ export function PropsList({
             </Pressable>
           </View>
         )}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
-          <Pressable
-            onPress={() => setSearchOpen(true)}
-            style={[styles.gameFilterButton, searchOpen && styles.gameFilterButtonActive]}
-          >
-            <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
-          </Pressable>
-          {sport === 'NFL' ? (
+        {sport === 'NFL' ? (
+          <GameMenuLine
+            label={nflMenuLabel}
+            sections={nflMenuSections}
+            selected={activeGameFilter}
+            onPick={setSelectedGame}
+            searchActive={searchOpen || Boolean(search)}
+            onSearch={() => setSearchOpen(true)}
+          />
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
             <Pressable
-              onPress={() => setGamePickerOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={`Games: ${nflSelectionLabel}. Choose games`}
-              style={[styles.gameFilterButton, styles.gameFilterButtonActive, styles.gameDropdown]}
+              onPress={() => setSearchOpen(true)}
+              style={[styles.gameFilterButton, searchOpen && styles.gameFilterButtonActive]}
             >
-              <AppText style={[styles.gameFilterText, styles.gameFilterTextActive]}>{nflSelectionLabel}</AppText>
-              <AppText style={[styles.gameFilterText, styles.gameFilterTextActive]}>▾</AppText>
+              <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
             </Pressable>
-          ) : (
-            <>
-              <Pressable
-                onPress={() => setSelectedGame('all')}
-                style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
-              >
-                <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
-              </Pressable>
-              {gameOptions.map((game) => {
-                const id = String(game.game_id || game.id)
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => setSelectedGame(id)}
-                    style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
-                  >
-                    <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
-                      {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
-                    </AppText>
-                  </Pressable>
-                )
-              })}
-            </>
-          )}
-        </ScrollView>
+            <Pressable
+              onPress={() => setSelectedGame('all')}
+              style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
+            >
+              <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
+            </Pressable>
+            {gameOptions.map((game) => {
+              const id = String(game.game_id || game.id)
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => setSelectedGame(id)}
+                  style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
+                >
+                  <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
+                    {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
+                  </AppText>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {statsQuery.isLoading && !initialStats && (
@@ -899,12 +911,16 @@ export function PropsList({
       ) : null}
       {propsByGame.map(({ game, props: gameProps }) => (
         <View key={game ? game.game_id || game.id || `${game.away_team}-${game.home_team}` : 'all-games'} style={styles.gameBlock}>
-          <View style={styles.gameHeader}>
-            <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
-              {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : sport === 'NFL' ? nflBoard.options.find(option => option.key === activeGameFilter)?.label || 'All Games' : 'All Games'}
-            </AppText>
-            {game ? <AppText variant="mono">{fmtTime(game.commence_time)}</AppText> : null}
-          </View>
+          {/* NFL: the menu line already names the selection, so no big title
+              repeating it (one number/word per card). */}
+          {sport !== 'NFL' ? (
+            <View style={styles.gameHeader}>
+              <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
+                {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : 'All Games'}
+              </AppText>
+              {game ? <AppText variant="mono">{fmtTime(game.commence_time)}</AppText> : null}
+            </View>
+          ) : null}
           <View>
             <View style={landscapeTable && styles.landscapeTable}>
               <View style={styles.tableHeader}>
@@ -979,7 +995,6 @@ export function PropsList({
       />
       <OddsCompareSheet data={compare} onClose={() => setCompare(null)} />
       <LinePickerSheet data={picker} onClose={() => setPicker(null)} />
-      <GamePickerSheet visible={gamePickerOpen} sections={nflPickerSections} selected={activeGameFilter} onPick={setSelectedGame} onClose={() => setGamePickerOpen(false)} />
     </View>
   )
 }
@@ -1691,11 +1706,6 @@ const styles = StyleSheet.create({
   },
   gameFilterTextActive: {
     color: colors.bgPrimary,
-  },
-  gameDropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',

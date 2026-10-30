@@ -160,59 +160,7 @@ export function LinePickerSheet({ data, onClose }: { data: LinePickerData | null
   )
 }
 
-export type GamePickerSection = { title: string; options: Array<{ key: string; label: string; detail?: string }> }
-
-// The NFL props board's game dropdown: this week's games, then the week windows.
-export function GamePickerSheet({ visible, sections, selected, onPick, onClose }: {
-  visible: boolean
-  sections: GamePickerSection[]
-  selected: string
-  onPick: (key: string) => void
-  onClose: () => void
-}) {
-  return (
-    <BottomSheet visible={visible} title="Choose Games" subtitle="NFL player props" label="Game choices" onClose={onClose}>
-      {sections.filter((section) => section.options.length > 0).map((section) => (
-        <View key={section.title}>
-          <AppText variant="mono" style={styles.sectionTitle}>{section.title}</AppText>
-          {section.options.map((option) => {
-            const isSelected = option.key === selected
-            return (
-              <Pressable
-                key={option.key}
-                onPress={() => {
-                  onPick(option.key)
-                  onClose()
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                style={({ pressed }) => [styles.item, styles.pickItem, isSelected && styles.pickSelected, pressed && styles.chipPressed]}
-              >
-                <AppText style={[styles.pickLine, isSelected && styles.bestText]} numberOfLines={1}>{option.label}</AppText>
-                {option.detail ? <AppText variant="mono" style={[styles.pickDetail, isSelected && styles.bestText]}>{option.detail}</AppText> : null}
-              </Pressable>
-            )
-          })}
-        </View>
-      ))}
-    </BottomSheet>
-  )
-}
-
 const styles = StyleSheet.create({
-  sectionTitle: {
-    color: colors.gold,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-    paddingHorizontal: 4,
-  },
-  pickDetail: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
   chipText: {
     color: colors.gold,
     fontWeight: '900',
