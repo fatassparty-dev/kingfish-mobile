@@ -1,7 +1,15 @@
 # KingFish release status
 
-Last updated: October 29, 2026 (Central Time)
+Last updated: October 30, 2026 (Central Time)
 
+> **Oct 30 update:** iPhone **1.1.4 (45) SUBMITTED to App Review Oct 30.**
+> Done before submitting: age-rating questionnaire answered (18+ override,
+> all Capabilities No), App Privacy publishes tracking (Device ID + Product
+> Interaction, Developer's Advertising or Marketing, not linked, used for
+> tracking), privacy policy discloses the Meta SDK (kingfish-bets `eff1ad3`).
+> On approval: HQ `latest_version` ios → 1.1.4, then verify the install event
+> in Meta Events Manager.
+>
 > **Oct 29 update:** 1.1.3 is approved and live everywhere (iPhone b42 approved
 > Oct 19, Studio 1.1.3 (23) approved Oct 19, Android vc12 live Oct 15). **Next
 > iPhone release: 1.1.4 (45)**, exported Oct 29

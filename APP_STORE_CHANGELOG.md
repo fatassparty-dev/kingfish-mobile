@@ -22,7 +22,7 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.4 (45) — CODED, NOT YET BUILT (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
+## 🟡 1.1.4 (45) — SUBMITTED to App Review 2026-10-30 (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
 
 - **[2026-10-29] CODED: game menu line on every sport's props board (build 45).**
   - **What the reviewer sees:** MLB, NBA, NHL, WNBA, KBO, college and soccer
