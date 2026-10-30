@@ -24,7 +24,7 @@ data* it didn't know about before.
 
 ## 🟡 1.1.4 (45) — SUBMITTED to App Review 2026-10-30 (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
 
-- **[2026-10-30] Android 1.1.4 (vc 13): game menu flattened for Android.**
+- **[2026-10-30] Android 1.1.4 (vc 13), SUBMITTED to Play production 2026-10-30: game menu flattened for Android.**
   - **What the reviewer sees:** on Android the game menu is one list: All
     Games, then grey day headers (Today / Tomorrow / Later) with each game's
     start time on its line and a check on the selected one. Android's popup

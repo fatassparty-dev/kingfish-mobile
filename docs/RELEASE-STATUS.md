@@ -2,6 +2,12 @@
 
 Last updated: October 30, 2026 (Central Time)
 
+> **Oct 30 Android:** **1.1.4 (vc 13) SUBMITTED to Play production Oct 30**
+> (full rollout, source `5a953db`, AAB `builds/KingFishBets-android-1.1.4-vc13.aab`),
+> promoted from internal testing after Brian checked it in the Pixel_8 emulator.
+> Game menu flattened for Android; no Meta SDK on Android. Managed publishing
+> is off, so it goes live on approval; then HQ `latest_version` android → 1.1.4.
+>
 > **Oct 30 update:** iPhone **1.1.4 (45) SUBMITTED to App Review Oct 30.**
 > Done before submitting: age-rating questionnaire answered (18+ override,
 > all Capabilities No), App Privacy publishes tracking (Device ID + Product
