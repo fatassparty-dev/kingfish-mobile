@@ -1,6 +1,16 @@
 # KingFish release status
 
-Last updated: October 16, 2026 (Central Time)
+Last updated: October 29, 2026 (Central Time)
+
+> **Oct 29 update:** 1.1.3 is approved and live everywhere (iPhone b42 approved
+> Oct 19, Studio 1.1.3 (23) approved Oct 19, Android vc12 live Oct 15). **Next
+> iPhone release: 1.1.4 (45)**, exported Oct 29
+> (`builds/KingFishBets-1.1.4-b45-export/KingFishBets.ipa`, source `7835302`).
+> Contents: three NBA cheat sheets, Meta install SDK (ATT prompt), native game
+> menu line on every sport's props board. Build 43 was never uploaded; 44 was
+> a TestFlight check of the NFL menu (Brian approved). Before submitting:
+> App Store Connect App Privacy must declare tracking, and Meta's "Log in-app
+> events automatically" must be off. Android 1.1.4 not built yet.
 
 ## Browser and release handoffs
 
