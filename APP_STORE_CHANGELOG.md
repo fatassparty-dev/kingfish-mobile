@@ -24,6 +24,15 @@ data* it didn't know about before.
 
 ## 🟡 1.1.4 (45) — SUBMITTED to App Review 2026-10-30 (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
 
+- **[2026-10-30] Android 1.1.4 (vc 13): game menu flattened for Android.**
+  - **What the reviewer sees:** on Android the game menu is one list: All
+    Games, then grey day headers (Today / Tomorrow / Later) with each game's
+    start time on its line and a check on the selected one. Android's popup
+    can't show iOS's inline sections or detail lines, which would have made
+    untitled submenus. iPhone is unchanged (iOS build 45 doesn't have this
+    code and doesn't need it). Android has no Meta SDK.
+  - **Files:** `components/dashboard/GameMenuLine.tsx`, `app.json` (versionCode 13).
+
 - **[2026-10-29] CODED: game menu line on every sport's props board (build 45).**
   - **What the reviewer sees:** MLB, NBA, NHL, WNBA, KBO, college and soccer
     Player Props now use the same quiet "All Games ⌃⌄" line + search icon as

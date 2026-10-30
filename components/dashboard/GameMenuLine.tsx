@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { MenuView, type MenuAction } from '@react-native-menu/menu'
 import { AppText } from '@/components/Text'
@@ -65,9 +65,20 @@ export function GameMenuLine({ label, sections, selected, onPick, searchActive, 
   searchActive: boolean
   onSearch: () => void
 }) {
-  const actions: MenuAction[] = sections
-    .filter((section) => section.options.length > 0)
-    .map((section, index) => ({
+  const filled = sections.filter((section) => section.options.length > 0)
+  // Android's popup ignores displayInline and subtitle, so grouped sections
+  // would become submenus (the first one untitled). Flatten them there: a
+  // greyed, untappable header row per titled section, the time on the line.
+  const actions: MenuAction[] = Platform.OS === 'android'
+    ? filled.flatMap((section, index) => [
+      ...(section.title ? [{ id: `header-${index}`, title: section.title, attributes: { disabled: true } }] : []),
+      ...section.options.map((option) => ({
+        id: option.key,
+        title: option.detail ? `${option.label}  ·  ${option.detail}` : option.label,
+        state: option.key === selected ? 'on' as const : 'off' as const,
+      })),
+    ])
+    : filled.map((section, index) => ({
       id: `section-${index}`,
       title: section.title || '',
       displayInline: true,
