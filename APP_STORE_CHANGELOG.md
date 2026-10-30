@@ -22,7 +22,19 @@ data* it didn't know about before.
 
 ---
 
-## 🔵 1.1.4 (44) — CODED, NOT YET BUILT (build 43 exported 2026-10-29, superseded before upload by 44's NFL menu redesign)
+## 🔵 1.1.4 (45) — CODED, NOT YET BUILT (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
+
+- **[2026-10-29] CODED: game menu line on every sport's props board (build 45).**
+  - **What the reviewer sees:** MLB, NBA, NHL, WNBA, KBO, college and soccer
+    Player Props now use the same quiet "All Games ⌃⌄" line + search icon as
+    NFL instead of a row of game chips. The native menu lists All Games
+    (default), then each day's games under Today / Tomorrow / date headers
+    with start times (CT). The big game title over each table is gone on every
+    sport.
+  - **Scope:** `dailyGameMenu()` in `components/dashboard/GameMenuLine.tsx`,
+    `components/dashboard/PropCard.tsx` (all non-MLB sports),
+    `components/dashboard/MLBPropsTable.tsx`. No new dependency (the menu
+    library came in with 44). Risk: UI only.
 
 - **[2026-10-29] CODED: NFL props game menu (build 44).**
   - **What the reviewer sees:** on the NFL Player Props board, the row of game

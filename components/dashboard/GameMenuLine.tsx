@@ -6,14 +6,55 @@ import { colors, spacing } from '@/lib/theme'
 
 // The props board's game filter as one quiet line: "Week 8 · All Games ⌃⌄" on
 // the left (Apple's native pop-up menu on iOS, the standard popup on Android)
-// and a search icon on the right. Brian, 2026-10-29: the old gold pill read
-// as a selected chip, not a menu. Built for NFL first; meant to carry over to
-// every sport's board.
+// and a search icon on the right. Brian, 2026-10-29: the old gold chip row
+// read as toggles, not a menu. Every sport's props board uses it: NFL with its
+// week windows (PropCard), the daily sports via dailyGameMenu below.
 
 export type GameMenuSection = {
   // Shown as the section header on iOS; omit for an untitled group.
   title?: string
   options: Array<{ key: string; label: string; detail?: string }>
+}
+
+const centralDay = (value: string | number) => new Date(value).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+const matchup = (game: MenuGame) => `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}`
+type MenuGame = { away_team: string; home_team: string; commence_time: string }
+
+/**
+ * Menu for the daily sports (everything but NFL's week view): All Games first,
+ * then each day's games under a Today / Tomorrow / weekday header. `games`
+ * must already be upcoming and sorted by start time.
+ */
+export function dailyGameMenu<T extends MenuGame>(games: T[], selected: string, idOf: (game: T) => string, now = Date.now()) {
+  const today = centralDay(now)
+  const tomorrow = centralDay(now + 86400000)
+  const dayTitle = (day: string) => day === today
+    ? 'Today'
+    : day === tomorrow
+      ? 'Tomorrow'
+      : new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const days = new Map<string, T[]>()
+  for (const game of games) {
+    const day = centralDay(game.commence_time)
+    days.set(day, [...(days.get(day) || []), game])
+  }
+  const sections: GameMenuSection[] = [
+    { options: [{ key: 'all', label: 'All Games', detail: `${games.length} ${games.length === 1 ? 'game' : 'games'}` }] },
+    ...[...days.entries()].map(([day, dayGames]) => ({
+      title: dayTitle(day),
+      options: dayGames.map((game) => ({
+        key: idOf(game),
+        label: matchup(game),
+        detail: new Date(game.commence_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) + ' CT',
+      })),
+    })),
+  ]
+  const picked = games.find((game) => idOf(game) === selected)
+  // One day on the board: the day is implied, so the line names only the game.
+  const label = picked
+    ? days.size > 1 ? `${dayTitle(centralDay(picked.commence_time))} · ${matchup(picked)}` : matchup(picked)
+    : 'All Games'
+  return { label, sections }
 }
 
 export function GameMenuLine({ label, sections, selected, onPick, searchActive, onSearch }: {

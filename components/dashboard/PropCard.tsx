@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
-import { GameMenuLine } from '@/components/dashboard/GameMenuLine'
+import { dailyGameMenu, GameMenuLine } from '@/components/dashboard/GameMenuLine'
 import { LinePickerSheet, OddsCompareSheet, PriceChip, type LinePickerData, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
@@ -700,6 +700,7 @@ export function PropsList({
       ],
     },
   ] : []
+  const dailyMenu = dailyGameMenu(gameOptions, activeGameFilter, game => String(game.game_id || game.id))
   const activeNflGame = gameOptions.find(game => String(game.game_id || game.id) === activeGameFilter)
   const nflMenuLabel = activeNflGame
     ? `${nflWeek(activeNflGame.commence_time).label} · ${nflGameLabel(activeNflGame)}`
@@ -847,45 +848,14 @@ export function PropsList({
             </Pressable>
           </View>
         )}
-        {sport === 'NFL' ? (
-          <GameMenuLine
-            label={nflMenuLabel}
-            sections={nflMenuSections}
-            selected={activeGameFilter}
-            onPick={setSelectedGame}
-            searchActive={searchOpen || Boolean(search)}
-            onSearch={() => setSearchOpen(true)}
-          />
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
-            <Pressable
-              onPress={() => setSearchOpen(true)}
-              style={[styles.gameFilterButton, searchOpen && styles.gameFilterButtonActive]}
-            >
-              <AppText style={[styles.gameFilterText, searchOpen && styles.gameFilterTextActive]}>Search</AppText>
-            </Pressable>
-            <Pressable
-              onPress={() => setSelectedGame('all')}
-              style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
-            >
-              <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
-            </Pressable>
-            {gameOptions.map((game) => {
-              const id = String(game.game_id || game.id)
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => setSelectedGame(id)}
-                  style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
-                >
-                  <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
-                    {game.away_team.split(' ').pop()} @ {game.home_team.split(' ').pop()}
-                  </AppText>
-                </Pressable>
-              )
-            })}
-          </ScrollView>
-        )}
+        <GameMenuLine
+          label={sport === 'NFL' ? nflMenuLabel : dailyMenu.label}
+          sections={sport === 'NFL' ? nflMenuSections : dailyMenu.sections}
+          selected={activeGameFilter}
+          onPick={setSelectedGame}
+          searchActive={searchOpen || Boolean(search)}
+          onSearch={() => setSearchOpen(true)}
+        />
       </View>
 
       {statsQuery.isLoading && !initialStats && (
@@ -911,16 +881,8 @@ export function PropsList({
       ) : null}
       {propsByGame.map(({ game, props: gameProps }) => (
         <View key={game ? game.game_id || game.id || `${game.away_team}-${game.home_team}` : 'all-games'} style={styles.gameBlock}>
-          {/* NFL: the menu line already names the selection, so no big title
-              repeating it (one number/word per card). */}
-          {sport !== 'NFL' ? (
-            <View style={styles.gameHeader}>
-              <AppText style={[styles.gameTitle, compactTable && styles.gameTitleCompact]}>
-                {game ? `${game.away_team.split(' ').pop()} @ ${game.home_team.split(' ').pop()}` : 'All Games'}
-              </AppText>
-              {game ? <AppText variant="mono">{fmtTime(game.commence_time)}</AppText> : null}
-            </View>
-          ) : null}
+          {/* No big title over the table: the menu line already names the
+              selection (one number/word per card). */}
           <View>
             <View style={landscapeTable && styles.landscapeTable}>
               <View style={styles.tableHeader}>

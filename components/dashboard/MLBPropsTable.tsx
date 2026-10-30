@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/Card'
+import { dailyGameMenu, GameMenuLine } from '@/components/dashboard/GameMenuLine'
 import { OddsCompareSheet, PriceChip, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { PlayerProfileModal, type PlayerProfileMarketContext } from '@/components/dashboard/PlayerProfileModal'
 import { AppText } from '@/components/Text'
@@ -415,10 +416,6 @@ export function MLBPropsTable({ games, userState, sportsbookPreferences, boardSc
     : gameOptions.filter((game) => gameId(game) === activeGameFilter)
   // Book Preferences apply here exactly as they do on Game Props.
   const bookKeys = eligiblePropBookKeys(userState, sportsbookPreferences)
-  const selectedGameForHeader = activeGameFilter === 'all'
-    ? null
-    : gameOptions.find((game) => gameId(game) === activeGameFilter)
-
   function toggleSort(nextKey: SortKey) {
     if (preview) return
     if (sortKey === nextKey) {
@@ -551,9 +548,7 @@ export function MLBPropsTable({ games, userState, sportsbookPreferences, boardSc
     () => new Map(bvpMatchups.map((matchup) => [`${matchup.gameId}_${matchup.batterID}`, matchup])),
     [bvpMatchups],
   )
-  const selectedGameLabel = selectedGameForHeader
-    ? `${selectedGameForHeader.away_team.split(' ').pop()} @ ${selectedGameForHeader.home_team.split(' ').pop()}`
-    : 'All Games'
+  const gameMenu = dailyGameMenu(gameOptions, activeGameFilter, gameId)
   const builtRows = filteredGames.flatMap((game) => buildRows(game, marketKey, lineupMap, stats, search, bookKeys, bvpQuery.data?.bvp, bvpByGameBatter))
   // An Under row needs at least one book's Under at the standard line.
   const allRows = sortRows(underSide ? builtRows.filter((row) => row.underPrices.length > 0) : builtRows).slice(0, preview ? MOBILE_FREE_PREVIEW_ROWS : undefined)
@@ -579,36 +574,14 @@ export function MLBPropsTable({ games, userState, sportsbookPreferences, boardSc
         ))}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilterRow}>
-        <Pressable
-          onPress={() => setSearchOpen((open) => !open)}
-          style={[styles.gameFilterButton, (searchOpen || !!search) && styles.gameFilterButtonActive]}
-        >
-          <AppText style={[styles.gameFilterText, (searchOpen || !!search) && styles.gameFilterTextActive]}>Search</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => setSelectedGame('all')}
-          style={[styles.gameFilterButton, activeGameFilter === 'all' && styles.gameFilterButtonActive]}
-        >
-          <AppText style={[styles.gameFilterText, activeGameFilter === 'all' && styles.gameFilterTextActive]}>All Games</AppText>
-        </Pressable>
-        {gameOptions.map((game) => {
-          const id = gameId(game)
-          const awayShort = game.away_team.split(' ').pop()
-          const homeShort = game.home_team.split(' ').pop()
-          return (
-            <Pressable
-              key={id}
-              onPress={() => setSelectedGame(id)}
-              style={[styles.gameFilterButton, activeGameFilter === id && styles.gameFilterButtonActive]}
-            >
-              <AppText style={[styles.gameFilterText, activeGameFilter === id && styles.gameFilterTextActive]}>
-                {awayShort} @ {homeShort}
-              </AppText>
-            </Pressable>
-          )
-        })}
-      </ScrollView>
+      <GameMenuLine
+        label={gameMenu.label}
+        sections={gameMenu.sections}
+        selected={activeGameFilter}
+        onPick={setSelectedGame}
+        searchActive={searchOpen || !!search}
+        onSearch={() => setSearchOpen((open) => !open)}
+      />
       {searchOpen && (
         <View style={styles.searchRow}>
           <TextInput
@@ -633,10 +606,6 @@ export function MLBPropsTable({ games, userState, sportsbookPreferences, boardSc
 
       {allRows.length > 0 && (
         <View style={styles.gameBlock}>
-          <View style={styles.gameHeader}>
-            <AppText style={styles.gameTitle}>{selectedGameLabel}</AppText>
-            {selectedGameForHeader ? <AppText variant="mono">{fmtTime(selectedGameForHeader.commence_time)}</AppText> : null}
-          </View>
           <TableHeader sortKey={sortKey} onSort={toggleSort} landscape={landscapeTable} side={side} underEdge={underEdge} />
           {allRows.map((row, index) => (
             <PlayerPropRow
