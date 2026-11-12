@@ -22,6 +22,20 @@ data* it didn't know about before.
 
 ---
 
+## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
+
+- **[2026-11-12] CODED: NHL Hot Streaks cheat sheet (web live 2026-11-12).**
+  - **What the reviewer sees:** a new NHL tile, "Hot Streaks", in Tools →
+    Cheat Sheets (and an NHL chip in the sport filter). It lists players who
+    cleared today's points or assists line in 4+ of their last 5 games at
+    -175 or better: L5, L10, current run, season average, best price + book.
+    Premium, like the other sheets.
+  - **Why an app update:** the sheet list and renderers are hard-coded. Data
+    comes from `/api/nhl-hot-streaks` (built server-side); the app only renders it.
+  - **Files:** `components/NhlSheet.tsx` (new), `app/(tabs)/cheat-sheets.tsx`.
+
+---
+
 ## 🟡 1.1.4 (45) — SUBMITTED to App Review 2026-10-30 (43 never uploaded; 44 TestFlight-only, Brian approved its NFL menu 2026-10-29 → 45 carries it to every sport)
 
 - **[2026-10-30] Android 1.1.4 (vc 13), SUBMITTED to Play production 2026-10-30: game menu flattened for Android.**
