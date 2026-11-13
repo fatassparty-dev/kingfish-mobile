@@ -24,6 +24,19 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-13] CODED: KingFish spread leans on NFL + NCAAB Game Props (web parity).**
+  - **What the reviewer sees:** Dashboard → Game Props for NFL and men's
+    college basketball. Landscape: the Spread column is now "Spread / KF
+    Lean" and the leaned side is colored (gold = lean, green = strong), the
+    same as college football already was. Portrait: a one-line "Spread: BUF
+    -3.5" under the kickoff time when there's a lean. Premium-locked preview
+    rows show nothing.
+  - **Why an app update:** the leans were already on the payload
+    (`kingfishSpreadLean`, built server-side) but the app only drew them for
+    NCAAF. No math in the app: side, line and tier all come from the server;
+    a lean only lights up while the best line is still at or better than the
+    server's number (and priced -125 to +125).
+
 - **[2026-11-13] CODED: 6 more calculators (web parity: 12 of 12).**
   - **What the reviewer sees:** Tools → Calculators now has 12 tiles instead
     of 6. New: Odds Converter, Vig, CLV, Bet Size, Arbitrage and Bonus Bet

@@ -19,7 +19,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { CompareTap, OddsCompareSheet, type OddsCompareData } from '@/components/dashboard/OddsCompareSheet'
 import { AppText } from '@/components/Text'
 import { fmtOdds } from '@/lib/format'
-import { ncaafSpreadHighlight, type SpreadHighlightRead } from '@/lib/ncaafSpreadHighlight'
+import { ncaafSpreadHighlight, spreadLeanRead, type SpreadHighlightRead } from '@/lib/ncaafSpreadHighlight'
 import { gameLineCompare, type GameLinePick } from '@/lib/oddsCompare'
 import { shortBookName, supportedBookmakers, type SportsbookPreferences } from '@/lib/sportsbooks'
 import { colors, spacing } from '@/lib/theme'
@@ -124,7 +124,12 @@ function serverTotalLean(game: Game) {
   return (game as any).kingfishTotalLean as { label?: string; type?: string; detail?: string; proj?: number } | undefined
 }
 function serverSpreadLean(game: Game) {
-  return (game as any).kingfishSpreadLean as SpreadHighlightRead | null | undefined
+  return spreadLeanRead(game)
+}
+// Sports whose server payload carries a KingFish spread lean (web Game Props
+// "Spread / KF Lean"): the leaned side is colored inside the Spread column.
+function hasSpreadLean(sport: Sport) {
+  return sport === 'NFL' || sport === 'NCAAF' || sport === 'NCAAB'
 }
 
 // A true yellow for the Edge tier / lopsided-grade highlight — theme's
@@ -448,6 +453,7 @@ export function GamePropsTable({
 
   const matchupFlex = sport === 'NCAAF' && !compact ? 2.6 : compact ? 1.9 : 1.7
   const ncaafLandscape = sport === 'NCAAF' && !compact
+  const spreadFlex = ncaafLandscape ? 2.5 : hasSpreadLean(sport) ? 2.1 : 1.8
 
   const Header = ({ label, target, flex, align = 'center' }: { label: string; target?: SortKey; flex: number; align?: 'left' | 'center' }) => (
     <Pressable disabled={!target} onPress={() => target && toggleSort(target)} style={[styles.cell, { flex, alignItems: align === 'left' ? 'flex-start' : 'center' }]}>
@@ -471,7 +477,7 @@ export function GamePropsTable({
         {!compact && !ncaafLandscape && <Header label="Away" flex={1} />}
         {!compact && !ncaafLandscape && <Header label="Home" flex={1} />}
         {ncaafLandscape && <Header label="Moneyline" flex={2} />}
-        {!compact && <Header label={sport === 'NCAAF' ? 'Spread / KF Lean' : spreadLabel(sport)} flex={ncaafLandscape ? 2.5 : 1.8} />}
+        {!compact && <Header label={hasSpreadLean(sport) ? 'Spread / KF Lean' : spreadLabel(sport)} flex={spreadFlex} />}
         {sport !== 'NCAAF' && <Header label="O/U" target="total" flex={0.8} />}
         <Header label={sport === 'NCAAF' ? 'KF PROJ' : 'Total'} flex={compact ? 1 : 0.9} />
         {!compact && <Header label="Over" flex={1} />}
@@ -497,6 +503,20 @@ export function GamePropsTable({
             : leanSideDisplay(lean)
         const pick = picks(game, sport)
         const cellCompare = { title: `${game.away_team} @ ${game.home_team}`, onCompare: compareFor(game) }
+        // Phone portrait has no Spread column, so a qualifying spread lean
+        // shows as one line under the kickoff time (side + the best line it
+        // holds at — the only spread number on the compact row).
+        const compactSpread = compact && hasSpreadLean(sport) && !modelLocked
+          ? (() => {
+              const awayTier = ncaafSpreadHighlight(spreadLean, 'away', mk.bestAwaySpread)
+              const homeTier = ncaafSpreadHighlight(spreadLean, 'home', mk.bestHomeSpread)
+              const tier = awayTier || homeTier
+              if (!tier) return null
+              const team = awayTier ? game.away_team : game.home_team
+              const line = awayTier ? mk.bestAwaySpread : mk.bestHomeSpread
+              return { text: `Spread: ${shortName(team).slice(0, 3).toUpperCase()} ${fmtPoint(line?.point)}`, color: tier === 'Strong' ? colors.green : colors.gold }
+            })()
+          : null
         return (
           <Pressable
             key={(game as any).id || (game as any).game_id || `${game.away_team}-${game.home_team}`}
@@ -516,6 +536,7 @@ export function GamePropsTable({
                 {rankLabel(game.awayRank)}{sport === 'NCAAF' ? game.awayProgram || game.away_team : shortName(game.away_team)} @{'\n'}{rankLabel(game.homeRank)}{sport === 'NCAAF' ? game.homeProgram || game.home_team : shortName(game.home_team)}
               </AppText>
               {compact && <AppText variant="mono" style={styles.subText}>{fmtTimeCT(game.commence_time)} CT</AppText>}
+              {compactSpread && <AppText variant="mono" style={[styles.subText, { color: compactSpread.color, fontWeight: '800' }]} numberOfLines={1}>{compactSpread.text}</AppText>}
             </View>
             {!compact && (
               <View style={[styles.cell, { flex: 0.9 }]}>
@@ -564,8 +585,8 @@ export function GamePropsTable({
                 awayPick={pick.awaySpread}
                 homePick={pick.homeSpread}
                 {...cellCompare}
-                read={sport === 'NCAAF' && !modelLocked ? spreadLean : null}
-                flex={ncaafLandscape ? 2.5 : 1.8}
+                read={hasSpreadLean(sport) && !modelLocked ? spreadLean : null}
+                flex={spreadFlex}
                 fullLabels={ncaafLandscape}
               />
             )}
