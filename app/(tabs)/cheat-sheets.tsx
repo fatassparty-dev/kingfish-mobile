@@ -49,7 +49,7 @@ type ToolTile = {
   sport: 'ALL' | 'MLB' | 'NBA' | 'NHL' | 'WNBA' | 'NFL' | 'NCAAF'
 }
 type ToolMode = 'sheets' | 'calculators' | 'more'
-type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge'
+type CalculatorKey = 'unit' | 'ev' | 'novig' | 'kelly' | 'parlay' | 'hedge' | 'convert' | 'vig' | 'clv' | 'betsize' | 'arb' | 'bonus'
 export type FactorSport = 'MLB' | 'NFL' | 'NCAAF'
 export type FactorView = 'board' | 'cheat'
 
@@ -367,13 +367,21 @@ const PRO_TOOL_TILES: Array<{ key: string; route: string; eyebrow: string; title
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
 
-const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string }> = [
+// Same math as the web /tools calculators (kingfish-bets app/tools/page.tsx).
+// Calculators only do arithmetic on numbers the member types in: no model.
+const CALCULATORS: Array<{ key: CalculatorKey; label: string; desc: string; note?: string }> = [
   { key: 'unit', label: 'Unit Plan', desc: 'Set unit size, stop-loss, and max exposure before betting.' },
   { key: 'ev', label: 'EV', desc: 'Check if your true probability beats the book price.' },
   { key: 'novig', label: 'No-Vig', desc: 'Find fair market probability after removing the hold.' },
   { key: 'kelly', label: 'Kelly', desc: 'Convert a verified edge into conservative stake sizes.' },
   { key: 'parlay', label: 'Parlay', desc: 'See combined payout before tying legs together.' },
   { key: 'hedge', label: 'Hedge', desc: 'Size the other side to lock or reduce risk.' },
+  { key: 'convert', label: 'Odds Converter', desc: 'Convert American, decimal, and fractional odds.', note: 'Type American (-110), decimal (1.91) or fractional (10/11) odds.' },
+  { key: 'vig', label: 'Vig', desc: 'See the book margin and fair price on both sides.', note: 'See how much the book is charging you and the fair chance of each side.' },
+  { key: 'clv', label: 'CLV', desc: 'Compare your bet price with the closing number.', note: 'Beating the close does not guarantee a win, but it is one of the cleanest signs your process is finding value.' },
+  { key: 'betsize', label: 'Bet Size', desc: 'Turn a bankroll and risk percentage into a stake.', note: 'Your exact bet size plus common flat betting benchmarks.' },
+  { key: 'arb', label: 'Arbitrage', desc: 'Calculate stakes and profit when covering both sides.', note: 'Bet both sides at two different books. An arb exists only when the two prices add up to less than 100% implied.' },
+  { key: 'bonus', label: 'Bonus Bet Hedge', desc: 'Find the opposite-side price needed to lock equal profit.', note: 'Works best on true two-outcome markets. Exact-margin bets and niche props usually do not have a clean opposite side.' },
 ]
 
 interface LineupPlayer {
@@ -1082,6 +1090,64 @@ function decimalToAmerican(decimal: number) {
 function impliedProbability(odds: number) {
   if (!Number.isFinite(odds) || odds === 0) return 0
   return odds > 0 ? 100 / (odds + 100) : Math.abs(odds) / (Math.abs(odds) + 100)
+}
+
+function fmtSignedMoney(value: number) {
+  return value < 0 ? `-${fmtMoney(Math.abs(value))}` : fmtMoney(value)
+}
+
+function decimalToFractional(decimal: number) {
+  const gcd = (a: number, b: number): number => b < 0.001 ? a : gcd(b, a % b)
+  const n = Math.round((decimal - 1) * 100)
+  const g = gcd(n, 100)
+  return `${n / g}/${100 / g}`
+}
+
+// Odds Converter input: "10/11" = fractional, 100 or more either way =
+// American, anything else above 1 = decimal. Returns decimal odds or null.
+function parseAnyOdds(value: string): number | null {
+  const text = value.trim()
+  if (!text) return null
+  if (text.includes('/')) {
+    const [num, den] = text.split('/').map((part) => Number.parseFloat(part))
+    if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0 || num <= 0) return null
+    return num / den + 1
+  }
+  const n = parseNumber(text)
+  if (!Number.isFinite(n)) return null
+  if (Math.abs(n) >= 100) return americanToDecimal(n)
+  return n > 1 ? n : null
+}
+
+// Bonus Bet Hedge Finder — same math as the web calcFreeBetConverter.
+function bonusHedgePlan(inputs: Record<string, string>) {
+  const amount = parseNumber(inputs.bonusAmount)
+  const freeOdds = parseNumber(inputs.bonusOdds)
+  const cash = parseNumber(inputs.bonusCash)
+  const hedgeOdds = parseNumber(inputs.bonusHedgeOdds)
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(freeOdds) || freeOdds === 0) return null
+  const freeProfit = amount * (americanToDecimal(freeOdds) - 1)
+  const cashStake = Number.isFinite(cash) && cash > 0 ? cash : null
+  const targetDecimal = cashStake !== null ? freeProfit / cashStake : null
+  const targetOk = targetDecimal !== null && targetDecimal > 1
+  const targetHedgeOdds = targetOk ? decimalToAmerican(targetDecimal as number) : null
+  const targetLockProfit = targetOk && cashStake !== null ? freeProfit - cashStake : null
+  let hedgeStake: number | null = null
+  let conversionPct: number | null = null
+  let bonusWins: number | null = null
+  let hedgeWins: number | null = null
+  let worst: number | null = null
+  if (Number.isFinite(hedgeOdds) && hedgeOdds !== 0) {
+    const hedgeDecimal = americanToDecimal(hedgeOdds)
+    hedgeStake = freeProfit / hedgeDecimal
+    conversionPct = ((freeProfit - hedgeStake) / amount) * 100
+    if (cashStake !== null) {
+      bonusWins = freeProfit - cashStake
+      hedgeWins = cashStake * (hedgeDecimal - 1)
+      worst = Math.min(bonusWins, hedgeWins)
+    }
+  }
+  return { freeProfit, cashStake, targetHedgeOdds, targetLockProfit, hedgeStake, conversionPct, bonusWins, hedgeWins, worst }
 }
 
 function parseNumber(value: string) {
@@ -2227,6 +2293,20 @@ export default function CheatSheetsScreen() {
     hedgeStake: '100',
     hedgeOdds: '+220',
     hedgeOppOdds: '-140',
+    convOdds: '-110',
+    vigA: '-110',
+    vigB: '-110',
+    clvBet: '-110',
+    clvClose: '-125',
+    betBankroll: '1000',
+    betPct: '2',
+    arbA: '+200',
+    arbB: '-180',
+    arbStake: '100',
+    bonusAmount: '100',
+    bonusOdds: '+400',
+    bonusCash: '25',
+    bonusHedgeOdds: '',
   })
   const activeKey = selectedKey || 'hits'
   const activeSheet = SHEETS.find((sheet) => sheet.key === activeKey) || SHEETS[0]
@@ -2575,6 +2655,112 @@ export default function CheatSheetsScreen() {
       ]
     }
 
+    if (calculatorKey === 'convert') {
+      const decimal = parseAnyOdds(calcInputs.convOdds)
+      if (decimal === null) return null
+      return [
+        { label: 'American', value: fmtOdds(decimalToAmerican(decimal)), tone: colors.gold },
+        { label: 'Decimal', value: decimal.toFixed(3) },
+        { label: 'Fractional', value: decimalToFractional(decimal) },
+        { label: 'Implied Prob', value: `${(100 / decimal).toFixed(1)}%` },
+      ]
+    }
+
+    if (calculatorKey === 'vig') {
+      const sideA = parseNumber(calcInputs.vigA)
+      const sideB = parseNumber(calcInputs.vigB)
+      if (!Number.isFinite(sideA) || sideA === 0 || !Number.isFinite(sideB) || sideB === 0) return null
+      const impA = impliedProbability(sideA)
+      const impB = impliedProbability(sideB)
+      const total = impA + impB
+      return [
+        { label: "Book's Vig", value: `${((total - 1) * 100).toFixed(2)}%`, tone: colors.red },
+        { label: 'Total Implied', value: `${(total * 100).toFixed(1)}%` },
+        { label: 'Fair Prob Side 1', value: `${(impA / total * 100).toFixed(1)}%` },
+        { label: 'Fair Prob Side 2', value: `${(impB / total * 100).toFixed(1)}%` },
+      ]
+    }
+
+    if (calculatorKey === 'clv') {
+      const bet = parseNumber(calcInputs.clvBet)
+      const close = parseNumber(calcInputs.clvClose)
+      if (!Number.isFinite(bet) || bet === 0 || !Number.isFinite(close) || close === 0) return null
+      const clvPct = (americanToDecimal(bet) / americanToDecimal(close) - 1) * 100
+      const betImplied = impliedProbability(bet) * 100
+      const closeImplied = impliedProbability(close) * 100
+      const move = closeImplied - betImplied
+      const tone = clvPct > 0 ? colors.green : colors.red
+      return [
+        { label: 'Result', value: clvPct > 0 ? 'Beat the Market' : 'Lost Market Value', tone },
+        { label: 'CLV', value: `${clvPct > 0 ? '+' : ''}${clvPct.toFixed(2)}%`, tone },
+        { label: 'Bet Implied', value: `${betImplied.toFixed(1)}%` },
+        { label: 'Close Implied', value: `${closeImplied.toFixed(1)}%` },
+        { label: 'Market Move', value: `${move > 0 ? '+' : ''}${move.toFixed(1)}%`, tone },
+      ]
+    }
+
+    if (calculatorKey === 'betsize') {
+      const bankroll = parseNumber(calcInputs.betBankroll)
+      const pct = parseNumber(calcInputs.betPct)
+      if (!Number.isFinite(bankroll) || bankroll <= 0 || !Number.isFinite(pct) || pct <= 0 || pct > 100) return null
+      return [
+        { label: `Your Bet (${pct}%)`, value: fmtMoney(bankroll * pct / 100), tone: colors.gold },
+        { label: '1% Flat (conservative)', value: fmtMoney(bankroll * 0.01) },
+        { label: '2% Flat (standard)', value: fmtMoney(bankroll * 0.02) },
+        { label: '5% Flat (aggressive)', value: fmtMoney(bankroll * 0.05) },
+      ]
+    }
+
+    if (calculatorKey === 'arb') {
+      const sideA = parseNumber(calcInputs.arbA)
+      const sideB = parseNumber(calcInputs.arbB)
+      const stake = parseNumber(calcInputs.arbStake) || 100
+      if (!Number.isFinite(sideA) || sideA === 0 || !Number.isFinite(sideB) || sideB === 0) return null
+      const decA = americanToDecimal(sideA)
+      const decB = americanToDecimal(sideB)
+      const total = 1 / decA + 1 / decB
+      const isArb = total < 1
+      const betA = stake * (1 / decA) / total
+      const betB = stake * (1 / decB) / total
+      const profit = betA * decA - stake
+      return [
+        { label: 'Arb Opportunity', value: isArb ? 'Yes' : 'No', tone: isArb ? colors.green : colors.red },
+        { label: 'Bet Book 1', value: fmtMoney(betA) },
+        { label: 'Bet Book 2', value: fmtMoney(betB) },
+        ...(isArb
+          ? [
+            { label: 'Guaranteed Profit', value: `+${fmtMoney(profit)}`, tone: colors.green },
+            { label: 'ROI', value: `+${(profit / stake * 100).toFixed(2)}%`, tone: colors.green },
+          ]
+          : [{ label: 'Total Implied', value: `${(total * 100).toFixed(1)}% (need under 100%)`, tone: colors.red }]),
+      ]
+    }
+
+    if (calculatorKey === 'bonus') {
+      const plan = bonusHedgePlan(calcInputs)
+      if (!plan) return null
+      const rows: Array<{ label: string; value: string; tone?: string }> = [
+        { label: 'Bonus Bet Profit', value: fmtMoney(plan.freeProfit), tone: colors.gold },
+        { label: 'Target Hedge Odds', value: plan.targetHedgeOdds !== null ? fmtOdds(plan.targetHedgeOdds) : 'Add cash', tone: colors.green },
+        { label: 'If Target Found', value: plan.targetLockProfit !== null ? fmtMoney(plan.targetLockProfit) : 'Add cash', tone: colors.gold },
+      ]
+      if (plan.hedgeStake !== null && plan.conversionPct !== null) {
+        rows.push(
+          { label: 'Clean Lock Hedge Stake', value: fmtMoney(plan.hedgeStake) },
+          { label: 'Conversion Rate', value: `${plan.conversionPct.toFixed(1)}%`, tone: colors.green },
+        )
+      }
+      if (plan.worst !== null && plan.bonusWins !== null && plan.hedgeWins !== null) {
+        const tone = (value: number) => value >= 0 ? colors.green : colors.red
+        rows.push(
+          { label: 'With Odds Found: Bonus Wins', value: fmtSignedMoney(plan.bonusWins), tone: tone(plan.bonusWins) },
+          { label: 'With Odds Found: Hedge Wins', value: fmtSignedMoney(plan.hedgeWins), tone: tone(plan.hedgeWins) },
+          { label: 'Worst Case', value: fmtSignedMoney(plan.worst), tone: tone(plan.worst) },
+        )
+      }
+      return rows
+    }
+
     const stake = parseNumber(calcInputs.hedgeStake)
     const originalOdds = parseNumber(calcInputs.hedgeOdds)
     const hedgeOdds = parseNumber(calcInputs.hedgeOppOdds)
@@ -2586,6 +2772,19 @@ export default function CheatSheetsScreen() {
       { label: 'Win Either Side', value: fmtMoney(originalReturn - stake - hedgeStake) },
       { label: 'Total Outlay', value: fmtMoney(stake + hedgeStake) },
     ]
+  }, [calcInputs, calculatorKey])
+
+  // Plain-English line under the result (web: the tool's sub-copy, and the
+  // Bonus Bet Hedge Finder's "Plain English" sentence).
+  const calculatorNote = useMemo(() => {
+    const base = CALCULATORS.find((item) => item.key === calculatorKey)?.note
+    if (calculatorKey !== 'bonus') return base
+    const plan = bonusHedgePlan(calcInputs)
+    if (!plan || plan.cashStake === null) return base
+    const plain = plan.targetHedgeOdds !== null && plan.targetLockProfit !== null
+      ? `Place the bonus bet, then hedge ${fmtMoney(plan.cashStake)} cash on the true opposite side if you can get about ${fmtOdds(plan.targetHedgeOdds)} or better. That locks about ${fmtMoney(plan.targetLockProfit)} either way.`
+      : 'Your cash hedge is too large to lock a profit on this bonus bet. Try a smaller cash amount.'
+    return `${plain} ${base}`
   }, [calcInputs, calculatorKey])
 
   const premiumToolsCard = (
@@ -2643,6 +2842,44 @@ export default function CheatSheetsScreen() {
           <ToolInput label="Hedge Odds" value={calcInputs.hedgeOppOdds} onChangeText={(value) => updateCalc('hedgeOppOdds', value)} />
         </View>
       )}
+      {calculatorKey === 'convert' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Odds" value={calcInputs.convOdds} onChangeText={(value) => updateCalc('convOdds', value)} wide />
+        </View>
+      )}
+      {calculatorKey === 'vig' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Side 1 Odds" value={calcInputs.vigA} onChangeText={(value) => updateCalc('vigA', value)} />
+          <ToolInput label="Side 2 Odds" value={calcInputs.vigB} onChangeText={(value) => updateCalc('vigB', value)} />
+        </View>
+      )}
+      {calculatorKey === 'clv' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="My Bet Odds" value={calcInputs.clvBet} onChangeText={(value) => updateCalc('clvBet', value)} />
+          <ToolInput label="Closing Odds" value={calcInputs.clvClose} onChangeText={(value) => updateCalc('clvClose', value)} />
+        </View>
+      )}
+      {calculatorKey === 'betsize' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Bankroll" value={calcInputs.betBankroll} onChangeText={(value) => updateCalc('betBankroll', value)} />
+          <ToolInput label="Risk %" value={calcInputs.betPct} onChangeText={(value) => updateCalc('betPct', value)} />
+        </View>
+      )}
+      {calculatorKey === 'arb' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Book 1 Odds" value={calcInputs.arbA} onChangeText={(value) => updateCalc('arbA', value)} />
+          <ToolInput label="Book 2 Odds" value={calcInputs.arbB} onChangeText={(value) => updateCalc('arbB', value)} />
+          <ToolInput label="Total Stake" value={calcInputs.arbStake} onChangeText={(value) => updateCalc('arbStake', value)} />
+        </View>
+      )}
+      {calculatorKey === 'bonus' && (
+        <View style={styles.inputGrid}>
+          <ToolInput label="Bonus Bet $" value={calcInputs.bonusAmount} onChangeText={(value) => updateCalc('bonusAmount', value)} />
+          <ToolInput label="Bonus Bet Odds" value={calcInputs.bonusOdds} onChangeText={(value) => updateCalc('bonusOdds', value)} />
+          <ToolInput label="Cash Hedge $" value={calcInputs.bonusCash} onChangeText={(value) => updateCalc('bonusCash', value)} />
+          <ToolInput label="Odds Found (optional)" value={calcInputs.bonusHedgeOdds} onChangeText={(value) => updateCalc('bonusHedgeOdds', value)} />
+        </View>
+      )}
       <View style={styles.resultBox}>
         {calculatorResult ? calculatorResult.map((item) => (
           <View key={item.label} style={styles.resultRow}>
@@ -2653,6 +2890,7 @@ export default function CheatSheetsScreen() {
           <AppText variant="muted">Enter values to see the result.</AppText>
         )}
       </View>
+      {calculatorNote ? <AppText variant="muted" style={styles.cardCopy}>{calculatorNote}</AppText> : null}
     </Card>
   )
 
@@ -2714,7 +2952,7 @@ export default function CheatSheetsScreen() {
       ) : toolMode === 'calculators' ? (
         <>
           <View style={styles.calculatorRows}>
-            {[0, 2, 4].map((start) => {
+            {CALCULATORS.map((_, index) => index).filter((index) => index % 2 === 0).map((start) => {
               const row = CALCULATORS.slice(start, start + 2)
               return (
                 <Fragment key={start}>

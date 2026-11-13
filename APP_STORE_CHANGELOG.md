@@ -24,6 +24,18 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-13] CODED: 6 more calculators (web parity: 12 of 12).**
+  - **What the reviewer sees:** Tools → Calculators now has 12 tiles instead
+    of 6. New: Odds Converter, Vig, CLV, Bet Size, Arbitrage and Bonus Bet
+    Hedge, each opening the same inline card as the existing calculators.
+    Free for everyone, like the other calculators.
+  - **Why an app update:** new client UI. The math is plain arithmetic on
+    numbers the member types in (same formulas as the web /tools page), not
+    a KingFish model number, so it's fine in the app.
+  - **Check on device:** tiles pair up 2 per row (6 rows); Bonus Bet Hedge
+    with $100 at +100 and $25 cash shows Target Hedge Odds +300 and $75 locked;
+    Odds Converter accepts -110, 1.91 and 10/11.
+
 - **[2026-11-13] CODED: +EV Finder Pro Tool (web live 2026-11-11).**
   - **What the reviewer sees:** a new "+EV Finder" tile in Tools → Pro Tools.
     It lists NFL/NBA/NHL player props where one of the member's sportsbooks
