@@ -24,6 +24,19 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-13] CODED: women's college basketball (NCAAW) dashboard.**
+  - **What the reviewer sees:** a new "NCAAW" sport in the dashboard (and
+    "Women's College Basketball" in sport preferences). Same three tabs as
+    men's college basketball: Game Props (lines, best prices, KingFish lean),
+    Matchups (same card as the men's), and League View (AP Top 25 with
+    movement + conference standings). On/off is server-controlled by the
+    existing web flags `dashboard_tab_ncaaw` / `dashboard_ncaaw`.
+  - **Why an app update:** the dashboard's sport list and the League View are
+    hard-coded. Data comes from `/api/ncaaw-odds`, `/api/ncaaw-matchups`,
+    `/api/ncaaw-league` (all live on web); the app only renders it.
+  - **Files:** `components/dashboard/NcaawLeagueView.tsx` (new), `app/(tabs)/index.tsx`,
+    `types/index.ts`, `lib/sportPrefs.ts`, `lib/featureFlags.ts`, `lib/mobileConfig.ts`.
+
 - **[2026-11-12] CODED: NHL Hot Streaks cheat sheet (web live 2026-11-12).**
   - **What the reviewer sees:** a new NHL tile, "Hot Streaks", in Tools →
     Cheat Sheets (and an NHL chip in the sport filter). It lists players who

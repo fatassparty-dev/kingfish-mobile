@@ -97,7 +97,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
       body: 'We are updating live data. Please check back shortly.',
     },
   },
-  dashboard_sport_order: ['MLB', 'NFL', 'NBA', 'NHL', 'WNBA', 'KBO', 'NCAAB', 'NCAAF', 'Soccer'],
+  dashboard_sport_order: ['MLB', 'NFL', 'NBA', 'NHL', 'WNBA', 'KBO', 'NCAAB', 'NCAAW', 'NCAAF', 'Soccer'],
   home_tiles: [
     {
       key: 'top-leans',
@@ -162,6 +162,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     dashboard_tab_wnba: true,
     dashboard_tab_kbo: true,
     dashboard_tab_ncaab: true,
+    dashboard_tab_ncaaw: true,
     dashboard_tab_ncaaf: true,
     dashboard_tab_soccer: true,
     dashboard_mlb: true,
@@ -170,6 +171,7 @@ export const DEFAULT_MOBILE_CONFIG: MobileConfig = {
     dashboard_wnba: true,
     dashboard_kbo: true,
     dashboard_ncaab: false,
+    dashboard_ncaaw: false,
     dashboard_ncaaf: false,
     dashboard_soccer: false,
     mlb_tab_league: true,

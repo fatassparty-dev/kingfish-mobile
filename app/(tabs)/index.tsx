@@ -24,6 +24,7 @@ import { BOOK_DISPLAY_NAMES, displayBookName, PROP_BOOK_KEYS, supportedBookmaker
 import { colors, spacing } from '@/lib/theme'
 import type { Game, Sport, WeatherInfo } from '@/types'
 import { router } from 'expo-router'
+import { NcaawLeagueView, type NcaawLeague } from '@/components/dashboard/NcaawLeagueView'
 
 type SoccerTeamInfo = {
   team: string
@@ -491,6 +492,15 @@ const SPORTS: Array<{
     inactiveDescription: 'College basketball game lines and matchup context return when the season is active and sportsbooks have posted markets.',
   },
   {
+    key: 'NCAAW',
+    flag: 'dashboard_ncaaw',
+    visibilityFlag: 'dashboard_tab_ncaaw',
+    status: 'Markets',
+    description: "Women's college basketball lines, matchups, and the AP Top 25.",
+    inactiveTitle: "Women's College Basketball Not In Season",
+    inactiveDescription: "Women's college basketball game lines and matchup context return when the season is active and sportsbooks have posted markets.",
+  },
+  {
     key: 'NCAAF',
     flag: 'dashboard_ncaaf',
     visibilityFlag: 'dashboard_tab_ncaaf',
@@ -518,7 +528,7 @@ function orderedDashboardSports(order: string[] = []) {
 }
 
 function isCollegeSport(sport: Sport) {
-  return sport === 'NCAAB' || sport === 'NCAAF'
+  return sport === 'NCAAB' || sport === 'NCAAW' || sport === 'NCAAF'
 }
 
 function hasLiveProps(sport: Sport) {
@@ -1378,7 +1388,7 @@ export default function DashboardScreen() {
       ? ['props', 'lines', 'matchups', 'league']
     : sportKey === 'NCAAF'
         ? ['lines', 'matchups', 'league']
-    : sportKey === 'NCAAB'
+    : sportKey === 'NCAAB' || sportKey === 'NCAAW'
         ? ['lines', 'matchups', 'league']
       : sportKey === 'MLB' || sportKey === 'NBA' || sportKey === 'NHL' || sportKey === 'WNBA'
         ? ['props', 'lines', 'matchups', 'league']
@@ -1537,6 +1547,20 @@ export default function DashboardScreen() {
     enabled: canFetchMatchups && sport === 'NCAAB',
     staleTime: 10 * 60 * 1000,
   })
+  // Women's college basketball: same matchup card as the men's (built
+  // server-side), plus the AP Top 25 and conference standings for League View.
+  const ncaawMatchupsQuery = useQuery({
+    queryKey: ['ncaaw-mobile-matchups'],
+    queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/ncaaw-matchups'),
+    enabled: canFetchMatchups && sport === 'NCAAW',
+    staleTime: 10 * 60 * 1000,
+  })
+  const ncaawLeagueQuery = useQuery({
+    queryKey: ['ncaaw-mobile-league'],
+    queryFn: () => kingfishFetch<NcaawLeague>('/api/ncaaw-league'),
+    enabled: isSelectedSportActive && sport === 'NCAAW' && view === 'league',
+    staleTime: 60 * 60 * 1000,
+  })
   const nflMatchupsQuery = useQuery({
     queryKey: ['nfl-mobile-matchups'],
     queryFn: () => kingfishFetch<NCAAFMatchup[]>('/api/nfl-matchups'),
@@ -1692,6 +1716,10 @@ export default function DashboardScreen() {
     return ncaabTeamForName(game.away_team)?.conference === ncaabConference || ncaabTeamForName(game.home_team)?.conference === ncaabConference
   })
   const ncaabMatchupGroups = groupGamesByDate(filteredNcaabMatchups)
+  const hoopsMatchupsQuery = sport === 'NCAAW' ? ncaawMatchupsQuery : ncaabMatchupsQuery
+  const hoopsMatchups = sport === 'NCAAW' ? ncaawMatchupsQuery.data || [] : filteredNcaabMatchups
+  const hoopsMatchupGroups = sport === 'NCAAW' ? groupGamesByDate(hoopsMatchups) : ncaabMatchupGroups
+  const hoopsLabel = sport === 'NCAAW' ? 'NCAAW' : 'NCAAB'
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
   const bundledPlayerStats = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.playerStats
   const propsBoardScores = Array.isArray(propsQuery.data) ? undefined : propsQuery.data?.boardScores
@@ -2536,6 +2564,17 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {isSelectedSportActive && sport === 'NCAAW' && view === 'league' && (
+        <View style={styles.liveSection}>
+          <NcaawLeagueView
+            data={ncaawLeagueQuery.data}
+            isLoading={ncaawLeagueQuery.isLoading}
+            isError={ncaawLeagueQuery.isError}
+            onRetry={() => { void ncaawLeagueQuery.refetch() }}
+          />
+        </View>
+      )}
+
       {isSelectedSportActive && sport === 'NCAAB' && view === 'league' && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
@@ -3004,27 +3043,27 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {canFetchMatchups && sport === 'NCAAB' && (
+      {canFetchMatchups && (sport === 'NCAAB' || sport === 'NCAAW') && (
         <View style={styles.liveSection}>
           <View style={styles.dataNote}>
-            <AppText variant="mono">Latest NCAAB matchup context</AppText>
+            <AppText variant="mono">Latest {hoopsLabel} matchup context</AppText>
           </View>
 
-          {ncaabMatchupsQuery.isLoading && (
+          {hoopsMatchupsQuery.isLoading && (
             <View style={styles.centerState}>
               <ActivityIndicator color={colors.gold} />
-              <AppText variant="muted" style={styles.stateText}>Loading NCAAB matchups...</AppText>
+              <AppText variant="muted" style={styles.stateText}>Loading {hoopsLabel} matchups...</AppText>
             </View>
           )}
 
-          {ncaabMatchupsQuery.isError && (
+          {hoopsMatchupsQuery.isError && (
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
-              <AppText variant="muted" style={styles.stateText}>Could not load NCAAB matchups.</AppText>
+              <AppText variant="muted" style={styles.stateText}>Could not load {hoopsLabel} matchups.</AppText>
             </Card>
           )}
 
-          {!ncaabMatchupsQuery.isLoading && !ncaabMatchupsQuery.isError && filteredNcaabMatchups.length === 0 && (
+          {!hoopsMatchupsQuery.isLoading && !hoopsMatchupsQuery.isError && hoopsMatchups.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
               <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
@@ -3032,7 +3071,7 @@ export default function DashboardScreen() {
             </Card>
           )}
 
-          {ncaabMatchupGroups.map((group) => (
+          {hoopsMatchupGroups.map((group) => (
             <View key={group.date} style={styles.dateGroup}>
               <DateDivider label={group.date} />
               {group.games.map((game) => (

@@ -49,6 +49,7 @@ export const SPORT_OPTIONS: Array<{ key: Sport; label: string; visibilityFlag: s
   { key: 'WNBA', label: 'WNBA', visibilityFlag: 'dashboard_tab_wnba' },
   { key: 'KBO', label: 'KBO', visibilityFlag: 'dashboard_tab_kbo' },
   { key: 'NCAAB', label: 'College Basketball', visibilityFlag: 'dashboard_tab_ncaab' },
+  { key: 'NCAAW', label: "Women's College Basketball", visibilityFlag: 'dashboard_tab_ncaaw' },
   { key: 'NCAAF', label: 'College Football', visibilityFlag: 'dashboard_tab_ncaaf' },
   { key: 'SOCCER', label: 'Soccer', visibilityFlag: 'dashboard_tab_soccer' },
 ]

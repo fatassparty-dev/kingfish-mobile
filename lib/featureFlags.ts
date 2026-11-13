@@ -7,6 +7,7 @@ export type FeatureFlagKey =
   | 'dashboard_wnba'
   | 'dashboard_kbo'
   | 'dashboard_ncaab'
+  | 'dashboard_ncaaw'
   | 'dashboard_ncaaf'
   | 'dashboard_soccer'
   | 'fantasy_hub'
@@ -25,6 +26,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   dashboard_wnba: true,
   dashboard_kbo: true,
   dashboard_ncaab: false,
+  dashboard_ncaaw: false,
   dashboard_ncaaf: false,
   dashboard_soccer: false,
   fantasy_hub: true,
