@@ -34,6 +34,13 @@ data* it didn't know about before.
   - **Why an app update:** the dashboard's sport list and the League View are
     hard-coded. Data comes from `/api/ncaaw-odds`, `/api/ncaaw-matchups`,
     `/api/ncaaw-league` (all live on web); the app only renders it.
+  - **Filters (added 2026-11-13):** the same Show (Top 25 / All Teams) and
+    Conference dropdowns as men's college basketball. Matchups filter on the
+    women's AP rank and each team's conference (sent by `/api/ncaaw-matchups`).
+    League View: Top 25 = the AP poll (narrowed to the conference), All Teams
+    = conference standings (one conference, or all of them). When a filter
+    hides every game, Matchups now says "No Games Match" (men's too) instead of
+    "No Matchups Yet".
   - **Files:** `components/dashboard/NcaawLeagueView.tsx` (new), `app/(tabs)/index.tsx`,
     `types/index.ts`, `lib/sportPrefs.ts`, `lib/featureFlags.ts`, `lib/mobileConfig.ts`.
 

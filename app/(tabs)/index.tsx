@@ -1356,6 +1356,10 @@ export default function DashboardScreen() {
   const [collegeConference, setCollegeConference] = useState('All')
   const [collegeConferenceOpen, setCollegeConferenceOpen] = useState(false)
   const [ncaabScope, setNcaabScope] = useState<'top25' | 'all'>('top25')
+  // Women's filters work like the men's (Top 25 first); League View reads
+  // Top 25 as the AP poll and All Teams as conference standings.
+  const [ncaawScope, setNcaawScope] = useState<'top25' | 'all'>('top25')
+  const [ncaawConference, setNcaawConference] = useState('All')
   const [ncaabScopeOpen, setNcaabScopeOpen] = useState(false)
   const [ncaabConference, setNcaabConference] = useState('All')
   const [ncaabConferenceOpen, setNcaabConferenceOpen] = useState(false)
@@ -1558,7 +1562,7 @@ export default function DashboardScreen() {
   const ncaawLeagueQuery = useQuery({
     queryKey: ['ncaaw-mobile-league'],
     queryFn: () => kingfishFetch<NcaawLeague>('/api/ncaaw-league'),
-    enabled: isSelectedSportActive && sport === 'NCAAW' && view === 'league',
+    enabled: isSelectedSportActive && sport === 'NCAAW' && (view === 'league' || view === 'matchups'),
     staleTime: 60 * 60 * 1000,
   })
   const nflMatchupsQuery = useQuery({
@@ -1717,7 +1721,17 @@ export default function DashboardScreen() {
   })
   const ncaabMatchupGroups = groupGamesByDate(filteredNcaabMatchups)
   const hoopsMatchupsQuery = sport === 'NCAAW' ? ncaawMatchupsQuery : ncaabMatchupsQuery
-  const hoopsMatchups = sport === 'NCAAW' ? ncaawMatchupsQuery.data || [] : filteredNcaabMatchups
+  const filteredNcaawMatchups = (ncaawMatchupsQuery.data || []).filter((game) => {
+    if (ncaawScope === 'top25' && (game.awayRank || 999) > 25 && (game.homeRank || 999) > 25) return false
+    if (ncaawConference !== 'All' && game.awayConference !== ncaawConference && game.homeConference !== ncaawConference) return false
+    return true
+  })
+  const hoopsMatchups = sport === 'NCAAW' ? filteredNcaawMatchups : filteredNcaabMatchups
+  const hoopsScope = sport === 'NCAAW' ? ncaawScope : ncaabScope
+  const setHoopsScope = sport === 'NCAAW' ? setNcaawScope : setNcaabScope
+  const hoopsConference = sport === 'NCAAW' ? ncaawConference : ncaabConference
+  const setHoopsConference = sport === 'NCAAW' ? setNcaawConference : setNcaabConference
+  const hoopsConferences = sport === 'NCAAW' ? ['All', ...(ncaawLeagueQuery.data?.conferences || []).map((group) => group.name)] : ncaabConferences
   const hoopsMatchupGroups = sport === 'NCAAW' ? groupGamesByDate(hoopsMatchups) : ncaabMatchupGroups
   const hoopsLabel = sport === 'NCAAW' ? 'NCAAW' : 'NCAAB'
   const propsGames = Array.isArray(propsQuery.data) ? propsQuery.data : propsQuery.data?.props || []
@@ -1847,14 +1861,14 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {sport === 'NCAAB' && (
+      {(sport === 'NCAAB' || sport === 'NCAAW') && (
         <View style={styles.collegeFilterWrap}>
           <Pressable
             onPress={() => setNcaabScopeOpen((open) => !open)}
             style={styles.collegeSelect}
           >
             <AppText variant="mono">Show</AppText>
-            <AppText style={styles.collegeSelectValue}>{ncaabScope === 'top25' ? 'Top 25' : 'All Teams'}</AppText>
+            <AppText style={styles.collegeSelectValue}>{hoopsScope === 'top25' ? 'Top 25' : 'All Teams'}</AppText>
           </Pressable>
           {ncaabScopeOpen && (
             <View style={styles.collegeSelectMenu}>
@@ -1862,12 +1876,12 @@ export default function DashboardScreen() {
                 <Pressable
                   key={item}
                   onPress={() => {
-                    setNcaabScope(item)
+                    setHoopsScope(item)
                     setNcaabScopeOpen(false)
                   }}
-                  style={[styles.collegeSelectOption, ncaabScope === item && styles.collegeSelectOptionActive]}
+                  style={[styles.collegeSelectOption, hoopsScope === item && styles.collegeSelectOptionActive]}
                 >
-                  <AppText style={[styles.collegeSelectOptionText, ncaabScope === item && styles.collegeSelectOptionTextActive]}>
+                  <AppText style={[styles.collegeSelectOptionText, hoopsScope === item && styles.collegeSelectOptionTextActive]}>
                     {item === 'top25' ? 'Top 25' : 'All Teams'}
                   </AppText>
                 </Pressable>
@@ -1879,20 +1893,20 @@ export default function DashboardScreen() {
             style={styles.collegeSelect}
           >
             <AppText variant="mono">Conference</AppText>
-            <AppText style={styles.collegeSelectValue}>{ncaabConference}</AppText>
+            <AppText style={styles.collegeSelectValue}>{hoopsConference}</AppText>
           </Pressable>
           {ncaabConferenceOpen && (
             <View style={styles.collegeSelectMenu}>
-              {ncaabConferences.map((item) => (
+              {hoopsConferences.map((item) => (
                 <Pressable
                   key={item}
                   onPress={() => {
-                    setNcaabConference(item)
+                    setHoopsConference(item)
                     setNcaabConferenceOpen(false)
                   }}
-                  style={[styles.collegeSelectOption, ncaabConference === item && styles.collegeSelectOptionActive]}
+                  style={[styles.collegeSelectOption, hoopsConference === item && styles.collegeSelectOptionActive]}
                 >
-                  <AppText style={[styles.collegeSelectOptionText, ncaabConference === item && styles.collegeSelectOptionTextActive]}>
+                  <AppText style={[styles.collegeSelectOptionText, hoopsConference === item && styles.collegeSelectOptionTextActive]}>
                     {item}
                   </AppText>
                 </Pressable>
@@ -2571,6 +2585,8 @@ export default function DashboardScreen() {
             isLoading={ncaawLeagueQuery.isLoading}
             isError={ncaawLeagueQuery.isError}
             onRetry={() => { void ncaawLeagueQuery.refetch() }}
+            scope={ncaawScope}
+            conference={ncaawConference}
           />
         </View>
       )}
@@ -3066,8 +3082,8 @@ export default function DashboardScreen() {
           {!hoopsMatchupsQuery.isLoading && !hoopsMatchupsQuery.isError && hoopsMatchups.length === 0 && (
             <Card>
               <AppText variant="eyebrow">// Game Matchups</AppText>
-              <AppText variant="title" style={styles.cardTitle}>No Matchups Yet</AppText>
-              <AppText variant="muted">Matchups appear when the next slate is active.</AppText>
+              <AppText variant="title" style={styles.cardTitle}>{hoopsMatchupsQuery.data?.length ? 'No Games Match' : 'No Matchups Yet'}</AppText>
+              <AppText variant="muted">{hoopsMatchupsQuery.data?.length ? 'Change Show or Conference above to see the other games.' : 'Matchups appear when the next slate is active.'}</AppText>
             </Card>
           )}
 
