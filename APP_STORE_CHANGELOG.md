@@ -24,6 +24,17 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-13] CODED: +EV Finder Pro Tool (web live 2026-11-11).**
+  - **What the reviewer sees:** a new "+EV Finder" tile in Tools → Pro Tools.
+    It lists NFL/NBA/NHL player props where one of the member's sportsbooks
+    pays more than the fair (no-vig) price the other books agree on: best
+    price + book, fair price, EV %, an All/NFL/NBA/NHL filter, price times, a
+    stale-price warning and a Refresh button. Premium (paywall otherwise).
+    A price comparison, not a pick; no betting happens in the app.
+  - **Why an app update:** new screen. Every number comes from `/api/ev-finder`
+    (computed server-side from the member's Book Preferences); the app only renders it.
+  - **Files:** `app/ev-finder.tsx` (new), `app/_layout.tsx`, `app/(tabs)/cheat-sheets.tsx`.
+
 - **[2026-11-13] CODED: women's college basketball (NCAAW) dashboard.**
   - **What the reviewer sees:** a new "NCAAW" sport in the dashboard (and
     "Women's College Basketball" in sport preferences). Same three tabs as

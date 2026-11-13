@@ -362,6 +362,7 @@ const PRO_TOOL_TILES: Array<{ key: string; route: string; eyebrow: string; title
   { key: 'teaser', route: '/nfl-teaser', eyebrow: '// NFL · Game Spreads', title: 'NFL Teaser Builder', sport: 'NFL' },
   { key: 'grade-slip', route: '/grade-slip', eyebrow: '// Slip Grader', title: 'Grade My Slip', sport: 'ALL' },
   { key: 'value-finder', route: '/value-finder', eyebrow: '// All Sports', title: 'Game Lines', sport: 'ALL' },
+  { key: 'ev-finder', route: '/ev-finder', eyebrow: '// All Sports · Player Props', title: '+EV Finder', sport: 'ALL' },
 ]
 
 const MAX_CHEAT_SHEET_STAT_PLAYERS = 110
