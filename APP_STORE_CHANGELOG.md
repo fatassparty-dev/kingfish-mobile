@@ -24,6 +24,12 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-24] CODED: "100% Hit Rate — All Sports" renamed "100% Hit Rate — NFL & MLB".**
+  - **What the reviewer sees:** Cheat Sheets + Help show the new name; the
+    sheet now lists under the NFL filter instead of every sport.
+  - **Why:** the sheet only ever had NFL and MLB lines (Brian). Web renamed
+    the same day.
+
 - **[2026-11-24] CODED: NBA Points alt lines (line picker), same as NFL/NHL.**
   - **What the reviewer sees:** NBA → Player Props → Points. A row's line now
     opens a picker with the alternate points lines books post (Over, -250 to

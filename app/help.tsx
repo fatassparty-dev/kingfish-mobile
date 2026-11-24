@@ -97,7 +97,7 @@ const cheatSheets = [
   { title: 'Dashboard Picks', body: "Today's cash card: the plays with the strongest recent hit rate at a playable price, the day's game line, and a bonus long shot. Locks at 9:05 AM CT." },
   { title: 'Top 5 KingFish Leans', body: "The five highest prop edges across every sport plus the top game-line lean, locked at 9:05 AM CT so the board cannot be reshuffled later in the day." },
   { title: 'WNBA Role Movers', body: 'Up to five rising and five falling rotation roles, with season, last 10, and last 5 minutes plus the strongest recent production change.' },
-  { title: '100% Hit Rate — All Sports', body: 'The top 10 posted alternate lines across sports with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
+  { title: '100% Hit Rate — NFL & MLB', body: 'The top 10 posted NFL and MLB alternate lines with a perfect L10 or recent L5 record. Historical performance does not guarantee the next result.' },
   { title: 'Hits Bet/Fade', body: '0.5 hit props ranked by recent hit form, price, and history against today\'s starter.' },
   { title: 'HR Targets', body: 'Home run candidates based on starter history, recent power form, and available odds.' },
   { title: 'Hot Total Bases', body: 'Players clearing their total-bases line consistently, with Last 5 hit rate added so one big game does not carry the sheet.' },

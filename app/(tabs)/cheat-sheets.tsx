@@ -154,7 +154,7 @@ const SHEETS: Array<{
 }> = [
   ...NCAA_SHEETS,
   { key: 'picks', label: 'Dashboard Picks', desc: "Today's cash card — the plays with the strongest recent hit rate at a playable price, plus the day's game line. Locks 9:05 AM CT.", type: 'picks' },
-  { key: 'perfect_l10', label: '100% Hit Rate — All Sports', desc: 'The top 10 posted lines across sports with a perfect L10 or recent L5 record.', type: 'perfect' },
+  { key: 'perfect_l10', label: '100% Hit Rate — NFL & MLB', desc: 'The top 10 posted NFL and MLB lines with a perfect L10 or recent L5 record.', type: 'perfect' },
   { key: 'topleans', label: 'Top 5 KingFish Leans', desc: "Today's five best prop edges across every sport, plus the top game-line lean. Locks 9:05 AM CT.", type: 'topleans' },
   { key: 'nrfi', label: 'NRFI / YRFI', desc: 'Our first-inning run / no-run model — a lean for every game today.', type: 'nrfi' },
   { key: 'hits', label: 'Hits Bet/Fade', desc: 'Hit props ranked by form, hit rate, price, and edge.', type: 'props', market: 'batter_hits', statField: 'hits_per_game' },
@@ -183,7 +183,7 @@ const SHEETS: Array<{
 const TOOL_TILES: ToolTile[] = [
   ...NCAA_SHEETS.map(sheet => ({ key: sheet.key, label: sheet.label.replace('NCAA Football — ', ''), sport: 'NCAAF' as const })),
   { key: 'picks', label: 'Dashboard Picks', sport: 'ALL' },
-  { key: 'perfect_l10', label: '100% Hit Rate', sport: 'ALL' },
+  { key: 'perfect_l10', label: '100% Hit Rate', sport: 'NFL' },
   { key: 'topleans', label: 'Top 5 Leans', sport: 'ALL' },
   { key: 'nrfi', label: 'NRFI / YRFI', sport: 'MLB' },
   { key: 'hits', label: 'Hits Bet/Fade', sport: 'MLB' },
