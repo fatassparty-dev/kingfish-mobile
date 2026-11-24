@@ -1499,9 +1499,9 @@ export default function DashboardScreen() {
     // VALUE/EV — CLAUDE.md "Calculated scores live on the web"). MLB and NFL
     // were missing from this list, so their prop tables were silently falling
     // back to locally-recomputed EDGE scores instead of the server's.
-    // alts=board (NFL, NHL): the server's trimmed alt rungs (-250..+250) and
+    // alts=board (NFL, NHL, NBA points): the server's trimmed alt rungs (-250..+250) and
     // their server-scored Edge (altScores) for each row's line picker.
-    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1${sport === 'NFL' || sport === 'NHL' ? '&alts=board' : ''}${canPreviewProps ? '&preview=1' : ''}`),
+    queryFn: () => kingfishFetch<PropsResponse>(`/api/${sportApiKey(sport)}-props?includeStats=1${sport === 'NFL' || sport === 'NHL' || sport === 'NBA' ? '&alts=board' : ''}${canPreviewProps ? '&preview=1' : ''}`),
     enabled: canFetchProps,
     staleTime: 5 * 60 * 1000,
   })

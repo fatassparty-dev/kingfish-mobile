@@ -223,10 +223,11 @@ function isYesOnlyMarket(marketKey: string) {
   return YES_ONLY_MARKETS.has(baseMarketKey(marketKey))
 }
 
-// Where a row's alt rungs come from on the `alts=board` payload (NFL and NHL;
-// other sports have no alt ladders on the web either). Anytime TD / Anytime
+// Where a row's alt rungs come from on the `alts=board` payload (NFL, NHL, and
+// NBA points since 2026-11-24; other sports have no alt ladders on the web either). Anytime TD / Anytime
 // Goal offer their 2+ rung, like the web board.
 function altSource(marketKey: string, sport: Sport): { key: string; point?: number } | null {
+  if (sport === 'NBA') return marketKey === 'player_points' ? { key: 'player_points_alternate' } : null
   if (sport !== 'NFL' && sport !== 'NHL') return null
   if (marketKey === 'player_anytime_td') return { key: 'player_tds_over', point: 1.5 }
   if (marketKey === 'player_goal_scorer_anytime') return { key: 'player_goals_alternate', point: 1.5 }

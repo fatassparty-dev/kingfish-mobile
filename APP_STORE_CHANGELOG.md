@@ -24,6 +24,16 @@ data* it didn't know about before.
 
 ## 🔵 Next build (after 1.1.4) — NOT YET BUILT (Brian: hold until there's enough for a release)
 
+- **[2026-11-24] CODED: NBA Points alt lines (line picker), same as NFL/NHL.**
+  - **What the reviewer sees:** NBA → Player Props → Points. A row's line now
+    opens a picker with the alternate points lines books post (Over, -250 to
+    +250); picking one updates the price, hit rates and Edge for that line.
+  - **Why:** points is the most-bet NBA prop; parity with the web board
+    (kingfish-bets `c0a4a41`). Edge per line is computed on the server
+    (`altScores`); the app only asks for it (`alts=board` for NBA) and lets
+    NBA points rows use the existing picker (`altSource`). Other NBA markets
+    unchanged.
+
 - **[2026-11-13] CODED: KingFish spread leans on NFL + NCAAB Game Props (web parity).**
   - **What the reviewer sees:** Dashboard → Game Props for NFL and men's
     college basketball. Landscape: the Spread column is now "Spread / KF
